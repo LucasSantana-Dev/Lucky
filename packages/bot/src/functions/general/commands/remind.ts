@@ -264,6 +264,8 @@ export default new Command({
                     opt
                         .setName('id')
                         .setDescription('Reminder ID to delete')
+                        .setMinLength(4)
+                        .setMaxLength(32)
                         .setRequired(true),
                 ),
         )
@@ -341,12 +343,18 @@ export default new Command({
             })
 
         const guild = interaction.guild
-        if (!guild) {
+        const subcommand = interaction.options.getSubcommand()
+        // In a DM only `list` and `delete` work (so a user who left a server
+        // can still see and stop their reminders, #2619); creating reminders
+        // needs a server.
+        if (!guild && subcommand !== 'list' && subcommand !== 'delete') {
             await replyText('❌ This command can only be used in a server.')
             return
         }
-
-        const subcommand = interaction.options.getSubcommand()
+        // null = every guild (DM); the userId filter still scopes to the owner.
+        const scopeGuildId = guild?.id ?? null
+        // Safe cast: set/channel/role returned above when there is no guild.
+        const serverGuildId = scopeGuildId as string
 
         try {
             if (subcommand === 'set') {
@@ -365,7 +373,7 @@ export default new Command({
                 if (repetir) {
                     await createRecurring(
                         interaction,
-                        guild.id,
+                        serverGuildId,
                         mensagem,
                         repetir,
                         replyText,
@@ -391,7 +399,7 @@ export default new Command({
 
                 const remindAt = new Date(Date.now() + ms)
                 const reminder = await reminderService.create(
-                    guild.id,
+                    serverGuildId,
                     interaction.user.id,
                     interaction.channelId,
                     mensagem,
@@ -414,7 +422,7 @@ export default new Command({
 
                 infoLog({
                     message: `reminder set by ${interaction.user.tag}: ${tempo}`,
-                    data: { guildId: guild.id, reminderId: reminder.id },
+                    data: { guildId: serverGuildId, reminderId: reminder.id },
                 })
                 return
             }
@@ -455,7 +463,7 @@ export default new Command({
 
                 const remindAt = new Date(Date.now() + ms)
                 const reminder = await reminderService.create(
-                    guild.id,
+                    serverGuildId,
                     interaction.user.id,
                     canal.id,
                     mensagem,
@@ -481,24 +489,32 @@ export default new Command({
 
                 infoLog({
                     message: `${subcommand} reminder set by ${interaction.user.tag}: ${tempo}`,
-                    data: { guildId: guild.id, reminderId: reminder.id },
+                    data: { guildId: serverGuildId, reminderId: reminder.id },
                 })
                 return
             }
 
             if (subcommand === 'list') {
                 const reminders = await reminderService.listPending(
-                    guild.id,
+                    scopeGuildId,
                     interaction.user.id,
                     10,
                 )
 
                 if (reminders.length === 0) {
                     await replyText(
-                        "You don't have any pending reminders. Use `/remind set` to create one.",
+                        guild
+                            ? "You don't have any pending reminders. Use `/remind set` to create one."
+                            : "You don't have any pending reminders.",
                     )
                     return
                 }
+
+                // DM list spans guilds, so name the server on each line.
+                const serverSuffix = (rGuildId: string): string =>
+                    guild
+                        ? ''
+                        : ` · ${interaction.client.guilds.cache.get(rGuildId)?.name ?? 'a server I am no longer in'}`
 
                 const lines = reminders.map((r) => {
                     const when = Math.ceil(
@@ -514,7 +530,7 @@ export default new Command({
                     const nextStr = r.recurrenceRule
                         ? `next ${whenStr}`
                         : whenStr
-                    return `${prefix}${r.message.slice(0, 40)}${r.message.length > 40 ? '…' : ''} — ${nextStr} (ID: ${r.id.slice(0, 8)})`
+                    return `${prefix}${r.message.slice(0, 40)}${r.message.length > 40 ? '…' : ''} — ${nextStr} (ID: ${r.id.slice(0, 8)})${serverSuffix(r.guildId)}`
                 })
 
                 const embed = new EmbedBuilder()
@@ -535,7 +551,7 @@ export default new Command({
                 // matter how many reminders the user has; must be UNIQUE —
                 // deleting the first match could remove the wrong one.
                 const matches = await reminderService.findPendingByIdPrefix(
-                    guild.id,
+                    scopeGuildId,
                     interaction.user.id,
                     id,
                 )
@@ -554,7 +570,7 @@ export default new Command({
                 const reminder = matches[0]
 
                 const deleted = await reminderService.deleteOwned(
-                    guild.id,
+                    scopeGuildId,
                     interaction.user.id,
                     reminder.id,
                 )
@@ -569,7 +585,10 @@ export default new Command({
 
                 infoLog({
                     message: `reminder deleted by ${interaction.user.tag}`,
-                    data: { guildId: guild.id, reminderId: reminder.id },
+                    data: {
+                        guildId: guild?.id ?? 'dm',
+                        reminderId: reminder.id,
+                    },
                 })
             }
         } catch (error) {

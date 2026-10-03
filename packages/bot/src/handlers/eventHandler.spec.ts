@@ -17,6 +17,7 @@ const handleReactionEventsMock = jest.fn()
 const handleMusicButtonInteractionMock = jest.fn()
 const handleButtonInteractionMock = jest.fn()
 const handleFeedbackReportButtonMock = jest.fn()
+const handleReminderStopButtonMock = jest.fn()
 const createOnboardingStationRowMock = jest.fn(async () => ({}))
 const handleOnboardingStationButtonMock = jest.fn()
 const executeCommandMock = jest.fn()
@@ -95,6 +96,12 @@ jest.mock('../utils/monitoring/recordCommandEvent', () => ({
 jest.mock('./feedbackButtonHandler', () => ({
     handleFeedbackReportButton: (...args: unknown[]) =>
         handleFeedbackReportButtonMock(...args),
+}))
+
+jest.mock('../functions/general/reminderStopButton', () => ({
+    REMINDER_STOP_BUTTON_PREFIX: 'remind_stop:',
+    handleReminderStopButton: (...args: unknown[]) =>
+        handleReminderStopButtonMock(...args),
 }))
 
 jest.mock('./moveMessageHandler', () => ({
@@ -711,6 +718,14 @@ describe('eventHandler', () => {
             handleFeedbackReportButtonMock.mockResolvedValue(undefined)
             await dispatchButton('feedback_report:play:sentry-evt-1')
             expect(handleFeedbackReportButtonMock).toHaveBeenCalledTimes(1)
+            expect(handleButtonInteractionMock).not.toHaveBeenCalled()
+            expect(handleMusicButtonInteractionMock).not.toHaveBeenCalled()
+        })
+
+        it('routes remind_stop: buttons to handleReminderStopButton (#2619)', async () => {
+            handleReminderStopButtonMock.mockResolvedValue(undefined)
+            await dispatchButton('remind_stop:abc123')
+            expect(handleReminderStopButtonMock).toHaveBeenCalledTimes(1)
             expect(handleButtonInteractionMock).not.toHaveBeenCalled()
             expect(handleMusicButtonInteractionMock).not.toHaveBeenCalled()
         })

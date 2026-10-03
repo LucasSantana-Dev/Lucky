@@ -358,3 +358,121 @@ describe('/remind command', () => {
         expect(args.content.ephemeral).toBe(true)
     })
 })
+
+describe('remind in DMs (#2619)', () => {
+    const row = (over: Record<string, unknown>) => ({
+        id: 'abc12345xyz',
+        guildId: 'guild-1',
+        userId: 'u1',
+        channelId: 'channel-1',
+        message: 'Standup',
+        remindAt: new Date(Date.now() + 10 * 60 * 1000),
+        delivered: false,
+        recurrenceRule: null,
+        ...over,
+    })
+
+    function dmInteraction(
+        subcommand: string,
+        reminderId?: string,
+        cache: Map<string, { name: string }> = new Map(),
+    ) {
+        return {
+            ...makeInteraction(
+                subcommand,
+                undefined,
+                undefined,
+                reminderId,
+                false,
+            ),
+            client: { guilds: { cache } },
+        }
+    }
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        reminderServiceMock.listPending.mockReset().mockResolvedValue([])
+        reminderServiceMock.findPendingByIdPrefix
+            .mockReset()
+            .mockResolvedValue([])
+        reminderServiceMock.deleteOwned.mockReset().mockResolvedValue(true)
+        interactionReply.mockClear().mockResolvedValue(undefined)
+    })
+
+    test('list shows the server name per line, with a fallback for guilds the bot left', async () => {
+        reminderServiceMock.listPending.mockResolvedValue([
+            row({ id: 'aaaaaaaa1', guildId: 'guild-1' }),
+            row({ id: 'bbbbbbbb2', guildId: 'gone' }),
+        ] as never)
+        await remindCommand.execute({
+            interaction: dmInteraction(
+                'list',
+                undefined,
+                new Map([['guild-1', { name: 'Alpha' }]]),
+            ) as never,
+        })
+
+        expect(reminderServiceMock.listPending).toHaveBeenCalledWith(
+            null,
+            'u1',
+            10,
+        )
+        const args = interactionReply.mock.calls[0][0] as {
+            content: { embeds: { description: string }[] }
+        }
+        const desc = args.content.embeds[0].description
+        expect(desc).toContain('Alpha')
+        expect(desc).toContain('a server I am no longer in')
+    })
+
+    test('list empty state in DM', async () => {
+        await remindCommand.execute({
+            interaction: dmInteraction('list') as never,
+        })
+        const args = interactionReply.mock.calls[0][0] as {
+            content: { content: string }
+        }
+        expect(args.content.content).toBe(
+            "You don't have any pending reminders.",
+        )
+    })
+
+    test('delete works in DM with a null guildId', async () => {
+        reminderServiceMock.findPendingByIdPrefix.mockResolvedValueOnce([
+            row({}),
+        ] as never)
+        await remindCommand.execute({
+            interaction: dmInteraction('delete', 'abc12345') as never,
+        })
+        expect(reminderServiceMock.findPendingByIdPrefix).toHaveBeenCalledWith(
+            null,
+            'u1',
+            'abc12345',
+        )
+        expect(reminderServiceMock.deleteOwned).toHaveBeenCalledWith(
+            null,
+            'u1',
+            'abc12345xyz',
+        )
+        const args = interactionReply.mock.calls[0][0] as {
+            content: { content: string }
+        }
+        expect(args.content.content).toContain('deleted')
+    })
+
+    test.each(['set', 'channel', 'role'])(
+        '%s is rejected in DM',
+        async (sub) => {
+            await remindCommand.execute({
+                interaction: dmInteraction(sub) as never,
+            })
+            const args = interactionReply.mock.calls[0][0] as {
+                content: { content: string }
+            }
+            expect(args.content.content).toBe(
+                '❌ This command can only be used in a server.',
+            )
+            expect(reminderServiceMock.create).not.toHaveBeenCalled()
+        },
+    )
+})
