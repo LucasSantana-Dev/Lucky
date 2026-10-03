@@ -914,6 +914,7 @@ describe('eventHandler', () => {
                 replied: false,
                 deferred: false,
             })
+            expect(interactionReplyMock).toHaveBeenCalledTimes(1)
             const messages = errorLogMock.mock.calls.map(
                 (c) => (c[0] as { message: string }).message,
             )
