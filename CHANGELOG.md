@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.50.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.49.0...v2.50.0) (2026-10-03)
+
+
+### Features
+
+* **dashboard:** channel and role pickers for levels and starboard ([#2617](https://github.com/LucasSantana-Dev/Lucky/issues/2617)) ([14206ad](https://github.com/LucasSantana-Dev/Lucky/commit/14206adef4fbc8b9b87f19d9e7bc6962278ae5b7))
+
+
+### Bug Fixes
+
+* **bot:** stop reminders after leaving the server ([#2621](https://github.com/LucasSantana-Dev/Lucky/issues/2621)) ([22ba819](https://github.com/LucasSantana-Dev/Lucky/commit/22ba8193bf8a62e032e1d9037d35ea9e220b0369))
+* **i18n:** translate hardcoded automation, config and auth strings ([#2616](https://github.com/LucasSantana-Dev/Lucky/issues/2616)) ([74df64e](https://github.com/LucasSantana-Dev/Lucky/commit/74df64e4e426d3e0cae5e325669a1f3dd05051dc))
+
 ## [2.49.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.48.0...v2.49.0) (2026-10-03)
 
 
