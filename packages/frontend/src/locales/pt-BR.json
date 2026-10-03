@@ -1134,7 +1134,7 @@
         "clearConfirmDescription": "Isso remove permanentemente o histórico e as estatísticas de músicas deste servidor. Não é possível desfazer.",
         "failedToClearHistory": "Falha ao limpar histórico",
         "playedBy": "Por <bold>{{user}}</bold>",
-        "justNow": "Agora há pouco",
+        "justNow": "Agora mesmo",
         "minutesAgo": "há {{minutes}} min",
         "hoursAgo": "há {{hours}} h",
         "daysAgo": "há {{days}} d"
