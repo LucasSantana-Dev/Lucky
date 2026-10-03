@@ -18,6 +18,12 @@ import type { CommandCategory } from '../config/constants'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
+import { recordCommandEvent } from '../utils/monitoring/recordCommandEvent'
+import {
+    classifyOutcome,
+    type CommandKind,
+    type CommandStopReason,
+} from '../utils/monitoring/commandOutcome'
 import { buildFeedbackReportCustomId } from '../services/feedbackService'
 
 const CATEGORY_FLAG_MAP: Partial<Record<CommandCategory, FeatureToggleName>> = {
@@ -183,6 +189,113 @@ const replyExecutionError = async (
     }
 }
 
+type DispatchTarget = {
+    category: CommandCategory
+    botPermissions?: bigint[]
+}
+
+/**
+ * Shared gate chain for slash and context-menu dispatch. Returns the stop
+ * reason when the interaction was answered by a gate instead of the command.
+ */
+const runGates = async (
+    interaction:
+        ChatInputCommandInteraction | MessageContextMenuCommandInteraction,
+    target: DispatchTarget,
+): Promise<CommandStopReason | null> => {
+    if (!(await isFeatureEnabledOrReply(target.category, interaction))) {
+        return 'feature_disabled'
+    }
+    if (!(await enforceBotPermissions(interaction, target.botPermissions))) {
+        return 'missing_bot_permissions'
+    }
+    return null
+}
+
+type HandledSignal = { error?: unknown; reason?: CommandStopReason }
+
+const recordHandled = (
+    interaction:
+        ChatInputCommandInteraction | MessageContextMenuCommandInteraction,
+    kind: CommandKind,
+    startedAt: number,
+    known: boolean,
+    signal: HandledSignal,
+): void => {
+    try {
+        const { outcome, errorClass } = classifyOutcome(signal)
+        recordCommandEvent({
+            interaction,
+            kind,
+            outcome,
+            startedAt,
+            known,
+            errorClass,
+        })
+    } catch (recordError) {
+        errorLog({
+            message: 'Error recording command event:',
+            error: recordError,
+        })
+    }
+}
+
+type DispatchParams = {
+    interaction:
+        ChatInputCommandInteraction | MessageContextMenuCommandInteraction
+    client: CustomClient
+    kind: CommandKind
+    label: string
+    target: (DispatchTarget & { execute: unknown }) | undefined
+    failureTag: string
+}
+
+/**
+ * Shared slash/context dispatch: gates, execute, error reply, and exactly one
+ * recorded event. Recording happens outside the try so a recorder bug cannot
+ * add a second error event or error reply for a command that already ran.
+ */
+const dispatchAndRecord = async ({
+    interaction,
+    client,
+    kind,
+    label,
+    target,
+    failureTag,
+}: DispatchParams): Promise<void> => {
+    const startedAt = Date.now()
+    let known = false
+    let signal: HandledSignal = {}
+    try {
+        if (!target) {
+            debugLog({
+                message: `${label} not found: ${interaction.commandName}`,
+            })
+            signal = { reason: 'not_found' }
+        } else {
+            known = true
+            const stopped = await runGates(interaction, target)
+            if (stopped) {
+                signal = { reason: stopped }
+            } else {
+                debugLog({
+                    message: `Executing ${label.toLowerCase()}: ${interaction.commandName}`,
+                })
+                await (
+                    target.execute as (p: {
+                        interaction: unknown
+                        client: CustomClient
+                    }) => Promise<unknown>
+                )({ interaction, client })
+            }
+        }
+    } catch (error) {
+        signal = { error }
+        await replyExecutionError(error, interaction, failureTag)
+    }
+    recordHandled(interaction, kind, startedAt, known, signal)
+}
+
 export const executeCommand = async ({
     interaction,
     client,
@@ -210,34 +323,14 @@ export const executeCommand = async ({
         })
     }
 
-    try {
-        const command = client.commands.get(interaction.commandName)
-        if (!command) {
-            debugLog({
-                message: `Command not found: ${interaction.commandName}`,
-            })
-            return
-        }
-
-        if (!(await isFeatureEnabledOrReply(command.category, interaction))) {
-            return
-        }
-
-        if (
-            !(await enforceBotPermissions(interaction, command.botPermissions))
-        ) {
-            return
-        }
-
-        debugLog({ message: `Executing command: ${interaction.commandName}` })
-        await command.execute({ interaction, client })
-    } catch (error) {
-        await replyExecutionError(
-            error,
-            interaction,
-            'command-execution-failure',
-        )
-    }
+    await dispatchAndRecord({
+        interaction,
+        client,
+        kind: 'slash',
+        label: 'Command',
+        target: client.commands.get(interaction.commandName),
+        failureTag: 'command-execution-failure',
+    })
 }
 
 export const executeContextMenu = async ({
@@ -250,41 +343,14 @@ export const executeContextMenu = async ({
         interaction.guild?.id,
     )
 
-    try {
-        const contextMenu = client.contextMenus.get(interaction.commandName)
-        if (!contextMenu) {
-            debugLog({
-                message: `Context menu not found: ${interaction.commandName}`,
-            })
-            return
-        }
-
-        if (
-            !(await isFeatureEnabledOrReply(contextMenu.category, interaction))
-        ) {
-            return
-        }
-
-        if (
-            !(await enforceBotPermissions(
-                interaction,
-                contextMenu.botPermissions,
-            ))
-        ) {
-            return
-        }
-
-        debugLog({
-            message: `Executing context menu: ${interaction.commandName}`,
-        })
-        await contextMenu.execute({ interaction, client })
-    } catch (error) {
-        await replyExecutionError(
-            error,
-            interaction,
-            'context-menu-execution-failure',
-        )
-    }
+    await dispatchAndRecord({
+        interaction,
+        client,
+        kind: 'context',
+        label: 'Context menu',
+        target: client.contextMenus.get(interaction.commandName),
+        failureTag: 'context-menu-execution-failure',
+    })
 }
 
 export async function setCommands({

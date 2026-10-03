@@ -42,6 +42,10 @@ import { weeklyDigestService } from '../../services/WeeklyDigestService'
 import { stopTwitchService } from '../../twitch'
 import { stopBatchJobWorker } from '../../workers/batchJobWorker'
 import { setClient } from '../clientStore'
+import {
+    startCommandEventBuffer,
+    stopCommandEventBuffer,
+} from '../../utils/monitoring/commandEventBuffer'
 import { stopRssBridgeService } from '../../services/RssBridgeService'
 import type {
     BotInitializationOptions,
@@ -140,6 +144,8 @@ export class BotInitializer {
 
         try {
             infoLog({ message: 'Starting bot initialization...' })
+            // Re-arm the buffer: shutdown() leaves it stopped.
+            startCommandEventBuffer()
 
             await this.initializeRedisServices()
             await initProviderHealth()
@@ -387,6 +393,12 @@ export class BotInitializer {
                     isReady: false,
                 }
             }
+        }
+        // After client.destroy() so no new interactions can enqueue events.
+        try {
+            await stopCommandEventBuffer()
+        } catch (error) {
+            errorLog({ message: 'Error flushing command events:', error })
         }
         try {
             await stopMetricsServer()

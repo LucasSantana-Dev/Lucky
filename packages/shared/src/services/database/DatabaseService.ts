@@ -593,7 +593,7 @@ export class DatabaseService {
     }
 
     /** Deletes track history, expired rate limit records, and server logs older than 30 days,
-     * and user feedback (#2477) older than its own 180-day retention window. */
+     * user feedback (#2477) and command events (#2391) older than their own 180-day window. */
     async cleanupOldData(): Promise<Result<number>> {
         return this.executeWithFallback(async () => {
             const thirtyDaysAgo = new Date(
@@ -603,27 +603,36 @@ export class DatabaseService {
                 Date.now() - 180 * 24 * 60 * 60 * 1000,
             )
 
-            const [tracks, rateLimits, serverLogs, userFeedback] =
-                await Promise.all([
-                    this.prisma.trackHistory.deleteMany({
-                        where: { playedAt: { lt: thirtyDaysAgo } },
-                    }),
-                    this.prisma.rateLimit.deleteMany({
-                        where: { resetAt: { lt: new Date() } },
-                    }),
-                    this.prisma.serverLog.deleteMany({
-                        where: { createdAt: { lt: thirtyDaysAgo } },
-                    }),
-                    this.prisma.userFeedback.deleteMany({
-                        where: { createdAt: { lt: oneHundredEightyDaysAgo } },
-                    }),
-                ])
+            const [
+                tracks,
+                rateLimits,
+                serverLogs,
+                userFeedback,
+                commandEvents,
+            ] = await Promise.all([
+                this.prisma.trackHistory.deleteMany({
+                    where: { playedAt: { lt: thirtyDaysAgo } },
+                }),
+                this.prisma.rateLimit.deleteMany({
+                    where: { resetAt: { lt: new Date() } },
+                }),
+                this.prisma.serverLog.deleteMany({
+                    where: { createdAt: { lt: thirtyDaysAgo } },
+                }),
+                this.prisma.userFeedback.deleteMany({
+                    where: { createdAt: { lt: oneHundredEightyDaysAgo } },
+                }),
+                this.prisma.commandEvent.deleteMany({
+                    where: { occurredAt: { lt: oneHundredEightyDaysAgo } },
+                }),
+            ])
 
             return (
                 tracks.count +
                 rateLimits.count +
                 serverLogs.count +
-                userFeedback.count
+                userFeedback.count +
+                commandEvents.count
             )
         }, 'cleanup_old_data')
     }

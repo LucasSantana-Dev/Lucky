@@ -17,6 +17,7 @@ const mockRateLimitUpdate = jest.fn<(args?: any) => Promise<any>>()
 const mockRateLimitDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockServerLogDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockUserFeedbackDeleteMany = jest.fn<(args?: any) => Promise<any>>()
+const mockCommandEventDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockGetPrismaClient = jest.fn<() => any>()
 
 jest.mock('../../utils/database/prismaClient', () => ({
@@ -70,12 +71,16 @@ describe('DatabaseService', () => {
             serverLog: {
                 deleteMany: mockServerLogDeleteMany,
             },
+            commandEvent: {
+                deleteMany: mockCommandEventDeleteMany,
+            },
             userFeedback: {
                 deleteMany: mockUserFeedbackDeleteMany,
             },
         })
         mockServerLogDeleteMany.mockResolvedValue({ count: 0 })
         mockUserFeedbackDeleteMany.mockResolvedValue({ count: 0 })
+        mockCommandEventDeleteMany.mockResolvedValue({ count: 0 })
         service = new DatabaseService(TEST_CONFIG)
     })
 
@@ -812,6 +817,28 @@ describe('DatabaseService', () => {
             expect(cutoff.getTime()).toBeLessThanOrEqual(
                 after - oneHundredEightyDaysMs + 1000,
             )
+        })
+
+        it('deletes command events older than 180 days and counts them (#2391)', async () => {
+            mockTrackHistoryDeleteMany.mockResolvedValue({ count: 1 })
+            mockRateLimitDeleteMany.mockResolvedValue({ count: 0 })
+            mockServerLogDeleteMany.mockResolvedValue({ count: 0 })
+            mockUserFeedbackDeleteMany.mockResolvedValue({ count: 0 })
+            mockCommandEventDeleteMany.mockResolvedValue({ count: 9 })
+
+            const before = Date.now()
+            const result = await service.cleanupOldData()
+
+            expect(result.isSuccess()).toBe(true)
+            expect(result.getData()).toBe(10)
+            expect(mockCommandEventDeleteMany).toHaveBeenCalledWith({
+                where: { occurredAt: { lt: expect.any(Date) } },
+            })
+            const cutoff = mockCommandEventDeleteMany.mock.calls[0]?.[0].where
+                .occurredAt.lt as Date
+            const ms = 180 * 24 * 60 * 60 * 1000
+            expect(cutoff.getTime()).toBeGreaterThanOrEqual(before - ms - 1000)
+            expect(cutoff.getTime()).toBeLessThanOrEqual(Date.now() - ms + 1000)
         })
 
         it('deletes server logs older than 30 days', async () => {

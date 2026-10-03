@@ -37,6 +37,7 @@ import {
     ONBOARDING_STATION_BUTTON_PREFIX,
 } from './onboardingStation'
 import { executeCommand, executeContextMenu } from './commandsHandler'
+import { recordCommandEvent } from '../utils/monitoring/recordCommandEvent'
 import {
     handleMoveMessageSelect,
     MOVE_MESSAGE_SELECT_PREFIX,
@@ -203,9 +204,18 @@ function handleGuildCreate(client: Client): void {
 
 async function handleCommandNotFound(
     interaction: ChatInputCommandInteraction,
+    startedAt: number,
 ): Promise<void> {
     infoLog({
         message: `Command ${interaction.commandName} not found`,
+    })
+    // Unknown slash commands never reach executeCommand, so record them here.
+    recordCommandEvent({
+        interaction,
+        kind: 'slash',
+        outcome: 'user_error',
+        startedAt,
+        known: false,
     })
     if (!interaction.replied && !interaction.deferred) {
         await interactionReply({
@@ -222,11 +232,12 @@ async function handleCommandExecution(
     client: Client,
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
+    const startedAt = Date.now()
     const command = (client as CustomClient).commands.get(
         interaction.commandName,
     )
     if (!command) {
-        await handleCommandNotFound(interaction)
+        await handleCommandNotFound(interaction, startedAt)
         return
     }
 

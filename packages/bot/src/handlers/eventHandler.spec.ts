@@ -87,6 +87,11 @@ jest.mock('./commandsHandler', () => ({
     executeContextMenu: (...args: unknown[]) => executeContextMenuMock(...args),
 }))
 
+const recordCommandEventMock = jest.fn()
+jest.mock('../utils/monitoring/recordCommandEvent', () => ({
+    recordCommandEvent: (...args: unknown[]) => recordCommandEventMock(...args),
+}))
+
 jest.mock('./feedbackButtonHandler', () => ({
     handleFeedbackReportButton: (...args: unknown[]) =>
         handleFeedbackReportButtonMock(...args),
@@ -260,6 +265,49 @@ describe('eventHandler', () => {
                 ephemeral: true,
             },
         })
+        expect(recordCommandEventMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                kind: 'slash',
+                outcome: 'user_error',
+                known: false,
+            }),
+        )
+    })
+
+    it('stamps the unknown-command event with a start time taken before the lookup', async () => {
+        let tick = 1000
+        const nowSpy = jest
+            .spyOn(Date, 'now')
+            .mockImplementation(() => (tick += 100))
+        try {
+            let recordedAt = 0
+            recordCommandEventMock.mockImplementationOnce(() => {
+                recordedAt = Date.now()
+            })
+            const { client, onMock } = createMockClient()
+            handleEvents(client as unknown as never)
+
+            getInteractionCreateHandler(onMock)?.({
+                isAutocomplete: () => false,
+                isButton: () => false,
+                isMessageContextMenuCommand: () => false,
+                isChannelSelectMenu: () => false,
+                isStringSelectMenu: () => false,
+                isChatInputCommand: () => true,
+                commandName: 'unknown',
+                replied: false,
+                deferred: false,
+            } as unknown as Interaction)
+            await flushAsyncHandlers()
+
+            const call = recordCommandEventMock.mock.calls.at(-1)?.[0] as {
+                startedAt: number
+            }
+            // A start time taken at record time would equal or exceed recordedAt.
+            expect(call.startedAt).toBeLessThan(recordedAt)
+        } finally {
+            nowSpy.mockRestore()
+        }
     })
 
     it('routes a chat-input command through executeCommand (spam-cooldown, feature-toggle and permission guard, #2483)', async () => {

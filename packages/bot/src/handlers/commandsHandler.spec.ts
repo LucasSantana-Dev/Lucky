@@ -40,6 +40,10 @@ jest.mock('../utils/monitoring', () => ({
     monitorCommandExecution: jest.fn(),
 }))
 
+jest.mock('../utils/monitoring/recordCommandEvent', () => ({
+    recordCommandEvent: jest.fn(),
+}))
+
 jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
     createUserFriendlyError: jest.fn().mockReturnValue('An error occurred'),
 }))
@@ -49,6 +53,7 @@ import { recordWithCooldown, emitAlert } from '@lucky/shared/utils/alerts'
 import { featureToggleService } from '@lucky/shared/services'
 import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
+import { recordCommandEvent } from '../utils/monitoring/recordCommandEvent'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 
 function createMockCommand(overrides?: Partial<Command>): Command {
@@ -360,6 +365,147 @@ describe('commandsHandler', () => {
                     ephemeral: true,
                 },
             })
+        })
+    })
+
+    describe('command event recording (#2391)', () => {
+        beforeEach(() => {
+            // earlier suites leave rejecting implementations behind
+            ;(interactionReply as jest.Mock).mockResolvedValue(undefined)
+        })
+
+        const recorded = () =>
+            (recordCommandEvent as jest.Mock).mock.calls.map(
+                (c) => c[0] as Record<string, unknown>,
+            )
+
+        it('records one ok slash event on success', async () => {
+            const interaction = createMockInteraction()
+            const client = createMockClient()
+            client.commands.set('test', createMockCommand())
+
+            await executeCommand({ interaction, client })
+
+            expect(recorded()).toHaveLength(1)
+            expect(recorded()[0]).toMatchObject({
+                kind: 'slash',
+                outcome: 'ok',
+                known: true,
+                interaction,
+            })
+        })
+
+        it('records an unknown command as user_error with known=false', async () => {
+            await executeCommand({
+                interaction: createMockInteraction({ commandName: 'zzz' }),
+                client: createMockClient(),
+            })
+            expect(recorded()).toHaveLength(1)
+            expect(recorded()[0]).toMatchObject({
+                outcome: 'user_error',
+                known: false,
+            })
+        })
+
+        it('records feature disabled as user_error', async () => {
+            ;(featureToggleService.isEnabled as jest.Mock).mockResolvedValue(
+                false,
+            )
+            const client = createMockClient()
+            client.commands.set(
+                'test',
+                createMockCommand({ category: 'moderation' }),
+            )
+            await executeCommand({
+                interaction: createMockInteraction(),
+                client,
+            })
+            expect(recorded()).toHaveLength(1)
+            expect(recorded()[0]).toMatchObject({ outcome: 'user_error' })
+        })
+
+        it('records missing bot permissions as denied', async () => {
+            const client = createMockClient()
+            client.commands.set(
+                'test',
+                createMockCommand({
+                    botPermissions: [PermissionFlagsBits.BanMembers],
+                }),
+            )
+            await executeCommand({
+                interaction: createMockInteraction({
+                    appPermissions: new PermissionsBitField(),
+                } as any),
+                client,
+            })
+            expect(recorded()).toHaveLength(1)
+            expect(recorded()[0]).toMatchObject({ outcome: 'denied' })
+        })
+
+        it('records a thrown error with its class and still replies', async () => {
+            const command = createMockCommand()
+            ;(command.execute as jest.Mock).mockRejectedValue(
+                new RangeError('bad'),
+            )
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({
+                interaction: createMockInteraction(),
+                client,
+            })
+
+            expect(recorded()).toHaveLength(1)
+            expect(recorded()[0]).toMatchObject({
+                outcome: 'error',
+                errorClass: 'RangeError',
+            })
+            expect(interactionReply).toHaveBeenCalled()
+        })
+
+        it('records one context event', async () => {
+            const client = createMockClient({
+                contextMenus: new Collection(),
+            } as any)
+            const execute = jest.fn().mockResolvedValue(undefined)
+            client.contextMenus.set('Move message', {
+                category: 'general',
+                execute,
+            } as never)
+            await executeContextMenu({
+                interaction: {
+                    commandName: 'Move message',
+                    user: { id: 'u' },
+                    guild: { id: 'g' },
+                } as any,
+                client,
+            })
+            expect(execute).toHaveBeenCalled()
+            expect(recorded()).toHaveLength(1)
+            expect(recorded()[0]).toMatchObject({
+                kind: 'context',
+                outcome: 'ok',
+            })
+        })
+
+        it('a throwing recorder neither errors nor replies for a successful command', async () => {
+            ;(recordCommandEvent as jest.Mock).mockImplementationOnce(() => {
+                throw new Error('recorder bug')
+            })
+            const command = createMockCommand()
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await expect(
+                executeCommand({
+                    interaction: createMockInteraction(),
+                    client,
+                }),
+            ).resolves.toBeUndefined()
+
+            expect(command.execute).toHaveBeenCalledTimes(1)
+            expect(recordCommandEvent).toHaveBeenCalledTimes(1)
+            expect(interactionReply).not.toHaveBeenCalled()
         })
     })
 
