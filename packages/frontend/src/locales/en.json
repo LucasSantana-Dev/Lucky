@@ -1072,6 +1072,7 @@
         "settings": "Settings",
         "active": "Active",
         "channelId": "Channel ID",
+        "channelIdPlaceholder": "Channel ID",
         "emoji": "Emoji",
         "starThreshold": "Star Threshold",
         "allowSelfStar": "Allow Self-Star",

@@ -598,6 +598,9 @@ describe('Levels', () => {
         expect(
             screen.getByRole('button', { name: /add reward/i }),
         ).toBeDisabled()
+        expect(
+            (screen.getByPlaceholderText('e.g. 5') as HTMLInputElement).value,
+        ).toBe('')
     })
 
     test('lets you type a role id when the role list is empty', async () => {

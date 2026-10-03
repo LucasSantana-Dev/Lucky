@@ -271,7 +271,7 @@ function Starboard() {
                                 type='text'
                                 value={channelId}
                                 onChange={(e) => setChannelId(e.target.value)}
-                                placeholder='Channel ID'
+                                placeholder={t('channelIdPlaceholder')}
                                 className='mt-1.5'
                             />
                         ) : (
