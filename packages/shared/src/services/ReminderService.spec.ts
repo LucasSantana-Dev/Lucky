@@ -11,7 +11,6 @@ const mockPrisma = {
     reminder: {
         create: jest.fn() as jest.MockedFunction<any>,
         findMany: jest.fn() as jest.MockedFunction<any>,
-        findUnique: jest.fn() as jest.MockedFunction<any>,
         delete: jest.fn() as jest.MockedFunction<any>,
         deleteMany: jest.fn() as jest.MockedFunction<any>,
         update: jest.fn() as jest.MockedFunction<any>,
@@ -230,17 +229,6 @@ describe('ReminderService', () => {
             expect(
                 mockPrisma.reminder.deleteMany.mock.calls[0][0].where.guildId,
             ).toBe('g1')
-        })
-    })
-
-    describe('findById', () => {
-        test('looks the row up by id only', async () => {
-            mockPrisma.reminder.findUnique.mockResolvedValue({ id: 'r1' })
-            const row = await service.findById('r1')
-            expect(mockPrisma.reminder.findUnique).toHaveBeenCalledWith({
-                where: { id: 'r1' },
-            })
-            expect(row).toEqual({ id: 'r1' })
         })
     })
 

@@ -264,6 +264,8 @@ export default new Command({
                     opt
                         .setName('id')
                         .setDescription('Reminder ID to delete')
+                        .setMinLength(4)
+                        .setMaxLength(32)
                         .setRequired(true),
                 ),
         )

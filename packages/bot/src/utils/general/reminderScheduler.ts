@@ -42,6 +42,7 @@ export class ReminderScheduler extends IntervalScheduler {
     protected async execute(): Promise<void> {
         const dueReminders = await reminderService.getDueReminders(25)
 
+        let deliveredCount = 0
         for (const reminder of dueReminders) {
             // Per-reminder isolation: one failure must not abort the batch.
             try {
@@ -54,6 +55,7 @@ export class ReminderScheduler extends IntervalScheduler {
                     reminder.targetType === 'role'
                 ) {
                     await this.deliverBroadcastOnce(reminder)
+                    deliveredCount++
                     continue
                 }
 
@@ -74,6 +76,7 @@ export class ReminderScheduler extends IntervalScheduler {
 
                 const delivered = await this.deliverReminder(reminder)
                 if (delivered) {
+                    deliveredCount++
                     // Recurring reminders re-arm for their next occurrence
                     // instead of being marked done; one-time reminders complete.
                     await this.completeOrReschedule(reminder)
@@ -101,9 +104,9 @@ export class ReminderScheduler extends IntervalScheduler {
             }
         }
 
-        if (dueReminders.length > 0) {
+        if (deliveredCount > 0) {
             infoLog({
-                message: `reminder scheduler delivered ${dueReminders.length} reminders`,
+                message: `reminder scheduler delivered ${deliveredCount} reminders`,
             })
         }
     }

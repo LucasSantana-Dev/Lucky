@@ -284,6 +284,18 @@ describe('ReminderScheduler.tick', () => {
         )
     })
 
+    it('cancels a recurring reminder in a guild the bot left (no re-arm)', async () => {
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        const guilds = { cache: { get: jest.fn().mockReturnValue(undefined) } }
+        await runTick(deliveringClient(send, guilds), [
+            makeReminder({ recurrenceRule: RULE }),
+        ])
+
+        expect(reminderServiceMock.markDelivered).toHaveBeenCalledWith('r1')
+        expect(reminderServiceMock.rescheduleRecurring).not.toHaveBeenCalled()
+        expect(send).not.toHaveBeenCalled()
+    })
+
     it('fails open and delivers when the member fetch errors transiently', async () => {
         const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
         const fetch = jest.fn().mockRejectedValue(new Error('gateway timeout'))

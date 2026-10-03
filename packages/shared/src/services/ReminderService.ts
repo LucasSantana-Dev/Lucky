@@ -170,11 +170,6 @@ export class ReminderService {
         })
     }
 
-    /** Fetch one reminder by id regardless of owner (existence check only). */
-    async findById(reminderId: string): Promise<ReminderRecord | null> {
-        return await prisma.reminder.findUnique({ where: { id: reminderId } })
-    }
-
     /** Mark a reminder as delivered. */
     async markDelivered(reminderId: string): Promise<void> {
         await prisma.reminder.update({
