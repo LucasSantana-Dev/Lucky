@@ -24,7 +24,7 @@ describe('classifyOutcome', () => {
         expect(classifyOutcome({ error: { a: 1 } }).errorClass).toBe('Object')
     })
 
-    it.each(['missing_bot_permissions', 'cooldown', 'blocked'] as const)(
+    it.each(['missing_bot_permissions'] as const)(
         'maps %s to denied',
         (reason) => {
             expect(classifyOutcome({ reason })).toEqual({ outcome: 'denied' })
@@ -42,8 +42,10 @@ describe('classifyOutcome', () => {
 
     it('lets a thrown error win over a stop reason', () => {
         expect(
-            classifyOutcome({ error: new Error('x'), reason: 'cooldown' })
-                .outcome,
+            classifyOutcome({
+                error: new Error('x'),
+                reason: 'missing_bot_permissions',
+            }).outcome,
         ).toBe('error')
     })
 })

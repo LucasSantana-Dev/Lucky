@@ -105,10 +105,10 @@ export const commandDurationSeconds = new Histogram<'command'>({
     registers: [registry],
 })
 
-/** Counter: command events lost before reaching the database (reason: overflow|flush_failure). */
+/** Counter: command events lost before reaching the database (reason: overflow|flush_failure|stopped|internal_error). */
 export const commandEventsDroppedTotal = new Counter<'reason'>({
     name: 'lucky_bot_command_events_dropped_total',
-    help: 'Count of command events dropped before persisting, by reason (overflow|flush_failure).',
+    help: 'Count of command events dropped before persisting, by reason (overflow|flush_failure|stopped|internal_error).',
     labelNames: ['reason'],
     registers: [registry],
 })

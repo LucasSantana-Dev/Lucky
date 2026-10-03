@@ -19,6 +19,7 @@ type BufferOptions = {
     maxSize?: number
     flushSize?: number
     flushIntervalMs?: number
+    stopTimeoutMs?: number
     warnIntervalMs?: number
 }
 
@@ -33,6 +34,7 @@ const DEFAULT_MAX_SIZE = 5000
 const DEFAULT_FLUSH_SIZE = 100
 const DEFAULT_FLUSH_INTERVAL_MS = 10_000
 const DEFAULT_WARN_INTERVAL_MS = 60_000
+const DEFAULT_STOP_TIMEOUT_MS = 5000
 
 /**
  * Bounded in-memory buffer for command events (#2391). push() is synchronous
@@ -48,7 +50,13 @@ export function createCommandEventBuffer(
     const intervalMs = options.flushIntervalMs ?? DEFAULT_FLUSH_INTERVAL_MS
     const warnIntervalMs = options.warnIntervalMs ?? DEFAULT_WARN_INTERVAL_MS
 
+    const stopTimeoutMs = options.stopTimeoutMs ?? DEFAULT_STOP_TIMEOUT_MS
+
     let rows: CommandEventRow[] = []
+    // Rows handed to a flush that has not settled yet. Counted against maxSize
+    // so a hung DB cannot grow memory without bound.
+    let unsettled = 0
+    let stopped = false
     let timer: ReturnType<typeof setInterval> | null = null
     let inFlight: Promise<void> = Promise.resolve()
     let lastWarnAt = Number.NEGATIVE_INFINITY
@@ -80,6 +88,8 @@ export function createCommandEventBuffer(
                 batchSize: batch.length,
                 error: error instanceof Error ? error.message : String(error),
             })
+        } finally {
+            unsettled -= batch.length
         }
     }
 
@@ -87,6 +97,7 @@ export function createCommandEventBuffer(
         if (rows.length === 0) return inFlight
         const batch = rows
         rows = []
+        unsettled += batch.length
         inFlight = inFlight.then(() => doFlush(batch))
         return inFlight
     }
@@ -99,33 +110,61 @@ export function createCommandEventBuffer(
         timer.unref()
     }
 
+    const drop = (reason: string, message: string) => {
+        commandEventsDroppedTotal.inc({ reason })
+        warnThrottled(message, { reason, maxSize })
+    }
+
     return {
         push(row) {
+            if (stopped) {
+                drop('stopped', 'Command event pushed after stop, dropped')
+                return
+            }
+            let enqueued = false
             try {
-                if (rows.length >= maxSize) {
-                    commandEventsDroppedTotal.inc({ reason: 'overflow' })
-                    warnThrottled('Command event buffer full, event dropped', {
-                        reason: 'overflow',
-                        maxSize,
-                    })
+                if (rows.length + unsettled >= maxSize) {
+                    drop('overflow', 'Command event buffer full, event dropped')
                     return
                 }
                 rows.push(row)
+                enqueued = true
                 ensureTimer()
                 if (rows.length >= flushSize) void flush()
-            } catch {
-                // Telemetry must never break the interaction path. Counting
-                // is the only safe action left; the counter itself cannot throw.
-                commandEventsDroppedTotal.inc({ reason: 'overflow' })
+            } catch (error) {
+                if (!enqueued) {
+                    commandEventsDroppedTotal.inc({ reason: 'internal_error' })
+                }
+                warnThrottled('Command event buffer internal error', {
+                    reason: 'internal_error',
+                    enqueued,
+                    error:
+                        error instanceof Error ? error.message : String(error),
+                })
             }
         },
         flush,
         async stop() {
+            stopped = true
             if (timer) {
                 clearInterval(timer)
                 timer = null
             }
-            await flush()
+            let timeout: ReturnType<typeof setTimeout> | undefined
+            const timedOut = new Promise<'timeout'>((resolve) => {
+                timeout = setTimeout(() => resolve('timeout'), stopTimeoutMs)
+            })
+            try {
+                const result = await Promise.race([flush(), timedOut])
+                if (result === 'timeout') {
+                    warnLog({
+                        message: 'Command event buffer stop timed out',
+                        data: { unsettled, buffered: rows.length },
+                    })
+                }
+            } finally {
+                clearTimeout(timeout)
+            }
         },
         size: () => rows.length,
     }

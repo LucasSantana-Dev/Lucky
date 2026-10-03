@@ -41,9 +41,6 @@ export function recordCommandEvent(params: RecordCommandEventParams): void {
         const command = known ? interaction.commandName : UNKNOWN_COMMAND
         const latencyMs = Math.max(0, Date.now() - startedAt)
 
-        commandsTotal.inc({ command, kind, outcome })
-        commandDurationSeconds.observe({ command }, latencyMs / 1000)
-
         getCommandEventBuffer().push({
             occurredAt: new Date(),
             guildId: interaction.guild?.id ?? null,
@@ -59,6 +56,10 @@ export function recordCommandEvent(params: RecordCommandEventParams): void {
                 interaction.client?.shard?.ids?.[0] ??
                 0,
         })
+
+        // Metrics last: a prom-client throw must never skip the DB row.
+        commandsTotal.inc({ command, kind, outcome })
+        commandDurationSeconds.observe({ command }, latencyMs / 1000)
     } catch (error) {
         const now = Date.now()
         if (now - lastWarnAt < WARN_INTERVAL_MS) return

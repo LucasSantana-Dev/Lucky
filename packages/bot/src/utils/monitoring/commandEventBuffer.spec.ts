@@ -150,4 +150,69 @@ describe('commandEventBuffer', () => {
         expect(flushFn).not.toHaveBeenCalled()
         await buf.stop()
     })
+
+    it('stays bounded when the DB never resolves (exact overflow counts)', async () => {
+        flushFn.mockImplementation(() => new Promise(() => undefined))
+        const buf = createCommandEventBuffer({
+            flush: flushFn,
+            maxSize: 200,
+            flushSize: 50,
+        })
+        for (let i = 0; i < 10_000; i++) buf.push(row(i))
+        await jest.advanceTimersByTimeAsync(60_000)
+        for (let i = 0; i < 100; i++) buf.push(row(i))
+        const overflow = incMock.mock.calls.filter(
+            (c) => (c[0] as { reason: string }).reason === 'overflow',
+        )
+        // 200 accepted in total, everything else dropped and counted
+        expect(overflow).toHaveLength(10_100 - 200)
+        expect(buf.size()).toBeLessThanOrEqual(200)
+        // chained flushes wait behind the hung one: only the first ran
+        expect(flushFn).toHaveBeenCalledTimes(1)
+    })
+
+    it('counts pushes after stop as dropped (stopped) and does not re-arm the timer', async () => {
+        const buf = createCommandEventBuffer({ flush: flushFn })
+        await buf.stop()
+        buf.push(row())
+        expect(incMock).toHaveBeenCalledWith({ reason: 'stopped' })
+        expect(buf.size()).toBe(0)
+        expect(jest.getTimerCount()).toBe(0)
+    })
+
+    it('stop gives up after the timeout when the flush hangs', async () => {
+        flushFn.mockImplementation(() => new Promise(() => undefined))
+        const buf = createCommandEventBuffer({
+            flush: flushFn,
+            stopTimeoutMs: 5000,
+        })
+        buf.push(row())
+        let done = false
+        const p = buf.stop().then(() => {
+            done = true
+        })
+        await jest.advanceTimersByTimeAsync(4999)
+        expect(done).toBe(false)
+        await jest.advanceTimersByTimeAsync(1)
+        await p
+        expect(done).toBe(true)
+        expect(jest.getTimerCount()).toBe(0)
+    })
+
+    it('labels unexpected internal throws internal_error, counting only if not enqueued', async () => {
+        const buf = createCommandEventBuffer({ flush: flushFn, flushSize: 100 })
+        warnLogMock.mockImplementationOnce(() => {
+            throw new Error('logger down')
+        })
+        // overflow path: warn throws before enqueue is possible
+        const small = createCommandEventBuffer({
+            flush: flushFn,
+            maxSize: 0,
+        })
+        expect(() => small.push(row())).not.toThrow()
+        expect(incMock).toHaveBeenCalledWith({ reason: 'overflow' })
+        expect(incMock).toHaveBeenCalledWith({ reason: 'internal_error' })
+        await buf.stop()
+        await small.stop()
+    })
 })

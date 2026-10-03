@@ -101,4 +101,18 @@ describe('recordCommandEvent', () => {
         ).not.toThrow()
         expect(warnLogMock).toHaveBeenCalledTimes(1)
     })
+
+    it('still pushes the DB row when a prometheus call throws', () => {
+        incMock.mockImplementationOnce(() => {
+            throw new Error('prom boom')
+        })
+        recordCommandEvent({
+            interaction: interaction(),
+            kind: 'slash',
+            outcome: 'ok',
+            startedAt: Date.now(),
+            known: true,
+        })
+        expect(pushMock).toHaveBeenCalledTimes(1)
+    })
 })

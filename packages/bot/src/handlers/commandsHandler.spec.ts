@@ -488,22 +488,24 @@ describe('commandsHandler', () => {
             })
         })
 
-        it('does not fail the interaction when recording fails', async () => {
-            // recordCommandEvent is contractually non-throwing; assert the
-            // handler tolerates a recorder that is a no-op or slow to resolve.
+        it('a throwing recorder neither errors nor replies for a successful command', async () => {
             ;(recordCommandEvent as jest.Mock).mockImplementationOnce(() => {
-                return undefined
+                throw new Error('recorder bug')
             })
             const command = createMockCommand()
             const client = createMockClient()
             client.commands.set('test', command)
+
             await expect(
                 executeCommand({
                     interaction: createMockInteraction(),
                     client,
                 }),
             ).resolves.toBeUndefined()
+
             expect(command.execute).toHaveBeenCalledTimes(1)
+            expect(recordCommandEvent).toHaveBeenCalledTimes(1)
+            expect(interactionReply).not.toHaveBeenCalled()
         })
     })
 

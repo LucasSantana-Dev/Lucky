@@ -31,6 +31,8 @@ describe('pgAdapter pool size', () => {
         ['-3', 10],
         ['2.5', 10],
         ['25', 25],
+        ['100', 100],
+        ['101', 10],
     ])('resolvePoolMax(%p) -> %p', (raw, expected) => {
         expect(resolvePoolMax(raw as string | undefined)).toBe(expected)
     })
