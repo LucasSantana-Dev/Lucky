@@ -523,7 +523,7 @@ export default function AutoModPage() {
         return () => {
             cancelled = true
         }
-    }, [selectedGuild?.id, t])
+    }, [selectedGuild?.id])
 
     useEffect(() => {
         if (!selectedGuild?.id) return
