@@ -84,7 +84,7 @@ describe('LanguageSwitcher', () => {
             </I18nextProvider>,
         )
 
-        const trigger = screen.getByTitle('Language')
+        const trigger = screen.getByTitle('Idioma')
         await user.click(trigger)
 
         const enOptions = screen.getAllByText('English')

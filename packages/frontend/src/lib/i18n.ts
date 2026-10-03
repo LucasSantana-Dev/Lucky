@@ -20,7 +20,6 @@ void i18n
         },
         fallbackLng: 'en',
         supportedLngs: SUPPORTED_LANGUAGES,
-        nonExplicitSupportedLngs: true,
         interpolation: { escapeValue: false },
         detection: {
             order: ['localStorage', 'navigator'],

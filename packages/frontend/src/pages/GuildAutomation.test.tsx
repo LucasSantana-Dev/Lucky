@@ -12,8 +12,7 @@ import type {
     ApplyResult,
 } from '@/services/automationApi'
 import { toast } from 'sonner'
-import { createInstance } from 'i18next'
-import ptBR from '@/locales/pt-BR.json'
+import i18n from '@/lib/i18n'
 
 vi.mock('@/stores/guildStore')
 vi.mock('@/services/api', () => ({
@@ -717,22 +716,20 @@ describe('GuildAutomation', () => {
         expect(await screen.findByText('1 applied')).toBeInTheDocument()
         expect(screen.getByText('2 failed')).toBeInTheDocument()
 
-        // A standalone instance: the app instance does not resolve pt-BR
-        // under nonExplicitSupportedLngs (see #2618).
-        const pt = createInstance()
-        await pt.init({
-            lng: 'pt-BR',
-            resources: { 'pt-BR': { translation: ptBR } },
-            interpolation: { escapeValue: false },
-        })
-        expect(pt.t('guildAutomation.appliedCount', { count: 1 })).toBe(
-            '1 aplicada',
-        )
-        expect(pt.t('guildAutomation.appliedCount', { count: 2 })).toBe(
-            '2 aplicadas',
-        )
-        expect(pt.t('guildAutomation.failedCount', { count: 2 })).toBe(
-            '2 com falha',
-        )
+        const previous = i18n.language
+        await i18n.changeLanguage('pt-BR')
+        try {
+            expect(i18n.t('guildAutomation.appliedCount', { count: 1 })).toBe(
+                '1 aplicada',
+            )
+            expect(i18n.t('guildAutomation.appliedCount', { count: 2 })).toBe(
+                '2 aplicadas',
+            )
+            expect(i18n.t('guildAutomation.failedCount', { count: 2 })).toBe(
+                '2 com falha',
+            )
+        } finally {
+            await i18n.changeLanguage(previous)
+        }
     })
 })
