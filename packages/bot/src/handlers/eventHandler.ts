@@ -9,6 +9,7 @@ import {
     type Interaction,
     type ButtonInteraction,
     type ChatInputCommandInteraction,
+    type MessageComponentInteraction,
     type RepliableInteraction,
 } from 'discord.js'
 import type { CustomClient } from '../types'
@@ -38,6 +39,7 @@ import {
 } from './onboardingStation'
 import { executeCommand, executeContextMenu } from './commandsHandler'
 import { recordCommandEvent } from '../utils/monitoring/recordCommandEvent'
+import { classifyOutcome } from '../utils/monitoring/commandOutcome'
 import {
     handleMoveMessageSelect,
     MOVE_MESSAGE_SELECT_PREFIX,
@@ -361,9 +363,98 @@ function handleInteractionCreate(
     )
 }
 
+// Bounded `command` labels for component events. The Prometheus metric carries
+// this as a label, so it is always a fixed family, never the raw customId.
+const COMPONENT_FAMILY_MOVE_MESSAGE = 'move_message_select'
+const COMPONENT_FAMILY_HELP = 'help_category_select'
+
+function buttonFamily(id: string): string | null {
+    if (
+        id.startsWith('music_') ||
+        id.startsWith('queue_page') ||
+        id.startsWith('leaderboard_page')
+    ) {
+        return 'music_button'
+    }
+    if (id.startsWith(ONBOARDING_STATION_BUTTON_PREFIX)) {
+        return 'onboarding_station_button'
+    }
+    // Handled by that command's own collector, which is not an event here.
+    if (id.startsWith('vaga_') || id.startsWith('batch_')) return null
+    if (id.startsWith(FEEDBACK_REPORT_BUTTON_PREFIX)) {
+        return 'feedback_report_button'
+    }
+    if (id.startsWith(REMINDER_STOP_BUTTON_PREFIX)) {
+        return 'reminder_stop_button'
+    }
+    return 'reaction_role_button'
+}
+
+/**
+ * Runs a component handler and records exactly one event. The error is
+ * rethrown untouched so runInteraction's catch still replies as before, and
+ * recording sits outside the handler try so a recorder bug cannot change the
+ * interaction outcome.
+ */
+async function runRecordedComponent(
+    interaction: MessageComponentInteraction,
+    family: string | null,
+    handler: () => Promise<unknown>,
+): Promise<void> {
+    const startedAt = Date.now()
+    let signal: { error?: unknown } = {}
+    let handled = true
+    try {
+        // A handler that resolves `false` did not own this interaction (the
+        // reaction-role fallthrough), so no event is recorded for it.
+        handled = (await handler()) !== false
+    } catch (error) {
+        signal = { error }
+        throw error
+    } finally {
+        if (family && handled)
+            recordComponentEvent(interaction, family, startedAt, signal)
+    }
+}
+
+function recordComponentEvent(
+    interaction: MessageComponentInteraction,
+    family: string,
+    startedAt: number,
+    signal: { error?: unknown },
+): void {
+    try {
+        const { outcome, errorClass } = classifyOutcome(signal)
+        recordCommandEvent({
+            interaction,
+            kind: 'component',
+            outcome,
+            startedAt,
+            known: true,
+            commandName: family,
+            errorClass,
+        })
+    } catch (recordError) {
+        errorLog({
+            message: 'Error recording component event:',
+            error: recordError,
+        })
+    }
+}
+
 async function dispatchButtonInteraction(
     interaction: ButtonInteraction,
 ): Promise<void> {
+    await runRecordedComponent(
+        interaction,
+        buttonFamily(interaction.customId),
+        () => routeButtonInteraction(interaction),
+    )
+}
+
+async function routeButtonInteraction(
+    interaction: ButtonInteraction,
+): Promise<unknown> {
     const id = interaction.customId
     if (
         id.startsWith('music_') ||
@@ -394,7 +485,7 @@ async function dispatchButtonInteraction(
         await handleReminderStopButton(interaction)
         return
     }
-    await reactionRolesService.handleButtonInteraction(interaction)
+    return reactionRolesService.handleButtonInteraction(interaction)
 }
 
 async function runInteraction(
@@ -424,7 +515,15 @@ async function runInteraction(
             interaction.isChannelSelectMenu() &&
             interaction.customId.startsWith(MOVE_MESSAGE_SELECT_PREFIX)
         ) {
-            await handleMoveMessageSelect(interaction, client as CustomClient)
+            await runRecordedComponent(
+                interaction,
+                COMPONENT_FAMILY_MOVE_MESSAGE,
+                () =>
+                    handleMoveMessageSelect(
+                        interaction,
+                        client as CustomClient,
+                    ),
+            )
             return
         }
 
@@ -432,7 +531,9 @@ async function runInteraction(
             interaction.isStringSelectMenu() &&
             interaction.customId === HELP_CATEGORY_SELECT_ID
         ) {
-            await handleHelpCategorySelect(interaction, client as CustomClient)
+            await runRecordedComponent(interaction, COMPONENT_FAMILY_HELP, () =>
+                handleHelpCategorySelect(interaction, client as CustomClient),
+            )
             return
         }
 
