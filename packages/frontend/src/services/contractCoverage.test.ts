@@ -24,10 +24,11 @@ const contractFiles = ['services', 'types'].flatMap((dir) =>
 )
 
 // Only a real `from '...'` import counts, not a comment or string mention.
+const importSpecifiers = (text: string) =>
+    [...text.matchAll(/\bfrom\s+(['"])([^'"\n]+)\1/g)].map((x) => x[2])
+
 const importsSchema = (text: string, m: string) =>
-    new RegExp(
-        String.raw`\bfrom\s+(['"])[^'"\n]*backend/src/schemas/${m.replace(/\W/g, '\\$&')}\1`,
-    ).test(text)
+    importSpecifiers(text).some((s) => s.endsWith(`backend/src/schemas/${m}`))
 
 const hasContract = (m: string) =>
     contractFiles.some((text) => importsSchema(text, m))
