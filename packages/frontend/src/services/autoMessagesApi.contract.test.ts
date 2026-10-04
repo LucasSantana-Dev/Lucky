@@ -84,6 +84,7 @@ describe('auto messages frontend/backend contract', () => {
         expect(path).toBe(
             '/guilds/123456789012345678/automessages/msg-1/toggle',
         )
+        expect(body).toEqual({ enabled: false })
         expect(result.success).toBe(true)
     })
 
