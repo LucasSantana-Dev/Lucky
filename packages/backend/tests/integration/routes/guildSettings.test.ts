@@ -155,6 +155,23 @@ describe('Guild Settings Routes', () => {
             })
         })
 
+        test('returns 500 and no success flag when the save fails (#2454)', async () => {
+            const mockSession = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSession.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            mockSetSettings.mockResolvedValue(false)
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/settings`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ prefix: '!' })
+
+            expect(res.status).toBe(500)
+            expect(res.body.success).toBeUndefined()
+            expect(res.body.error).toBe('Failed to save guild settings')
+        })
+
         test('rejects fields with no reader (regression guard for #2219)', async () => {
             const mockSession = sessionService as jest.Mocked<
                 typeof sessionService
@@ -290,6 +307,23 @@ describe('Guild Settings Routes', () => {
 
             expect(res.status).toBe(200)
             expect(res.body.success).toBe(true)
+        })
+
+        test('returns 500 and no success flag when the save fails (module route, #2454)', async () => {
+            const mockSession = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSession.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            mockSetSettings.mockResolvedValue(false)
+
+            const res = await request(app)
+                .post(`/api/guilds/${GUILD_ID}/modules/music/settings`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ defaultVolume: 75 })
+
+            expect(res.status).toBe(500)
+            expect(res.body.success).toBeUndefined()
+            expect(res.body.error).toBe('Failed to save guild settings')
         })
 
         test('returns 403 for a user without manage access to the requested module (IDOR regression, #2243)', async () => {
