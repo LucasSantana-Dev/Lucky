@@ -29,7 +29,9 @@ describe('batch jobs frontend/backend contract', () => {
         const apiClient = { get: vi.fn() }
         createBatchJobsApi(apiClient as never).list(guildId)
 
-        expect(apiClient.get.mock.calls[0][1]).toEqual({ params: undefined })
+        expect(apiClient.get.mock.calls[0][1]).toStrictEqual({
+            params: undefined,
+        })
         expect(batchJobsSchemas.listQuery.safeParse({}).success).toBe(true)
     })
 

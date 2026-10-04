@@ -33,6 +33,32 @@ describe('artists frontend/backend contract', () => {
         })
     })
 
+    test('an empty search query is rejected for the q field', () => {
+        const result = artistsSchemas.searchQuery.safeParse({ q: '' })
+
+        expect(result.success).toBe(false)
+        if (result.success) return
+        expect(result.error.issues).toHaveLength(1)
+        expect(result.error.issues[0]).toMatchObject({
+            code: 'too_small',
+            path: ['q'],
+        })
+    })
+
+    test('a non-snowflake guildId is rejected for the guildId field', () => {
+        const result = artistsSchemas.preferredArtistsQuery.safeParse({
+            guildId: 'abc',
+        })
+
+        expect(result.success).toBe(false)
+        if (result.success) return
+        expect(result.error.issues).toHaveLength(1)
+        expect(result.error.issues[0]).toMatchObject({
+            code: 'invalid_format',
+            path: ['guildId'],
+        })
+    })
+
     test('the preferences call sends a guildId query the backend schema accepts', () => {
         const apiClient = { get: vi.fn() }
         createArtistsApi(apiClient as never).getPreferences(guildId)
