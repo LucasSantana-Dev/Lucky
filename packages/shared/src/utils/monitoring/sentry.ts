@@ -233,13 +233,14 @@ export function initializeSentry(options: InitializeSentryOptions = {}): void {
         release,
         serverName,
         tracesSampleRate,
-        profilesSampleRate,
+        // Sentry 11 dropped `profilesSampleRate` from NodeOptions (profiling moved to
+        // profileSessionSampleRate). Kept at runtime so the init payload is unchanged.
+        ...({ profilesSampleRate } as object),
         integrations: [],
         // The ~1160 infoLog/warnLog/debugLog calls only became BREADCRUMBS, and a
         // breadcrumb shows up attached to an error event: with no error, none of it
         // existed in Sentry. With this, a log becomes a record of its own, queryable on
-        // its own.
-        enableLogs: true,
+        // its own. Sentry 11 removed `enableLogs`: logs are on by default.
         initialScope: {
             tags: getSentryTags(options, appName, serviceName),
         },
