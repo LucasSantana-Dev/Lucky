@@ -895,6 +895,23 @@ describe('Moderation Routes Integration', () => {
             test('rejects the guild id as the mute role', async () => {
                 const res = await patch({ muteRoleId: '111111111111111111' })
                 expect(res.status).toBe(400)
+                expect(mockGetFullGuildRoles).not.toHaveBeenCalled()
+            })
+
+            test('rejects one unknown id among valid mod roles', async () => {
+                const res = await patch({
+                    modRoleIds: ['777777777777777777', '999999999999999999'],
+                })
+                expect(res.status).toBe(400)
+                expect(updateSettings()).not.toHaveBeenCalled()
+            })
+
+            test('makes no lookups for a partial update without ids', async () => {
+                updateSettings().mockResolvedValue({} as any)
+                const res = await patch({ autoModEnabled: false })
+                expect(res.status).toBe(200)
+                expect(mockGetTextChannels).not.toHaveBeenCalled()
+                expect(mockGetFullGuildRoles).not.toHaveBeenCalled()
             })
 
             test('allows clearing ids with null without any lookup', async () => {

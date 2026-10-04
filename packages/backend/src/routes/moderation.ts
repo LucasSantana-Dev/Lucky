@@ -63,23 +63,31 @@ async function assertSettingsIdsBelongToGuild(
     if (roleIds.includes(guildId)) {
         throw AppError.badRequest('Invalid role for this server')
     }
-    if (roleIds.length > 0) {
-        const known = await lookupGuildIds(
-            () => guildService.getFullGuildRoles(guildId),
-            'roles',
-        )
-        if (roleIds.some((id) => !known.has(id))) {
-            throw AppError.badRequest('Invalid role for this server')
-        }
+    const needsRoles = roleIds.length > 0
+    const needsChannel = Boolean(body.modLogChannelId)
+    const [knownRoles, knownChannels] = await Promise.all([
+        needsRoles
+            ? lookupGuildIds(
+                  () => guildService.getFullGuildRoles(guildId),
+                  'roles',
+              )
+            : undefined,
+        needsChannel
+            ? lookupGuildIds(
+                  () => guildService.getGuildTextChannelOptions(guildId),
+                  'channels',
+              )
+            : undefined,
+    ])
+    if (knownRoles && roleIds.some((id) => !knownRoles.has(id))) {
+        throw AppError.badRequest('Invalid role for this server')
     }
-    if (body.modLogChannelId) {
-        const known = await lookupGuildIds(
-            () => guildService.getGuildTextChannelOptions(guildId),
-            'channels',
-        )
-        if (!known.has(body.modLogChannelId)) {
-            throw AppError.badRequest('Invalid text channel for this server')
-        }
+    if (
+        knownChannels &&
+        body.modLogChannelId &&
+        !knownChannels.has(body.modLogChannelId)
+    ) {
+        throw AppError.badRequest('Invalid text channel for this server')
     }
 }
 

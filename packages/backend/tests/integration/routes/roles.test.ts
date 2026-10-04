@@ -673,6 +673,21 @@ describe('Roles Routes', () => {
             expect(JSON.stringify(res.body)).not.toMatch(/prisma/)
         })
 
+        test.each([
+            'Reaction roles are disabled for this guild',
+            'At least one role is required',
+            'Maximum 25 roles per message',
+            'Invalid Discord channel or message id',
+            'Invalid guildId: expected a Discord snowflake ID',
+            'Invalid channelId: expected a Discord snowflake ID',
+            'Invalid messageId: expected a Discord snowflake ID',
+        ])('keeps 400 for the known validation error "%s"', async (msg) => {
+            failUpdateWith(msg)
+            const res = await put()
+            expect(res.status).toBe(400)
+            expect(res.body.error).toBe(msg)
+        })
+
         test('keeps mapping a missing message to 404', async () => {
             failUpdateWith('Reaction role message not found')
             expect((await put()).status).toBe(404)
