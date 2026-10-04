@@ -23,10 +23,25 @@ const contractFiles = ['services', 'types'].flatMap((dir) =>
         .map((f) => readFileSync(join(srcDir, dir, f), 'utf8')),
 )
 
+// Only a real `from '...'` import counts, not a comment or string mention.
+const importsSchema = (text: string, m: string) =>
+    new RegExp(
+        String.raw`\bfrom\s+(['"])[^'"\n]*backend/src/schemas/${m.replace(/\W/g, '\\$&')}\1`,
+    ).test(text)
+
 const hasContract = (m: string) =>
-    contractFiles.some((text) => text.includes(`backend/src/schemas/${m}'`))
+    contractFiles.some((text) => importsSchema(text, m))
 
 describe('backend schema contract coverage', () => {
+    test('importsSchema counts single and double quoted imports only', () => {
+        const dir = '../../../backend/src/schemas/x'
+        expect(importsSchema(`import { a } from '${dir}'`, 'x')).toBe(true)
+        expect(importsSchema(`import { a } from "${dir}"`, 'x')).toBe(true)
+        expect(importsSchema(`// ${dir}`, 'x')).toBe(false)
+        expect(importsSchema(`const s = '${dir}'`, 'x')).toBe(false)
+        expect(importsSchema(`import { a } from '${dir}y'`, 'x')).toBe(false)
+    })
+
     test.each(schemaModules.filter((m) => !KNOWN_GAPS.has(m)))(
         'schema module %s has a frontend contract test',
         (m) => {
