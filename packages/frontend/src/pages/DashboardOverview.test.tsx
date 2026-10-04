@@ -63,7 +63,7 @@ const mockCases = [
         id: 'c1',
         caseNumber: 1,
         type: 'warn',
-        userName: 'TestUser',
+        username: 'TestUser',
         userId: 'u1',
         moderatorName: 'Mod',
         reason: 'Spam',
@@ -412,12 +412,25 @@ describe('DashboardOverview', () => {
         expect(screen.getByText('Recent Cases')).toBeInTheDocument()
     })
 
+    test('shows the username instead of the user id when username is set', () => {
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(screen.getByText('TestUser')).toBeInTheDocument()
+    })
+
     test('falls back to userId and reason placeholder when case fields are blank', () => {
         const bareCase = {
             ...mockCases[0],
             id: 'bare',
             caseNumber: 9100,
-            userName: '',
+            username: '',
             userId: 'raw-user-id-1234',
             reason: null,
             createdAt: new Date().toISOString(),

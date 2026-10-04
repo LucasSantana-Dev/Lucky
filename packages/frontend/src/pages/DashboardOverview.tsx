@@ -153,7 +153,7 @@ function CaseRow({ case: c, index }: { case: ModerationCase; index: number }) {
             </p>
             <div className='min-w-0'>
                 <p className='type-body-sm truncate text-lucky-text-primary'>
-                    {c.userName || c.userId}
+                    {c.username || c.userId}
                 </p>
                 <p className='type-body-sm truncate text-lucky-text-tertiary'>
                     {c.reason || 'No reason provided'}
