@@ -9,7 +9,7 @@ import {
     reactionRolesService,
     roleManagementService,
 } from '@lucky/shared/services'
-import { warnLog } from '@lucky/shared/utils'
+import { errorLog, warnLog } from '@lucky/shared/utils'
 import { guildService } from '../services/GuildService'
 import type { GuildRoleManage } from '../services/RoleService'
 import multer from 'multer'
@@ -205,6 +205,25 @@ async function assertRolesBelowBot(
     }
 }
 
+const REACTION_ROLE_VALIDATION_MESSAGES = new Set([
+    'Reaction roles are disabled for this guild',
+    'At least one role is required',
+    'Maximum 25 roles per message',
+    'Invalid Discord channel or message id',
+])
+const REACTION_ROLE_VALIDATION_PREFIXES = [
+    'Invalid guildId',
+    'Invalid channelId',
+    'Invalid messageId',
+]
+
+function isKnownReactionRoleValidationError(message: string): boolean {
+    return (
+        REACTION_ROLE_VALIDATION_MESSAGES.has(message) ||
+        REACTION_ROLE_VALIDATION_PREFIXES.some((p) => message.startsWith(p))
+    )
+}
+
 export function setupRolesRoutes(app: Express): void {
     // Guarded by the `/reaction-roles` prefix (automation) in
     // routes/index.ts, no separate module check here (#2409).
@@ -351,7 +370,18 @@ export function setupRolesRoutes(app: Express): void {
                 if (message.startsWith('Discord API error')) {
                     throw AppError.badGateway(message)
                 }
-                throw AppError.badRequest(message)
+                if (isKnownReactionRoleValidationError(message)) {
+                    throw AppError.badRequest(message)
+                }
+                errorLog({
+                    message: 'Failed to update reaction role message',
+                    error,
+                    data: { guildId, messageId },
+                })
+                throw new AppError(
+                    500,
+                    'Failed to update reaction role message',
+                )
             }
         }),
     )

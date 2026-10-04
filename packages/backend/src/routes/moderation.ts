@@ -12,6 +12,8 @@ import { AppError } from '../errors/AppError'
 import { moderationSchemas as s } from '../schemas/moderation'
 import { moderationService, serverLogService } from '@lucky/shared/services'
 import { paramToString as p } from '../utils/paramCoerce'
+import { guildService } from '../services/GuildService'
+import { errorLog, warnLog } from '@lucky/shared/utils'
 
 function requireUserId(req: AuthenticatedRequest): string {
     if (!req.userId) {
@@ -19,6 +21,80 @@ function requireUserId(req: AuthenticatedRequest): string {
     }
 
     return req.userId
+}
+
+type SettingsIds = {
+    modLogChannelId?: string | null
+    muteRoleId?: string | null
+    modRoleIds?: string[]
+}
+
+// Discord lookups swallow API failures and return []. For ids we must verify,
+// an empty list is therefore "could not verify", never "nothing matches".
+async function lookupGuildIds<T extends { id: string }>(
+    guildId: string,
+    fetchOptions: () => Promise<T[]>,
+    label: string,
+): Promise<Set<string>> {
+    let options: T[]
+    try {
+        options = await fetchOptions()
+    } catch (error) {
+        errorLog({ message: `Failed to look up guild ${label}`, error })
+        throw AppError.badGateway(`Unable to verify guild ${label} right now`)
+    }
+    if (options.length === 0) {
+        warnLog({
+            message: `Guild ${label} lookup returned nothing for guild ${guildId}; cannot verify settings ids`,
+        })
+        throw AppError.serviceUnavailable(
+            `Unable to verify guild ${label} right now`,
+        )
+    }
+    return new Set(options.map((o) => o.id))
+}
+
+// The dashboard manager is delegated, so the ids must belong to this guild
+// (#2600). The guild id doubles as the @everyone role id and would make every
+// member a moderator via hasModPermissions.
+async function assertSettingsIdsBelongToGuild(
+    guildId: string,
+    body: SettingsIds,
+): Promise<void> {
+    const roleIds = [body.muteRoleId, ...(body.modRoleIds ?? [])].filter(
+        (id): id is string => typeof id === 'string',
+    )
+    if (roleIds.includes(guildId)) {
+        throw AppError.badRequest('Invalid role for this server')
+    }
+    const needsRoles = roleIds.length > 0
+    const needsChannel = Boolean(body.modLogChannelId)
+    const [knownRoles, knownChannels] = await Promise.all([
+        needsRoles
+            ? lookupGuildIds(
+                  guildId,
+                  () => guildService.getFullGuildRoles(guildId),
+                  'roles',
+              )
+            : undefined,
+        needsChannel
+            ? lookupGuildIds(
+                  guildId,
+                  () => guildService.getGuildTextChannelOptions(guildId),
+                  'channels',
+              )
+            : undefined,
+    ])
+    if (knownRoles && roleIds.some((id) => !knownRoles.has(id))) {
+        throw AppError.badRequest('Invalid role for this server')
+    }
+    if (
+        knownChannels &&
+        body.modLogChannelId &&
+        !knownChannels.has(body.modLogChannelId)
+    ) {
+        throw AppError.badRequest('Invalid text channel for this server')
+    }
 }
 
 export function setupModerationRoutes(app: Express): void {
@@ -152,6 +228,7 @@ export function setupModerationRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
             const body = s.updateSettingsBody.parse(req.body)
+            await assertSettingsIdsBelongToGuild(guildId, body)
             const settings = await moderationService.updateSettings(
                 guildId,
                 body,
