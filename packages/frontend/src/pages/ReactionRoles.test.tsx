@@ -931,6 +931,14 @@ describe('ReactionRoles', () => {
     })
 })
 
+// File-level setup so the top-level tests below do not depend on a mock
+// leaked by an earlier test (vi.clearAllMocks keeps mockResolvedValue).
+beforeEach(() => {
+    vi.clearAllMocks()
+    mockGuildStore()
+    vi.mocked(api.reactionRoles.list).mockResolvedValue(mockMessages)
+})
+
 test('export button is present and disabled when no messages', async () => {
     mockGuildStore()
     vi.mocked(api.reactionRoles.list).mockResolvedValue([])
