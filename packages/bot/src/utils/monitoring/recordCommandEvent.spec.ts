@@ -68,6 +68,46 @@ describe('recordCommandEvent', () => {
         )
     })
 
+    it('uses the commandName override for component interactions', () => {
+        recordCommandEvent({
+            interaction: interaction({
+                commandName: undefined,
+                customId: 'music_skip',
+                options: undefined,
+            }),
+            kind: 'component',
+            outcome: 'ok',
+            startedAt: Date.now(),
+            known: true,
+            commandName: 'music_button',
+        })
+        expect(incMock).toHaveBeenCalledWith({
+            command: 'music_button',
+            kind: 'component',
+            outcome: 'ok',
+        })
+        expect(pushMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                command: 'music_button',
+                subcommand: null,
+                kind: 'component',
+            }),
+        )
+    })
+
+    it('falls back to "unknown" when a known event has no name at all', () => {
+        recordCommandEvent({
+            interaction: interaction({ commandName: undefined }),
+            kind: 'component',
+            outcome: 'ok',
+            startedAt: Date.now(),
+            known: true,
+        })
+        expect(incMock).toHaveBeenCalledWith(
+            expect.objectContaining({ command: 'unknown' }),
+        )
+    })
+
     it('maps unknown commands to "unknown" and uses client shard fallback', () => {
         recordCommandEvent({
             interaction: interaction({

@@ -23,6 +23,7 @@ const handleOnboardingStationButtonMock = jest.fn()
 const executeCommandMock = jest.fn()
 const executeContextMenuMock = jest.fn()
 const handleMoveMessageSelectMock = jest.fn()
+const handleHelpCategorySelectMock = jest.fn()
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
@@ -102,6 +103,12 @@ jest.mock('../functions/general/reminderStopButton', () => ({
     REMINDER_STOP_BUTTON_PREFIX: 'remind_stop:',
     handleReminderStopButton: (...args: unknown[]) =>
         handleReminderStopButtonMock(...args),
+}))
+
+jest.mock('../functions/general/commands/help', () => ({
+    HELP_CATEGORY_SELECT_ID: 'help_category_select_id',
+    handleHelpCategorySelect: (...args: unknown[]) =>
+        handleHelpCategorySelectMock(...args),
 }))
 
 jest.mock('./moveMessageHandler', () => ({
@@ -728,6 +735,209 @@ describe('eventHandler', () => {
             expect(handleReminderStopButtonMock).toHaveBeenCalledTimes(1)
             expect(handleButtonInteractionMock).not.toHaveBeenCalled()
             expect(handleMusicButtonInteractionMock).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('component event recording (#2391)', () => {
+        const flush = async (): Promise<void> => {
+            await flushAsyncHandlers()
+        }
+
+        async function dispatch(interaction: Record<string, unknown>) {
+            const { client, onMock } = createMockClient()
+            handleEvents(client as unknown as never)
+            const handler = getInteractionCreateHandler(onMock)
+            handler?.({
+                isAutocomplete: () => false,
+                isChatInputCommand: () => false,
+                isMessageContextMenuCommand: () => false,
+                isButton: () => false,
+                isChannelSelectMenu: () => false,
+                isStringSelectMenu: () => false,
+                ...interaction,
+            } as unknown as Interaction)
+            await flush()
+        }
+
+        const button = (customId: string) => ({
+            isButton: () => true,
+            customId,
+        })
+
+        beforeEach(() => {
+            handleMusicButtonInteractionMock.mockResolvedValue(undefined)
+            handleButtonInteractionMock.mockResolvedValue(undefined)
+            handleMoveMessageSelectMock.mockResolvedValue(undefined)
+        })
+
+        it('records one ok component event with a family label, not the customId', async () => {
+            await dispatch(button('music_pause_resume'))
+            expect(recordCommandEventMock).toHaveBeenCalledTimes(1)
+            const call = recordCommandEventMock.mock.calls[0]?.[0] as Record<
+                string,
+                unknown
+            >
+            expect(call).toMatchObject({
+                kind: 'component',
+                outcome: 'ok',
+                known: true,
+                commandName: 'music_button',
+            })
+            expect(call.errorClass).toBeUndefined()
+            expect(JSON.stringify(call.commandName)).not.toContain('pause')
+        })
+
+        it('uses a bounded family for fallthrough reaction-role buttons', async () => {
+            await dispatch(button('rr:123456789012345678'))
+            expect(recordCommandEventMock).toHaveBeenCalledTimes(1)
+            expect(recordCommandEventMock.mock.calls[0]?.[0]).toMatchObject({
+                commandName: 'reaction_role_button',
+            })
+        })
+
+        it('records nothing for vaga_ buttons owned by a collector', async () => {
+            await dispatch(button('vaga_confirm'))
+            expect(recordCommandEventMock).not.toHaveBeenCalled()
+        })
+
+        it('records an error event with errorClass and still reaches the error reply', async () => {
+            class BoomError extends Error {}
+            handleMusicButtonInteractionMock.mockRejectedValue(
+                new BoomError('x'),
+            )
+            await dispatch({
+                ...button('music_skip'),
+                replied: false,
+                deferred: false,
+            })
+            expect(recordCommandEventMock).toHaveBeenCalledTimes(1)
+            expect(recordCommandEventMock.mock.calls[0]?.[0]).toMatchObject({
+                kind: 'component',
+                outcome: 'error',
+                errorClass: 'BoomError',
+            })
+            expect(errorLogMock).toHaveBeenCalled()
+        })
+
+        it('does not break the interaction when recordCommandEvent throws', async () => {
+            recordCommandEventMock.mockImplementationOnce(() => {
+                throw new Error('recorder down')
+            })
+            await dispatch(button('music_pause_resume'))
+            expect(handleMusicButtonInteractionMock).toHaveBeenCalledTimes(1)
+            expect(interactionReplyMock).not.toHaveBeenCalled()
+            expect(errorLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Error recording component event:',
+                }),
+            )
+        })
+
+        it('records nothing when the reaction-role handler does not own the id', async () => {
+            handleButtonInteractionMock.mockResolvedValue(false)
+            await dispatch(button('something_unowned'))
+            expect(handleButtonInteractionMock).toHaveBeenCalledTimes(1)
+            expect(recordCommandEventMock).not.toHaveBeenCalled()
+        })
+
+        it('records reaction_role_button only when the service handled it', async () => {
+            handleButtonInteractionMock.mockResolvedValue(true)
+            await dispatch(button('reactionrole:abc'))
+            expect(recordCommandEventMock).toHaveBeenCalledTimes(1)
+            expect(recordCommandEventMock.mock.calls[0]?.[0]).toMatchObject({
+                commandName: 'reaction_role_button',
+                outcome: 'ok',
+            })
+        })
+
+        it('records nothing for batch_ buttons owned by the confirmation gate', async () => {
+            await dispatch(button('batch_proceed'))
+            await dispatch(button('batch_cancel'))
+            expect(recordCommandEventMock).not.toHaveBeenCalled()
+        })
+
+        it.each([
+            [
+                'station_lofi',
+                handleOnboardingStationButtonMock,
+                'onboarding_station_button',
+            ],
+            [
+                'feedback_report:play:evt',
+                handleFeedbackReportButtonMock,
+                'feedback_report_button',
+            ],
+            [
+                'remind_stop:abc',
+                handleReminderStopButtonMock,
+                'reminder_stop_button',
+            ],
+        ])(
+            'labels %s with its family and invokes its handler',
+            async (customId, handlerMock, family) => {
+                handlerMock.mockResolvedValue(undefined)
+                await dispatch(button(customId))
+                expect(handlerMock).toHaveBeenCalledTimes(1)
+                expect(recordCommandEventMock).toHaveBeenCalledTimes(1)
+                expect(recordCommandEventMock.mock.calls[0]?.[0]).toMatchObject(
+                    {
+                        kind: 'component',
+                        outcome: 'ok',
+                        commandName: family,
+                    },
+                )
+            },
+        )
+
+        it('records the help category select', async () => {
+            handleHelpCategorySelectMock.mockResolvedValue(undefined)
+            await dispatch({
+                isStringSelectMenu: () => true,
+                customId: 'help_category_select_id',
+            })
+            expect(handleHelpCategorySelectMock).toHaveBeenCalledTimes(1)
+            expect(recordCommandEventMock.mock.calls[0]?.[0]).toMatchObject({
+                kind: 'component',
+                commandName: 'help_category_select',
+            })
+        })
+
+        it('still handles the original error when the recorder also throws', async () => {
+            handleMusicButtonInteractionMock.mockRejectedValue(
+                new Error('boom'),
+            )
+            recordCommandEventMock.mockImplementationOnce(() => {
+                throw new Error('recorder down')
+            })
+            await dispatch({
+                ...button('music_skip'),
+                replied: false,
+                deferred: false,
+            })
+            expect(interactionReplyMock).toHaveBeenCalledTimes(1)
+            const messages = errorLogMock.mock.calls.map(
+                (c) => (c[0] as { message: string }).message,
+            )
+            expect(messages).toContain('Error recording component event:')
+            expect(
+                errorLogMock.mock.calls.some(
+                    (c) =>
+                        (c[0] as { error?: Error }).error?.message === 'boom',
+                ),
+            ).toBe(true)
+        })
+
+        it('records the move-message channel select', async () => {
+            await dispatch({
+                isChannelSelectMenu: () => true,
+                customId: 'movemsg:abc',
+            })
+            expect(recordCommandEventMock).toHaveBeenCalledTimes(1)
+            expect(recordCommandEventMock.mock.calls[0]?.[0]).toMatchObject({
+                kind: 'component',
+                outcome: 'ok',
+                commandName: 'move_message_select',
+            })
         })
     })
 
