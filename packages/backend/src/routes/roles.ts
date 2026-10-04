@@ -9,7 +9,7 @@ import {
     reactionRolesService,
     roleManagementService,
 } from '@lucky/shared/services'
-import { warnLog } from '@lucky/shared/utils'
+import { errorLog, warnLog } from '@lucky/shared/utils'
 import { guildService } from '../services/GuildService'
 import type { GuildRoleManage } from '../services/RoleService'
 import multer from 'multer'
@@ -351,7 +351,14 @@ export function setupRolesRoutes(app: Express): void {
                 if (message.startsWith('Discord API error')) {
                     throw AppError.badGateway(message)
                 }
-                throw AppError.badRequest(message)
+                errorLog({
+                    message: 'Failed to update reaction role message',
+                    error,
+                })
+                throw new AppError(
+                    500,
+                    'Failed to update reaction role message',
+                )
             }
         }),
     )
