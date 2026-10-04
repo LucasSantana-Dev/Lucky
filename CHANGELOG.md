@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.51.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.51.0...v2.51.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **backend:** return 500 when settings or history writes fail ([#2638](https://github.com/LucasSantana-Dev/Lucky/issues/2638)) ([5de9459](https://github.com/LucasSantana-Dev/Lucky/commit/5de94596b497ece26ecc2256ff14d7d1713c6094))
+* **backend:** validate moderation ids and stop leaking reaction role errors ([#2633](https://github.com/LucasSantana-Dev/Lucky/issues/2633)) ([69603a1](https://github.com/LucasSantana-Dev/Lucky/commit/69603a17ab3ceb0b5259ff5b081ea79a972898a1))
+* **frontend:** disable server settings inputs for view-only users ([#2635](https://github.com/LucasSantana-Dev/Lucky/issues/2635)) ([3073a4f](https://github.com/LucasSantana-Dev/Lucky/commit/3073a4fff1cfacb3a85dc2891221cddaf71b5565))
+
 ## [2.51.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.50.0...v2.51.0) (2026-10-04)
 
 
