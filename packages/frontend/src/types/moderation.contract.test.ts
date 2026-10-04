@@ -5,10 +5,10 @@ import type { ModerationCase as UiCase } from './moderation'
 
 // JSON wire shape: Date values arrive as ISO strings.
 type Jsonify<T> = {
-    [K in keyof T]: T[K] extends Date | null
-        ? string | null
-        : T[K] extends Date
-          ? string
+    [K in keyof T]: T[K] extends Date
+        ? string
+        : T[K] extends Date | null
+          ? string | null
           : T[K]
 }
 type Wire = Jsonify<WireCase>
