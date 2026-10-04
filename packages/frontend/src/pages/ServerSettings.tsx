@@ -664,315 +664,330 @@ export default function ServerSettingsPage() {
                 }
             />
 
-            {/* General Settings */}
-            <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0 }}
-            >
-                <Card className='p-5 space-y-5 border border-lucky-border'>
-                    <div className='flex items-center gap-2'>
-                        <Settings className='w-5 h-5 text-lucky-text-secondary' />
-                        <h2 className='type-title text-lucky-text-primary'>
-                            {t('serverSettings.general')}
-                        </h2>
-                    </div>
-
-                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                        <div className='space-y-2'>
-                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <Hash className='w-3 h-3' />{' '}
-                                {t('serverSettings.commandPrefix')}
-                            </Label>
-                            <Input
-                                value={settings.prefix}
-                                onChange={(e) =>
-                                    update('prefix', e.target.value)
-                                }
-                                placeholder={t(
-                                    'serverSettings.commandPrefixPlaceholder',
-                                )}
-                                maxLength={5}
-                                className='bg-lucky-bg-tertiary border-lucky-border text-white w-24'
-                            />
+            <fieldset disabled={!canManageSettings} className='contents'>
+                {/* General Settings */}
+                <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0 }}
+                >
+                    <Card className='p-5 space-y-5 border border-lucky-border'>
+                        <div className='flex items-center gap-2'>
+                            <Settings className='w-5 h-5 text-lucky-text-secondary' />
+                            <h2 className='type-title text-lucky-text-primary'>
+                                {t('serverSettings.general')}
+                            </h2>
                         </div>
-                        <div className='space-y-2'>
-                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <Palette className='w-3 h-3' />{' '}
-                                {t('serverSettings.embedColor')}
-                            </Label>
-                            <Input
-                                value={settings.embedColor}
-                                onChange={(e) =>
-                                    update('embedColor', e.target.value)
-                                }
-                                placeholder={t(
-                                    'serverSettings.embedColorPlaceholder',
-                                )}
-                                maxLength={8}
-                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
-                            />
+
+                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                            <div className='space-y-2'>
+                                <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
+                                    <Hash className='w-3 h-3' />{' '}
+                                    {t('serverSettings.commandPrefix')}
+                                </Label>
+                                <Input
+                                    value={settings.prefix}
+                                    onChange={(e) =>
+                                        update('prefix', e.target.value)
+                                    }
+                                    placeholder={t(
+                                        'serverSettings.commandPrefixPlaceholder',
+                                    )}
+                                    maxLength={5}
+                                    className='bg-lucky-bg-tertiary border-lucky-border text-white w-24'
+                                />
+                            </div>
+                            <div className='space-y-2'>
+                                <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
+                                    <Palette className='w-3 h-3' />{' '}
+                                    {t('serverSettings.embedColor')}
+                                </Label>
+                                <Input
+                                    value={settings.embedColor}
+                                    onChange={(e) =>
+                                        update('embedColor', e.target.value)
+                                    }
+                                    placeholder={t(
+                                        'serverSettings.embedColorPlaceholder',
+                                    )}
+                                    maxLength={8}
+                                    className='bg-lucky-bg-tertiary border-lucky-border text-white'
+                                />
+                            </div>
                         </div>
-                    </div>
-                </Card>
-            </motion.div>
+                    </Card>
+                </motion.div>
 
-            {/* Language */}
-            <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 }}
-            >
-                <Card className='p-5 space-y-5 border border-lucky-border'>
-                    <div className='flex items-center gap-2'>
-                        <Globe className='w-5 h-5 text-lucky-text-secondary' />
-                        <h2 className='type-title text-lucky-text-primary'>
-                            {t('serverSettings.language')}
-                        </h2>
-                    </div>
-
-                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                        <div className='space-y-2'>
-                            <Select
-                                value={settings.language}
-                                onValueChange={(v: string) =>
-                                    update('language', v)
-                                }
-                            >
-                                <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white'>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
-                                    {SUPPORTED_BOT_LANGUAGES.map((lang) => (
-                                        <SelectItem key={lang} value={lang}>
-                                            {lang}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                {/* Language */}
+                <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 }}
+                >
+                    <Card className='p-5 space-y-5 border border-lucky-border'>
+                        <div className='flex items-center gap-2'>
+                            <Globe className='w-5 h-5 text-lucky-text-secondary' />
+                            <h2 className='type-title text-lucky-text-primary'>
+                                {t('serverSettings.language')}
+                            </h2>
                         </div>
-                    </div>
-                </Card>
-            </motion.div>
 
-            {/* Music Defaults */}
-            <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.08 }}
-            >
-                <Card className='p-5 space-y-5 border border-lucky-border'>
-                    <div className='flex items-center gap-2'>
-                        <Music className='w-5 h-5 text-lucky-text-secondary' />
-                        <h2 className='type-title text-lucky-text-primary'>
-                            {t('serverSettings.musicDefaults')}
-                        </h2>
-                    </div>
+                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                            <div className='space-y-2'>
+                                <Select
+                                    value={settings.language}
+                                    disabled={!canManageSettings}
+                                    onValueChange={(v: string) =>
+                                        update('language', v)
+                                    }
+                                >
+                                    <SelectTrigger className='bg-lucky-bg-tertiary border-lucky-border text-white'>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className='bg-lucky-bg-secondary border-lucky-border'>
+                                        {SUPPORTED_BOT_LANGUAGES.map((lang) => (
+                                            <SelectItem key={lang} value={lang}>
+                                                {lang}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    </Card>
+                </motion.div>
 
-                    <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                        <div className='space-y-2'>
-                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <Volume2 className='w-3 h-3' />{' '}
-                                {t('serverSettings.defaultVolume')}
-                            </Label>
-                            <Input
-                                type='number'
-                                min={NUMBER_FIELD_BOUNDS.defaultVolume.min}
-                                max={NUMBER_FIELD_BOUNDS.defaultVolume.max}
-                                value={
-                                    numberDrafts.defaultVolume ??
-                                    settings.defaultVolume
-                                }
-                                onChange={(e) =>
-                                    setNumberDrafts((prev) => ({
-                                        ...prev,
-                                        defaultVolume: e.target.value,
-                                    }))
-                                }
-                                onBlur={(e) => {
-                                    update(
-                                        'defaultVolume',
-                                        clampNumberField(
+                {/* Music Defaults */}
+                <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.08 }}
+                >
+                    <Card className='p-5 space-y-5 border border-lucky-border'>
+                        <div className='flex items-center gap-2'>
+                            <Music className='w-5 h-5 text-lucky-text-secondary' />
+                            <h2 className='type-title text-lucky-text-primary'>
+                                {t('serverSettings.musicDefaults')}
+                            </h2>
+                        </div>
+
+                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                            <div className='space-y-2'>
+                                <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
+                                    <Volume2 className='w-3 h-3' />{' '}
+                                    {t('serverSettings.defaultVolume')}
+                                </Label>
+                                <Input
+                                    type='number'
+                                    min={NUMBER_FIELD_BOUNDS.defaultVolume.min}
+                                    max={NUMBER_FIELD_BOUNDS.defaultVolume.max}
+                                    value={
+                                        numberDrafts.defaultVolume ??
+                                        settings.defaultVolume
+                                    }
+                                    onChange={(e) =>
+                                        setNumberDrafts((prev) => ({
+                                            ...prev,
+                                            defaultVolume: e.target.value,
+                                        }))
+                                    }
+                                    onBlur={(e) => {
+                                        update(
                                             'defaultVolume',
-                                            e.target.value,
-                                        ),
-                                    )
-                                    setNumberDrafts((prev) => {
-                                        const next = { ...prev }
-                                        delete next.defaultVolume
-                                        return next
-                                    })
-                                }}
-                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
-                            />
-                        </div>
-                        <div className='space-y-2'>
-                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <ListMusic className='w-3 h-3' />{' '}
-                                {t('serverSettings.maxQueueSize')}
-                            </Label>
-                            <Input
-                                type='number'
-                                min={NUMBER_FIELD_BOUNDS.maxQueueSize.min}
-                                max={NUMBER_FIELD_BOUNDS.maxQueueSize.max}
-                                value={
-                                    numberDrafts.maxQueueSize ??
-                                    settings.maxQueueSize
-                                }
-                                onChange={(e) =>
-                                    setNumberDrafts((prev) => ({
-                                        ...prev,
-                                        maxQueueSize: e.target.value,
-                                    }))
-                                }
-                                onBlur={(e) => {
-                                    update(
-                                        'maxQueueSize',
-                                        clampNumberField(
+                                            clampNumberField(
+                                                'defaultVolume',
+                                                e.target.value,
+                                            ),
+                                        )
+                                        setNumberDrafts((prev) => {
+                                            const next = { ...prev }
+                                            delete next.defaultVolume
+                                            return next
+                                        })
+                                    }}
+                                    className='bg-lucky-bg-tertiary border-lucky-border text-white'
+                                />
+                            </div>
+                            <div className='space-y-2'>
+                                <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
+                                    <ListMusic className='w-3 h-3' />{' '}
+                                    {t('serverSettings.maxQueueSize')}
+                                </Label>
+                                <Input
+                                    type='number'
+                                    min={NUMBER_FIELD_BOUNDS.maxQueueSize.min}
+                                    max={NUMBER_FIELD_BOUNDS.maxQueueSize.max}
+                                    value={
+                                        numberDrafts.maxQueueSize ??
+                                        settings.maxQueueSize
+                                    }
+                                    onChange={(e) =>
+                                        setNumberDrafts((prev) => ({
+                                            ...prev,
+                                            maxQueueSize: e.target.value,
+                                        }))
+                                    }
+                                    onBlur={(e) => {
+                                        update(
                                             'maxQueueSize',
-                                            e.target.value,
-                                        ),
-                                    )
-                                    setNumberDrafts((prev) => {
-                                        const next = { ...prev }
-                                        delete next.maxQueueSize
-                                        return next
-                                    })
-                                }}
-                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
-                            />
-                        </div>
-                        <div className='space-y-2'>
-                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <Timer className='w-3 h-3' />{' '}
-                                {t('serverSettings.commandCooldown')}
-                            </Label>
-                            <Input
-                                type='number'
-                                min={NUMBER_FIELD_BOUNDS.commandCooldown.min}
-                                max={NUMBER_FIELD_BOUNDS.commandCooldown.max}
-                                value={
-                                    numberDrafts.commandCooldown ??
-                                    settings.commandCooldown
-                                }
-                                onChange={(e) =>
-                                    setNumberDrafts((prev) => ({
-                                        ...prev,
-                                        commandCooldown: e.target.value,
-                                    }))
-                                }
-                                onBlur={(e) => {
-                                    update(
-                                        'commandCooldown',
-                                        clampNumberField(
+                                            clampNumberField(
+                                                'maxQueueSize',
+                                                e.target.value,
+                                            ),
+                                        )
+                                        setNumberDrafts((prev) => {
+                                            const next = { ...prev }
+                                            delete next.maxQueueSize
+                                            return next
+                                        })
+                                    }}
+                                    className='bg-lucky-bg-tertiary border-lucky-border text-white'
+                                />
+                            </div>
+                            <div className='space-y-2'>
+                                <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
+                                    <Timer className='w-3 h-3' />{' '}
+                                    {t('serverSettings.commandCooldown')}
+                                </Label>
+                                <Input
+                                    type='number'
+                                    min={
+                                        NUMBER_FIELD_BOUNDS.commandCooldown.min
+                                    }
+                                    max={
+                                        NUMBER_FIELD_BOUNDS.commandCooldown.max
+                                    }
+                                    value={
+                                        numberDrafts.commandCooldown ??
+                                        settings.commandCooldown
+                                    }
+                                    onChange={(e) =>
+                                        setNumberDrafts((prev) => ({
+                                            ...prev,
+                                            commandCooldown: e.target.value,
+                                        }))
+                                    }
+                                    onBlur={(e) => {
+                                        update(
                                             'commandCooldown',
-                                            e.target.value,
-                                        ),
-                                    )
-                                    setNumberDrafts((prev) => {
-                                        const next = { ...prev }
-                                        delete next.commandCooldown
-                                        return next
-                                    })
-                                }}
-                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
-                            />
-                        </div>
-                        <div className='space-y-2'>
-                            <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
-                                <Percent className='w-3 h-3' />{' '}
-                                {t('serverSettings.voteSkipThreshold')}
-                            </Label>
-                            <Input
-                                type='number'
-                                min={NUMBER_FIELD_BOUNDS.voteSkipThreshold.min}
-                                max={NUMBER_FIELD_BOUNDS.voteSkipThreshold.max}
-                                value={
-                                    numberDrafts.voteSkipThreshold ??
-                                    settings.voteSkipThreshold
-                                }
-                                onChange={(e) =>
-                                    setNumberDrafts((prev) => ({
-                                        ...prev,
-                                        voteSkipThreshold: e.target.value,
-                                    }))
-                                }
-                                onBlur={(e) => {
-                                    update(
-                                        'voteSkipThreshold',
-                                        clampNumberField(
+                                            clampNumberField(
+                                                'commandCooldown',
+                                                e.target.value,
+                                            ),
+                                        )
+                                        setNumberDrafts((prev) => {
+                                            const next = { ...prev }
+                                            delete next.commandCooldown
+                                            return next
+                                        })
+                                    }}
+                                    className='bg-lucky-bg-tertiary border-lucky-border text-white'
+                                />
+                            </div>
+                            <div className='space-y-2'>
+                                <Label className='type-meta text-lucky-text-secondary flex items-center gap-1.5'>
+                                    <Percent className='w-3 h-3' />{' '}
+                                    {t('serverSettings.voteSkipThreshold')}
+                                </Label>
+                                <Input
+                                    type='number'
+                                    min={
+                                        NUMBER_FIELD_BOUNDS.voteSkipThreshold
+                                            .min
+                                    }
+                                    max={
+                                        NUMBER_FIELD_BOUNDS.voteSkipThreshold
+                                            .max
+                                    }
+                                    value={
+                                        numberDrafts.voteSkipThreshold ??
+                                        settings.voteSkipThreshold
+                                    }
+                                    onChange={(e) =>
+                                        setNumberDrafts((prev) => ({
+                                            ...prev,
+                                            voteSkipThreshold: e.target.value,
+                                        }))
+                                    }
+                                    onBlur={(e) => {
+                                        update(
                                             'voteSkipThreshold',
-                                            e.target.value,
-                                        ),
-                                    )
-                                    setNumberDrafts((prev) => {
-                                        const next = { ...prev }
-                                        delete next.voteSkipThreshold
-                                        return next
-                                    })
-                                }}
-                                className='bg-lucky-bg-tertiary border-lucky-border text-white'
+                                            clampNumberField(
+                                                'voteSkipThreshold',
+                                                e.target.value,
+                                            ),
+                                        )
+                                        setNumberDrafts((prev) => {
+                                            const next = { ...prev }
+                                            delete next.voteSkipThreshold
+                                            return next
+                                        })
+                                    }}
+                                    className='bg-lucky-bg-tertiary border-lucky-border text-white'
+                                />
+                            </div>
+                        </div>
+                    </Card>
+                </motion.div>
+
+                {/* Permissions */}
+                <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                >
+                    <Card className='p-5 space-y-4 border border-lucky-border'>
+                        <div className='flex items-center justify-between'>
+                            <div className='flex items-center gap-3'>
+                                <div className='p-2 rounded-lg bg-lucky-brand/15'>
+                                    <ListMusic className='w-4 h-4 text-lucky-brand-text' />
+                                </div>
+                                <div>
+                                    <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
+                                        {t('serverSettings.allowPlaylists')}
+                                    </h3>
+                                    <p className='type-meta text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
+                                        {t(
+                                            'serverSettings.allowPlaylistsDescription',
+                                        )}
+                                    </p>
+                                </div>
+                            </div>
+                            <Switch
+                                disabled={!canManageSettings}
+                                checked={settings.allowPlaylists}
+                                onCheckedChange={(v: boolean) =>
+                                    update('allowPlaylists', v)
+                                }
                             />
                         </div>
-                    </div>
-                </Card>
-            </motion.div>
-
-            {/* Permissions */}
-            <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-            >
-                <Card className='p-5 space-y-4 border border-lucky-border'>
-                    <div className='flex items-center justify-between'>
-                        <div className='flex items-center gap-3'>
-                            <div className='p-2 rounded-lg bg-lucky-brand/15'>
-                                <ListMusic className='w-4 h-4 text-lucky-brand-text' />
+                        <div className='flex items-center justify-between'>
+                            <div className='flex items-center gap-3'>
+                                <div className='p-2 rounded-lg bg-lucky-brand/15'>
+                                    <Music className='w-4 h-4 text-lucky-brand-text' />
+                                </div>
+                                <div>
+                                    <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
+                                        {t('serverSettings.allowSpotify')}
+                                    </h3>
+                                    <p className='type-meta text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
+                                        {t(
+                                            'serverSettings.allowSpotifyDescription',
+                                        )}
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
-                                    {t('serverSettings.allowPlaylists')}
-                                </h3>
-                                <p className='type-meta text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
-                                    {t(
-                                        'serverSettings.allowPlaylistsDescription',
-                                    )}
-                                </p>
-                            </div>
+                            <Switch
+                                disabled={!canManageSettings}
+                                checked={settings.allowSpotify}
+                                onCheckedChange={(v: boolean) =>
+                                    update('allowSpotify', v)
+                                }
+                            />
                         </div>
-                        <Switch
-                            checked={settings.allowPlaylists}
-                            onCheckedChange={(v: boolean) =>
-                                update('allowPlaylists', v)
-                            }
-                        />
-                    </div>
-                    <div className='flex items-center justify-between'>
-                        <div className='flex items-center gap-3'>
-                            <div className='p-2 rounded-lg bg-lucky-brand/15'>
-                                <Music className='w-4 h-4 text-lucky-brand-text' />
-                            </div>
-                            <div>
-                                <h3 className='type-body-sm font-semibold text-lucky-text-primary'>
-                                    {t('serverSettings.allowSpotify')}
-                                </h3>
-                                <p className='type-meta text-lucky-text-tertiary mt-0.5 uppercase tracking-wide font-semibold'>
-                                    {t(
-                                        'serverSettings.allowSpotifyDescription',
-                                    )}
-                                </p>
-                            </div>
-                        </div>
-                        <Switch
-                            checked={settings.allowSpotify}
-                            onCheckedChange={(v: boolean) =>
-                                update('allowSpotify', v)
-                            }
-                        />
-                    </div>
-                </Card>
-            </motion.div>
+                    </Card>
+                </motion.div>
+            </fieldset>
 
             {/* Mobile Save Bar */}
             {canManageSettings && (
