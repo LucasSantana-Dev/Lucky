@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.51.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.50.0...v2.51.0) (2026-10-04)
+
+
+### Features
+
+* **bot:** record command events for button and select interactions ([#2628](https://github.com/LucasSantana-Dev/Lucky/issues/2628)) ([dd51538](https://github.com/LucasSantana-Dev/Lucky/commit/dd515388827b3dc84b2beb7eeac7b5df59db0328))
+
+
+### Bug Fixes
+
+* **bot:** show reminder time as a localized timestamp ([#2624](https://github.com/LucasSantana-Dev/Lucky/issues/2624)) ([baa871d](https://github.com/LucasSantana-Dev/Lucky/commit/baa871d9a366659a93788aad1f66993ecb7e84c9))
+* **i18n:** translate the auto-moderation page ([#2627](https://github.com/LucasSantana-Dev/Lucky/issues/2627)) ([620f2b0](https://github.com/LucasSantana-Dev/Lucky/commit/620f2b0967de3b4a9b6bf44367cc602baa79608b))
+
 ## [2.50.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.49.0...v2.50.0) (2026-10-03)
 
 
