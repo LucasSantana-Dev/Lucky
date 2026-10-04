@@ -50,6 +50,47 @@ export interface UpdateEmbedInput {
     fields?: EmbedField[]
 }
 
+export interface EmbedFormValues {
+    name: string
+    title: string
+    description: string
+    color: string
+    footer: string
+    thumbnail: string
+    image: string
+    fields: EmbedField[]
+}
+
+export function buildCreateEmbedInput(form: EmbedFormValues): CreateEmbedInput {
+    return {
+        name: form.name,
+        embedData: {
+            title: form.title || undefined,
+            description: form.description || undefined,
+            color: form.color || undefined,
+            footer: form.footer || undefined,
+            thumbnail: form.thumbnail || undefined,
+            image: form.image || undefined,
+            fields: form.fields.length > 0 ? form.fields : undefined,
+        },
+    }
+}
+
+export function buildUpdateEmbedInput(form: EmbedFormValues): UpdateEmbedInput {
+    return {
+        title: form.title || undefined,
+        description: form.description || undefined,
+        color: form.color || undefined,
+        // null (not undefined) so a blanked field explicitly clears
+        // the existing value on the template instead of the PATCH
+        // silently omitting the key and leaving it unchanged (#2407 review).
+        footer: form.footer || null,
+        thumbnail: form.thumbnail || null,
+        image: form.image || null,
+        fields: form.fields.length > 0 ? form.fields : undefined,
+    }
+}
+
 export function createEmbedsApi(client: AxiosInstance) {
     return {
         list: async (guildId: string): Promise<EmbedTemplate[]> => {
