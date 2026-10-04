@@ -26,7 +26,7 @@
         "@discordjs/opus": "^0.10.0",
         "@lucky/shared": "file:../shared",
         "@sentry/node": "^10.73.0",
-        "bullmq": "^6.3.9",
+        "bullmq": "^6.3.10",
         "chalk": "^6.0.1",
         "discord-player": "^7.2.0",
         "discord-player-spotify": "^1.1.9",
@@ -46,7 +46,7 @@
     "devDependencies": {
         "@types/jest": "^30.0.0",
         "@types/node": "^26.6.3",
-        "@types/ws": "^8.5.13",
+        "@types/ws": "^8.18.2",
         "jest": "^30.5.2",
         "ts-jest": "^29.4.14",
         "tsup": "^8.5.1",
