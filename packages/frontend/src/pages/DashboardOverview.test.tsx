@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import DashboardOverview from './DashboardOverview'
 import { useGuildStore } from '@/stores/guildStore'
+import type { ModerationCase } from '@/types/moderation'
 import {
     useModerationStats,
     useModerationCases,
@@ -58,17 +59,24 @@ const mockStats = {
     casesByType: { warn: 10, mute: 8, kick: 4, ban: 3 },
 }
 
-const mockCases = [
+const mockCases: ModerationCase[] = [
     {
         id: 'c1',
         caseNumber: 1,
+        guildId: '123',
         type: 'warn',
         username: 'TestUser',
         userId: 'u1',
+        moderatorId: 'mod1',
         moderatorName: 'Mod',
         reason: 'Spam',
+        duration: null,
+        expiresAt: null,
         active: true,
+        appealed: false,
+        appealReason: null,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
 ]
 
