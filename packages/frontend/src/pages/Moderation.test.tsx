@@ -7,6 +7,7 @@ import i18n from 'i18next'
 import ModerationPage from './Moderation'
 import { api } from '@/services/api'
 import { useGuildStore } from '@/stores/guildStore'
+import type { ModerationCase } from '@/types/moderation'
 
 vi.mock('@/services/api')
 vi.mock('@/stores/guildStore')
@@ -76,7 +77,7 @@ i18n.init({
 
 const mockGuild = { id: '123', name: 'Test Server', botAdded: true }
 
-const mockCases = [
+const mockCases: ModerationCase[] = [
     {
         id: 'c1',
         caseNumber: 1,
@@ -88,9 +89,12 @@ const mockCases = [
         type: 'warn',
         reason: 'Spamming in general',
         duration: null,
+        expiresAt: null,
         active: true,
         appealed: false,
+        appealReason: null,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
     {
         id: 'c2',
@@ -103,9 +107,12 @@ const mockCases = [
         type: 'ban',
         reason: 'Repeated violations',
         duration: 86400,
+        expiresAt: null,
         active: true,
         appealed: false,
+        appealReason: null,
         createdAt: new Date(Date.now() - 86400000).toISOString(),
+        updatedAt: new Date(Date.now() - 86400000).toISOString(),
     },
     {
         id: 'c3',
@@ -118,9 +125,12 @@ const mockCases = [
         type: 'mute',
         reason: 'Timeout for disruption',
         duration: 3600,
+        expiresAt: null,
         active: false,
         appealed: true,
+        appealReason: null,
         createdAt: new Date(Date.now() - 172800000).toISOString(),
+        updatedAt: new Date(Date.now() - 172800000).toISOString(),
     },
 ]
 
