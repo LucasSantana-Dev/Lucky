@@ -736,6 +736,7 @@ export default function ServerSettingsPage() {
                             <div className='space-y-2'>
                                 <Select
                                     value={settings.language}
+                                    disabled={!canManageSettings}
                                     onValueChange={(v: string) =>
                                         update('language', v)
                                     }
@@ -953,6 +954,7 @@ export default function ServerSettingsPage() {
                                 </div>
                             </div>
                             <Switch
+                                disabled={!canManageSettings}
                                 checked={settings.allowPlaylists}
                                 onCheckedChange={(v: boolean) =>
                                     update('allowPlaylists', v)
@@ -976,6 +978,7 @@ export default function ServerSettingsPage() {
                                 </div>
                             </div>
                             <Switch
+                                disabled={!canManageSettings}
                                 checked={settings.allowSpotify}
                                 onCheckedChange={(v: boolean) =>
                                     update('allowSpotify', v)
