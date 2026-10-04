@@ -13,7 +13,7 @@ import { moderationSchemas as s } from '../schemas/moderation'
 import { moderationService, serverLogService } from '@lucky/shared/services'
 import { paramToString as p } from '../utils/paramCoerce'
 import { guildService } from '../services/GuildService'
-import { errorLog } from '@lucky/shared/utils'
+import { errorLog, warnLog } from '@lucky/shared/utils'
 
 function requireUserId(req: AuthenticatedRequest): string {
     if (!req.userId) {
@@ -32,6 +32,7 @@ type SettingsIds = {
 // Discord lookups swallow API failures and return []. For ids we must verify,
 // an empty list is therefore "could not verify", never "nothing matches".
 async function lookupGuildIds<T extends { id: string }>(
+    guildId: string,
     fetchOptions: () => Promise<T[]>,
     label: string,
 ): Promise<Set<string>> {
@@ -43,6 +44,9 @@ async function lookupGuildIds<T extends { id: string }>(
         throw AppError.badGateway(`Unable to verify guild ${label} right now`)
     }
     if (options.length === 0) {
+        warnLog({
+            message: `Guild ${label} lookup returned nothing for guild ${guildId}; cannot verify settings ids`,
+        })
         throw AppError.serviceUnavailable(
             `Unable to verify guild ${label} right now`,
         )
@@ -68,12 +72,14 @@ async function assertSettingsIdsBelongToGuild(
     const [knownRoles, knownChannels] = await Promise.all([
         needsRoles
             ? lookupGuildIds(
+                  guildId,
                   () => guildService.getFullGuildRoles(guildId),
                   'roles',
               )
             : undefined,
         needsChannel
             ? lookupGuildIds(
+                  guildId,
                   () => guildService.getGuildTextChannelOptions(guildId),
                   'channels',
               )

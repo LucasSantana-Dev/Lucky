@@ -376,6 +376,7 @@ export function setupRolesRoutes(app: Express): void {
                 errorLog({
                     message: 'Failed to update reaction role message',
                     error,
+                    data: { guildId, messageId },
                 })
                 throw new AppError(
                     500,

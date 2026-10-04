@@ -652,6 +652,7 @@ describe('Roles Routes', () => {
                 .send(body)
 
         function failUpdateWith(message: string) {
+            mockListReactionRoles.mockResolvedValue([])
             authed()
             process.env.DISCORD_TOKEN = 'test-token'
             ;(
