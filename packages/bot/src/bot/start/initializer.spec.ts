@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { BotInitializer } from './initializer'
 import type { CustomClient } from '../../types'
+import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'
+import { reminderScheduler } from '../../utils/general/reminderScheduler'
+import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
+import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
+import { channelPurgeScheduler } from '../../utils/general/channelPurgeScheduler'
+import { dataRetentionScheduler } from '../../utils/general/dataRetentionScheduler'
 
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
@@ -33,6 +39,9 @@ const heartbeatServiceStartMock = jest.fn()
 const heartbeatServiceStopMock = jest.fn()
 const criativariaLiveNotifStopMock = jest.fn()
 const stopTwitchServiceMock = jest.fn()
+const stopPresenceRotationMock = jest.fn()
+const stopBatchJobWorkerMock = jest.fn()
+const stopRssBridgeServiceMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
@@ -45,7 +54,8 @@ jest.mock('@lucky/shared/utils', () => ({
 jest.mock('../../handlers/clientHandler/service', () => ({
     createClient: (...args: unknown[]) => createClientMock(...args),
     startClient: (...args: unknown[]) => startClientMock(...args),
-    stopPresenceRotation: jest.fn(),
+    stopPresenceRotation: (...args: unknown[]) =>
+        stopPresenceRotationMock(...args),
 }))
 
 jest.mock('../../utils/monitoring/commandEventBuffer', () => ({
@@ -72,7 +82,10 @@ jest.mock('../../register', () => ({
 jest.mock('../../workers/batchJobWorker', () => ({
     // Plain functions (not jest.fn) so resetMocks doesn't wipe the Promise return.
     startBatchJobWorker: () => Promise.resolve(),
-    stopBatchJobWorker: () => Promise.resolve(),
+    stopBatchJobWorker: () => {
+        stopBatchJobWorkerMock()
+        return Promise.resolve()
+    },
 }))
 
 jest.mock('../../handlers/eventHandler', () => ({
@@ -138,6 +151,12 @@ jest.mock('../../services/CriativariaLiveNotificationService', () => ({
         start: jest.fn(),
         stop: (...args: unknown[]) => criativariaLiveNotifStopMock(...args),
     },
+}))
+
+jest.mock('../../services/RssBridgeService', () => ({
+    ...jest.requireActual('../../services/RssBridgeService'),
+    stopRssBridgeService: (...args: unknown[]) =>
+        stopRssBridgeServiceMock(...args),
 }))
 
 jest.mock('../../twitch', () => ({
@@ -564,24 +583,63 @@ describe('BotInitializer', () => {
             expect(initResult.success).toBe(true)
             const client = initializer.getClient()
 
+            const stopCommandEventBufferMock = (
+                jest.requireMock(
+                    '../../utils/monitoring/commandEventBuffer',
+                ) as { stopCommandEventBuffer: jest.Mock }
+            ).stopCommandEventBuffer
+            stopCommandEventBufferMock.mockClear()
+
+            const stop = (m: object) =>
+                jest.spyOn(m as { stop: () => void }, 'stop') as jest.Mock
+            const supportStop = stop(supportSessionScheduler)
+            const reminderStop = stop(reminderScheduler)
+            const giveawayStop = stop(giveawayScheduler)
+            const topggStop = stop(topggStatsScheduler)
+            const channelPurgeStop = stop(channelPurgeScheduler)
+            const dataRetentionStop = stop(dataRetentionScheduler)
+
             await initializer.shutdown()
 
             const order = (m: jest.Mock) => m.mock.invocationCallOrder[0]
-            const sequence = [
-                stopWebMusicHandlerMock,
-                birthdaySchedulerStopMock,
-                modDigestSchedulerStopMock,
-                aiDevToolkitStopMock,
-                dependencyCheckStopMock,
-                weeklyDigestStopMock,
-                heartbeatServiceStopMock,
-                stopTwitchServiceMock,
-                musicWatchdogStopMock,
-                musicWatchdogStopPeriodicScanMock,
-                client?.destroy as jest.Mock,
-                stopMetricsServerMock,
-            ].map(order)
-            expect(sequence).toEqual([...sequence].sort((a, b) => a - b))
+            const expectedOrder: Array<[string, jest.Mock]> = [
+                ['presence rotation', stopPresenceRotationMock],
+                ['web music handler', stopWebMusicHandlerMock],
+                ['birthday scheduler', birthdaySchedulerStopMock],
+                ['support session scheduler', supportStop],
+                ['reminder scheduler', reminderStop],
+                ['giveaway scheduler', giveawayStop],
+                ['top.gg stats scheduler', topggStop],
+                ['mod digest scheduler', modDigestSchedulerStopMock],
+                ['channel purge scheduler', channelPurgeStop],
+                ['data retention scheduler', dataRetentionStop],
+                ['ai dev toolkit', aiDevToolkitStopMock],
+                ['dependency check', dependencyCheckStopMock],
+                [
+                    'criativaria live notifications',
+                    criativariaLiveNotifStopMock,
+                ],
+                ['weekly digest', weeklyDigestStopMock],
+                ['heartbeat', heartbeatServiceStopMock],
+                ['twitch', stopTwitchServiceMock],
+                ['batch job worker', stopBatchJobWorkerMock],
+                ['rss bridge', stopRssBridgeServiceMock],
+                ['watchdog orphan monitor', musicWatchdogStopMock],
+                ['watchdog periodic scan', musicWatchdogStopPeriodicScanMock],
+                ['client destroy', client?.destroy as jest.Mock],
+                ['command event buffer', stopCommandEventBufferMock],
+                ['metrics server', stopMetricsServerMock],
+            ]
+            for (const [label, mock] of expectedOrder) {
+                expect({ label, calls: mock.mock.calls.length }).toEqual({
+                    label,
+                    calls: 1,
+                })
+            }
+            const labelsByCallOrder = [...expectedOrder]
+                .sort((x, y) => order(x[1]) - order(y[1]))
+                .map(([label]) => label)
+            expect(labelsByCallOrder).toEqual(expectedOrder.map(([l]) => l))
         })
 
         it('still stops metrics server when a scheduler throws', async () => {
