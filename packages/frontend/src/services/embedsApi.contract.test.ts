@@ -31,12 +31,6 @@ const blankForm: EmbedFormValues = {
     fields: [],
 }
 
-const definedKeys = (obj: object) =>
-    Object.entries(obj)
-        .filter(([, value]) => value !== undefined)
-        .map(([key]) => key)
-        .sort()
-
 describe('embed builder frontend/backend contract', () => {
     test('a full form builds a create payload the backend create schema accepts', () => {
         const result = embedSchemas.createEmbedBody.safeParse(
@@ -78,29 +72,44 @@ describe('embed builder frontend/backend contract', () => {
         )
     })
 
-    test('the create schema strips none of the embedData keys the form sends', () => {
+    test('the create schema parses back to exactly the payload the form sends, nested fields included', () => {
         const payload = buildCreateEmbedInput(fullForm)
 
         const result = embedSchemas.createEmbedBody.safeParse(payload)
 
         expect(result.success).toBe(true)
         if (!result.success) return
-        expect(definedKeys(result.data.embedData)).toEqual(
-            definedKeys(payload.embedData),
-        )
+        expect(result.data).toEqual(payload)
     })
 
-    test('the update schema strips none of the keys the form sends', () => {
+    test('the update schema parses back to exactly the payload the form sends, nested fields included', () => {
         const payload = buildUpdateEmbedInput(fullForm)
 
         const result = embedSchemas.updateEmbedBody.safeParse(payload)
 
         expect(result.success).toBe(true)
         if (!result.success) return
-        expect(definedKeys(result.data)).toEqual(definedKeys(payload))
+        expect(result.data).toEqual(payload)
     })
 
-    test('a create payload that renames embedData to data is rejected', () => {
+    test('strips unknown keys inside fields, which the deep comparison catches', () => {
+        const payload = buildCreateEmbedInput(fullForm)
+        const tampered = {
+            ...payload,
+            embedData: {
+                ...payload.embedData,
+                fields: [{ name: 'a', value: 'b', bogus: 1 }],
+            },
+        }
+
+        const result = embedSchemas.createEmbedBody.safeParse(tampered)
+
+        expect(result.success).toBe(true)
+        if (!result.success) return
+        expect(result.data).not.toEqual(tampered)
+    })
+
+    test('a create payload missing the required embedData key (renamed to data) is rejected', () => {
         const { embedData, ...rest } = buildCreateEmbedInput(fullForm)
 
         const result = embedSchemas.createEmbedBody.safeParse({
