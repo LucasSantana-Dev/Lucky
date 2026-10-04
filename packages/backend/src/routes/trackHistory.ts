@@ -7,6 +7,7 @@ import { asyncHandler } from '../middleware/asyncHandler'
 import { managementSchemas as s } from '../schemas/management'
 import { trackHistoryService } from '@lucky/shared/services'
 import { z } from 'zod'
+import { AppError } from '../errors/AppError'
 import { paramToString as p } from '../utils/paramCoerce'
 
 const historyQuery = z.object({
@@ -94,7 +95,10 @@ export function setupTrackHistoryRoutes(app: Express): void {
         validateParams(s.guildIdParam),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
-            await trackHistoryService.clearHistory(guildId)
+            const cleared = await trackHistoryService.clearHistory(guildId)
+            if (!cleared) {
+                throw new AppError(500, 'Failed to clear music history')
+            }
             res.json({ success: true })
         }),
     )
