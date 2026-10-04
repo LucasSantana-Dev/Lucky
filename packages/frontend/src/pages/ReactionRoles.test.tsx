@@ -578,7 +578,7 @@ describe('ReactionRoles', () => {
         vi.mocked(api.reactionRoles.update).mockRejectedValue(
             new ApiError(400, 'Role is above the bot role'),
         )
-        vi.mocked(api.reactionRoles.list).mockResolvedValue([
+        vi.mocked(api.reactionRoles.list).mockResolvedValueOnce([
             { ...mockMessages[0], title: 'Pick', description: 'Choose' },
         ])
         render(<ReactionRoles />)
@@ -1838,39 +1838,54 @@ test('image file preview renders correctly', async () => {
     expect(screen.getByLabelText('Clear file')).toBeInTheDocument()
 })
 
-test('add role button disabled when 25 roles reached', async () => {
+function mockMessageWithMappings(count: number) {
+    vi.mocked(api.reactionRoles.list).mockResolvedValueOnce([
+        {
+            ...mockMessages[0],
+            mappings: Array.from({ length: count }, (_, i) => ({
+                id: `map-${i}`,
+                buttonId: '',
+                type: 'button' as const,
+                emoji: String.fromCodePoint(0x1f600 + i),
+                label: `Role ${i}`,
+                style: 'Primary' as const,
+                roleId: `role-${i}`,
+            })),
+        },
+    ])
+}
+
+async function openEditWithMappings(count: number) {
     mockGuildStore()
     vi.mocked(api.guilds.getChannels).mockResolvedValue({
-        data: { channels: [{ id: 'ch-1', name: 'general' }] },
+        data: { channels: [{ id: 'channel-456', name: 'general' }] },
     } as never)
     vi.mocked(api.guilds.getRoles).mockResolvedValue({
-        data: { roles: [] },
+        data: { roles: [], botHighestPosition: 5 },
     } as never)
+    mockMessageWithMappings(count)
 
     render(<ReactionRoles />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /^create$/i }))
-
-    await waitFor(() => {
-        expect(
-            screen.getByText('Create Reaction Role Message'),
-        ).toBeInTheDocument()
+    const editButtons = await screen.findAllByRole('button', {
+        name: /edit/i,
     })
+    fireEvent.click(editButtons[0])
+}
 
-    // Add 24 roles to reach limit
-    let addButton = screen.getByRole('button', { name: /add role/i })
-    for (let i = 0; i < 24; i++) {
-        fireEvent.click(addButton)
-        // Re-query after each click in case component updates
-        addButton = screen.getByRole('button', { name: /add role/i })
-    }
+test('add role button disabled when 25 roles reached', async () => {
+    await openEditWithMappings(25)
 
-    // Now at 25 roles, button should be disabled
-    addButton = screen.getByRole('button', { name: /add role/i })
-    expect(addButton).toBeDisabled()
-    // 24 add-role clicks each re-render the growing (heavy) role list, which is
-    // slow on CI — give it headroom over the 5s default.
-}, 20000)
+    expect(await screen.findByText(/\(25\/25\)/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add role/i })).toBeDisabled()
+})
+
+test('add role button enabled when 24 roles are present', async () => {
+    await openEditWithMappings(24)
+
+    expect(await screen.findByText(/\(24\/25\)/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add role/i })).toBeEnabled()
+})
 
 test('role entry remove button hidden when only one role', async () => {
     mockGuildStore()
