@@ -211,131 +211,73 @@ export class BotInitializer {
         return this.isInitialized
     }
 
+    private runShutdownStep(message: string, step: () => void): void {
+        try {
+            step()
+        } catch (error) {
+            errorLog({ message, error })
+        }
+    }
+
     async shutdown(): Promise<void> {
-        // Stop presence rotation first (following #1157 pattern)
-        try {
-            stopPresenceRotation()
-        } catch (error) {
-            errorLog({ message: 'Error stopping presence rotation:', error })
-        }
-
-        // Stop all long-lived timers/intervals
-        try {
-            stopWebMusicHandler()
-        } catch (error) {
-            errorLog({ message: 'Error stopping web music handler:', error })
-        }
-
-        try {
-            birthdayScheduler.stop()
-        } catch (error) {
-            errorLog({ message: 'Error stopping birthday scheduler:', error })
-        }
-
-        try {
-            supportSessionScheduler.stop()
-        } catch (error) {
-            errorLog({
-                message: 'Error stopping support session scheduler:',
-                error,
-            })
-        }
-
-        try {
-            reminderScheduler.stop()
-        } catch (error) {
-            errorLog({ message: 'Error stopping reminder scheduler:', error })
-        }
-
-        try {
-            giveawayScheduler.stop()
-        } catch (error) {
-            errorLog({ message: 'Error stopping giveaway scheduler:', error })
-        }
-
-        try {
-            topggStatsScheduler.stop()
-        } catch (error) {
-            errorLog({
-                message: 'Error stopping Top.gg stats scheduler:',
-                error,
-            })
-        }
-
-        try {
-            modDigestSchedulerService.stop()
-        } catch (error) {
-            errorLog({ message: 'Error stopping mod digest scheduler:', error })
-        }
-
-        try {
-            channelPurgeScheduler.stop()
-        } catch (error) {
-            errorLog({
-                message: 'Error stopping channel purge scheduler:',
-                error,
-            })
-        }
-
-        try {
-            dataRetentionScheduler.stop()
-        } catch (error) {
-            errorLog({
-                message: 'Error stopping data retention scheduler:',
-                error,
-            })
-        }
-
-        try {
-            aiDevToolkitService.stop()
-        } catch (error) {
-            errorLog({
-                message: 'Error stopping AI dev toolkit service:',
-                error,
-            })
-        }
-
-        try {
-            dependencyCheckService.stop()
-        } catch (error) {
-            errorLog({
-                message: 'Error stopping dependency check service:',
-                error,
-            })
-        }
-
-        try {
-            criativariaLiveNotificationService.stop()
-        } catch (error) {
-            errorLog({
-                message:
-                    'Error stopping Criativaria live notification service:',
-                error,
-            })
-        }
-
-        try {
-            weeklyDigestService.stop()
-        } catch (error) {
-            errorLog({
-                message: 'Error stopping weekly digest service:',
-                error,
-            })
-        }
-
-        try {
-            stopHeartbeat()
-        } catch (error) {
-            errorLog({
-                message: 'Error stopping heartbeat service:',
-                error,
-            })
-        }
-
-        try {
-            stopTwitchService()
-        } catch (error) {
-            errorLog({ message: 'Error stopping Twitch service:', error })
+        // Stop presence rotation first (following #1157 pattern), then all
+        // long-lived timers/intervals, in this exact order.
+        const stepsBeforeBatchWorker: Array<[string, () => void]> = [
+            ['Error stopping presence rotation:', stopPresenceRotation],
+            ['Error stopping web music handler:', stopWebMusicHandler],
+            [
+                'Error stopping birthday scheduler:',
+                () => birthdayScheduler.stop(),
+            ],
+            [
+                'Error stopping support session scheduler:',
+                () => supportSessionScheduler.stop(),
+            ],
+            [
+                'Error stopping reminder scheduler:',
+                () => reminderScheduler.stop(),
+            ],
+            [
+                'Error stopping giveaway scheduler:',
+                () => giveawayScheduler.stop(),
+            ],
+            [
+                'Error stopping Top.gg stats scheduler:',
+                () => topggStatsScheduler.stop(),
+            ],
+            [
+                'Error stopping mod digest scheduler:',
+                () => modDigestSchedulerService.stop(),
+            ],
+            [
+                'Error stopping channel purge scheduler:',
+                () => channelPurgeScheduler.stop(),
+            ],
+            [
+                'Error stopping data retention scheduler:',
+                () => dataRetentionScheduler.stop(),
+            ],
+            [
+                'Error stopping AI dev toolkit service:',
+                () => aiDevToolkitService.stop(),
+            ],
+            [
+                'Error stopping dependency check service:',
+                () => dependencyCheckService.stop(),
+            ],
+            [
+                'Error stopping Criativaria live notification service:',
+                () => criativariaLiveNotificationService.stop(),
+            ],
+            [
+                'Error stopping weekly digest service:',
+                () => weeklyDigestService.stop(),
+            ],
+            ['Error stopping heartbeat service:', stopHeartbeat],
+            ['Error stopping Twitch service:', stopTwitchService],
+        ]
+        for (const [message, step] of stepsBeforeBatchWorker) {
+            this.runShutdownStep(message, step)
         }
 
         try {
@@ -347,31 +289,19 @@ export class BotInitializer {
             })
         }
 
-        try {
-            stopRssBridgeService()
-        } catch (error) {
-            errorLog({
-                message: 'Error stopping RSS Bridge service:',
-                error,
-            })
-        }
-
-        try {
-            musicWatchdogService.stopOrphanSessionMonitor()
-        } catch (error) {
-            errorLog({
-                message: 'Error stopping watchdog orphan-session monitor:',
-                error,
-            })
-        }
-
-        try {
-            musicWatchdogService.stopPeriodicScan()
-        } catch (error) {
-            errorLog({
-                message: 'Error stopping watchdog periodic scan:',
-                error,
-            })
+        const stepsAfterBatchWorker: Array<[string, () => void]> = [
+            ['Error stopping RSS Bridge service:', stopRssBridgeService],
+            [
+                'Error stopping watchdog orphan-session monitor:',
+                () => musicWatchdogService.stopOrphanSessionMonitor(),
+            ],
+            [
+                'Error stopping watchdog periodic scan:',
+                () => musicWatchdogService.stopPeriodicScan(),
+            ],
+        ]
+        for (const [message, step] of stepsAfterBatchWorker) {
+            this.runShutdownStep(message, step)
         }
 
         if (this.client) {

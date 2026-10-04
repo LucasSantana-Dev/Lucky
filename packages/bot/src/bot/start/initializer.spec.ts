@@ -559,6 +559,31 @@ describe('BotInitializer', () => {
             },
         )
 
+        it('runs the stop steps in the original order', async () => {
+            const initResult = await initializer.initializeBot()
+            expect(initResult.success).toBe(true)
+            const client = initializer.getClient()
+
+            await initializer.shutdown()
+
+            const order = (m: jest.Mock) => m.mock.invocationCallOrder[0]
+            const sequence = [
+                stopWebMusicHandlerMock,
+                birthdaySchedulerStopMock,
+                modDigestSchedulerStopMock,
+                aiDevToolkitStopMock,
+                dependencyCheckStopMock,
+                weeklyDigestStopMock,
+                heartbeatServiceStopMock,
+                stopTwitchServiceMock,
+                musicWatchdogStopMock,
+                musicWatchdogStopPeriodicScanMock,
+                client?.destroy as jest.Mock,
+                stopMetricsServerMock,
+            ].map(order)
+            expect(sequence).toEqual([...sequence].sort((a, b) => a - b))
+        })
+
         it('still stops metrics server when a scheduler throws', async () => {
             const initResult = await initializer.initializeBot()
             expect(initResult.success).toBe(true)
