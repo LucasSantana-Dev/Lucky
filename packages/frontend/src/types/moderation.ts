@@ -6,7 +6,7 @@ export interface ModerationCase {
     caseNumber: number
     guildId: string
     userId: string
-    userName?: string
+    username?: string
     userAvatar?: string
     moderatorId: string
     moderatorName?: string

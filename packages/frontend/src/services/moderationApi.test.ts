@@ -22,7 +22,7 @@ const mockModerationCase: ModerationCase = {
     caseNumber: 1,
     guildId: 'guild-1',
     userId: 'user-1',
-    userName: 'TestUser',
+    username: 'TestUser',
     userAvatar: 'https://example.com/avatar.png',
     moderatorId: 'mod-1',
     moderatorName: 'Moderator',
