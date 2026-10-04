@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.51.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.51.1...v2.51.2) (2026-10-04)
+
+
+### Bug Fixes
+
+* **frontend:** read username on moderation cases ([#2639](https://github.com/LucasSantana-Dev/Lucky/issues/2639)) ([b163ed6](https://github.com/LucasSantana-Dev/Lucky/commit/b163ed617108b69e72e2fc8ce4e32ea8364dc5ea))
+
+## [2.51.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.51.0...v2.51.1) (2026-10-04)
+
+
+### Bug Fixes
+
+* **backend:** return 500 when settings or history writes fail ([#2638](https://github.com/LucasSantana-Dev/Lucky/issues/2638)) ([5de9459](https://github.com/LucasSantana-Dev/Lucky/commit/5de94596b497ece26ecc2256ff14d7d1713c6094))
+* **backend:** validate moderation ids and stop leaking reaction role errors ([#2633](https://github.com/LucasSantana-Dev/Lucky/issues/2633)) ([69603a1](https://github.com/LucasSantana-Dev/Lucky/commit/69603a17ab3ceb0b5259ff5b081ea79a972898a1))
+* **frontend:** disable server settings inputs for view-only users ([#2635](https://github.com/LucasSantana-Dev/Lucky/issues/2635)) ([3073a4f](https://github.com/LucasSantana-Dev/Lucky/commit/3073a4fff1cfacb3a85dc2891221cddaf71b5565))
+
+## [2.51.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.50.0...v2.51.0) (2026-10-04)
+
+
+### Features
+
+* **bot:** record command events for button and select interactions ([#2628](https://github.com/LucasSantana-Dev/Lucky/issues/2628)) ([dd51538](https://github.com/LucasSantana-Dev/Lucky/commit/dd515388827b3dc84b2beb7eeac7b5df59db0328))
+
+
+### Bug Fixes
+
+* **bot:** show reminder time as a localized timestamp ([#2624](https://github.com/LucasSantana-Dev/Lucky/issues/2624)) ([baa871d](https://github.com/LucasSantana-Dev/Lucky/commit/baa871d9a366659a93788aad1f66993ecb7e84c9))
+* **i18n:** translate the auto-moderation page ([#2627](https://github.com/LucasSantana-Dev/Lucky/issues/2627)) ([620f2b0](https://github.com/LucasSantana-Dev/Lucky/commit/620f2b0967de3b4a9b6bf44367cc602baa79608b))
+
+## [2.50.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.49.0...v2.50.0) (2026-10-03)
+
+
+### Features
+
+* **dashboard:** channel and role pickers for levels and starboard ([#2617](https://github.com/LucasSantana-Dev/Lucky/issues/2617)) ([14206ad](https://github.com/LucasSantana-Dev/Lucky/commit/14206adef4fbc8b9b87f19d9e7bc6962278ae5b7))
+
+
+### Bug Fixes
+
+* **bot:** stop reminders after leaving the server ([#2621](https://github.com/LucasSantana-Dev/Lucky/issues/2621)) ([22ba819](https://github.com/LucasSantana-Dev/Lucky/commit/22ba8193bf8a62e032e1d9037d35ea9e220b0369))
+* **i18n:** translate hardcoded automation, config and auth strings ([#2616](https://github.com/LucasSantana-Dev/Lucky/issues/2616)) ([74df64e](https://github.com/LucasSantana-Dev/Lucky/commit/74df64e4e426d3e0cae5e325669a1f3dd05051dc))
+
 ## [2.49.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.48.0...v2.49.0) (2026-10-03)
 
 

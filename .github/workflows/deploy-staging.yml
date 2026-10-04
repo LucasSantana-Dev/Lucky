@@ -17,10 +17,6 @@ on:
                 required: true
                 default: main
 
-concurrency:
-    group: deploy-staging
-    cancel-in-progress: true
-
 permissions:
     contents: read
     pull-requests: write
@@ -33,6 +29,12 @@ jobs:
             github.event_name == 'workflow_dispatch' ||
             (github.event.pull_request.head.repo.full_name == github.repository &&
              contains(github.event.pull_request.labels.*.name, 'staging'))
+        # Concurrency lives on the job, not the workflow: it is only evaluated for
+        # a job that passes `if:`, so an unlabeled PR push (job skipped) never
+        # joins the group and cannot cancel another PR's in-progress deploy.
+        concurrency:
+            group: deploy-staging
+            cancel-in-progress: true
         runs-on: ubuntu-latest
         timeout-minutes: 30
         steps:

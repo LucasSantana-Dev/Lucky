@@ -264,7 +264,7 @@ function ChannelPicker({
             )}
             {channels.length === 0 && (
                 <p className='text-xs text-lucky-text-tertiary'>
-                    Channels unavailable, enter IDs manually below
+                    {t('autoMod.channelsUnavailable')}
                 </p>
             )}
         </div>
@@ -331,7 +331,7 @@ function RolePicker({
             )}
             {roles.length === 0 && (
                 <p className='text-xs text-lucky-text-tertiary'>
-                    Roles unavailable, enter IDs manually below
+                    {t('autoMod.rolesUnavailable')}
                 </p>
             )}
         </div>
@@ -514,9 +514,7 @@ export default function AutoModPage() {
             })
             .catch(() => {
                 if (cancelled) return
-                setSettingsError(
-                    'Failed to load automod settings. Saving is disabled until settings load successfully.',
-                )
+                setSettingsError(t('autoMod.failedToLoadSettings'))
                 setSettings(normalizeAutoModSettings(undefined, guildId))
             })
             .finally(() => {
@@ -535,7 +533,7 @@ export default function AutoModPage() {
             .listTemplates(selectedGuild.id)
             .then((res) => setTemplates(res.data.templates))
             .catch(() => {
-                setTemplatesError('Failed to load templates')
+                setTemplatesError(t('autoMod.failedToLoadTemplates'))
                 setTemplates([])
             })
             .finally(() => setTemplatesLoading(false))
@@ -549,14 +547,14 @@ export default function AutoModPage() {
             .getChannels(selectedGuild.id)
             .then((res) => setChannels(res.data.channels))
             .catch(() => {
-                setChannelsError('Failed to load Discord channels')
+                setChannelsError(t('autoMod.failedToLoadChannels'))
                 setChannels([])
             })
         api.guilds
             .getRbac(selectedGuild.id)
             .then((res) => setRoles(res.data.roles))
             .catch(() => {
-                setRolesError('Failed to load Discord roles')
+                setRolesError(t('autoMod.failedToLoadRoles'))
                 setRoles([])
             })
     }, [selectedGuild?.id])
@@ -580,9 +578,9 @@ export default function AutoModPage() {
                 ...payload
             } = settings
             await api.automod.updateSettings(selectedGuild.id, payload)
-            toast.success('Auto-moderation settings saved!')
+            toast.success(t('autoMod.settingsSaved'))
         } catch {
-            toast.error('Failed to save settings')
+            toast.error(t('autoMod.failedToSave'))
         } finally {
             setSaving(false)
         }
@@ -602,12 +600,12 @@ export default function AutoModPage() {
                     selectedGuild.id,
                 ),
             )
-            toast.success('Auto-moderation template applied')
+            toast.success(t('autoMod.templateApplied'))
         } catch (error) {
             if (error instanceof ApiError) {
                 toast.error(error.message)
             } else {
-                toast.error('Failed to apply template')
+                toast.error(t('autoMod.failedToApplyTemplate'))
             }
         } finally {
             setApplyingTemplateId(null)
@@ -630,7 +628,7 @@ export default function AutoModPage() {
         if (templates.length === 0) {
             return (
                 <p className='text-sm text-lucky-text-secondary'>
-                    No templates available right now.
+                    {t('autoMod.noTemplatesAvailable')}
                 </p>
             )
         }
@@ -657,14 +655,18 @@ export default function AutoModPage() {
                             disabled={applyingTemplateId !== null}
                             aria-label={
                                 applyingTemplateId === template.id
-                                    ? `Applying ${template.name} template`
-                                    : `Apply ${template.name} template`
+                                    ? t('autoMod.applyingTemplateAria', {
+                                          name: template.name,
+                                      })
+                                    : t('autoMod.applyTemplateAria', {
+                                          name: template.name,
+                                      })
                             }
                         >
                             {applyingTemplateId === template.id ? (
                                 <Loader2 className='h-4 w-4 animate-spin' />
                             ) : (
-                                'Apply template'
+                                t('autoMod.applyTemplate')
                             )}
                         </Button>
                     </div>
@@ -678,10 +680,10 @@ export default function AutoModPage() {
             <div className='flex flex-col items-center justify-center h-[60vh] text-center'>
                 <ShieldAlert className='w-16 h-16 text-lucky-text-tertiary mb-4' />
                 <h2 className='text-xl font-semibold text-white mb-2'>
-                    No Server Selected
+                    {t('autoMod.noServerSelected')}
                 </h2>
                 <p className='text-lucky-text-secondary text-sm'>
-                    Select a server to configure auto-moderation
+                    {t('autoMod.selectServerToConfigure')}
                 </p>
             </div>
         )
@@ -708,11 +710,10 @@ export default function AutoModPage() {
             <div className='flex items-start justify-between'>
                 <header>
                     <h1 className='text-2xl font-bold text-white uppercase tracking-wide'>
-                        Auto-Moderation
+                        {t('autoMod.title')}
                     </h1>
                     <p className='text-sm text-lucky-text-secondary mt-1'>
-                        Configure automatic content filters for{' '}
-                        {selectedGuild.name}
+                        {t('autoMod.subtitle', { name: selectedGuild.name })}
                     </p>
                 </header>
                 <Button
@@ -725,7 +726,7 @@ export default function AutoModPage() {
                     ) : (
                         <Save className='w-4 h-4' />
                     )}
-                    Save Changes
+                    {t('autoMod.saveChanges')}
                 </Button>
             </div>
 
@@ -746,12 +747,11 @@ export default function AutoModPage() {
                         <div className='flex items-center gap-2'>
                             <Sparkles className='w-5 h-5 text-lucky-warning' />
                             <h2 className='text-base font-semibold text-white uppercase tracking-wide'>
-                                Templates
+                                {t('autoMod.templates')}
                             </h2>
                         </div>
                         <p className='text-xs text-lucky-text-tertiary'>
-                            Start from curated defaults for common malicious
-                            links and harmful words.
+                            {t('autoMod.startFromCurated')}
                         </p>
                         {renderTemplates()}
                     </Card>
@@ -766,26 +766,26 @@ export default function AutoModPage() {
                     <Card className='overflow-hidden border border-lucky-border'>
                         <div className='px-6 py-4 border-b border-lucky-border'>
                             <h2 className='text-base font-semibold text-white uppercase tracking-wide'>
-                                Content Filters
+                                {t('autoMod.contentFilters')}
                             </h2>
                         </div>
                         <FilterRow
-                            title='Spam Detection'
-                            description='Detect and act on message spam'
+                            title={t('autoMod.spamDetection')}
+                            description={t('autoMod.detectAndActOnSpam')}
                             icon={MessageSquare}
                             enabled={settings.spamEnabled}
                             onToggle={(v) => update('spamEnabled', v)}
                         >
                             <div className='grid grid-cols-2 gap-3'>
                                 <NumberInput
-                                    label='Max messages'
+                                    label={t('autoMod.maxMessages')}
                                     value={settings.spamThreshold}
                                     onChange={(v) => update('spamThreshold', v)}
                                     min={2}
                                     max={20}
                                 />
                                 <NumberInput
-                                    label='Time window (s)'
+                                    label={t('autoMod.timeWindow')}
                                     value={settings.spamTimeWindow}
                                     onChange={(v) =>
                                         update('spamTimeWindow', v)
@@ -796,14 +796,14 @@ export default function AutoModPage() {
                             </div>
                         </FilterRow>
                         <FilterRow
-                            title='Caps Lock Detection'
-                            description='Detect excessive use of capital letters'
+                            title={t('autoMod.capsLockDetection')}
+                            description={t('autoMod.detectExcessiveCaps')}
                             icon={Type}
                             enabled={settings.capsEnabled}
                             onToggle={(v) => update('capsEnabled', v)}
                         >
                             <NumberInput
-                                label='Caps threshold (%)'
+                                label={t('autoMod.capsThreshold')}
                                 value={settings.capsThreshold}
                                 onChange={(v) => update('capsThreshold', v)}
                                 min={50}
@@ -811,15 +811,15 @@ export default function AutoModPage() {
                             />
                         </FilterRow>
                         <FilterRow
-                            title='Link Filtering'
-                            description='Block or restrict links in messages'
+                            title={t('autoMod.linkFiltering')}
+                            description={t('autoMod.blockOrRestrictLinks')}
                             icon={Link2}
                             enabled={settings.linksEnabled}
                             onToggle={(v) => update('linksEnabled', v)}
                         >
                             <div className='space-y-1.5'>
                                 <Label className='text-xs text-lucky-text-secondary'>
-                                    Allowed domains
+                                    {t('autoMod.allowedDomains')}
                                 </Label>
                                 <TagList
                                     items={settings.allowedDomains}
@@ -842,22 +842,22 @@ export default function AutoModPage() {
                             </div>
                         </FilterRow>
                         <FilterRow
-                            title='Invite Link Filtering'
-                            description='Block Discord invite links'
+                            title={t('autoMod.inviteLinkFiltering')}
+                            description={t('autoMod.blockDiscordInvites')}
                             icon={Mail}
                             enabled={settings.invitesEnabled}
                             onToggle={(v) => update('invitesEnabled', v)}
                         />
                         <FilterRow
-                            title='Banned Words'
-                            description='Filter messages containing specific words'
+                            title={t('autoMod.bannedWords')}
+                            description={t('autoMod.filterMessagesWithWords')}
                             icon={Ban}
                             enabled={settings.wordsEnabled}
                             onToggle={(v) => update('wordsEnabled', v)}
                         >
                             <div className='space-y-1.5'>
                                 <Label className='text-xs text-lucky-text-secondary'>
-                                    Banned words
+                                    {t('autoMod.bannedWordsLabel')}
                                 </Label>
                                 <TagList
                                     items={settings.bannedWords}
@@ -896,18 +896,17 @@ export default function AutoModPage() {
                         <div className='flex items-center gap-2 mb-2'>
                             <CheckCircle2 className='w-5 h-5 text-lucky-success' />
                             <h2 className='text-base font-semibold text-white uppercase tracking-wide'>
-                                Exemptions
+                                {t('autoMod.exemptions')}
                             </h2>
                         </div>
                         <p className='text-xs text-lucky-text-tertiary'>
-                            Channels and roles exempt from auto-moderation
-                            filters
+                            {t('autoMod.channelsAndRolesExempt')}
                         </p>
                     </div>
                     <div className='grid grid-cols-1 md:grid-cols-2'>
                         <div className='p-6 space-y-3 border-r border-lucky-border md:border-r md:border-b-0 border-b md:border-b-0'>
                             <Label className='text-xs text-lucky-text-secondary'>
-                                Exempt Channels
+                                {t('autoMod.exemptChannels')}
                             </Label>
                             <ChannelPicker
                                 selectedIds={settings.exemptChannels}
@@ -949,13 +948,15 @@ export default function AutoModPage() {
                                             ),
                                         )
                                     }
-                                    placeholder='Channel ID...'
+                                    placeholder={t(
+                                        'autoMod.channelIdPlaceholder',
+                                    )}
                                 />
                             )}
                         </div>
                         <div className='p-6 space-y-3'>
                             <Label className='text-xs text-lucky-text-secondary'>
-                                Exempt Roles
+                                {t('autoMod.exemptRoles')}
                             </Label>
                             <RolePicker
                                 selectedIds={settings.exemptRoles}
@@ -997,7 +998,7 @@ export default function AutoModPage() {
                                             ),
                                         )
                                     }
-                                    placeholder='Role ID...'
+                                    placeholder={t('autoMod.roleIdPlaceholder')}
                                 />
                             )}
                         </div>
@@ -1017,7 +1018,7 @@ export default function AutoModPage() {
                     ) : (
                         <Save className='w-4 h-4' />
                     )}
-                    Save Changes
+                    {t('autoMod.saveChanges')}
                 </Button>
             </div>
         </div>

@@ -8,6 +8,7 @@ import { managementSchemas as s } from '../schemas/management'
 import { guildSettingsService, RBAC_MODULES } from '@lucky/shared/services'
 import { SUPPORTED_BOT_LANGUAGES } from '@lucky/shared/constants'
 import { z } from 'zod'
+import { AppError } from '../errors/AppError'
 import { paramToString as p } from '../utils/paramCoerce'
 
 // Real `GuildSettings` columns only (prisma/schema.prisma:206-230). The
@@ -82,7 +83,13 @@ export function setupGuildSettingsRoutes(app: Express): void {
         validateBody(settingsBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
-            await guildSettingsService.setGuildSettings(guildId, req.body)
+            const saved = await guildSettingsService.setGuildSettings(
+                guildId,
+                req.body,
+            )
+            if (!saved) {
+                throw new AppError(500, 'Failed to save guild settings')
+            }
             res.json({ success: true })
         }),
     )
@@ -109,7 +116,13 @@ export function setupGuildSettingsRoutes(app: Express): void {
         validateBody(moduleSettingsBody),
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
-            await guildSettingsService.setGuildSettings(guildId, req.body)
+            const saved = await guildSettingsService.setGuildSettings(
+                guildId,
+                req.body,
+            )
+            if (!saved) {
+                throw new AppError(500, 'Failed to save guild settings')
+            }
             res.json({ success: true })
         }),
     )

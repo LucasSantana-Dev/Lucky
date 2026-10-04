@@ -744,7 +744,7 @@ jobs:
               id: sonar_pr
               if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'pull_request'
               continue-on-error: true
-              uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8
+              uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8
               with:
                   args: -Dsonar.qualitygate.wait=true
               env:
@@ -754,7 +754,7 @@ jobs:
             # download 403 clears on the retry.
             - name: SonarCloud Scan (PR) — retry once on transient failure
               if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'pull_request' && steps.sonar_pr.outcome == 'failure'
-              uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8
+              uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8
               with:
                   args: -Dsonar.qualitygate.wait=true
               env:
@@ -765,7 +765,7 @@ jobs:
             - name: SonarCloud Scan (main — informational, non-blocking)
               if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'push'
               continue-on-error: true
-              uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8
+              uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8
               with:
                   args: -Dsonar.qualitygate.wait=false
               env:

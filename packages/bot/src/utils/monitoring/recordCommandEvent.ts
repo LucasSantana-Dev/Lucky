@@ -1,5 +1,6 @@
 import type {
     ChatInputCommandInteraction,
+    MessageComponentInteraction,
     MessageContextMenuCommandInteraction,
 } from 'discord.js'
 import { warnLog } from '@lucky/shared/utils'
@@ -13,13 +14,20 @@ let lastWarnAt = Number.NEGATIVE_INFINITY
 
 export type RecordCommandEventParams = {
     interaction:
-        ChatInputCommandInteraction | MessageContextMenuCommandInteraction
+        | ChatInputCommandInteraction
+        | MessageContextMenuCommandInteraction
+        | MessageComponentInteraction
     kind: CommandKind
     outcome: CommandOutcome
     startedAt: number
     /** False when the command was not registered: the label becomes "unknown". */
     known: boolean
     errorClass?: string
+    /**
+     * Bounded label for interactions without a commandName (components). Must
+     * be a fixed family name, never a raw customId.
+     */
+    commandName?: string
 }
 
 const readSubcommand = (
@@ -36,9 +44,20 @@ const readSubcommand = (
  */
 export function recordCommandEvent(params: RecordCommandEventParams): void {
     try {
-        const { interaction, kind, outcome, startedAt, known, errorClass } =
-            params
-        const command = known ? interaction.commandName : UNKNOWN_COMMAND
+        const {
+            interaction,
+            kind,
+            outcome,
+            startedAt,
+            known,
+            errorClass,
+            commandName,
+        } = params
+        const command = known
+            ? (commandName ??
+              (interaction as ChatInputCommandInteraction).commandName ??
+              UNKNOWN_COMMAND)
+            : UNKNOWN_COMMAND
         const latencyMs = Math.max(0, Date.now() - startedAt)
 
         getCommandEventBuffer().push({

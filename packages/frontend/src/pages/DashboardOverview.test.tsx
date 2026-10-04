@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import DashboardOverview from './DashboardOverview'
 import { useGuildStore } from '@/stores/guildStore'
+import type { ModerationCase } from '@/types/moderation'
 import {
     useModerationStats,
     useModerationCases,
@@ -58,17 +59,24 @@ const mockStats = {
     casesByType: { warn: 10, mute: 8, kick: 4, ban: 3 },
 }
 
-const mockCases = [
+const mockCases: ModerationCase[] = [
     {
         id: 'c1',
         caseNumber: 1,
+        guildId: '123',
         type: 'warn',
-        userName: 'TestUser',
+        username: 'TestUser',
         userId: 'u1',
+        moderatorId: 'mod1',
         moderatorName: 'Mod',
         reason: 'Spam',
+        duration: null,
+        expiresAt: null,
         active: true,
+        appealed: false,
+        appealReason: null,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     },
 ]
 
@@ -412,12 +420,25 @@ describe('DashboardOverview', () => {
         expect(screen.getByText('Recent Cases')).toBeInTheDocument()
     })
 
+    test('shows the username instead of the user id when username is set', () => {
+        mockGuildStoreFn(mockGuild)
+        setupQueryHookMocks(
+            mockStats,
+            { cases: mockCases },
+            mockTracks,
+            mockLeaderboard,
+            mockStarboardEntries,
+        )
+        renderPage()
+        expect(screen.getByText('TestUser')).toBeInTheDocument()
+    })
+
     test('falls back to userId and reason placeholder when case fields are blank', () => {
         const bareCase = {
             ...mockCases[0],
             id: 'bare',
             caseNumber: 9100,
-            userName: '',
+            username: '',
             userId: 'raw-user-id-1234',
             reason: null,
             createdAt: new Date().toISOString(),

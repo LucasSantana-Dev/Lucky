@@ -57,6 +57,17 @@ jest.mock('@lucky/shared/services', () => ({
     musicControlService: {},
 }))
 
+const mockGetFullGuildRoles = jest.fn<(...args: any[]) => Promise<any[]>>()
+const mockGetTextChannels = jest.fn<(...args: any[]) => Promise<any[]>>()
+
+jest.mock('../../../src/services/GuildService', () => ({
+    guildService: {
+        getFullGuildRoles: (...args: any[]) => mockGetFullGuildRoles(...args),
+        getGuildTextChannelOptions: (...args: any[]) =>
+            mockGetTextChannels(...args),
+    },
+}))
+
 import { moderationService, serverLogService } from '@lucky/shared/services'
 
 describe('Moderation Routes Integration', () => {
@@ -87,6 +98,13 @@ describe('Moderation Routes Integration', () => {
         setupModerationRoutes(app)
         app.use(errorHandler)
         jest.clearAllMocks()
+        mockGetFullGuildRoles.mockResolvedValue([
+            { id: '666666666666666666', name: 'Muted', position: 1 },
+            { id: '777777777777777777', name: 'Mod', position: 2 },
+        ])
+        mockGetTextChannels.mockResolvedValue([
+            { id: '555555555555555555', name: '#mod-log' },
+        ])
     })
 
     describe('GET /api/guilds/:guildId/moderation/cases', () => {
@@ -830,6 +848,101 @@ describe('Moderation Routes Integration', () => {
                 },
                 MOCK_SESSION_DATA.userId,
             )
+        })
+
+        describe('guild id validation', () => {
+            const patch = (body: Record<string, unknown>) => {
+                setupAuth()
+                return request(app)
+                    .patch('/api/guilds/111111111111111111/moderation/settings')
+                    .set('Cookie', ['sessionId=valid_session_id'])
+                    .send(body)
+            }
+            const updateSettings = () =>
+                (moderationService as jest.Mocked<typeof moderationService>)
+                    .updateSettings
+
+            test('accepts channel and role ids that belong to the guild', async () => {
+                updateSettings().mockResolvedValue({} as any)
+                await patch({
+                    modLogChannelId: '555555555555555555',
+                    muteRoleId: '666666666666666666',
+                    modRoleIds: ['777777777777777777'],
+                }).then((r) => expect(r.status).toBe(200))
+                expect(updateSettings()).toHaveBeenCalled()
+            })
+
+            test('rejects a channel id from another guild', async () => {
+                const res = await patch({
+                    modLogChannelId: '999999999999999999',
+                })
+                expect(res.status).toBe(400)
+                expect(updateSettings()).not.toHaveBeenCalled()
+            })
+
+            test('rejects a role id from another guild', async () => {
+                const res = await patch({ modRoleIds: ['999999999999999999'] })
+                expect(res.status).toBe(400)
+                expect(updateSettings()).not.toHaveBeenCalled()
+            })
+
+            test('rejects the guild id (@everyone) as a mod role', async () => {
+                const res = await patch({ modRoleIds: ['111111111111111111'] })
+                expect(res.status).toBe(400)
+                expect(updateSettings()).not.toHaveBeenCalled()
+            })
+
+            test('rejects the guild id as the mute role', async () => {
+                const res = await patch({ muteRoleId: '111111111111111111' })
+                expect(res.status).toBe(400)
+                expect(mockGetFullGuildRoles).not.toHaveBeenCalled()
+            })
+
+            test('rejects one unknown id among valid mod roles', async () => {
+                const res = await patch({
+                    modRoleIds: ['777777777777777777', '999999999999999999'],
+                })
+                expect(res.status).toBe(400)
+                expect(updateSettings()).not.toHaveBeenCalled()
+            })
+
+            test('makes no lookups for a partial update without ids', async () => {
+                updateSettings().mockResolvedValue({} as any)
+                const res = await patch({ autoModEnabled: false })
+                expect(res.status).toBe(200)
+                expect(mockGetTextChannels).not.toHaveBeenCalled()
+                expect(mockGetFullGuildRoles).not.toHaveBeenCalled()
+            })
+
+            test('allows clearing ids with null without any lookup', async () => {
+                updateSettings().mockResolvedValue({} as any)
+                const res = await patch({
+                    modLogChannelId: null,
+                    muteRoleId: null,
+                })
+                expect(res.status).toBe(200)
+                expect(mockGetTextChannels).not.toHaveBeenCalled()
+                expect(mockGetFullGuildRoles).not.toHaveBeenCalled()
+            })
+
+            test('returns 502 when the role lookup throws', async () => {
+                mockGetFullGuildRoles.mockRejectedValue(
+                    new Error('boom secret'),
+                )
+                const res = await patch({ muteRoleId: '666666666666666666' })
+                expect(res.status).toBe(502)
+                expect(JSON.stringify(res.body)).not.toMatch(/boom/)
+                expect(updateSettings()).not.toHaveBeenCalled()
+            })
+
+            test('returns 503 when the channel lookup yields nothing', async () => {
+                mockGetTextChannels.mockResolvedValue([])
+                const res = await patch({
+                    modLogChannelId: '555555555555555555',
+                })
+                expect(res.status).toBe(503)
+                expect(updateSettings()).not.toHaveBeenCalled()
+            })
         })
 
         test('should return 401 when not authenticated', async () => {

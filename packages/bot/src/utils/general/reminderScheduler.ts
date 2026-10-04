@@ -1,5 +1,10 @@
+import { ButtonStyle, RESTJSONErrorCodes } from 'discord.js'
 import type { TextChannel } from 'discord.js'
-import { EmbedBuilder } from '@discordjs/builders'
+import {
+    ActionRowBuilder,
+    ButtonBuilder,
+    EmbedBuilder,
+} from '@discordjs/builders'
 import { COLOR } from '@lucky/shared/constants'
 import type { ReminderRecord } from '@lucky/shared/services'
 import { reminderService, MAX_DELIVERY_ATTEMPTS } from '@lucky/shared/services'
@@ -11,6 +16,7 @@ import {
     warnLog,
 } from '@lucky/shared/utils'
 
+import { REMINDER_STOP_BUTTON_PREFIX } from '../../functions/general/reminderStopButton'
 import { IntervalScheduler } from './IntervalScheduler'
 
 const DEFAULT_TICK_INTERVAL_MS = 60 * 1000 // 60 seconds
@@ -36,6 +42,7 @@ export class ReminderScheduler extends IntervalScheduler {
     protected async execute(): Promise<void> {
         const dueReminders = await reminderService.getDueReminders(25)
 
+        let deliveredCount = 0
         for (const reminder of dueReminders) {
             // Per-reminder isolation: one failure must not abort the batch.
             try {
@@ -47,12 +54,30 @@ export class ReminderScheduler extends IntervalScheduler {
                     reminder.targetType === 'channel' ||
                     reminder.targetType === 'role'
                 ) {
-                    await this.deliverBroadcastOnce(reminder)
+                    if (await this.deliverBroadcastOnce(reminder)) {
+                        deliveredCount++
+                    }
+                    continue
+                }
+
+                // Personal reminders only: a reminder whose owner left the
+                // server (or whose server dropped the bot) is cancelled, not
+                // re-armed forever (#2619).
+                const membership = await this.checkMembership(reminder)
+                if (membership === 'skip') continue
+                if (membership !== 'ok') {
+                    await reminderService.markDelivered(reminder.id)
+                    infoLog({
+                        message:
+                            'reminder cancelled: owner can no longer receive it',
+                        data: { reminderId: reminder.id, reason: membership },
+                    })
                     continue
                 }
 
                 const delivered = await this.deliverReminder(reminder)
                 if (delivered) {
+                    deliveredCount++
                     // Recurring reminders re-arm for their next occurrence
                     // instead of being marked done; one-time reminders complete.
                     await this.completeOrReschedule(reminder)
@@ -80,9 +105,9 @@ export class ReminderScheduler extends IntervalScheduler {
             }
         }
 
-        if (dueReminders.length > 0) {
+        if (deliveredCount > 0) {
             infoLog({
-                message: `reminder scheduler delivered ${dueReminders.length} reminders`,
+                message: `reminder scheduler delivered ${deliveredCount} reminders`,
             })
         }
     }
@@ -93,7 +118,9 @@ export class ReminderScheduler extends IntervalScheduler {
      * exhausted (null) or unparseable, stop firing by marking it delivered so a
      * bad rule can't re-fire every tick.
      */
-    private async completeOrReschedule(reminder: ReminderRecord): Promise<void> {
+    private async completeOrReschedule(
+        reminder: ReminderRecord,
+    ): Promise<void> {
         if (!reminder.recurrenceRule) {
             await reminderService.markDelivered(reminder.id)
             return
@@ -122,6 +149,34 @@ export class ReminderScheduler extends IntervalScheduler {
         }
     }
 
+    /**
+     * Membership gate for personal reminders. `skip` leaves the row untouched
+     * (gateway not ready, so the guild cache is not trustworthy); a cancel
+     * reason means the reminder must never be delivered; any other fetch
+     * error fails open so a transient API blip cannot drop a reminder.
+     */
+    private async checkMembership(reminder: {
+        guildId: string
+        userId: string
+    }): Promise<'ok' | 'skip' | 'bot_left_guild' | 'user_left_guild'> {
+        if (!this.client || !this.client.isReady()) return 'skip'
+        const guild = this.client.guilds.cache.get(reminder.guildId)
+        if (!guild) return 'bot_left_guild'
+        try {
+            // force: bypass the member cache, which can be stale after a missed
+            // GuildMemberRemove and would hide that the user left.
+            await guild.members.fetch({ user: reminder.userId, force: true })
+        } catch (error) {
+            if (
+                (error as { code?: unknown })?.code ===
+                RESTJSONErrorCodes.UnknownMember
+            ) {
+                return 'user_left_guild'
+            }
+        }
+        return 'ok'
+    }
+
     /** Returns true when the reminder reached the user via DM or channel. */
     private async deliverReminder(reminder: {
         id: string
@@ -129,6 +184,7 @@ export class ReminderScheduler extends IntervalScheduler {
         channelId: string
         message: string
         remindAt: Date
+        recurrenceRule: string | null
     }): Promise<boolean> {
         if (!this.client) return false
 
@@ -136,13 +192,30 @@ export class ReminderScheduler extends IntervalScheduler {
             .setTitle('⏰ Reminder')
             .setDescription(reminder.message)
             .setColor(COLOR.LUCKY_PURPLE)
-            .setFooter({ text: `Set for: ${reminder.remindAt.toISOString()}` })
-            .setTimestamp()
+            .setTimestamp(reminder.remindAt)
+
+        // Recurring reminders carry a Stop button so the owner can end them
+        // from the message itself; one-time reminders have nothing to stop.
+        const components = reminder.recurrenceRule
+            ? [
+                  new ActionRowBuilder<ButtonBuilder>().addComponents(
+                      new ButtonBuilder()
+                          .setCustomId(
+                              `${REMINDER_STOP_BUTTON_PREFIX}${reminder.id}`,
+                          )
+                          .setLabel('Stop this reminder')
+                          .setStyle(ButtonStyle.Danger),
+                  ),
+              ]
+            : undefined
 
         try {
             // Try to DM the user first
             const user = await this.client.users.fetch(reminder.userId)
-            await user.send({ embeds: [embed.toJSON()] })
+            await user.send({
+                embeds: [embed.toJSON()],
+                ...(components ? { components } : {}),
+            })
             return true
         } catch (dmError) {
             // Fallback: post to origin channel
@@ -155,6 +228,7 @@ export class ReminderScheduler extends IntervalScheduler {
                         content: `<@${reminder.userId}> ⏰ Reminder:`,
                         embeds: [embed.toJSON()],
                         allowedMentions: { parse: ['users'] },
+                        ...(components ? { components } : {}),
                     })
                     return true
                 }
@@ -181,10 +255,10 @@ export class ReminderScheduler extends IntervalScheduler {
         channelId: string
         targetType: string
         roleId: string | null
-    }): Promise<void> {
+    }): Promise<boolean> {
         if (await this.deliverBroadcast(reminder)) {
             await reminderService.markDelivered(reminder.id)
-            return
+            return true
         }
         warnLog({
             message:
@@ -196,6 +270,7 @@ export class ReminderScheduler extends IntervalScheduler {
             },
         })
         await reminderService.markDeliveryFailed(reminder.id)
+        return false
     }
 
     private async deliverBroadcast(reminder: {

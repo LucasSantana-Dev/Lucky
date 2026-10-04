@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { User } from '@/types'
 import { api } from '@/services/api'
 import { toast } from 'sonner'
+import i18n from '@/lib/i18n'
 
 interface AuthState {
     user: User | null
@@ -31,12 +32,12 @@ export const useAuthStore = create<AuthState>()(
             logout: async () => {
                 try {
                     await api.auth.logout()
-                    toast.success('Logged out successfully')
+                    toast.success(i18n.t('login.loggedOut'))
                 } catch (error) {
                     const message =
                         error instanceof Error
                             ? error.message
-                            : 'Failed to logout'
+                            : i18n.t('login.logoutFailed')
                     toast.error(message)
                 } finally {
                     set({
@@ -91,7 +92,7 @@ export const useAuthStore = create<AuthState>()(
                     } finally {
                         // Clear synchronously on settle: concurrent callers
                         // share the in-flight promise, and the next call after
-                        // settle performs a fresh check — no timer window that
+                        // settle performs a fresh check, no timer window that
                         // serves a stale result (#1186).
                         authCheckPromise = null
                     }

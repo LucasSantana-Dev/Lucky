@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/authStore'
 
 export function useAuthRedirect() {
     const [searchParams] = useSearchParams()
     const navigate = useNavigate()
+    const { t } = useTranslation()
     const { checkAuth } = useAuthStore()
     const hasProcessedAuth = useRef(false)
 
@@ -18,21 +20,19 @@ export function useAuthRedirect() {
 
         if (errorParam) {
             hasProcessedAuth.current = true
-            const messages: Record<string, string> = {
-                auth_failed: 'Authentication failed. Please try again.',
-                missing_code: 'Missing authorization code. Please try again.',
-                missing_state: 'Security validation failed. Please try again.',
-                invalid_state: 'Invalid security token. Please try again.',
-                session_failed: 'Failed to create session. Please try again.',
-                authentication_error:
-                    'An error occurred during authentication. Please try again.',
-                client_id_not_configured:
-                    'Authentication service is not properly configured. Please contact support.',
-                redirect_error:
-                    'Failed to redirect to authentication service. Please try again.',
-            }
-            const errorText =
-                messages[errorParam] || errorMessage || 'An error occurred'
+            const knownErrors = [
+                'auth_failed',
+                'missing_code',
+                'missing_state',
+                'invalid_state',
+                'session_failed',
+                'authentication_error',
+                'client_id_not_configured',
+                'redirect_error',
+            ]
+            const errorText = knownErrors.includes(errorParam)
+                ? t(`login.errors.${errorParam}`)
+                : errorMessage || t('login.errors.generic')
 
             toast.error(errorText)
         } else if (authenticated === 'true') {
@@ -41,17 +41,17 @@ export function useAuthRedirect() {
                 .then(() => {
                     const authState = useAuthStore.getState()
                     if (authState.isAuthenticated) {
-                        toast.success('Successfully authenticated!')
+                        toast.success(t('login.authenticated'))
                         navigate('/servers', { replace: true })
                     }
                 })
                 .catch(() => {
-                    toast.error('Failed to verify authentication')
+                    toast.error(t('login.verifyFailed'))
                 })
         }
         // No bare checkAuth() here: App already verifies the session on boot,
         // and /login sits behind its loading gate, so re-checking from this
         // page flips isLoading, unmounts the page, and re-runs this effect on
         // remount: an unbounded request loop that never renders the button.
-    }, [searchParams, checkAuth, navigate])
+    }, [searchParams, checkAuth, navigate, t])
 }

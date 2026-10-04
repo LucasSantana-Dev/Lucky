@@ -119,6 +119,37 @@ describe('ServerSettingsPage', () => {
         expect(screen.getByText(/view-only access/i)).toBeInTheDocument()
     })
 
+    test('disables every settings control without settings manage access', async () => {
+        mockGuildStoreFn(mockGuild, {
+            effectiveAccess: { ...defaultAccess, settings: 'view' },
+            canManageRbac: false,
+        })
+        renderPage()
+
+        const prefix = await screen.findByPlaceholderText(/prefix|!/i)
+        expect(prefix).toBeDisabled()
+        expect(prefix.closest('fieldset')).toBeDisabled()
+    })
+
+    test('disables the language select without settings manage access', async () => {
+        mockGuildStoreFn(mockGuild, {
+            effectiveAccess: { ...defaultAccess, settings: 'view' },
+            canManageRbac: false,
+        })
+        renderPage()
+
+        const trigger = await screen.findByRole('combobox')
+        expect(trigger).toHaveAttribute('data-disabled')
+    })
+
+    test('keeps settings controls enabled with settings manage access', async () => {
+        mockGuildStoreFn(mockGuild)
+        renderPage()
+
+        const prefix = await screen.findByPlaceholderText(/prefix|!/i)
+        expect(prefix).toBeEnabled()
+    })
+
     test('shows both save bars with settings manage access', async () => {
         mockGuildStoreFn(mockGuild)
         renderPage()

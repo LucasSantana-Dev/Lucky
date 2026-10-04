@@ -155,7 +155,7 @@ function CaseDetailPanel({
                                     {t('caseUser')}
                                 </p>
                                 <p className='type-body text-lucky-text-primary'>
-                                    {caseData.userName || caseData.userId}
+                                    {caseData.username || caseData.userId}
                                 </p>
                             </div>
 
@@ -559,7 +559,7 @@ export default function ModerationPage() {
                                             {c.caseNumber}
                                         </span>
                                         <span className='type-body-sm text-lucky-text-primary truncate'>
-                                            {c.userName || c.userId}
+                                            {c.username || c.userId}
                                         </span>
                                         <span className='type-body-sm text-lucky-text-secondary truncate'>
                                             {c.moderatorName || c.moderatorId}

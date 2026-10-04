@@ -55,6 +55,9 @@ const translations: Record<string, string> = {
     failedToSaveSettings: 'Failed to save settings',
     starboardDisabled: 'Starboard disabled',
     failedToDeleteConfig: 'Failed to delete starboard config',
+    selectChannel: 'Select a channel',
+    deletedChannel: 'Deleted channel ({{id}})',
+    couldNotLoadChannels: 'Could not load channels',
 }
 
 vi.mock('react-i18next', () => ({
@@ -129,6 +132,14 @@ describe('Starboard', () => {
         vi.clearAllMocks()
         vi.mocked(api.starboard.getConfig).mockResolvedValue(mockConfig)
         vi.mocked(api.starboard.getTopEntries).mockResolvedValue(mockEntries)
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: {
+                channels: [
+                    { id: '999', name: '#stars' },
+                    { id: 'c2', name: '#other' },
+                ],
+            },
+        } as never)
     })
 
     test('renders empty state when no guild is selected', () => {
@@ -192,10 +203,10 @@ describe('Starboard', () => {
             expect(api.starboard.getConfig).toHaveBeenCalledWith('123456')
         })
 
-        const channelInput = screen.getByPlaceholderText(
+        const channelInput = (await screen.findByLabelText(
             'Channel ID',
-        ) as HTMLInputElement
-        expect(channelInput.value).toBe('999')
+        )) as HTMLSelectElement
+        await waitFor(() => expect(channelInput.value).toBe('999'))
 
         const emojiInput = screen.getByPlaceholderText('⭐') as HTMLInputElement
         expect(emojiInput.value).toBe('⭐')
@@ -298,22 +309,127 @@ describe('Starboard', () => {
         expect(selfStarSwitch).toBeChecked()
     })
 
-    test('updates channel ID input', async () => {
+    test('updates channel selection', async () => {
         mockGuildStore()
         render(<Starboard />)
 
-        await waitFor(() => {
-            expect(
-                screen.getByPlaceholderText('Channel ID'),
-            ).toBeInTheDocument()
-        })
-
-        const channelInput = screen.getByPlaceholderText(
+        const channelInput = (await screen.findByLabelText(
             'Channel ID',
-        ) as HTMLInputElement
-        fireEvent.change(channelInput, { target: { value: '888' } })
+        )) as HTMLSelectElement
+        fireEvent.change(channelInput, { target: { value: 'c2' } })
 
-        expect(channelInput.value).toBe('888')
+        expect(channelInput.value).toBe('c2')
+    })
+
+    test('channel picker lists the guild channels', async () => {
+        mockGuildStore()
+        render(<Starboard />)
+
+        const select = (await screen.findByLabelText(
+            'Channel ID',
+        )) as HTMLSelectElement
+        expect(select.tagName).toBe('SELECT')
+        expect(Array.from(select.options).map((o) => o.textContent)).toEqual([
+            'Select a channel',
+            '#stars',
+            '#other',
+        ])
+    })
+
+    test('keeps a saved channel missing from the list as a deleted option', async () => {
+        mockGuildStore()
+        vi.mocked(api.starboard.getConfig).mockResolvedValue({
+            ...mockConfig,
+            channelId: 'gone-chan',
+        })
+        render(<Starboard />)
+
+        const select = (await screen.findByLabelText(
+            'Channel ID',
+        )) as HTMLSelectElement
+        expect(select.value).toBe('gone-chan')
+        expect(
+            screen.getByRole('option', { name: 'Deleted channel (gone-chan)' }),
+        ).toBeInTheDocument()
+    })
+
+    test('lets you type a channel id when the channel list is empty', async () => {
+        mockGuildStore()
+        vi.mocked(api.starboard.getConfig).mockResolvedValue({
+            ...mockConfig,
+            channelId: '555',
+        })
+        vi.mocked(api.guilds.getChannels).mockResolvedValue({
+            data: { channels: [] },
+        } as never)
+        render(<Starboard />)
+
+        const input = (await screen.findByLabelText(
+            'Channel ID',
+        )) as HTMLInputElement
+        expect(input.tagName).toBe('INPUT')
+        expect(input.value).toBe('555')
+        expect(screen.queryByText(/Deleted channel/)).not.toBeInTheDocument()
+        fireEvent.change(input, { target: { value: '424242' } })
+        expect(input.value).toBe('424242')
+        expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+    })
+
+    test('shows the saved channel id when channels fail to load', async () => {
+        mockGuildStore()
+        vi.mocked(api.guilds.getChannels).mockRejectedValue(new Error('boom'))
+        render(<Starboard />)
+
+        const select = (await screen.findByLabelText(
+            'Channel ID',
+        )) as HTMLInputElement
+        expect(select.value).toBe('999')
+        expect(screen.getByText('Could not load channels')).toBeInTheDocument()
+    })
+
+    test('lets you type a channel id when channels fail to load', async () => {
+        mockGuildStore()
+        vi.mocked(api.starboard.getConfig).mockResolvedValue(null as never)
+        vi.mocked(api.guilds.getChannels).mockRejectedValue(new Error('boom'))
+        render(<Starboard />)
+
+        const input = await screen.findByLabelText('Channel ID')
+        expect(input.tagName).toBe('INPUT')
+        const save = screen.getByRole('button', { name: 'Save' })
+        expect(save).toBeDisabled()
+        fireEvent.change(input, { target: { value: '424242' } })
+        expect(save).toBeEnabled()
+    })
+
+    test('save sends the selected channel id', async () => {
+        mockGuildStore()
+        vi.mocked(api.starboard.updateConfig).mockResolvedValue(
+            mockConfig as never,
+        )
+        render(<Starboard />)
+
+        const select = await screen.findByLabelText('Channel ID')
+        fireEvent.change(select, { target: { value: 'c2' } })
+        fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+        await waitFor(() => {
+            expect(api.starboard.updateConfig).toHaveBeenCalledWith(
+                '123456',
+                expect.objectContaining({ channelId: 'c2' }),
+            )
+        })
+    })
+
+    test('save is disabled until a channel is selected', async () => {
+        mockGuildStore()
+        vi.mocked(api.starboard.getConfig).mockResolvedValue(null as never)
+        render(<Starboard />)
+
+        const select = await screen.findByLabelText('Channel ID')
+        const save = screen.getByRole('button', { name: 'Save' })
+        expect(save).toBeDisabled()
+        fireEvent.change(select, { target: { value: 'c2' } })
+        expect(save).toBeEnabled()
     })
 
     test('updates emoji input', async () => {
@@ -575,9 +691,9 @@ describe('Starboard', () => {
             expect(api.starboard.deleteConfig).toHaveBeenCalled()
         })
 
-        const channelInput = screen.getByPlaceholderText(
+        const channelInput = screen.getByLabelText(
             'Channel ID',
-        ) as HTMLInputElement
+        ) as HTMLSelectElement
         expect(channelInput.value).toBe('')
 
         const emojiInput = screen.getByPlaceholderText('⭐') as HTMLInputElement

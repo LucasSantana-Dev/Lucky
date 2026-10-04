@@ -237,6 +237,19 @@ describe('Track History Routes', () => {
             expect(res.body.success).toBe(true)
             expect(mockClearHistory).toHaveBeenCalledWith(GUILD_ID)
         })
+
+        test('returns 500 and no success flag when the delete fails (#2455)', async () => {
+            authed()
+            mockClearHistory.mockResolvedValue(false)
+
+            const res = await request(app)
+                .delete(`/api/guilds/${GUILD_ID}/music/history`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(res.status).toBe(500)
+            expect(res.body.success).toBeUndefined()
+            expect(res.body.error).toBe('Failed to clear music history')
+        })
     })
 
     describe('guild module access', () => {

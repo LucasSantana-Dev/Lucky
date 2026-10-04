@@ -218,7 +218,7 @@ export default function ModerationSettingsForm({
                             <option value=''>{t('settingsNone')}</option>
                             {channels.map((c) => (
                                 <option key={c.id} value={c.id}>
-                                    #{c.name}
+                                    {c.name}
                                 </option>
                             ))}
                             {form.modLogChannelId &&

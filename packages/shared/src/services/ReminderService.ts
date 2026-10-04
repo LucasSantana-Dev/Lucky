@@ -73,16 +73,22 @@ export class ReminderService {
     }
 
     /**
-     * List a user's PENDING reminders in one guild, soonest first. Guild
-     * scoping keeps reminders from leaking across servers (review P1).
+     * List a user's PENDING reminders, soonest first. A string `guildId` scopes
+     * to that guild so reminders don't leak across servers (review P1); `null`
+     * drops ONLY that filter (DM use: every guild) and the owner (`userId`)
+     * filter always stays.
      */
     async listPending(
-        guildId: string,
+        guildId: string | null,
         userId: string,
         limit: number = 10,
     ): Promise<ReminderRecord[]> {
         return await prisma.reminder.findMany({
-            where: { guildId, userId, delivered: false },
+            where: {
+                ...(guildId === null ? {} : { guildId }),
+                userId,
+                delivered: false,
+            },
             orderBy: { remindAt: 'asc' },
             take: limit,
         })
@@ -90,15 +96,21 @@ export class ReminderService {
 
     /**
      * Delete a reminder the caller owns. Ownership enforced at the data layer
-     * (id alone is not sufficient). Returns whether a row was deleted.
+     * (id alone is not sufficient). A `null` guildId drops only the guild
+     * filter; the `userId` filter always applies. Returns whether a row was
+     * deleted.
      */
     async deleteOwned(
-        guildId: string,
+        guildId: string | null,
         userId: string,
         reminderId: string,
     ): Promise<boolean> {
         const result = await prisma.reminder.deleteMany({
-            where: { id: reminderId, guildId, userId },
+            where: {
+                id: reminderId,
+                ...(guildId === null ? {} : { guildId }),
+                userId,
+            },
         })
         return result.count > 0
     }
@@ -106,16 +118,17 @@ export class ReminderService {
     /**
      * Finds pending reminders whose id matches a prefix, scoped to the owner.
      * Returns up to 2 rows so callers can detect ambiguity without paging
-     * through the full list (review P2).
+     * through the full list (review P2). A `null` guildId drops only the guild
+     * filter; the `userId` filter always applies.
      */
     async findPendingByIdPrefix(
-        guildId: string,
+        guildId: string | null,
         userId: string,
         prefix: string,
     ): Promise<ReminderRecord[]> {
         return await prisma.reminder.findMany({
             where: {
-                guildId,
+                ...(guildId === null ? {} : { guildId }),
                 userId,
                 delivered: false,
                 id: { startsWith: prefix },

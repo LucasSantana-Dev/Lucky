@@ -23,6 +23,7 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 jest.mock('@lucky/shared/constants', () => ({ COLOR: { LUCKY_PURPLE: 0 } }))
 
+import { infoLog } from '@lucky/shared/utils'
 import { ReminderScheduler } from './reminderScheduler'
 
 function makeReminder(overrides: Record<string, unknown> = {}) {
@@ -45,22 +46,32 @@ function makeReminder(overrides: Record<string, unknown> = {}) {
     }
 }
 
+/** Guild cache whose member fetch resolves (user still a member). */
+function memberGuilds(fetch: jest.Mock = jest.fn().mockResolvedValue({})) {
+    return {
+        cache: { get: jest.fn().mockReturnValue({ members: { fetch } }) },
+    }
+}
+
 /** Minimal Discord client whose DM + channel sends both fail. */
 function failingClient() {
     return {
+        isReady: () => true,
+        guilds: memberGuilds(),
         users: { fetch: jest.fn().mockRejectedValue(new Error('dm closed')) },
         channels: { fetch: jest.fn().mockRejectedValue(new Error('no chan')) },
     } as never
 }
 
 /** Client whose DM send succeeds. */
-function deliveringClient() {
+function deliveringClient(
+    send: jest.Mock = jest.fn().mockResolvedValue(undefined),
+    guilds: unknown = memberGuilds(),
+) {
     return {
-        users: {
-            fetch: jest.fn().mockResolvedValue({
-                send: jest.fn().mockResolvedValue(undefined),
-            }),
-        },
+        isReady: () => true,
+        guilds,
+        users: { fetch: jest.fn().mockResolvedValue({ send }) },
         channels: { fetch: jest.fn() },
     } as never
 }
@@ -90,6 +101,19 @@ describe('ReminderScheduler.tick', () => {
 
         expect(reminderServiceMock.markDelivered).toHaveBeenCalledWith('r1')
         expect(reminderServiceMock.recordFailedAttempt).not.toHaveBeenCalled()
+    })
+
+    it('shows the reminder time as a localized timestamp with no ISO footer', async () => {
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        const remindAt = new Date('2026-07-03T10:00:00Z')
+        await runTick(deliveringClient(send), [makeReminder({ remindAt })])
+
+        const payload = send.mock.calls[0][0] as {
+            embeds: { footer?: unknown; timestamp?: string }[]
+        }
+        const json = payload.embeds[0]
+        expect(json.footer).toBeUndefined()
+        expect(json.timestamp).toBe(remindAt.toISOString())
     })
 
     it('re-arms a recurring reminder instead of marking it delivered', async () => {
@@ -175,6 +199,8 @@ describe('ReminderScheduler.tick', () => {
     /** Client whose channel send succeeds; captures the send payload. */
     function broadcastClient(send: jest.Mock) {
         return {
+            isReady: () => true,
+            guilds: memberGuilds(),
             users: { fetch: jest.fn() },
             channels: {
                 fetch: jest.fn().mockResolvedValue({ send }),
@@ -218,5 +244,172 @@ describe('ReminderScheduler.tick', () => {
         )
         expect(reminderServiceMock.recordFailedAttempt).not.toHaveBeenCalled()
         expect(reminderServiceMock.markDelivered).not.toHaveBeenCalled()
+    })
+
+    // --- Membership check + stop button (#2619) ---
+
+    const RULE = 'FREQ=DAILY;BYHOUR=20;BYMINUTE=0;BYSECOND=0'
+
+    it('cancels a user reminder when the user left the guild (10007)', async () => {
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        const fetch = jest
+            .fn()
+            .mockRejectedValue({ code: 10007, message: 'Unknown Member' })
+        const client = deliveringClient(send, memberGuilds(fetch))
+        await runTick(client, [makeReminder({ recurrenceRule: RULE })])
+
+        expect(fetch).toHaveBeenCalledWith({ user: 'u1', force: true })
+        expect(reminderServiceMock.markDelivered).toHaveBeenCalledWith('r1')
+        expect(reminderServiceMock.rescheduleRecurring).not.toHaveBeenCalled()
+        expect(send).not.toHaveBeenCalled()
+        expect(
+            (client as unknown as { users: { fetch: jest.Mock } }).users.fetch,
+        ).not.toHaveBeenCalled()
+        expect(
+            (client as unknown as { channels: { fetch: jest.Mock } }).channels
+                .fetch,
+        ).not.toHaveBeenCalled()
+        expect(infoLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    reminderId: 'r1',
+                    reason: 'user_left_guild',
+                }),
+            }),
+        )
+    })
+
+    it('cancels a user reminder when the bot is no longer in the guild', async () => {
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        const guilds = { cache: { get: jest.fn().mockReturnValue(undefined) } }
+        await runTick(deliveringClient(send, guilds), [makeReminder()])
+
+        expect(guilds.cache.get).toHaveBeenCalledWith('g1')
+        expect(reminderServiceMock.markDelivered).toHaveBeenCalledWith('r1')
+        expect(send).not.toHaveBeenCalled()
+        expect(infoLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    reminderId: 'r1',
+                    reason: 'bot_left_guild',
+                }),
+            }),
+        )
+    })
+
+    it('cancels a recurring reminder in a guild the bot left (no re-arm)', async () => {
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        const guilds = { cache: { get: jest.fn().mockReturnValue(undefined) } }
+        await runTick(deliveringClient(send, guilds), [
+            makeReminder({ recurrenceRule: RULE }),
+        ])
+
+        expect(reminderServiceMock.markDelivered).toHaveBeenCalledWith('r1')
+        expect(reminderServiceMock.rescheduleRecurring).not.toHaveBeenCalled()
+        expect(send).not.toHaveBeenCalled()
+    })
+
+    it('fails open and delivers when the member fetch errors transiently', async () => {
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        const fetch = jest.fn().mockRejectedValue(new Error('gateway timeout'))
+        await runTick(deliveringClient(send, memberGuilds(fetch)), [
+            makeReminder(),
+        ])
+
+        expect(send).toHaveBeenCalledTimes(1)
+        expect(reminderServiceMock.markDelivered).toHaveBeenCalledWith('r1')
+    })
+
+    it('skips everything untouched while the client is not ready', async () => {
+        const send = jest.fn() as jest.Mock
+        const client = {
+            isReady: () => false,
+            guilds: { cache: { get: jest.fn() } },
+            users: { fetch: jest.fn().mockResolvedValue({ send }) },
+            channels: { fetch: jest.fn() },
+        } as never
+        await runTick(client, [makeReminder({ recurrenceRule: RULE })])
+
+        expect(send).not.toHaveBeenCalled()
+        expect(reminderServiceMock.markDelivered).not.toHaveBeenCalled()
+        expect(reminderServiceMock.recordFailedAttempt).not.toHaveBeenCalled()
+        expect(reminderServiceMock.rescheduleRecurring).not.toHaveBeenCalled()
+    })
+
+    it('attaches a Stop button to a recurring DM', async () => {
+        computeNextOccurrenceMock.mockReturnValue(new Date())
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        await runTick(deliveringClient(send), [
+            makeReminder({ recurrenceRule: RULE }),
+        ])
+
+        const payload = send.mock.calls[0][0] as {
+            components: { toJSON: () => any }[]
+        }
+        expect(payload.components).toHaveLength(1)
+        const row = payload.components[0].toJSON()
+        expect(row.components).toHaveLength(1)
+        expect(row.components[0]).toMatchObject({
+            custom_id: 'remind_stop:r1',
+            label: 'Stop this reminder',
+            style: 4,
+        })
+    })
+
+    it('attaches the Stop button to the channel fallback of a recurring reminder', async () => {
+        computeNextOccurrenceMock.mockReturnValue(new Date())
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        const client = {
+            isReady: () => true,
+            guilds: memberGuilds(),
+            users: { fetch: jest.fn().mockRejectedValue(new Error('dm off')) },
+            channels: { fetch: jest.fn().mockResolvedValue({ send }) },
+        } as never
+        await runTick(client, [makeReminder({ recurrenceRule: RULE })])
+
+        const payload = send.mock.calls[0][0] as {
+            components: { toJSON: () => any }[]
+        }
+        expect(payload.components[0].toJSON().components[0].custom_id).toBe(
+            'remind_stop:r1',
+        )
+    })
+
+    it('sends no components for a one-time reminder', async () => {
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        await runTick(deliveringClient(send), [makeReminder()])
+
+        const payload = send.mock.calls[0][0] as Record<string, unknown>
+        expect(payload.components).toBeUndefined()
+    })
+
+    it('does not run the membership check for broadcast reminders', async () => {
+        const send = jest.fn().mockResolvedValue(undefined) as jest.Mock
+        const fetch = jest.fn()
+        const client = {
+            isReady: () => true,
+            guilds: memberGuilds(fetch),
+            users: { fetch: jest.fn() },
+            channels: { fetch: jest.fn().mockResolvedValue({ send }) },
+        } as never
+        await runTick(client, [makeReminder({ targetType: 'channel' })])
+
+        expect(fetch).not.toHaveBeenCalled()
+        expect(send).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not count a failed broadcast in the delivered log', async () => {
+        await runTick(failingClient(), [
+            makeReminder({ targetType: 'channel' }),
+        ])
+
+        expect(reminderServiceMock.markDeliveryFailed).toHaveBeenCalledWith(
+            'r1',
+        )
+        expect(infoLog).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining('delivered'),
+            }),
+        )
     })
 })

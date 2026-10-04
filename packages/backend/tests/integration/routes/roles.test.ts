@@ -638,6 +638,68 @@ describe('Roles Routes', () => {
         })
     })
 
+    describe('PUT reaction-roles unexpected errors', () => {
+        const MESSAGE_ID = '555555555555555555'
+        const body = {
+            title: 'T',
+            description: 'D',
+            roles: [{ roleId: '333333333333333333', label: 'L' }],
+        }
+        const put = () =>
+            request(app)
+                .put(`/api/guilds/${GUILD_ID}/reaction-roles/${MESSAGE_ID}`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send(body)
+
+        function failUpdateWith(message: string) {
+            mockListReactionRoles.mockResolvedValue([])
+            authed()
+            process.env.DISCORD_TOKEN = 'test-token'
+            ;(
+                jest.mocked(
+                    require('@lucky/shared/services').reactionRolesService,
+                ) as any
+            ).updateReactionRoleMessage = jest
+                .fn()
+                .mockRejectedValue(new Error(message))
+        }
+
+        test('returns a generic 500 without leaking the raw error text', async () => {
+            failUpdateWith('Invalid `prisma.reactionRole.update()` invocation')
+            const res = await put()
+            expect(res.status).toBe(500)
+            expect(res.body.error).toBe(
+                'Failed to update reaction role message',
+            )
+            expect(JSON.stringify(res.body)).not.toMatch(/prisma/)
+        })
+
+        test.each([
+            'Reaction roles are disabled for this guild',
+            'At least one role is required',
+            'Maximum 25 roles per message',
+            'Invalid Discord channel or message id',
+            'Invalid guildId: expected a Discord snowflake ID',
+            'Invalid channelId: expected a Discord snowflake ID',
+            'Invalid messageId: expected a Discord snowflake ID',
+        ])('keeps 400 for the known validation error "%s"', async (msg) => {
+            failUpdateWith(msg)
+            const res = await put()
+            expect(res.status).toBe(400)
+            expect(res.body.error).toBe(msg)
+        })
+
+        test('keeps mapping a missing message to 404', async () => {
+            failUpdateWith('Reaction role message not found')
+            expect((await put()).status).toBe(404)
+        })
+
+        test('keeps mapping Discord API errors to 502', async () => {
+            failUpdateWith('Discord API error 500')
+            expect((await put()).status).toBe(502)
+        })
+    })
+
     describe('bot role hierarchy (#2420)', () => {
         const CHANNEL_ID = '222222222222222222'
         const LOW_ROLE = '333333333333333333'

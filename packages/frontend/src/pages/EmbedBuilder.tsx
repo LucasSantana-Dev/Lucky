@@ -11,7 +11,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useGuildStore } from '@/stores/guildStore'
 import { api } from '@/services/api'
-import type { EmbedTemplate, EmbedField } from '@/services/embedsApi'
+import {
+    buildCreateEmbedInput,
+    buildUpdateEmbedInput,
+    type EmbedTemplate,
+    type EmbedField,
+} from '@/services/embedsApi'
 
 interface FormState {
     name: string
@@ -462,31 +467,16 @@ export default function EmbedBuilder() {
     const handleSave = async (form: FormState) => {
         if (!selectedGuild) return
         if (modalTemplate) {
-            await api.embeds.update(selectedGuild.id, modalTemplate.name, {
-                title: form.title || undefined,
-                description: form.description || undefined,
-                color: form.color || undefined,
-                // null (not undefined) so a blanked field explicitly clears
-                // the existing value on the template instead of the PATCH
-                // silently omitting the key and leaving it unchanged (#2407 review).
-                footer: form.footer || null,
-                thumbnail: form.thumbnail || null,
-                image: form.image || null,
-                fields: form.fields.length > 0 ? form.fields : undefined,
-            })
+            await api.embeds.update(
+                selectedGuild.id,
+                modalTemplate.name,
+                buildUpdateEmbedInput(form),
+            )
         } else {
-            await api.embeds.create(selectedGuild.id, {
-                name: form.name,
-                embedData: {
-                    title: form.title || undefined,
-                    description: form.description || undefined,
-                    color: form.color || undefined,
-                    footer: form.footer || undefined,
-                    thumbnail: form.thumbnail || undefined,
-                    image: form.image || undefined,
-                    fields: form.fields.length > 0 ? form.fields : undefined,
-                },
-            })
+            await api.embeds.create(
+                selectedGuild.id,
+                buildCreateEmbedInput(form),
+            )
         }
         await fetchTemplates()
     }
