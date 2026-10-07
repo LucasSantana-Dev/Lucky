@@ -7,6 +7,7 @@ jest.mock('../../utils/monitoring/prometheus', () => ({
 }))
 
 import {
+    FORBIDDEN_WINDOW_MS,
     YTDLP_BLOCK_COOLDOWN_MS,
     classifyYtDlpFailure,
     isYtDlpBlocked,
@@ -76,5 +77,30 @@ describe('ytdlpBlockBreaker (#2653)', () => {
         recordYtDlpFailure(FORBIDDEN, probeAt)
 
         expect(isYtDlpBlocked(probeAt)).toBe(true)
+    })
+
+    it('a lone 403 long after the last one does not reopen it', () => {
+        recordYtDlpFailure(FORBIDDEN, 0)
+        recordYtDlpFailure(FORBIDDEN, 0)
+        const later = FORBIDDEN_WINDOW_MS
+
+        recordYtDlpFailure(FORBIDDEN, later)
+
+        expect(isYtDlpBlocked(later)).toBe(false)
+    })
+
+    it('two 403s further apart than the window do not open it', () => {
+        recordYtDlpFailure(FORBIDDEN, 0)
+        recordYtDlpFailure(FORBIDDEN, FORBIDDEN_WINDOW_MS)
+
+        expect(isYtDlpBlocked(FORBIDDEN_WINDOW_MS)).toBe(false)
+    })
+
+    it('a non-403 failure between two 403s neither counts nor breaks the streak', () => {
+        recordYtDlpFailure(FORBIDDEN, 1)
+        recordYtDlpFailure(new Error('yt-dlp: timed out'), 2)
+        recordYtDlpFailure(FORBIDDEN, 3)
+
+        expect(isYtDlpBlocked(3)).toBe(true)
     })
 })
