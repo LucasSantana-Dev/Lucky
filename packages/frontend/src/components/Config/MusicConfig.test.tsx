@@ -56,11 +56,12 @@ describe('MusicConfig', () => {
     })
 
     test('loads existing settings on mount', async () => {
+        // API returns GuildSettings column names (#2637)
         const mockSettings = {
-            volume: 75,
-            autoplay: true,
-            repeatMode: 'queue',
-            shuffle: true,
+            defaultVolume: 75,
+            autoPlayEnabled: true,
+            repeatMode: 2,
+            shuffleEnabled: true,
         }
 
         vi.mocked(api.modules.getSettings).mockResolvedValue({
@@ -72,11 +73,12 @@ describe('MusicConfig', () => {
         await waitFor(() => {
             expect(screen.getByText('75%')).toBeInTheDocument()
         })
+        expect(screen.getByLabelText(/toggle autoplay/i)).toBeChecked()
     })
 
     test('volume slider displays current value', async () => {
         vi.mocked(api.modules.getSettings).mockResolvedValue({
-            data: { settings: { volume: 75 } },
+            data: { settings: { defaultVolume: 75 } },
         } as never)
 
         render(<MusicConfig guildId={mockGuildId} />)
@@ -92,7 +94,9 @@ describe('MusicConfig', () => {
     test('toggle switches work correctly', async () => {
         const user = userEvent.setup()
         vi.mocked(api.modules.getSettings).mockResolvedValue({
-            data: { settings: { autoplay: false, shuffle: false } },
+            data: {
+                settings: { autoPlayEnabled: false, shuffleEnabled: false },
+            },
         } as never)
 
         render(<MusicConfig guildId={mockGuildId} />)
@@ -123,12 +127,12 @@ describe('MusicConfig', () => {
             expect(api.modules.updateSettings).toHaveBeenCalledWith(
                 mockGuildId,
                 'music',
-                expect.objectContaining({
-                    volume: 50,
-                    autoplay: false,
-                    repeatMode: 'off',
-                    shuffle: false,
-                }),
+                {
+                    defaultVolume: 50,
+                    autoPlayEnabled: true,
+                    repeatMode: 0,
+                    shuffleEnabled: false,
+                },
             )
             expect(toast.success).toHaveBeenCalledWith(
                 'Music configuration saved successfully!',

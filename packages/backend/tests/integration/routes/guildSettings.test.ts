@@ -5,6 +5,7 @@ import express from 'express'
 import {
     setupGuildSettingsRoutes,
     settingsBody,
+    musicModuleSettingsBody,
 } from '../../../src/routes/guildSettings'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
@@ -227,6 +228,14 @@ describe('Guild Settings Routes', () => {
         })
     })
 
+    describe('musicModuleSettingsBody / editable field list agreement', () => {
+        test('every music key appears in the shared editable field list', () => {
+            for (const key of Object.keys(musicModuleSettingsBody.shape)) {
+                expect(GUILD_SETTINGS_EDITABLE_FIELDS).toContain(key)
+            }
+        })
+    })
+
     describe('settingsBody schema / editable field list agreement', () => {
         test('every schema key appears in the shared editable field list', () => {
             const schemaKeys = Object.keys(settingsBody.shape)
@@ -324,6 +333,54 @@ describe('Guild Settings Routes', () => {
             expect(res.status).toBe(500)
             expect(res.body.success).toBeUndefined()
             expect(res.body.error).toBe('Failed to save guild settings')
+        })
+
+        describe('body scoped to the module (#2637)', () => {
+            beforeEach(() => {
+                ;(
+                    sessionService as jest.Mocked<typeof sessionService>
+                ).getSession.mockResolvedValue(MOCK_SESSION_DATA)
+                mockSetSettings.mockResolvedValue(true)
+            })
+
+            const post = (slug: string, body: object) =>
+                request(app)
+                    .post(`/api/guilds/${GUILD_ID}/modules/${slug}/settings`)
+                    .set('Cookie', ['sessionId=valid_session_id'])
+                    .send(body)
+
+            test('writes only the music fields it was given', async () => {
+                const body = {
+                    defaultVolume: 80,
+                    autoPlayEnabled: false,
+                    repeatMode: 2,
+                    shuffleEnabled: true,
+                }
+
+                const res = await post('music', body)
+
+                expect(res.status).toBe(200)
+                expect(mockSetSettings).toHaveBeenCalledWith(GUILD_ID, body)
+            })
+
+            test.each([
+                ['a non-music guild setting', { prefix: '!' }],
+                ['an unknown key', { volume: 80 }],
+                ['a string repeat mode', { repeatMode: 'off' }],
+                ['an out-of-range volume', { defaultVolume: 9999 }],
+            ])('rejects %s with 400 and no write', async (_label, body) => {
+                const res = await post('music', body)
+
+                expect(res.status).toBe(400)
+                expect(mockSetSettings).not.toHaveBeenCalled()
+            })
+
+            test('returns 404 for a module without a settings form', async () => {
+                const res = await post('moderation', { defaultVolume: 80 })
+
+                expect(res.status).toBe(404)
+                expect(mockSetSettings).not.toHaveBeenCalled()
+            })
         })
 
         test('returns 403 for a user without manage access to the requested module (IDOR regression, #2243)', async () => {

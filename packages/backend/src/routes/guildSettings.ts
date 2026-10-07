@@ -1,4 +1,4 @@
-import type { Express, Response } from 'express'
+import type { Express, NextFunction, Request, Response } from 'express'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
 import { requireGuildModuleAccess } from '../middleware/guildAccess'
 import { validateBody, validateParams } from '../middleware/validate'
@@ -34,17 +34,47 @@ export const settingsBody = z
     })
     .strict()
 
-// `slug` selects which module's settings UI is calling this endpoint, but the
-// handler below reads/writes the whole GuildSettings record regardless of it
-// (guildSettingsService has no per-module field scoping) — so authorization
-// gates on 'settings' access, matching what the endpoint actually exposes,
-// not the requested module. A 'music:manage' grant must not imply write
+// `slug` selects which module's settings UI is calling this endpoint. Reads
+// return the whole GuildSettings record, so authorization gates on 'settings'
+// access, not the requested module: a 'music:manage' grant must not imply
 // access to unrelated fields like prefix or embedColor.
 const moduleSlugParam = s.guildIdParam.extend({
     slug: z.enum(RBAC_MODULES),
 })
 
-const moduleSettingsBody = z.record(z.string(), z.unknown())
+// Writes are limited to the module's own columns (#2637). Every key must also
+// appear in `GUILD_SETTINGS_EDITABLE_FIELDS` (enforced by the route test).
+// repeatMode is discord-player's QueueRepeatMode: 0 off, 1 track, 2 queue.
+export const musicModuleSettingsBody = z
+    .object({
+        defaultVolume: z.number().int().min(1).max(200).optional(),
+        autoPlayEnabled: z.boolean().optional(),
+        repeatMode: z.number().int().min(0).max(2).optional(),
+        shuffleEnabled: z.boolean().optional(),
+    })
+    .strict()
+
+const MODULE_SETTINGS_BODIES: Partial<
+    Record<(typeof RBAC_MODULES)[number], z.ZodType>
+> = {
+    music: musicModuleSettingsBody,
+}
+
+function validateModuleSettingsBody(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+) {
+    const schema =
+        MODULE_SETTINGS_BODIES[
+            p(req.params.slug) as (typeof RBAC_MODULES)[number]
+        ]
+    if (!schema) {
+        next(AppError.notFound('This module has no settings'))
+        return
+    }
+    validateBody(schema)(req, res, next)
+}
 
 const DEFAULT_GUILD_SETTINGS = {
     prefix: '/',
@@ -113,7 +143,7 @@ export function setupGuildSettingsRoutes(app: Express): void {
         requireGuildModuleAccess('settings', 'manage'),
         writeLimiter,
         validateParams(moduleSlugParam),
-        validateBody(moduleSettingsBody),
+        validateModuleSettingsBody,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
             const guildId = p(req.params.guildId)
             const saved = await guildSettingsService.setGuildSettings(
