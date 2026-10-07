@@ -26,6 +26,6 @@ jobs:
         if: >-
             ${{ github.event.pull_request.head.repo.full_name == github.repository
             && github.actor != 'dependabot[bot]' }}
-        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@fbe61c820ab532f81a9414f30920ee0c149086a8 # feat/claude-review-oauth
+        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@511ebff42a5f2f8f587fe98fe8ad67cf842de57f # main
         secrets:
             CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
