@@ -550,38 +550,30 @@ jobs:
               with:
                   manifest-path: packages/render/Cargo.toml
                   command-arguments: bans licenses sources
-            # RustSec db: fetch with up to 3 attempts (a network outage is
-            # retried), then check with fetching disabled so a real advisory
-            # finding fails the job. The action runs in a container whose
-            # HOME persists across steps, so the fetched db is reused.
-            - name: cargo deny fetch (attempt 1)
-              id: deny-fetch-1
+            # RustSec advisories, up to 3 attempts: a network outage passes on a
+            # retry, while a real advisory finding fails every attempt and so
+            # fails the job. (cargo-deny 0.20 has no fetch-then-offline split
+            # that works in the action's container.)
+            - name: cargo deny advisories (attempt 1)
+              id: deny-adv-1
               continue-on-error: true
               uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
               with:
                   manifest-path: packages/render/Cargo.toml
-                  command: fetch
-            - name: cargo deny fetch (attempt 2)
-              id: deny-fetch-2
-              if: steps.deny-fetch-1.outcome == 'failure'
+                  command-arguments: advisories
+            - name: cargo deny advisories (attempt 2)
+              id: deny-adv-2
+              if: steps.deny-adv-1.outcome == 'failure'
               continue-on-error: true
               uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
               with:
                   manifest-path: packages/render/Cargo.toml
-                  command: fetch
-            - name: cargo deny fetch (attempt 3)
-              if: steps.deny-fetch-1.outcome == 'failure' && steps.deny-fetch-2.outcome == 'failure'
+                  command-arguments: advisories
+            - name: cargo deny advisories (attempt 3)
+              if: steps.deny-adv-1.outcome == 'failure' && steps.deny-adv-2.outcome == 'failure'
               uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
               with:
                   manifest-path: packages/render/Cargo.toml
-                  command: fetch
-            - name: cargo deny (advisories)
-              uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
-              with:
-                  manifest-path: packages/render/Cargo.toml
-                  # cargo-deny 0.20 dropped `check --disable-fetch`; the
-                  # global `--offline` disables the advisory db fetch.
-                  arguments: --all-features --offline
                   command-arguments: advisories
 
     docker-build:
