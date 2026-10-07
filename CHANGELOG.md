@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.52.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.51.3...v2.52.0) (2026-10-07)
+
+
+### Features
+
+* **bot:** opt-in weekly recap posted every sunday 18:00 utc ([#2681](https://github.com/LucasSantana-Dev/Lucky/issues/2681)) ([196d984](https://github.com/LucasSantana-Dev/Lucky/commit/196d984207836fe08a7b1f3975c4257121dba89d))
+* **bot:** thumbs buttons on the now-playing message ([#2687](https://github.com/LucasSantana-Dev/Lucky/issues/2687)) ([d1d8d90](https://github.com/LucasSantana-Dev/Lucky/commit/d1d8d901b6565783d2b2df76fbb5f34f60c6950c))
+* **brand:** purple and gold neon identity with wordmarks by use ([#2689](https://github.com/LucasSantana-Dev/Lucky/issues/2689)) ([4df6416](https://github.com/LucasSantana-Dev/Lucky/commit/4df6416dfb342c5150eb475908eaea24227ef82e))
+* **shared:** weekly recap aggregate over an untrimmed track history ([#2679](https://github.com/LucasSantana-Dev/Lucky/issues/2679)) ([fc4dff5](https://github.com/LucasSantana-Dev/Lucky/commit/fc4dff5d18b3d53e7c4ee27adb78e30429d77aac))
+
+
+### Bug Fixes
+
+* **api:** stop roles/manage handlers leaking internal error text ([#2661](https://github.com/LucasSantana-Dev/Lucky/issues/2661)) ([4879e0c](https://github.com/LucasSantana-Dev/Lucky/commit/4879e0c37e531f0cee5528b2602c80bc4a091788))
+* **bot:** record skips and seconds played in track history ([#2668](https://github.com/LucasSantana-Dev/Lucky/issues/2668)) ([451f848](https://github.com/LucasSantana-Dev/Lucky/commit/451f84834df68895df7ad2fa7e454e31c0122867))
+* **bot:** stop autoplay writing track history when it queues a pick ([#2680](https://github.com/LucasSantana-Dev/Lucky/issues/2680)) ([2982347](https://github.com/LucasSantana-Dev/Lucky/commit/2982347127462d1cc093279fcf2f486102395459))
+* **shared:** rank recap top lists by non-skipped plays ([#2691](https://github.com/LucasSantana-Dev/Lucky/issues/2691)) ([a59ba71](https://github.com/LucasSantana-Dev/Lucky/commit/a59ba71fc692da5ad1e237c196401158ee7ee41f))
+
 ## [2.51.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.51.2...v2.51.3) (2026-10-07)
 
 
