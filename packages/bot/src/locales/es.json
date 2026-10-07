@@ -84,6 +84,7 @@
             "autoplayName": "Autoplay",
             "autoplayValue": "{{percent}}% de las canciones",
             "topTracksName": "Más escuchadas",
+            "cardAlt": "Resumen semanal: collage de las canciones más escuchadas",
             "topArtistsName": "Artistas más escuchados",
             "enabled": "📅 El resumen semanal se publicará en <#{{channel}}> cada domingo a las 18:00 UTC.",
             "disabled": "🔕 Resumen semanal desactivado.",

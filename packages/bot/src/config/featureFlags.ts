@@ -49,3 +49,35 @@ export function isHostedYoutubeEnabled(): boolean {
 
     return true
 }
+
+let loggedUnrecognizedRecapRender = false
+
+// Test-only: resets the log-once dedup below.
+export function __resetRecapRenderWarnStateForTests(): void {
+    loggedUnrecognizedRecapRender = false
+}
+
+/**
+ * Kill switch for the weekly recap image card (#2693). Same rules as
+ * `isHostedYoutubeEnabled`: defaults to enabled, "false" or "0" (trimmed, any
+ * case) disables it, and an unrecognized value logs one warning and is treated
+ * as enabled. Re-reads `process.env` on every call.
+ */
+export function isRecapRenderEnabled(): boolean {
+    const raw = process.env.RECAP_RENDER_ENABLED
+    if (raw === undefined) return true
+
+    const normalized = raw.trim().toLowerCase()
+    if (DISABLED_VALUES.has(normalized)) return false
+
+    if (!RECOGNIZED_VALUES.has(normalized) && !loggedUnrecognizedRecapRender) {
+        loggedUnrecognizedRecapRender = true
+        warnLog({
+            message:
+                'RECAP_RENDER_ENABLED has an unrecognized value, treating the recap card as enabled',
+            data: { value: raw },
+        })
+    }
+
+    return true
+}
