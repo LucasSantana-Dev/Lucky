@@ -79,4 +79,9 @@ for t in TRACKS:
 
 fixture = json.loads((pathlib.Path(__file__).parent / "recap-poc.json").read_text())
 fixture["topTracks"] = top
+# Totals follow the generated tracks: plays cover every top track plus the
+# skips, with 20 more plays outside the top list; autoplay stays below plays.
+fixture["skips"] = 9
+fixture["plays"] = sum(t["plays"] for t in top) + fixture["skips"] + 20
+fixture["autoplayPlays"] = fixture["plays"] * 60 // 100
 (pathlib.Path(__file__).parent / "recap-collage.json").write_text(json.dumps(fixture, ensure_ascii=False))
