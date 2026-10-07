@@ -1,0 +1,24 @@
+{
+ "schemaVersion": 1,
+ "guildId": "golden",
+ "from": "2026-10-04T18:00:00.000Z",
+ "to": "2026-10-11T18:00:00.000Z",
+ "plays": 87,
+ "skips": 9,
+ "autoplayPlays": 52,
+ "listenedSeconds": 18900,
+ "topTracks": [
+  {
+   "title": "Track 1",
+   "author": "Artist 1",
+   "plays": 30,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPY4fsBK2IYWhIA4ph9QRrlge0AAAAASUVORK5CYII="
+  }
+ ],
+ "topArtists": [
+  {
+   "name": "Artist 1",
+   "plays": 14
+  }
+ ]
+}

@@ -45,6 +45,7 @@ describe('duplicateChecker', () => {
         author: 'Artist',
         duration: '3:21',
         url: 'https://example.com/song',
+        thumbnail: 'https://i.scdn.co/image/abc',
         requestedBy: { id: 'user-1' },
         metadata: { isAutoplay: true },
     } as any
@@ -78,6 +79,7 @@ describe('duplicateChecker', () => {
                 author: 'Artist',
                 duration: '3:21',
                 url: 'https://example.com/song',
+                thumbnail: 'https://i.scdn.co/image/abc',
                 metadata: { isAutoplay: true },
             },
             'guild-1',
@@ -121,6 +123,7 @@ describe('duplicateChecker', () => {
                     author: 'Artist',
                     duration: '3:21',
                     url: 'https://example.com/song',
+                    thumbnail: 'https://i.scdn.co/image/abc',
                     metadata: { isAutoplay: false },
                 },
                 'guild-1',

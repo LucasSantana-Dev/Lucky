@@ -153,6 +153,30 @@ describe('TrackHistoryService', () => {
             })
         })
 
+        it('persists the thumbnail, null when unknown (#2700)', async () => {
+            mockCreate.mockResolvedValue(row())
+            mockFindMany.mockResolvedValue([])
+            const service = new TrackHistoryService()
+
+            await service.addTrackToHistory(
+                { ...sampleInput, thumbnail: 'https://i.scdn.co/image/abc' },
+                GUILD,
+            )
+            await service.addTrackToHistory(
+                { ...sampleInput, thumbnail: '' },
+                GUILD,
+            )
+
+            expect(mockCreate).toHaveBeenNthCalledWith(1, {
+                data: expect.objectContaining({
+                    thumbnail: 'https://i.scdn.co/image/abc',
+                }),
+            })
+            expect(mockCreate).toHaveBeenNthCalledWith(2, {
+                data: expect.objectContaining({ thumbnail: null }),
+            })
+        })
+
         it('does not trim the guild after an insert (#2678)', async () => {
             mockCreate.mockResolvedValue(row())
 

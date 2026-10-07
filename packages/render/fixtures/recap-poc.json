@@ -1,0 +1,28 @@
+{
+    "schemaVersion": 1,
+    "guildId": "poc",
+    "from": "2026-10-04T18:00:00.000Z",
+    "to": "2026-10-11T18:00:00.000Z",
+    "plays": 87,
+    "skips": 9,
+    "autoplayPlays": 52,
+    "listenedSeconds": 18900,
+    "topTracks": [
+        { "title": "夜に駆ける", "author": "YOASOBI", "plays": 9 },
+        { "title": "Song with emoji 🎵🔥 & <tags>", "author": "Daft Punk 🤖", "plays": 7 },
+        { "title": "أغنية عربية جميلة", "author": "فيروز", "plays": 6 },
+        {
+            "title": "An extremely long title that keeps going well past any slot width the card could ever show, repeated to reach two hundred characters in total length for the PoC gate fixture xxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "author": "Кино",
+            "plays": 5
+        },
+        { "title": "Love song אהבה (Remix)", "author": "עומר אדם", "plays": 4 }
+    ],
+    "topArtists": [
+        { "name": "YOASOBI", "plays": 14 },
+        { "name": "周杰倫", "plays": 11 },
+        { "name": "فيروز", "plays": 8 },
+        { "name": "עומר אדם", "plays": 6 },
+        { "name": "Ελευθερία Αρβανιτάκη", "plays": 5 }
+    ]
+}

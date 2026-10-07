@@ -273,6 +273,46 @@ services:
                 max-file: "3"
                 tag: "{{.Name}}"
 
+    # lucky-render: standalone Rust sidecar (packages/render). Own build
+    # context (not repo root) and no depends_on to or from the bot; it only
+    # joins lucky-network and publishes no ports. 128m/0.5 matches neither
+    # x-small-svc nor x-medium-svc, so limits are explicit.
+    render:
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-render:${IMAGE_TAG:-latest}
+        build:
+            context: ./packages/render
+            dockerfile: Dockerfile
+        container_name: lucky-render
+        # SIGTERM: up to 15 s for in-flight requests, then a 10 s render drain.
+        stop_grace_period: 30s
+        mem_limit: 128m
+        cpus: 0.5
+        restart: unless-stopped
+        # Hardening: the binary needs no writable fs (fonts are read-only in
+        # the image) and no capabilities.
+        read_only: true
+        cap_drop:
+            - ALL
+        security_opt:
+            - no-new-privileges:true
+        pids_limit: 64
+        networks:
+            - lucky-network
+            # Lets the homelab Prometheus scrape /metrics (scrape job: #2694).
+            - lucky-monitoring
+        healthcheck:
+            test: ["CMD", "/usr/local/bin/lucky-render", "healthcheck"]
+            interval: 30s
+            timeout: 5s
+            retries: 3
+            start_period: 10s
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
     webhook:
         <<: *small-svc
         build:
