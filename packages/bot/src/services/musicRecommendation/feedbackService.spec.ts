@@ -1,3 +1,4 @@
+import { normalizeTrackKey } from '../../utils/music/trackNormalization'
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 const mockUserTrackFeedback = {
@@ -631,4 +632,18 @@ describe('implicit feedback', () => {
             expect(guild2Keys.has('trackA')).toBe(false)
         })
     })
+
+    it.each([
+        ['Bohemian Rhapsody (Official Video)', 'Queen'],
+        ['Song', 'A, B'],
+        ['Coração', 'Artista feat. Outro'],
+    ])(
+        'buildTrackKey(%s, %s) matches the key autoplay scoring looks up (#2684)',
+        (title, author) => {
+            const service = new RecommendationFeedbackService(30)
+            expect(service.buildTrackKey(title, author)).toBe(
+                normalizeTrackKey(title, author),
+            )
+        },
+    )
 })

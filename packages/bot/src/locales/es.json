@@ -74,6 +74,11 @@
             "status": "🎛️ Estado",
             "title": "📄 Cola de música",
             "errorTitle": "❌ Error de cola"
+        },
+        "thumbs": {
+            "liked": "👍 Guardado. El autoplay buscará más canciones como **{{title}}**.",
+            "disliked": "👎 Guardado. El autoplay evitará canciones como **{{title}}**.",
+            "noTrack": "No está sonando nada ahora."
         }
     }
 }

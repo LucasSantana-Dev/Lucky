@@ -74,6 +74,11 @@
             "status": "🎛️ Status",
             "title": "📄 Fila de música",
             "errorTitle": "❌ Erro na fila"
+        },
+        "thumbs": {
+            "liked": "👍 Anotado. O autoplay vai puxar mais músicas como **{{title}}**.",
+            "disliked": "👎 Anotado. O autoplay vai evitar músicas como **{{title}}**.",
+            "noTrack": "Nada está tocando agora."
         }
     }
 }

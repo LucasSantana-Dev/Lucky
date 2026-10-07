@@ -21,6 +21,7 @@ import type { CustomClient } from '../types'
 import { buildListPageEmbed } from '../utils/general/responseEmbeds'
 import { levelService } from '@lucky/shared/services'
 import { setReplenishSuppressed } from '../services/musicManagement/replenishSuppressionStore'
+import { recommendationFeedbackService } from '../services/musicRecommendation/feedbackService'
 
 type NonNullQueue = GuildQueue
 
@@ -116,6 +117,10 @@ async function routeButtonAction(
             return handleClearQueue(interaction, queue)
         case MUSIC_BUTTON_IDS.CLEAR_AUTOPLAY:
             return handleClearAutoplay(interaction, queue)
+        case MUSIC_BUTTON_IDS.LIKE:
+            return handleTrackFeedback(interaction, queue, 'like')
+        case MUSIC_BUTTON_IDS.DISLIKE:
+            return handleTrackFeedback(interaction, queue, 'dislike')
         default:
             if (customId.startsWith(QUEUE_BUTTON_PREFIX)) {
                 return handleQueuePage(interaction, queue)
@@ -124,6 +129,45 @@ async function routeButtonAction(
                 return handleLeaderboardPage(interaction)
             }
     }
+}
+
+/**
+ * 👍/👎 on the now-playing message (#2658): stores the clicker's feedback for
+ * the track playing now, the same rows `/recommendation feedback` writes.
+ */
+async function handleTrackFeedback(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+    feedback: 'like' | 'dislike',
+): Promise<void> {
+    const t = await translatorForInteraction(interaction)
+    const track = queue.currentTrack
+    if (!track) {
+        await interaction.followUp({
+            content: t('music.thumbs.noTrack'),
+            ephemeral: true,
+        })
+        return
+    }
+
+    await recommendationFeedbackService.setFeedback(
+        queue.guild.id,
+        interaction.user.id,
+        recommendationFeedbackService.buildTrackKey(track.title, track.author),
+        feedback,
+    )
+    await interaction.followUp({
+        content: t(
+            feedback === 'like'
+                ? 'music.thumbs.liked'
+                : 'music.thumbs.disliked',
+            {
+                title: track.title,
+            },
+        ),
+        ephemeral: true,
+        allowedMentions: { parse: [] },
+    })
 }
 
 async function handlePrevious(

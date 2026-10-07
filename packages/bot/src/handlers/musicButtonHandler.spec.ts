@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { MUSIC_BUTTON_IDS } from '../types/musicButtons'
 
 const resolveGuildQueueMock = jest.fn()
+const setFeedbackMock = jest.fn<(...args: unknown[]) => Promise<void>>()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
@@ -39,6 +40,17 @@ jest.mock('@lucky/shared/services', () => ({
 
 jest.mock('../services/musicManagement/replenishSuppressionStore', () => ({
     setReplenishSuppressed: jest.fn(),
+}))
+
+jest.mock('../services/musicRecommendation/feedbackService', () => ({
+    recommendationFeedbackService: {
+        setFeedback: (...args: unknown[]) => setFeedbackMock(...args),
+        buildTrackKey: (title: string, author: string) => `${title}::${author}`,
+    },
+}))
+
+jest.mock('../i18n/translatorForInteraction', () => ({
+    translatorForInteraction: async () => (key: string) => key,
 }))
 
 import { handleMusicButtonInteraction } from './musicButtonHandler'
@@ -113,6 +125,66 @@ describe('handleMusicButtonInteraction — previous button (#1191)', () => {
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
                 embeds: [expect.objectContaining({ title: 'Error' })],
+            }),
+        )
+    })
+})
+
+describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        setFeedbackMock.mockResolvedValue(undefined)
+    })
+
+    function thumbsInteraction(customId: string) {
+        return { ...createInteraction(customId), user: { id: 'user-1' } }
+    }
+
+    it.each([
+        [MUSIC_BUTTON_IDS.LIKE, 'like', 'music.thumbs.liked'],
+        [MUSIC_BUTTON_IDS.DISLIKE, 'dislike', 'music.thumbs.disliked'],
+    ])(
+        '%s stores the clicker feedback for the track playing now',
+        async (customId, feedback, replyKey) => {
+            const queue = createQueue({
+                guild: { id: 'guild-1' },
+                currentTrack: { title: 'Song', author: 'Artist' },
+            })
+            resolveGuildQueueMock.mockReturnValue({ queue })
+            const interaction = thumbsInteraction(customId)
+
+            await handleMusicButtonInteraction(interaction as never)
+
+            expect(setFeedbackMock).toHaveBeenCalledWith(
+                'guild-1',
+                'user-1',
+                'Song::Artist',
+                feedback,
+            )
+            expect(interaction.followUp).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: replyKey,
+                    ephemeral: true,
+                }),
+            )
+        },
+    )
+
+    it('says nothing is playing and stores nothing without a current track', async () => {
+        const queue = createQueue({
+            guild: { id: 'guild-1' },
+            currentTrack: null,
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = thumbsInteraction(MUSIC_BUTTON_IDS.LIKE)
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(setFeedbackMock).not.toHaveBeenCalled()
+        expect(interaction.followUp).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: 'music.thumbs.noTrack',
+                ephemeral: true,
             }),
         )
     })

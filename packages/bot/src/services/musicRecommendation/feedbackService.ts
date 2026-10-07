@@ -2,6 +2,7 @@ import { errorLog, getPrismaClient, telemetryLog } from '@lucky/shared/utils'
 import { parseIntEnv } from '@lucky/shared/utils/env'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { cleanAuthor } from '../../utils/music/searchQueryCleaner'
+import { normalizeTrackKey } from '../../utils/music/trackNormalization'
 
 export type RecommendationFeedback = 'like' | 'dislike'
 export type ArtistFeedback = 'prefer' | 'block'
@@ -32,17 +33,12 @@ export class RecommendationFeedbackService {
 
     constructor(private readonly ttlDays = 30) {}
 
+    /**
+     * The key autoplay scoring looks feedback up by (#2684): writers must use
+     * the scorer's own normalization or the vote never reaches it.
+     */
     buildTrackKey(title: string, author: string): string {
-        const normalizedTitle = title
-            .toLowerCase()
-            .replaceAll(/[^a-z0-9]+/g, '')
-            .trim()
-        const normalizedAuthor = author
-            .toLowerCase()
-            .replaceAll(/[^a-z0-9]+/g, '')
-            .trim()
-
-        return `${normalizedTitle}::${normalizedAuthor}`
+        return normalizeTrackKey(title, author)
     }
 
     async setFeedback(

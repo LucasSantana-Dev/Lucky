@@ -75,6 +75,11 @@
             "title": "📄 Music Queue",
             "errorTitle": "❌ Queue Error",
             "fallbackProbe": "English only, on purpose"
+        },
+        "thumbs": {
+            "liked": "👍 Saved. Autoplay will lean toward tracks like **{{title}}**.",
+            "disliked": "👎 Saved. Autoplay will steer away from tracks like **{{title}}**.",
+            "noTrack": "Nothing is playing right now."
         }
     }
 }
