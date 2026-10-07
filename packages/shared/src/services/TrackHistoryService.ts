@@ -28,6 +28,8 @@ export interface TrackHistoryInput {
     metadata?: { isAutoplay?: boolean }
     /** True when the play ended by a skip rather than playing out. */
     skipped?: boolean
+    /** Cover art URL from the extractor; feeds the recap card (#2700). */
+    thumbnail?: string
     /** Seconds actually played, when the play start time is known. */
     playDuration?: number
 }
@@ -120,6 +122,7 @@ export class TrackHistoryService {
                     author: track.author,
                     duration: track.duration,
                     url: track.url,
+                    thumbnail: track.thumbnail || null,
                     source: inferSource(track.url),
                     playedBy,
                     playDuration: track.playDuration,

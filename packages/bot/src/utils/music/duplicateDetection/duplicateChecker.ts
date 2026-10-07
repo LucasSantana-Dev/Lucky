@@ -146,6 +146,7 @@ export async function addTrackToHistory(
                         ? track.duration
                         : String(track.duration),
                 url: track.url,
+                thumbnail: track.thumbnail,
                 requestedQuery: metadata?.requestedQuery,
                 metadata: { isAutoplay: Boolean(metadata?.isAutoplay) },
                 skipped: playback?.skipped,
