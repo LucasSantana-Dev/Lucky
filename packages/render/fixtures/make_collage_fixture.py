@@ -39,17 +39,26 @@ TRACKS = [
 ]
 
 
+def fetch(url):
+    # urlopen also opens file:// and other schemes; the artwork URL comes from
+    # the API response, so only https on Apple hosts is allowed.
+    parts = urllib.parse.urlsplit(url)
+    host = parts.hostname or ""
+    if parts.scheme != "https" or not (host == "apple.com" or host.endswith((".apple.com", ".mzstatic.com"))):
+        raise ValueError(f"refusing to fetch {url!r}")
+    with urllib.request.urlopen(url, timeout=10) as r:  # nosemgrep: dynamic-urllib-use-detected
+        return r.read()
+
+
 def cover(term):
     if term is None:
         return None
     q = urllib.parse.urlencode({"term": term, "entity": "song", "limit": 1})
-    with urllib.request.urlopen(f"https://itunes.apple.com/search?{q}", timeout=10) as r:
-        results = json.load(r)["results"]
+    results = json.loads(fetch(f"https://itunes.apple.com/search?{q}"))["results"]
     if not results:
         return None
     url = results[0]["artworkUrl100"].replace("100x100", "300x300")
-    with urllib.request.urlopen(url, timeout=10) as r:
-        return base64.b64encode(r.read()).decode()
+    return base64.b64encode(fetch(url)).decode()
 
 
 top = []
