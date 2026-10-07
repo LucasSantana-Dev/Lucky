@@ -76,9 +76,10 @@
             "errorTitle": "❌ Error de cola"
         },
         "thumbs": {
-            "liked": "👍 Guardado. El autoplay buscará más canciones como **{{title}}**.",
-            "disliked": "👎 Guardado. El autoplay evitará canciones como **{{title}}**.",
-            "noTrack": "No está sonando nada ahora."
+            "liked": "👍 **{{title}}** se añadió a tus me gusta. El autoplay busca canciones así en las que tú pones.",
+            "disliked": "👎 Anotado. El autoplay evita canciones como **{{title}}** en las que tú pones.",
+            "noTrack": "No está sonando nada ahora.",
+            "failed": "No se pudo guardar ahora. Inténtalo de nuevo en un momento."
         }
     }
 }

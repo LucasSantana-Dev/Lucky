@@ -41,13 +41,14 @@ export class RecommendationFeedbackService {
         return normalizeTrackKey(title, author)
     }
 
+    /** Stores one vote; resolves false (logged) when the write fails. */
     async setFeedback(
         guildId: string,
         userId: string,
         trackKey: string,
         feedback: RecommendationFeedback,
         now = Date.now(),
-    ): Promise<void> {
+    ): Promise<boolean> {
         try {
             const db = getPrismaClient()
             const expiresAt = new Date(now + this.ttlDays * 24 * 60 * 60 * 1000)
@@ -78,12 +79,14 @@ export class RecommendationFeedbackService {
 
             // Activation telemetry (#2471): explicit thumbs usage, no userId.
             telemetryLog('track_feedback', { guildId, kind: feedback })
+            return true
         } catch (error) {
             errorLog({
                 message: 'Failed to store recommendation feedback',
                 error,
                 data: { guildId },
             })
+            return false
         }
     }
 

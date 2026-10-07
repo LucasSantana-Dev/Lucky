@@ -1,4 +1,8 @@
-import { type ButtonInteraction, type GuildMember } from 'discord.js'
+import {
+    type ButtonInteraction,
+    type GuildMember,
+    escapeMarkdown,
+} from 'discord.js'
 import { QueueRepeatMode } from 'discord-player'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../utils/general/embeds'
@@ -131,9 +135,13 @@ async function routeButtonAction(
     }
 }
 
+/** Longest title echoed back in a thumbs reply. */
+const THUMBS_TITLE_LIMIT = 200
+
 /**
  * 👍/👎 on the now-playing message (#2658): stores the clicker's feedback for
  * the track playing now, the same rows `/recommendation feedback` writes.
+ * Autoplay reads the votes of whoever queues the music, so the reply says so.
  */
 async function handleTrackFeedback(
     interaction: ButtonInteraction,
@@ -141,33 +149,47 @@ async function handleTrackFeedback(
     feedback: 'like' | 'dislike',
 ): Promise<void> {
     const t = await translatorForInteraction(interaction)
-    const track = queue.currentTrack
-    if (!track) {
-        await interaction.followUp({
-            content: t('music.thumbs.noTrack'),
+    const reply = (content: string) =>
+        interaction.followUp({
+            content,
             ephemeral: true,
+            allowedMentions: { parse: [] },
         })
+
+    const track = queue.currentTrack
+    // Without a title and author every vote would share one "::" key.
+    if (!track || (!track.title && !track.author)) {
+        await reply(t('music.thumbs.noTrack'))
         return
     }
 
-    await recommendationFeedbackService.setFeedback(
+    const saved = await recommendationFeedbackService.setFeedback(
         queue.guild.id,
         interaction.user.id,
         recommendationFeedbackService.buildTrackKey(track.title, track.author),
         feedback,
     )
-    await interaction.followUp({
-        content: t(
+    if (!saved) {
+        await reply(t('music.thumbs.failed'))
+        return
+    }
+
+    // Track metadata is untrusted: keep it from breaking the reply's markdown.
+    const title = escapeMarkdown(
+        track.title.length > THUMBS_TITLE_LIMIT
+            ? `${track.title.slice(0, THUMBS_TITLE_LIMIT - 1)}…`
+            : track.title,
+    )
+    await reply(
+        t(
             feedback === 'like'
                 ? 'music.thumbs.liked'
                 : 'music.thumbs.disliked',
             {
-                title: track.title,
+                title,
             },
         ),
-        ephemeral: true,
-        allowedMentions: { parse: [] },
-    })
+    )
 }
 
 async function handlePrevious(

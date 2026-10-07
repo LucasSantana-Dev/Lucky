@@ -76,9 +76,10 @@
             "errorTitle": "❌ Erro na fila"
         },
         "thumbs": {
-            "liked": "👍 Anotado. O autoplay vai puxar mais músicas como **{{title}}**.",
-            "disliked": "👎 Anotado. O autoplay vai evitar músicas como **{{title}}**.",
-            "noTrack": "Nada está tocando agora."
+            "liked": "👍 **{{title}}** foi para as suas curtidas. O autoplay puxa músicas assim nas que você coloca.",
+            "disliked": "👎 Anotado. O autoplay evita músicas como **{{title}}** nas que você coloca.",
+            "noTrack": "Nada está tocando agora.",
+            "failed": "Não deu para salvar agora. Tente de novo daqui a pouco."
         }
     }
 }
