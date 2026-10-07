@@ -9,7 +9,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
 
 pub const WIDTH: u32 = 1200;
-pub const HEIGHT: u32 = 630;
+pub const HEIGHT: u32 = 1440;
 
 /// Mirrors `RecapPayload` in packages/shared/src/services/weeklyRecap.ts.
 #[derive(Debug, Deserialize)]
@@ -61,7 +61,7 @@ pub fn font_db(font_dir: &std::path::Path) -> Arc<usvg::fontdb::Database> {
             db.load_font_data(std::fs::read(&path).expect("font file"));
         }
     }
-    db.set_sans_serif_family("Noto Sans");
+    db.set_sans_serif_family("Manrope");
     Arc::new(db)
 }
 
@@ -170,113 +170,100 @@ pub fn escape(text: &str) -> String {
     out
 }
 
-const FONT: &str = "Noto Sans, Noto Sans SC, Noto Sans Arabic, Noto Sans Hebrew, Noto Emoji";
+// Brand type (packages/frontend/branding/BRANDING_GUIDE.md): Neonderthaw for
+// the signature, Bungee for eyebrows and numbers, Manrope for running text.
+// Noto covers the scripts the brand fonts lack.
+const FALLBACK: &str = "Noto Sans SC, Noto Sans Arabic, Noto Sans Hebrew, Noto Emoji, Noto Sans";
+const NIGHT: &str = "#190428";
+const V300: &str = "#E3A6FA";
+const V400: &str = "#CF7CF6";
+const GOLD: &str = "#F6C85F";
+const NEON_WHITE: &str = "#FFF5FF";
+const HEADER: usize = 240;
 
-const GRID: usize = 630;
-const GOLD: &str = "#f5c542";
-const MUTED: &str = "#b9a8d9";
-
-/// Tapmusic-style collage: covers of the top tracks on the left (3x3, 2x2 or
-/// one tile, by how many tracks the week had), the numbers on the right.
+/// Tapmusic-style collage: brand header with the week's numbers, then the
+/// top tracks' covers in the largest full square grid the week fills (5x5
+/// down to one tile).
 pub fn build_svg(r: &RecapPayload) -> String {
     let hours = r.listened_seconds / 3600;
     let minutes = (r.listened_seconds % 3600) / 60;
     let autoplay = (r.autoplay_plays * 100 + r.plays / 2)
         .checked_div(r.plays)
         .unwrap_or(0);
+    let w = WIDTH as usize;
 
     let mut s = format!(
-        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" font-family="{FONT}">
+        r##"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" font-family="Manrope, {FALLBACK}">
 <defs>
-<linearGradient id="panel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c1030"/><stop offset="1" stop-color="#110a1f"/></linearGradient>
-<linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1"><stop offset="0.45" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.85"/></linearGradient>
-<linearGradient id="empty" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b1f66"/><stop offset="1" stop-color="#1a0f2e"/></linearGradient>
+<radialGradient id="aura" cx="0.18" cy="0.5" r="0.6"><stop offset="0" stop-color="#B84DF0" stop-opacity="0.28"/><stop offset="1" stop-color="{NIGHT}" stop-opacity="0"/></radialGradient>
+<linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1"><stop offset="0.5" stop-color="{NIGHT}" stop-opacity="0"/><stop offset="1" stop-color="{NIGHT}" stop-opacity="0.92"/></linearGradient>
+<linearGradient id="empty" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6E1A9E"/><stop offset="1" stop-color="{NIGHT}"/></linearGradient>
+<filter id="glow" x="-15%" y="-40%" width="130%" height="180%">
+<feGaussianBlur in="SourceAlpha" stdDeviation="12" result="b1"/><feFlood flood-color="#B84DF0"/><feComposite in2="b1" operator="in" result="g1"/>
+<feGaussianBlur in="SourceAlpha" stdDeviation="4" result="b2"/><feFlood flood-color="{V400}"/><feComposite in2="b2" operator="in" result="g2"/>
+<feMerge><feMergeNode in="g1"/><feMergeNode in="g2"/><feMergeNode in="SourceGraphic"/></feMerge>
+</filter>
 </defs>
-<rect width="100%" height="100%" fill="url(#panel)"/>
-"##
-    );
-
-    let n = r.top_tracks.len();
-    let side = if n >= 9 {
-        3
-    } else if n >= 4 {
-        2
-    } else {
-        1
-    };
-    let tile = GRID / side;
-    let (title_w, author_w, title_px, author_px) = match side {
-        3 => (17, 22, 18, 14),
-        2 => (24, 30, 24, 17),
-        _ => (40, 48, 34, 22),
-    };
-    for (i, t) in r.top_tracks.iter().take(side * side).enumerate() {
-        let x = (i % side) * tile;
-        let y = (i / side) * tile;
-        match t.cover.as_deref().filter(|c| is_base64_image(c)) {
-            Some(b64) => s.push_str(&format!(
-                r#"<image x="{x}" y="{y}" width="{tile}" height="{tile}" preserveAspectRatio="xMidYMid slice" href="data:image/jpeg;base64,{b64}"/>"#
-            )),
-            None => s.push_str(&format!(
-                r##"<rect x="{x}" y="{y}" width="{tile}" height="{tile}" fill="url(#empty)"/><text x="{}" y="{}" font-size="{}" text-anchor="middle" fill="{GOLD}" fill-opacity="0.5">🎵</text>"##,
-                x + tile / 2,
-                y + tile / 2,
-                tile / 4
-            )),
-        }
-        s.push_str(&format!(
-            r##"
-<rect x="{x}" y="{y}" width="{tile}" height="{tile}" fill="url(#scrim)"/>
-<text x="{}" y="{}" font-size="{}" font-weight="700" fill="#000" fill-opacity="0.55">{}</text><text x="{}" y="{}" font-size="{}" font-weight="700" fill="{GOLD}">{}</text>
-<text x="{}" y="{}" font-size="{title_px}" font-weight="700" fill="#fff">{}</text>
-<text x="{}" y="{}" font-size="{author_px}" fill="#e6dcf5">{}<tspan font-family="Noto Sans"> · ×{}</tspan></text>
-"##,
-            x + 13, y + 33, title_px + 2, i + 1,
-            x + 12, y + 32, title_px + 2, i + 1,
-            x + 12, y + tile - 16 - author_px - 6, slot(&t.title, title_w),
-            x + 12, y + tile - 16, slot(&t.author, author_w), t.plays,
-        ));
-    }
-
-    let px = GRID + 48;
-    s.push_str(&format!(
-        r##"<text x="{px}" y="78" font-size="20" font-weight="700" letter-spacing="6" fill="{GOLD}">LUCKY</text>
-<text x="{px}" y="134" font-size="50" font-weight="700" fill="#fff">Weekly recap</text>
-<text x="{px}" y="172" font-size="21" fill="{MUTED}">{}</text>
+<rect width="100%" height="100%" fill="{NIGHT}"/>
+<rect width="{w}" height="{HEADER}" fill="url(#aura)"/>
+<text x="52" y="64" font-family="Bungee" font-size="18" letter-spacing="2" fill="{GOLD}">WEEKLY RECAP</text>
+<text x="40" y="152" font-family="Neonderthaw" font-size="104" fill="{NEON_WHITE}" filter="url(#glow)">Lucky</text>
+<text x="52" y="222" font-size="20" font-weight="600" fill="{V300}">{}</text>
 "##,
         slot(&format!("{} → {}", date(&r.from), date(&r.to)), 40)
-    ));
+    );
 
     let stats = [
-        (r.plays.to_string(), format!("plays · {} skipped", r.skips)),
-        (format!("{hours}h {minutes}m"), "listened".to_string()),
-        (format!("{autoplay}%"), "autoplay".to_string()),
+        (r.plays.to_string(), format!("PLAYS · {} SKIPPED", r.skips)),
+        (format!("{hours}H {minutes}M"), "LISTENED".to_string()),
+        (format!("{autoplay}%"), "AUTOPLAY".to_string()),
     ];
-    for ((value, label), dx) in stats.iter().zip([0, 160, 352]) {
-        let x = px + dx;
+    for ((value, label), x) in stats.iter().zip([540, 770, 990]) {
         s.push_str(&format!(
-            r##"<text x="{x}" y="258" font-size="40" font-weight="700" fill="#fff">{}</text><text x="{x}" y="286" font-size="16" fill="{MUTED}">{}</text>
+            r##"<text x="{x}" y="150" font-family="Bungee, Manrope" font-size="44" fill="{NEON_WHITE}">{}</text><text x="{x}" y="182" font-family="Bungee, Manrope" font-size="13" letter-spacing="1" fill="{V400}">{}</text>
 "##,
             slot(value, 10),
             slot(label, 20)
         ));
     }
 
-    s.push_str(&format!(
-        r##"<rect x="{px}" y="322" width="474" height="1" fill="#fff" fill-opacity="0.12"/>
-<text x="{px}" y="368" font-size="18" font-weight="700" letter-spacing="3" fill="{GOLD}">TOP ARTISTS</text>
-"##
-    ));
-    for (i, a) in r.top_artists.iter().take(5).enumerate() {
-        let y = 412 + i * 44;
+    let n = r.top_tracks.len();
+    let side = (1..=5).rev().find(|k| n >= k * k).unwrap_or(1);
+    let tile = w / side;
+    let (rank_px, title_px, author_px) = (tile / 12, tile / 14, tile / 17);
+    let avail = (tile - 28) as f32;
+    let title_w = (avail / (title_px as f32 * 0.6)) as usize;
+    // The play count sits right-aligned on the author line; keep room for it.
+    let author_w = ((avail - author_px as f32 * 2.6) / (author_px as f32 * 0.56)) as usize;
+    for (i, t) in r.top_tracks.iter().take(side * side).enumerate() {
+        let x = (i % side) * tile;
+        let y = HEADER + (i / side) * tile;
+        match t.cover.as_deref().filter(|c| is_base64_image(c)) {
+            Some(b64) => s.push_str(&format!(
+                r#"<image x="{x}" y="{y}" width="{tile}" height="{tile}" preserveAspectRatio="xMidYMid slice" href="data:image/jpeg;base64,{b64}"/>"#
+            )),
+            None => s.push_str(&format!(
+                r##"<rect x="{x}" y="{y}" width="{tile}" height="{tile}" fill="url(#empty)"/><text x="{}" y="{}" font-family="Noto Emoji" font-size="{}" text-anchor="middle" fill="{V400}" fill-opacity="0.6">🎵</text>"##,
+                x + tile / 2,
+                y + tile / 2 + tile / 10,
+                tile / 4
+            )),
+        }
+        let (x10, y10) = (x + 10, y + 10);
+        let pill_h = rank_px * 17 / 10;
+        let pill_w = if i + 1 >= 10 { pill_h * 3 / 2 } else { pill_h };
+        let pill_r = pill_h / 2;
         s.push_str(&format!(
-            r##"<text x="{px}" y="{y}" font-size="22" fill="{MUTED}">{}</text><text x="{}" y="{y}" font-size="24" font-weight="700" fill="#fff">{}</text><text x="{}" y="{y}" font-size="20" text-anchor="end" fill="{MUTED}">×{}</text>
+            r##"
+<rect x="{x}" y="{y}" width="{tile}" height="{tile}" fill="url(#scrim)"/>
+<rect x="{x10}" y="{y10}" width="{pill_w}" height="{pill_h}" rx="{pill_r}" fill="{NIGHT}" fill-opacity="0.72"/><text x="{}" y="{}" font-family="Bungee" font-size="{rank_px}" text-anchor="middle" fill="{GOLD}">{}</text>
+<text x="{}" y="{}" font-size="{title_px}" font-weight="700" fill="{NEON_WHITE}">{}</text>
+<text x="{}" y="{}" font-size="{author_px}" font-weight="600" fill="{V300}">{}</text><text x="{}" y="{}" font-size="{author_px}" font-weight="700" text-anchor="end" fill="{GOLD}">×{}</text>
 "##,
-            i + 1,
-            px + 32,
-            slot(&a.name, 28),
-            px + 474,
-            a.plays
+            x + 10 + pill_w / 2, y + 10 + pill_h / 2 + rank_px * 7 / 20, i + 1,
+            x + 14, y + tile - 14 - author_px - 8, slot(&t.title, title_w),
+            x + 14, y + tile - 14, slot(&t.author, author_w),
+            x + tile - 14, y + tile - 14, t.plays,
         ));
     }
     s.push_str("</svg>");
