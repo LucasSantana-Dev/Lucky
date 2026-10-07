@@ -1,10 +1,11 @@
 # Architecture Decision Records
 
-142 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
+143 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
-## Accepted (135)
+## Accepted (136)
 
+- [2026-10-07 - Brand identity: purple and gold neon, one cat, three wordmarks by use](2026-10-07-brand-purple-gold-wordmark-family.md) - _Accepted (amends the brand palette in `packages/frontend/branding/BRANDING_GUIDE.md`)_
 - [2026-10-07 - The pitch leads with the weekly recap; thumbs feedback moves onto the now-playing message](2026-10-07-pitch-leads-with-weekly-recap.md) - _Accepted (amends the pitch of `2026-09-27-music-first-positioning.md`)_
 - [2026-10-01 - Batch merged work into fewer releases; the frontend ships with the release](2026-10-01-batched-releases.md) - _Accepted (supersedes the human ship-checkpoint of `2026-06-16-release-cadence-automate-releases.md`)_
 - [2026-10-01 - Discord blurple is the focus color only; pink is the single brand accent](2026-10-01-blurple-focus-only.md) - _Accepted (supersedes the dual accent of `2026-04-21-redesign-port-target.md`)_
