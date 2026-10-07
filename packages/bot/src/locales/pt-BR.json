@@ -74,6 +74,23 @@
             "status": "🎛️ Status",
             "title": "📄 Fila de música",
             "errorTitle": "❌ Erro na fila"
+        },
+        "recap": {
+            "title": "A semana do seu servidor em música",
+            "period": "{{from}} a {{to}} (UTC)",
+            "playsName": "Músicas",
+            "playsValue": "{{plays}} tocadas · {{skips}} puladas",
+            "listenedName": "Tempo ouvindo",
+            "autoplayName": "Autoplay",
+            "autoplayValue": "{{percent}}% das músicas",
+            "topTracksName": "Mais tocadas",
+            "topArtistsName": "Artistas mais tocados",
+            "enabled": "📅 O resumo semanal vai sair em <#{{channel}}> todo domingo às 18:00 UTC. O primeiro chega no próximo domingo.",
+            "disabled": "🔕 Resumo semanal desligado.",
+            "alreadyOff": "O resumo semanal já está desligado.",
+            "notTextChannel": "❌ Escolha um canal de texto para o resumo.",
+            "missingPermissions": "❌ Não consigo postar em <#{{channel}}>. Preciso de Ver canal, Enviar mensagens e Inserir links lá.",
+            "failed": "❌ Não consegui atualizar o resumo semanal. Tente de novo daqui a pouco."
         }
     }
 }

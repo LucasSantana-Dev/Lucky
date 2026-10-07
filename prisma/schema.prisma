@@ -242,6 +242,11 @@ model GuildSettings {
   supportCategoryId  String?
   supportAgentRoleId String?
 
+  // Weekly recap (#2678): opt-in channel, null = off. recapLastPostedAt is
+  // written after a successful post so a restart neither skips nor repeats.
+  recapChannelId    String?
+  recapLastPostedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -74,6 +74,23 @@
             "status": "🎛️ Estado",
             "title": "📄 Cola de música",
             "errorTitle": "❌ Error de cola"
+        },
+        "recap": {
+            "title": "La semana musical de tu servidor",
+            "period": "{{from}} a {{to}} (UTC)",
+            "playsName": "Canciones",
+            "playsValue": "{{plays}} reproducidas · {{skips}} saltadas",
+            "listenedName": "Tiempo escuchando",
+            "autoplayName": "Autoplay",
+            "autoplayValue": "{{percent}}% de las canciones",
+            "topTracksName": "Más escuchadas",
+            "topArtistsName": "Artistas más escuchados",
+            "enabled": "📅 El resumen semanal se publicará en <#{{channel}}> cada domingo a las 18:00 UTC. El primero llega el próximo domingo.",
+            "disabled": "🔕 Resumen semanal desactivado.",
+            "alreadyOff": "El resumen semanal ya está desactivado.",
+            "notTextChannel": "❌ Elige un canal de texto para el resumen.",
+            "missingPermissions": "❌ No puedo publicar en <#{{channel}}>. Necesito Ver canal, Enviar mensajes e Insertar enlaces allí.",
+            "failed": "❌ No pude actualizar el resumen semanal. Inténtalo de nuevo en un momento."
         }
     }
 }
