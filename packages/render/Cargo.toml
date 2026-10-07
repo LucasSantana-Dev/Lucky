@@ -9,6 +9,7 @@ axum = { version = "0.8", default-features = false, features = ["http1", "tokio"
 base64 = "0.22"
 imagesize = "0.15"
 jpeg-encoder = "0.7"
+png = "0.18"
 resvg = { version = "0.48", default-features = false, features = ["text", "raster-images"] }
 schemars = "1"
 serde = { version = "1", features = ["derive"] }
@@ -18,6 +19,8 @@ unicode-normalization = "0.1"
 unicode-segmentation = "1"
 tower-http = { version = "0.7", default-features = false, features = ["timeout"] }
 unicode-width = "0.2"
+zune-core = "0.5"
+zune-jpeg = "0.5"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

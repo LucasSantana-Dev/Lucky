@@ -429,10 +429,14 @@ mod tests {
 
     fn png_cover() -> String {
         use base64::Engine;
-        let mut b = vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13];
-        b.extend_from_slice(b"IHDR");
-        b.extend_from_slice(&[0, 0, 1, 0, 0, 0, 1, 0, 8, 6, 0, 0, 0, 0, 0, 0, 0]);
-        base64::engine::general_purpose::STANDARD.encode(b)
+        let mut out = Vec::new();
+        let mut enc = png::Encoder::new(&mut out, 4, 4);
+        enc.set_color(png::ColorType::Rgb);
+        enc.set_depth(png::BitDepth::Eight);
+        let mut w = enc.write_header().unwrap();
+        w.write_image_data(&[90; 48]).unwrap();
+        w.finish().unwrap();
+        base64::engine::general_purpose::STANDARD.encode(out)
     }
 
     #[test]

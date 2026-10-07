@@ -411,6 +411,7 @@ dependencies = [
  "base64 0.22.1",
  "imagesize",
  "jpeg-encoder",
+ "png",
  "resvg",
  "schemars",
  "serde",
@@ -421,6 +422,8 @@ dependencies = [
  "unicode-normalization",
  "unicode-segmentation",
  "unicode-width",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]
