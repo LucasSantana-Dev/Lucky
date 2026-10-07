@@ -23,6 +23,7 @@ zune-core = "0.5"
 zune-jpeg = "0.5"
 
 [dev-dependencies]
+http-body = "1"
 tower = { version = "0.5", features = ["util"] }
 
 [profile.release]

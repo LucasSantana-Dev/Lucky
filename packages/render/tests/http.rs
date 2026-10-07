@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use axum::body::{Body, to_bytes};
+use axum::body::{Body, Bytes, to_bytes};
 use axum::http::{Request, Response, StatusCode, header};
 use lucky_render::server::{AppState, router};
 use tower::ServiceExt;
@@ -92,6 +92,28 @@ async fn body_over_2_5_mb_is_413() {
     let res = send(&bare_state(), post(vec![b' '; 2_621_440 + 1])).await;
     assert_eq!(res.status(), StatusCode::PAYLOAD_TOO_LARGE);
     assert_eq!(text(res).await, r#"{"error":"payload_too_large"}"#);
+}
+
+/// A body whose read fails midway, like a dropped connection.
+struct Broken;
+
+impl axum::body::HttpBody for Broken {
+    type Data = Bytes;
+    type Error = std::io::Error;
+
+    fn poll_frame(
+        self: std::pin::Pin<&mut Self>,
+        _: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Result<http_body::Frame<Bytes>, std::io::Error>>> {
+        std::task::Poll::Ready(Some(Err(std::io::Error::other("SECRET-MARKER"))))
+    }
+}
+
+#[tokio::test]
+async fn a_body_read_failure_is_400_not_413_and_never_echoed() {
+    let res = send(&bare_state(), post(Body::new(Broken))).await;
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(text(res).await, r#"{"error":"invalid_body"}"#);
 }
 
 #[tokio::test]

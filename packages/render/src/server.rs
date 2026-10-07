@@ -146,8 +146,14 @@ async fn render_recap(
         state.finish(status.as_u16(), Outcome::BadRequest, started, 0);
         error(status, code)
     };
-    let Ok(body) = body else {
-        return reject(StatusCode::PAYLOAD_TOO_LARGE, "payload_too_large");
+    let body = match body {
+        Ok(b) => b,
+        // Only the length limit is a 413; any other read failure keeps its
+        // own status. The rejection text is never forwarded.
+        Err(rej) if rej.status() == StatusCode::PAYLOAD_TOO_LARGE => {
+            return reject(StatusCode::PAYLOAD_TOO_LARGE, "payload_too_large");
+        }
+        Err(rej) => return reject(rej.status(), "invalid_body"),
     };
     let payload: RecapPayload = match serde_json::from_slice(&body) {
         Ok(p) => p,
