@@ -30,6 +30,7 @@ const stopMetricsServerMock = jest.fn().mockResolvedValue(undefined)
 const setupWebMusicHandlerMock = jest.fn().mockResolvedValue(undefined)
 const stopWebMusicHandlerMock = jest.fn()
 const birthdaySchedulerStopMock = jest.fn()
+const recapSchedulerStopMock = jest.fn()
 const modDigestSchedulerStopMock = jest.fn()
 const aiDevToolkitStopMock = jest.fn()
 const dependencyCheckStopMock = jest.fn()
@@ -118,6 +119,12 @@ jest.mock('../../handlers/webMusic', () => ({
 jest.mock('../../utils/general/birthdayScheduler', () => ({
     birthdayScheduler: {
         stop: (...args: unknown[]) => birthdaySchedulerStopMock(...args),
+    },
+}))
+
+jest.mock('../../services/recap/recapScheduler', () => ({
+    recapScheduler: {
+        stop: (...args: unknown[]) => recapSchedulerStopMock(...args),
     },
 }))
 
@@ -529,6 +536,7 @@ describe('BotInitializer', () => {
 
             expect(stopWebMusicHandlerMock).toHaveBeenCalled()
             expect(birthdaySchedulerStopMock).toHaveBeenCalled()
+            expect(recapSchedulerStopMock).toHaveBeenCalled()
             expect(modDigestSchedulerStopMock).toHaveBeenCalled()
             expect(aiDevToolkitStopMock).toHaveBeenCalled()
             expect(dependencyCheckStopMock).toHaveBeenCalled()
@@ -546,6 +554,7 @@ describe('BotInitializer', () => {
         const failingStops: Array<[string, jest.Mock]> = [
             ['stopWebMusicHandler', stopWebMusicHandlerMock],
             ['birthdayScheduler.stop', birthdaySchedulerStopMock],
+            ['recapScheduler.stop', recapSchedulerStopMock],
             ['modDigestSchedulerService.stop', modDigestSchedulerStopMock],
             ['aiDevToolkitService.stop', aiDevToolkitStopMock],
             ['dependencyCheckService.stop', dependencyCheckStopMock],
@@ -606,6 +615,7 @@ describe('BotInitializer', () => {
                 ['presence rotation', stopPresenceRotationMock],
                 ['web music handler', stopWebMusicHandlerMock],
                 ['birthday scheduler', birthdaySchedulerStopMock],
+                ['recap scheduler', recapSchedulerStopMock],
                 ['support session scheduler', supportStop],
                 ['reminder scheduler', reminderStop],
                 ['giveaway scheduler', giveawayStop],
