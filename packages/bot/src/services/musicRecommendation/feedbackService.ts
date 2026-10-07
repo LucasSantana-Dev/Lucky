@@ -76,10 +76,6 @@ export class RecommendationFeedbackService {
                     expiresAt,
                 },
             })
-
-            // Activation telemetry (#2471): explicit thumbs usage, no userId.
-            telemetryLog('track_feedback', { guildId, kind: feedback })
-            return true
         } catch (error) {
             errorLog({
                 message: 'Failed to store recommendation feedback',
@@ -88,6 +84,10 @@ export class RecommendationFeedbackService {
             })
             return false
         }
+        // Outside the try: only the write decides whether the vote was saved.
+        // Activation telemetry (#2471): explicit thumbs usage, no userId.
+        telemetryLog('track_feedback', { guildId, kind: feedback })
+        return true
     }
 
     async clearFeedback(userId: string): Promise<void> {

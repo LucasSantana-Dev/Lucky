@@ -157,8 +157,12 @@ async function handleTrackFeedback(
         })
 
     const track = queue.currentTrack
-    // Without a title and author every vote would share one "::" key.
-    if (!track || (!track.title && !track.author)) {
+    const trackKey = track
+        ? recommendationFeedbackService.buildTrackKey(track.title, track.author)
+        : ''
+    // A title and author that normalize to nothing (empty, only symbols)
+    // would make every such track share one "::" key.
+    if (!track || trackKey === '::') {
         await reply(t('music.thumbs.noTrack'))
         return
     }
@@ -166,7 +170,7 @@ async function handleTrackFeedback(
     const saved = await recommendationFeedbackService.setFeedback(
         queue.guild.id,
         interaction.user.id,
-        recommendationFeedbackService.buildTrackKey(track.title, track.author),
+        trackKey,
         feedback,
     )
     if (!saved) {

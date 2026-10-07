@@ -45,7 +45,9 @@ jest.mock('../services/musicManagement/replenishSuppressionStore', () => ({
 jest.mock('../services/musicRecommendation/feedbackService', () => ({
     recommendationFeedbackService: {
         setFeedback: (...args: unknown[]) => setFeedbackMock(...args),
-        buildTrackKey: (title: string, author: string) => `${title}::${author}`,
+        // Mirrors normalizeTrackKey's letter/number filter.
+        buildTrackKey: (title: string, author: string) =>
+            `${title.replace(/[^\p{L}\p{N}]/gu, '')}::${author.replace(/[^\p{L}\p{N}]/gu, '')}`,
     },
 }))
 
@@ -207,6 +209,19 @@ describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
         expect(content).toContain('\\*\\*bold\\*\\*')
         expect(content).toContain('…')
         expect(content.length).toBeLessThan(260)
+    })
+
+    it('stores nothing for a track whose metadata normalizes to nothing', async () => {
+        const queue = createQueue({
+            guild: { id: 'guild-1' },
+            currentTrack: { title: '★ ★', author: '—' },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = thumbsInteraction(MUSIC_BUTTON_IDS.LIKE)
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(setFeedbackMock).not.toHaveBeenCalled()
     })
 
     it('stores nothing for a track with neither title nor author', async () => {

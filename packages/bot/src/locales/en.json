@@ -79,7 +79,7 @@
         "thumbs": {
             "liked": "👍 Added **{{title}}** to your likes. Autoplay leans toward them on the songs you queue.",
             "disliked": "👎 Noted. Autoplay steers away from **{{title}}** on the songs you queue.",
-            "noTrack": "Nothing is playing right now.",
+            "noTrack": "There's no track to rate right now.",
             "failed": "Could not save that right now. Try again in a moment."
         }
     }
