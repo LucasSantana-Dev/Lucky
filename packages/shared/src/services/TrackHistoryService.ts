@@ -62,12 +62,14 @@ function inferSource(url: string): string {
 /**
  * Manages guild track playback history in Postgres (via Prisma).
  *
- * Reads expire after `ttl` seconds, applied lazily (rows older than the cutoff
- * are filtered out), and read helpers take their own row limits. Rows are not
- * trimmed per guild: retention is the scheduled 30-day
- * `DatabaseService.cleanupOldData` sweep, so a whole week stays readable for the
- * weekly recap (`weeklyRecap.ts`, #2678). The short-lived "recently played" marker used for duplicate
- * detection is kept in-memory (ephemeral — rebuilt after a restart by design).
+ * Most reads expire after `ttl` seconds, applied lazily (rows older than the
+ * cutoff are filtered out), and read helpers take their own row limits; the
+ * exception is `getReplayFrequentTracks`, which counts a fixed 30-day window.
+ * Rows are not trimmed per guild: retention is the scheduled 30-day
+ * `DatabaseService.cleanupOldData` sweep, so a whole week stays readable for
+ * the weekly recap (`weeklyRecap.ts`, #2678). The short-lived "recently
+ * played" marker used for duplicate detection is kept in-memory (ephemeral,
+ * rebuilt after a restart by design).
  */
 export class TrackHistoryService {
     private readonly ttlSeconds: number
@@ -363,7 +365,12 @@ export class TrackHistoryService {
                 Date.now() - 30 * 24 * 60 * 60 * 1000,
             )
 
-            const where = { guildId, playedAt: { gte: thirtyDaysAgo } }
+            // Skipped plays are not replays: they must not earn a boost.
+            const where = {
+                guildId,
+                playedAt: { gte: thirtyDaysAgo },
+                skipped: false,
+            }
 
             // Counted in SQL: history is no longer trimmed per guild (#2678),
             // so a row cap here would silently drop older plays.

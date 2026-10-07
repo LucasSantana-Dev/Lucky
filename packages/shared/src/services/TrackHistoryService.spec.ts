@@ -21,16 +21,29 @@ const mockGroupBy = jest.fn() as jest.MockedFunction<
 >
 
 /** Makes groupBy answer as SQL would over these history rows. */
-function groupByFrom(rows: Array<{ trackId: string; author: string }>) {
-    mockGroupBy.mockImplementation(async ({ by }: { by: string[] }) => {
-        const key = by[0] as 'trackId' | 'author'
-        const counts = new Map<string, number>()
-        for (const r of rows) counts.set(r[key], (counts.get(r[key]) ?? 0) + 1)
-        return [...counts].map(([value, n]) => ({
-            [key]: value,
-            _count: { _all: n },
-        }))
-    })
+function groupByFrom(
+    rows: Array<{ trackId: string; author: string; skipped?: boolean }>,
+) {
+    mockGroupBy.mockImplementation(
+        async ({
+            by,
+            where,
+        }: {
+            by: string[]
+            where: { skipped?: boolean }
+        }) => {
+            const key = by[0] as 'trackId' | 'author'
+            const counts = new Map<string, number>()
+            for (const r of rows) {
+                if (where.skipped === false && r.skipped) continue
+                counts.set(r[key], (counts.get(r[key]) ?? 0) + 1)
+            }
+            return [...counts].map(([value, n]) => ({
+                [key]: value,
+                _count: { _all: n },
+            }))
+        },
+    )
 }
 const mockGetPrismaClient = jest.fn()
 
@@ -399,6 +412,7 @@ describe('TrackHistoryService', () => {
             const where = {
                 guildId: GUILD,
                 playedAt: { gte: expect.any(Date) },
+                skipped: false,
             }
             expect(mockGroupBy).toHaveBeenCalledWith({
                 by: ['trackId'],
@@ -552,6 +566,20 @@ describe('TrackHistoryService', () => {
 
             // three spellings normalize to one artist with count 3 (> 2)
             expect(result.artists.has('the band')).toBe(true)
+        })
+
+        it('getReplayFrequentTracks ignores skipped plays', async () => {
+            groupByFrom([
+                { trackId: 's1', author: 'Skipper' },
+                { trackId: 's1', author: 'Skipper', skipped: true },
+                { trackId: 's1', author: 'Skipper', skipped: true },
+            ])
+
+            const result =
+                await new TrackHistoryService().getReplayFrequentTracks(GUILD)
+
+            expect(result.trackIds.has('s1')).toBe(false)
+            expect(result.artists.has('skipper')).toBe(false)
         })
 
         it('getReplayFrequentTracks excludes an artist seen exactly twice', async () => {
