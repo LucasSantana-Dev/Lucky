@@ -26,6 +26,10 @@ export interface TrackHistoryInput {
      * can be queried instead of guessed from the title alone. */
     requestedQuery?: string
     metadata?: { isAutoplay?: boolean }
+    /** True when the play ended by a skip rather than playing out. */
+    skipped?: boolean
+    /** Seconds actually played, when the play start time is known. */
+    playDuration?: number
 }
 
 /** Statistics for guild track playback history. */
@@ -118,6 +122,8 @@ export class TrackHistoryService {
                     url: track.url,
                     source: inferSource(track.url),
                     playedBy,
+                    playDuration: track.playDuration,
+                    skipped: track.skipped ?? false,
                     isAutoplay: Boolean(track.metadata?.isAutoplay ?? false),
                 },
             })
