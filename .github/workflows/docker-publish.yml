@@ -19,8 +19,12 @@ on:
             - 'CHANGELOG.md'
             - '.github/workflows/docker-publish.yml'
 
+# Ordinary main pushes share one group and cancel each other (only the newest
+# images matter). A release-please merge gets a group of its own: the release
+# deploy waits for the `:<release sha>` images, so a merge landing right after
+# the release must not cancel that build (#2705, v2.53.0 deploy aborted).
 concurrency:
-    group: ${{ github.workflow }}-${{ github.ref }}
+    group: "${{ github.workflow }}-${{ github.ref }}-${{ startsWith(github.event.head_commit.message, 'chore: release ') && github.sha || 'latest' }}"
     cancel-in-progress: true
 
 env:
