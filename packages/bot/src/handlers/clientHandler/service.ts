@@ -76,7 +76,7 @@ export async function startClient({
     }
 
     const readyPromise = new Promise<void>((resolve) => {
-        client.once('ready', async () => {
+        client.once('clientReady', async () => {
             try {
                 if (client.user) {
                     infoLog({
