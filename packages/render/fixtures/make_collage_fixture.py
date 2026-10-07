@@ -8,6 +8,7 @@ import base64
 import http.client
 import json
 import pathlib
+import ssl
 import urllib.parse
 
 TRACKS = [
@@ -46,7 +47,8 @@ def fetch(url):
     host = parts.hostname or ""
     if parts.scheme != "https" or not (host == "apple.com" or host.endswith((".apple.com", ".mzstatic.com"))):
         raise ValueError(f"refusing to fetch {url!r}")
-    conn = http.client.HTTPSConnection(host, timeout=10)
+    # Explicit default context: certificate and hostname verification on.
+    conn = http.client.HTTPSConnection(host, timeout=10, context=ssl.create_default_context())
     try:
         conn.request("GET", parts.path + (f"?{parts.query}" if parts.query else ""))
         resp = conn.getresponse()
