@@ -12,6 +12,8 @@ pub enum Outcome {
     BadRequest,
     /// 503: the waiting room is full or the render slot never freed up.
     Busy,
+    /// Rendered, but the client was gone (disconnect or router timeout).
+    Abandoned,
     Error,
 }
 
@@ -21,6 +23,7 @@ pub struct Metrics {
     bad_request: AtomicU64,
     error: AtomicU64,
     busy: AtomicU64,
+    abandoned: AtomicU64,
     covers_dropped: AtomicU64,
     /// Per-bucket (non-cumulative) counts; the last slot is +Inf.
     buckets: [AtomicU64; BUCKETS.len() + 1],
@@ -33,6 +36,7 @@ impl Metrics {
             Outcome::Ok => &self.ok,
             Outcome::BadRequest => &self.bad_request,
             Outcome::Busy => &self.busy,
+            Outcome::Abandoned => &self.abandoned,
             Outcome::Error => &self.error,
         }
         .fetch_add(1, Relaxed);
@@ -61,6 +65,7 @@ impl Metrics {
             ("ok", &self.ok),
             ("bad_request", &self.bad_request),
             ("busy", &self.busy),
+            ("abandoned", &self.abandoned),
             ("error", &self.error),
         ] {
             let _ = writeln!(

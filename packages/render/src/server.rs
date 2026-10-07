@@ -1,6 +1,7 @@
 //! HTTP surface: `POST /render/recap`, `GET /healthz`, `GET /metrics`.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use axum::Router;
@@ -71,6 +72,14 @@ impl AppState {
             waiting_room: Arc::new(Semaphore::new(WAITING_ROOM)),
             metrics: Metrics::default(),
         })
+    }
+
+    /// Waits until no render holds the slot, at most `wait`. True when idle.
+    /// Used on shutdown so SIGTERM does not cut a render in half.
+    pub async fn drain(&self, wait: Duration) -> bool {
+        tokio::time::timeout(wait, self.slot.acquire())
+            .await
+            .is_ok_and(|p| p.is_ok())
     }
 
     fn finish(&self, status: u16, outcome: Outcome, started: Instant, dropped: usize) {
@@ -166,6 +175,11 @@ async fn render_recap(
     // disconnects mid-render still gets counted and the slot stays held until
     // the blocking work really ends.
     let task_state = state.clone();
+    let abandoned = Arc::new(AtomicBool::new(false));
+    let mut guard = AbandonGuard {
+        flag: abandoned.clone(),
+        completed: false,
+    };
     let task = tokio::spawn(async move {
         let (renderer, fontdb) = (task_state.renderer, task_state.fontdb.clone());
         let job = tokio::task::spawn_blocking(move || {
@@ -184,6 +198,11 @@ async fn render_recap(
             .metrics
             .observe_duration(render_started.elapsed().as_secs_f64());
         match result {
+            Some(r) if abandoned.load(Ordering::SeqCst) => {
+                // 499: the client closed the request before the response.
+                task_state.finish(499, Outcome::Abandoned, started, r.covers_dropped);
+                error(StatusCode::REQUEST_TIMEOUT, "abandoned")
+            }
             Some(r) => {
                 task_state.finish(200, Outcome::Ok, started, r.covers_dropped);
                 ([(header::CONTENT_TYPE, "image/jpeg")], r.jpeg).into_response()
@@ -194,6 +213,24 @@ async fn render_recap(
             }
         }
     });
-    task.await
-        .unwrap_or_else(|_| error(StatusCode::INTERNAL_SERVER_ERROR, "render_failed"))
+    let res = task
+        .await
+        .unwrap_or_else(|_| error(StatusCode::INTERNAL_SERVER_ERROR, "render_failed"));
+    guard.completed = true;
+    res
+}
+
+/// Marks the request abandoned when the handler future is dropped before it
+/// delivered (client disconnect or the router timeout answering 408).
+struct AbandonGuard {
+    flag: Arc<AtomicBool>,
+    completed: bool,
+}
+
+impl Drop for AbandonGuard {
+    fn drop(&mut self) {
+        if !self.completed {
+            self.flag.store(true, Ordering::SeqCst);
+        }
+    }
 }

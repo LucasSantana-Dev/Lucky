@@ -193,7 +193,7 @@ async fn fourth_concurrent_request_gets_503_busy_and_is_not_observed() {
 }
 
 #[tokio::test]
-async fn metrics_are_recorded_when_the_client_disconnects_mid_render() {
+async fn a_render_nobody_waits_for_is_counted_as_abandoned_not_ok() {
     let state = AppState::with_renderer(empty_db(), slow);
     let dropped = tokio::time::timeout(
         std::time::Duration::from_millis(50),
@@ -203,8 +203,21 @@ async fn metrics_are_recorded_when_the_client_disconnects_mid_render() {
     assert!(dropped.is_err(), "request should still be running");
     tokio::time::sleep(std::time::Duration::from_millis(900)).await;
     let m = state.metrics.render();
-    assert!(m.contains("requests_total{outcome=\"ok\"} 1"), "{m}");
+    assert!(m.contains("requests_total{outcome=\"abandoned\"} 1"), "{m}");
+    assert!(m.contains("requests_total{outcome=\"ok\"} 0"), "{m}");
+    // It was still a real render, so the histogram sees it.
     assert!(m.contains("duration_seconds_count 1"), "{m}");
+}
+
+#[tokio::test]
+async fn drain_waits_for_in_flight_renders_up_to_its_budget() {
+    let state = AppState::with_renderer(empty_db(), slow);
+    let s = state.clone();
+    let req = tokio::spawn(async move { send(&s, post(POC)).await.status() });
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    assert!(!state.drain(std::time::Duration::from_millis(50)).await);
+    assert!(state.drain(std::time::Duration::from_secs(3)).await);
+    assert_eq!(req.await.unwrap(), StatusCode::OK);
 }
 
 static STUCK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -217,7 +230,8 @@ async fn watchdog_fires_when_a_render_exceeds_its_budget() {
         std::time::Duration::from_millis(50),
         || STUCK.store(true, std::sync::atomic::Ordering::SeqCst),
     );
-    let _ = send(&state, post(POC)).await;
+    let res = send(&state, post(POC)).await;
+    assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
     assert!(STUCK.load(std::sync::atomic::Ordering::SeqCst));
 }
 

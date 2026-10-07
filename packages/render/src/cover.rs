@@ -75,7 +75,9 @@ fn decode_jpeg(bytes: &[u8]) -> bool {
         zune_core::bytestream::ZCursor::new(bytes),
         options,
     );
-    decoder.decode().is_ok_and(|px| px.len() <= MAX_DECODED_BYTES)
+    decoder
+        .decode()
+        .is_ok_and(|px| px.len() <= MAX_DECODED_BYTES)
 }
 
 #[cfg(test)]
