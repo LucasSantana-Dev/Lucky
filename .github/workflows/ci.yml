@@ -73,10 +73,19 @@ jobs:
                   npm run lint --workspace=packages/shared
             # Exits 1 on drift in either mode, so a single human-readable run
             # is the CI assertion. Absorbs the deleted path-portability.yml
-            # workflow. ripgrep is NOT preinstalled on ubuntu-latest.
+            # workflow. ripgrep is NOT preinstalled on ubuntu-latest; jq is.
+            # apt is bounded (timeout + retries) so a hung mirror fails the
+            # step in minutes instead of eating the whole job timeout.
             - name: Path portability
               run: |
-                  sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep jq
+                  pkgs=()
+                  command -v rg >/dev/null 2>&1 || pkgs+=(ripgrep)
+                  command -v jq >/dev/null 2>&1 || pkgs+=(jq)
+                  if [ "${#pkgs[@]}" -gt 0 ]; then
+                      apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30)
+                      sudo timeout 300 apt-get "${apt_opts[@]}" update -qq
+                      sudo timeout 300 apt-get "${apt_opts[@]}" install -y -qq "${pkgs[@]}"
+                  fi
                   bash scripts/check-path-portability.sh
             - name: Verify shared package exports
               run: npm run verify:shared-exports
