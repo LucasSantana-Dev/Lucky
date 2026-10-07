@@ -510,7 +510,7 @@ attempt_rollback() {
     if docker_compose pull render; then
         rollback_services="$rollback_services render"
     else
-        log "ROLLBACK WARN: no render image for ${IMAGE_TAG}; leaving running render container untouched"
+        log "ROLLBACK WARN: could not pull render image for ${IMAGE_TAG}; leaving running render container untouched"
         export ROLLBACK_SKIP_RENDER=1
     fi
     # shellcheck disable=SC2086  # intentional word splitting of the service list
@@ -619,7 +619,15 @@ else
 fi
 
 log "Pulling images..."
-if ! docker_compose pull bot backend frontend nginx render; then
+# A pinned tag (DEPLOY_SHA, e.g. a manual rollback) may predate the render
+# service, so there render is optional and pulled separately. The normal
+# forward deploy keeps render strict.
+_app_services="bot backend frontend nginx render"
+if [[ -n "$DEPLOY_SHA" ]]; then
+    _app_services="bot backend frontend nginx"
+fi
+# shellcheck disable=SC2086  # intentional word splitting of the service list
+if ! docker_compose pull $_app_services; then
     if [[ -n "$DEPLOY_SHA" ]]; then
         # A pinned/rollback deploy MUST run the requested image. Building from the
         # current checkout would silently ship different code under the pinned
@@ -635,6 +643,15 @@ if ! docker_compose pull bot backend frontend nginx render; then
             bot backend frontend nginx render; then
         notify 16711680 "Deploy Failed" "Docker build failed"
         exit 1
+    fi
+fi
+
+if [[ -n "$DEPLOY_SHA" ]]; then
+    if docker_compose pull render; then
+        _app_services="$_app_services render"
+    else
+        log "WARN: could not pull render image for ${IMAGE_TAG}; leaving running render container untouched"
+        export ROLLBACK_SKIP_RENDER=1
     fi
 fi
 
@@ -701,7 +718,8 @@ ensure_on_lucky_network() {
 }
 
 log "Rolling out services..."
-docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx render postgres redis
+# shellcheck disable=SC2086  # intentional word splitting of the service list
+docker_compose up -d --remove-orphans --no-deps $_app_services postgres redis
 
 # The webhook runs this script, so it is never recreated here; nginx proxies
 # /webhook/ to it by service name.
