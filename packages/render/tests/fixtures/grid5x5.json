@@ -1,0 +1,152 @@
+{
+ "schemaVersion": 1,
+ "guildId": "golden",
+ "from": "2026-10-04T18:00:00.000Z",
+ "to": "2026-10-11T18:00:00.000Z",
+ "plays": 87,
+ "skips": 9,
+ "autoplayPlays": 52,
+ "listenedSeconds": 18900,
+ "topTracks": [
+  {
+   "title": "Track 1",
+   "author": "Artist 1",
+   "plays": 30,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPY4fsBK2IYWhIA4ph9QRrlge0AAAAASUVORK5CYII="
+  },
+  {
+   "title": "Track 2",
+   "author": "Artist 2",
+   "plays": 29
+  },
+  {
+   "title": "Track 3",
+   "author": "Artist 3",
+   "plays": 28
+  },
+  {
+   "title": "Track 4",
+   "author": "Artist 4",
+   "plays": 27,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGM4X/MNK2IYWhIAU1CQQZUKojEAAAAASUVORK5CYII="
+  },
+  {
+   "title": "Track 5",
+   "author": "Artist 5",
+   "plays": 26
+  },
+  {
+   "title": "Track 6",
+   "author": "Artist 6",
+   "plays": 25
+  },
+  {
+   "title": "Track 7",
+   "author": "Artist 7",
+   "plays": 24,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPIk5qHFTEMLQkArGxJgebegqQAAAAASUVORK5CYII="
+  },
+  {
+   "title": "Track 8",
+   "author": "Artist 8",
+   "plays": 23
+  },
+  {
+   "title": "Track 9",
+   "author": "Artist 9",
+   "plays": 22
+  },
+  {
+   "title": "Track 10",
+   "author": "Artist 10",
+   "plays": 21,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGP4diIeK2IYWhIA/pSHQb8CW6QAAAAASUVORK5CYII="
+  },
+  {
+   "title": "Track 11",
+   "author": "Artist 11",
+   "plays": 20
+  },
+  {
+   "title": "Track 12",
+   "author": "Artist 12",
+   "plays": 19
+  },
+  {
+   "title": "Track 13",
+   "author": "Artist 13",
+   "plays": 18,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPY4fsBK2IYWhIA4ph9QRrlge0AAAAASUVORK5CYII="
+  },
+  {
+   "title": "Track 14",
+   "author": "Artist 14",
+   "plays": 17
+  },
+  {
+   "title": "Track 15",
+   "author": "Artist 15",
+   "plays": 16
+  },
+  {
+   "title": "Track 16",
+   "author": "Artist 16",
+   "plays": 15,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGM4X/MNK2IYWhIAU1CQQZUKojEAAAAASUVORK5CYII="
+  },
+  {
+   "title": "Track 17",
+   "author": "Artist 17",
+   "plays": 14
+  },
+  {
+   "title": "Track 18",
+   "author": "Artist 18",
+   "plays": 13
+  },
+  {
+   "title": "Track 19",
+   "author": "Artist 19",
+   "plays": 12,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPIk5qHFTEMLQkArGxJgebegqQAAAAASUVORK5CYII="
+  },
+  {
+   "title": "Track 20",
+   "author": "Artist 20",
+   "plays": 11
+  },
+  {
+   "title": "Track 21",
+   "author": "Artist 21",
+   "plays": 10
+  },
+  {
+   "title": "Track 22",
+   "author": "Artist 22",
+   "plays": 9,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGP4diIeK2IYWhIA/pSHQb8CW6QAAAAASUVORK5CYII="
+  },
+  {
+   "title": "Track 23",
+   "author": "Artist 23",
+   "plays": 8
+  },
+  {
+   "title": "Track 24",
+   "author": "Artist 24",
+   "plays": 7
+  },
+  {
+   "title": "Track 25",
+   "author": "Artist 25",
+   "plays": 6,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPY4fsBK2IYWhIA4ph9QRrlge0AAAAASUVORK5CYII="
+  }
+ ],
+ "topArtists": [
+  {
+   "name": "Artist 1",
+   "plays": 14
+  }
+ ]
+}

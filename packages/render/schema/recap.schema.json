@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RecapPayload",
+  "description": "Mirrors `RecapPayload` in packages/shared/src/services/weeklyRecap.ts.",
+  "type": "object",
+  "properties": {
+    "autoplayPlays": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "from": {
+      "type": "string"
+    },
+    "guildId": {
+      "type": "string"
+    },
+    "listenedSeconds": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "plays": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "schemaVersion": {
+      "description": "Must equal 1.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "skips": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "to": {
+      "type": "string"
+    },
+    "topArtists": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TopArtist"
+      }
+    },
+    "topTracks": {
+      "description": "Only the first 25 are used.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TopTrack"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "guildId",
+    "from",
+    "to",
+    "plays",
+    "skips",
+    "autoplayPlays",
+    "listenedSeconds",
+    "topTracks",
+    "topArtists"
+  ],
+  "$defs": {
+    "TopArtist": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "plays": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "plays"
+      ]
+    },
+    "TopTrack": {
+      "type": "object",
+      "properties": {
+        "author": {
+          "type": "string"
+        },
+        "cover": {
+          "description": "Optional standard base64 PNG or JPEG: at most 64 KB decoded and\n1024x1024 pixels. An invalid cover is dropped, the card still renders.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "plays": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "author",
+        "plays"
+      ]
+    }
+  }
+}

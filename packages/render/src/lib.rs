@@ -1,8 +1,14 @@
 //! Weekly recap card renderer (decisions/2026-10-07-lucky-render-rust-sidecar.md).
 
+pub mod cover;
+pub mod health;
+pub mod metrics;
+pub mod server;
+
 use std::sync::Arc;
 
 use resvg::{tiny_skia, usvg};
+use schemars::JsonSchema;
 use serde::Deserialize;
 use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
@@ -12,9 +18,10 @@ pub const WIDTH: u32 = 1200;
 pub const HEIGHT: u32 = 1440;
 
 /// Mirrors `RecapPayload` in packages/shared/src/services/weeklyRecap.ts.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RecapPayload {
+    /// Must equal 1.
     pub schema_version: u32,
     pub guild_id: String,
     pub from: String,
@@ -23,27 +30,32 @@ pub struct RecapPayload {
     pub skips: u32,
     pub autoplay_plays: u32,
     pub listened_seconds: u64,
+    /// Only the first 25 are used.
     pub top_tracks: Vec<TopTrack>,
     pub top_artists: Vec<TopArtist>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TopTrack {
     pub title: String,
     pub author: String,
     pub plays: u32,
-    /// Base64 JPEG or PNG, at most 256 KB encoded.
+    /// Optional standard base64 PNG or JPEG: at most 64 KB decoded and
+    /// 1024x1024 pixels. An invalid cover is dropped, the card still renders.
     #[serde(default)]
     pub cover: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TopArtist {
     pub name: String,
     pub plays: u32,
 }
+
+/// Most tracks the card can show (a 5x5 grid).
+pub const MAX_TRACKS: usize = 25;
 
 #[derive(Debug)]
 pub enum RenderError {
@@ -53,25 +65,23 @@ pub enum RenderError {
 }
 
 /// Loads the bundled fonts once; the database is shared by every render.
-pub fn font_db(font_dir: &std::path::Path) -> Arc<usvg::fontdb::Database> {
+/// Fails when the directory holds no usable face, so a bad image dies at boot.
+pub fn font_db(font_dir: &std::path::Path) -> Result<Arc<usvg::fontdb::Database>, String> {
     let mut db = usvg::fontdb::Database::new();
-    let entries = std::fs::read_dir(font_dir).expect("font dir");
+    let entries = std::fs::read_dir(font_dir)
+        .map_err(|e| format!("cannot read font dir {}: {e}", font_dir.display()))?;
     for path in entries.filter_map(|e| e.ok().map(|e| e.path())) {
         if path.extension().is_some_and(|x| x == "ttf") {
-            db.load_font_data(std::fs::read(&path).expect("font file"));
+            let data = std::fs::read(&path)
+                .map_err(|e| format!("cannot read font {}: {e}", path.display()))?;
+            db.load_font_data(data);
         }
     }
+    if db.is_empty() {
+        return Err(format!("no font faces in {}", font_dir.display()));
+    }
     db.set_sans_serif_family("Manrope");
-    Arc::new(db)
-}
-
-pub fn render_png(
-    recap: &RecapPayload,
-    fontdb: Arc<usvg::fontdb::Database>,
-) -> Result<Vec<u8>, RenderError> {
-    rasterize(recap, fontdb)?
-        .encode_png()
-        .map_err(|e| RenderError::Encode(e.to_string()))
+    Ok(Arc::new(db))
 }
 
 /// JPEG at quality 90: the collage is mostly photos, where PNG costs about
@@ -79,8 +89,8 @@ pub fn render_png(
 pub fn render_jpeg(
     recap: &RecapPayload,
     fontdb: Arc<usvg::fontdb::Database>,
-) -> Result<Vec<u8>, RenderError> {
-    let pixmap = rasterize(recap, fontdb)?;
+) -> Result<Rendered, RenderError> {
+    let (pixmap, covers_dropped) = rasterize(recap, fontdb)?;
     // The card is fully opaque, so premultiplied RGBA equals straight RGBA.
     let mut out = Vec::new();
     jpeg_encoder::Encoder::new(&mut out, 90)
@@ -91,14 +101,23 @@ pub fn render_jpeg(
             jpeg_encoder::ColorType::Rgba,
         )
         .map_err(|e| RenderError::Encode(e.to_string()))?;
-    Ok(out)
+    Ok(Rendered {
+        jpeg: out,
+        covers_dropped,
+    })
+}
+
+pub struct Rendered {
+    pub jpeg: Vec<u8>,
+    /// Covers rejected by validation; their tiles show the placeholder.
+    pub covers_dropped: usize,
 }
 
 fn rasterize(
     recap: &RecapPayload,
     fontdb: Arc<usvg::fontdb::Database>,
-) -> Result<tiny_skia::Pixmap, RenderError> {
-    let svg = build_svg(recap);
+) -> Result<(tiny_skia::Pixmap, usize), RenderError> {
+    let (svg, dropped) = build_svg_counted(recap);
     let opt = usvg::Options {
         fontdb,
         ..usvg::Options::default()
@@ -106,7 +125,7 @@ fn rasterize(
     let tree = usvg::Tree::from_str(&svg, &opt).map_err(RenderError::Svg)?;
     let mut pixmap = tiny_skia::Pixmap::new(WIDTH, HEIGHT).ok_or(RenderError::Pixmap)?;
     resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
-    Ok(pixmap)
+    Ok((pixmap, dropped))
 }
 
 /// Raw text to a safe, bounded slot value. Order matters: sanitize and
@@ -185,6 +204,12 @@ const HEADER: usize = 240;
 /// top tracks' covers in the largest full square grid the week fills (5x5
 /// down to one tile).
 pub fn build_svg(r: &RecapPayload) -> String {
+    build_svg_counted(r).0
+}
+
+/// Like [`build_svg`], also returning how many drawn covers were rejected.
+pub fn build_svg_counted(r: &RecapPayload) -> (String, usize) {
+    let mut dropped = 0;
     let hours = r.listened_seconds / 3600;
     let minutes = (r.listened_seconds % 3600) / 60;
     let autoplay = (r.autoplay_plays * 100 + r.plays / 2)
@@ -227,7 +252,7 @@ pub fn build_svg(r: &RecapPayload) -> String {
         ));
     }
 
-    let n = r.top_tracks.len();
+    let n = r.top_tracks.len().min(MAX_TRACKS);
     let side = (1..=5).rev().find(|k| n >= k * k).unwrap_or(1);
     let tile = w / side;
     let (rank_px, title_px, author_px) = (tile / 12, tile / 14, tile / 17);
@@ -238,9 +263,14 @@ pub fn build_svg(r: &RecapPayload) -> String {
     for (i, t) in r.top_tracks.iter().take(side * side).enumerate() {
         let x = (i % side) * tile;
         let y = HEADER + (i / side) * tile;
-        match t.cover.as_deref().filter(|c| is_base64_image(c)) {
-            Some(b64) => s.push_str(&format!(
-                r#"<image x="{x}" y="{y}" width="{tile}" height="{tile}" preserveAspectRatio="xMidYMid slice" href="data:image/jpeg;base64,{b64}"/>"#
+        let cover = t.cover.as_deref().and_then(|c| {
+            let url = cover::data_url(c);
+            dropped += usize::from(url.is_none());
+            url
+        });
+        match cover {
+            Some(url) => s.push_str(&format!(
+                r#"<image x="{x}" y="{y}" width="{tile}" height="{tile}" preserveAspectRatio="xMidYMid slice" href="{url}"/>"#
             )),
             None => s.push_str(&format!(
                 r##"<rect x="{x}" y="{y}" width="{tile}" height="{tile}" fill="url(#empty)"/><text x="{}" y="{}" font-family="Noto Emoji" font-size="{}" text-anchor="middle" fill="{V400}" fill-opacity="0.6">🎵</text>"##,
@@ -267,21 +297,8 @@ pub fn build_svg(r: &RecapPayload) -> String {
         ));
     }
     s.push_str("</svg>");
-    s
+    (s, dropped)
 }
-
-/// Cover art arrives base64-encoded from the bot; anything else is dropped so
-/// it cannot break out of the href attribute.
-fn is_base64_image(b64: &str) -> bool {
-    b64.len() <= MAX_COVER_B64
-        && !b64.is_empty()
-        && b64
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'/' | b'='))
-}
-
-/// 256 KB encoded, as base64.
-const MAX_COVER_B64: usize = 256 * 1024 * 4 / 3 + 4;
 
 fn date(iso: &str) -> &str {
     iso.get(..10).unwrap_or(iso)
@@ -310,6 +327,62 @@ mod tests {
     #[test]
     fn cjk_counts_double_width() {
         assert_eq!(truncate("日本語の曲名", 7), "日本語…");
+    }
+
+    fn payload_with_covers(covers: Vec<Option<String>>) -> RecapPayload {
+        RecapPayload {
+            schema_version: 1,
+            guild_id: "g".into(),
+            from: "2026-10-04T00:00:00Z".into(),
+            to: "2026-10-11T00:00:00Z".into(),
+            plays: 3,
+            skips: 0,
+            autoplay_plays: 0,
+            listened_seconds: 60,
+            top_artists: vec![],
+            top_tracks: covers
+                .into_iter()
+                .map(|cover| TopTrack {
+                    title: "t".into(),
+                    author: "a".into(),
+                    plays: 1,
+                    cover,
+                })
+                .collect(),
+        }
+    }
+
+    fn png_cover() -> String {
+        use base64::Engine;
+        let mut b = vec![0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13];
+        b.extend_from_slice(b"IHDR");
+        b.extend_from_slice(&[0, 0, 1, 0, 0, 0, 1, 0, 8, 6, 0, 0, 0, 0, 0, 0, 0]);
+        base64::engine::general_purpose::STANDARD.encode(b)
+    }
+
+    #[test]
+    fn invalid_cover_falls_back_to_placeholder_and_is_counted() {
+        let r = payload_with_covers(vec![Some(png_cover()), Some("bad!".into()), None, None]);
+        let (svg, dropped) = build_svg_counted(&r);
+        assert_eq!(dropped, 1);
+        assert!(svg.contains("data:image/png;base64,"));
+        assert_eq!(svg.matches("<image ").count(), 1);
+        assert_eq!(svg.matches("fill=\"url(#empty)\"").count(), 3);
+    }
+
+    #[test]
+    fn only_the_tiles_drawn_are_inspected() {
+        // 26 tracks fill a 5x5 grid; the 26th cover is never touched.
+        let mut covers = vec![None; 25];
+        covers.push(Some("bad!".into()));
+        assert_eq!(build_svg_counted(&payload_with_covers(covers)).1, 0);
+    }
+
+    #[test]
+    fn font_db_fails_on_an_empty_dir() {
+        let dir = std::env::temp_dir().join("lucky-render-no-fonts");
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(font_db(&dir).is_err());
     }
 
     #[test]

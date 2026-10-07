@@ -1,3 +1,4 @@
 target/
 fonts/*.ttf
 fixtures/recap-collage.json
+fonts/licenses/
