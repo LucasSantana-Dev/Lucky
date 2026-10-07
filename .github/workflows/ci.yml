@@ -83,8 +83,12 @@ jobs:
                   command -v jq >/dev/null 2>&1 || pkgs+=(jq)
                   if [ "${#pkgs[@]}" -gt 0 ]; then
                       apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30)
+                      # One 300s budget for update+install, not 300s each.
+                      deadline=$((SECONDS + 300))
                       sudo timeout --kill-after=30 300 apt-get "${apt_opts[@]}" update -qq
-                      sudo timeout --kill-after=30 300 apt-get "${apt_opts[@]}" install -y -qq "${pkgs[@]}"
+                      left=$((deadline - SECONDS))
+                      [ "$left" -gt 0 ] || { echo "::error::apt budget (300s) used up by update"; exit 1; }
+                      sudo timeout --kill-after=30 "$left" apt-get "${apt_opts[@]}" install -y -qq "${pkgs[@]}"
                   fi
                   bash scripts/check-path-portability.sh
             - name: Verify shared package exports

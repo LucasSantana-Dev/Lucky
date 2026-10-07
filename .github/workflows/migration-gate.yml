@@ -106,8 +106,12 @@ jobs:
                       postgres:18-alpine
                   if ! psql --version >/dev/null 2>&1; then
                       apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30)
+                      # One 300s budget for update+install, not 300s each.
+                      deadline=$((SECONDS + 300))
                       sudo timeout --kill-after=30 300 apt-get "${apt_opts[@]}" update
-                      sudo timeout --kill-after=30 300 apt-get "${apt_opts[@]}" install -y postgresql-client
+                      left=$((deadline - SECONDS))
+                      [ "$left" -gt 0 ] || { echo "::error::apt budget (300s) used up by update"; exit 1; }
+                      sudo timeout --kill-after=30 "$left" apt-get "${apt_opts[@]}" install -y postgresql-client
                   fi
                   # Readiness must be proven by a real HOST connection that runs a
                   # query, NOT `docker exec pg_isready`: the postgres entrypoint
@@ -140,8 +144,12 @@ jobs:
                   set -euo pipefail
                   if ! psql --version; then
                       apt_opts=(-o Acquire::Retries=3 -o Acquire::http::Timeout=30)
+                      # One 300s budget for update+install, not 300s each.
+                      deadline=$((SECONDS + 300))
                       sudo timeout --kill-after=30 300 apt-get "${apt_opts[@]}" update
-                      sudo timeout --kill-after=30 300 apt-get "${apt_opts[@]}" install -y postgresql-client
+                      left=$((deadline - SECONDS))
+                      [ "$left" -gt 0 ] || { echo "::error::apt budget (300s) used up by update"; exit 1; }
+                      sudo timeout --kill-after=30 "$left" apt-get "${apt_opts[@]}" install -y postgresql-client
                   fi
                   for f in $(find prisma/migrations -name migration.sql | sort); do
                       echo "==> applying ${f#prisma/migrations/}"
