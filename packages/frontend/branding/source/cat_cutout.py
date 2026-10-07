@@ -1,6 +1,6 @@
 """Cut the neon cat out of assets/lucky-banner.png and build the bot avatar.
 
-The cat is never redrawn: alpha comes from luminance only, so every original
+The cat is never redrawn: alpha comes from a max-channel brightness mask, so every original
 colour and glow survives (see decisions/2026-07-12-brand-asset-regen-tooling.md).
 Writes, next to this file:
   cat-neon.png     640x640 transparent cat, for dark backgrounds only
@@ -17,7 +17,7 @@ ROOT = HERE.parents[3]
 SRC = ROOT / "assets" / "lucky-banner.png"
 BOX = (90, 200, 730, 840)  # square crop with margin around the cat
 NIGHT = (25, 4, 40, 255)
-RAMP = 45  # luminance range over which alpha goes 0 -> 255
+RAMP = 45  # brightness (max RGB channel) range over which alpha goes 0 -> 255
 FEATHER = 48  # px faded at the crop border so no tile edge shows
 
 

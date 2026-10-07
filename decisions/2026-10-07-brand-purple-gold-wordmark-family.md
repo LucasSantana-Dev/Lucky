@@ -6,7 +6,10 @@
 - **Scope:** Marketing and identity assets (`assets/`, `packages/frontend/public/og-image.png`,
   `packages/frontend/branding/`). The dashboard UI tokens are out of scope.
 - **Amends:** the "removed gold family" line of `packages/frontend/branding/BRANDING_GUIDE.md`
-  for brand assets; `decisions/2026-07-12-brand-asset-regen-tooling.md` (mascot kept) still holds.
+  for brand assets, and the "not another generation attempt" line of the FINAL DECISION in
+  `decisions/2026-07-12-brand-asset-regen-tooling.md`: on 2026-10-07 the owner approved one more
+  image-model pass fed the original cat, anchored on owner-supplied references. Its "keep the
+  original mascot" still holds until that pass is approved.
 
 ## Context
 
@@ -23,10 +26,12 @@ aesthetic"), the fourth time a redraw of the cat has failed (three paths failed 
 ## Decision
 
 - **The cat is the original neon cat from `assets/lucky-banner.png` (purple outline, gold
-  details)**, cut out by luminance only, never redrawn. A refined cat may come later from an
-  image model fed the original as a reference (or a human illustrator), not from agent SVG.
+  details)**, cut out with a max-channel brightness mask (alpha only, colours untouched), never
+  redrawn. A refined cat may come later from an image model fed the original as a reference
+  (or a human illustrator), not from agent SVG.
 - **Brand palette (sampled from the cat):** Violet 300 `#E3A6FA`, 400 `#CF7CF6`, 500
-  `#B84DF0`, 700 `#6E1A9E`; Gold 400 `#F6C85F`, 600 `#C9922E`; Night `#190428`; Neon white
+  `#B84DF0`, 700 `#6E1A9E`; Gold 400 `#F6C85F`, 600 `#C9922E`, 800 `#8A5F12` (text on light);
+  Night `#190428`; Neon white
   `#FFF5FF`.
 - **Wordmark family by use**, all Google Fonts under the OFL:
   Assinatura = Neonderthaw (hero, social, 64 px and up);

@@ -41,18 +41,19 @@ The dashboard UI keeps the palette in **Color System** below.
 
 ### Palette
 
-Sampled from the cat. Contrast is against Night `#190428`.
+Sampled from the cat. Contrast is against Night `#190428` unless the row says white.
 
-| Token      | HEX       | Use                                    | Contrast |
-| ---------- | --------- | -------------------------------------- | -------- |
-| Violet 300 | `#E3A6FA` | neon core, light text                  | 10.2     |
-| Violet 400 | `#CF7CF6` | neon halo, secondary text              | 7.2      |
-| Violet 500 | `#B84DF0` | primary brand colour                   | 4.9      |
-| Violet 700 | `#6E1A9E` | surfaces only, never text on dark      | 2.1      |
-| Gold 400   | `#F6C85F` | accent: eyebrows, highlights           | 12.3     |
-| Gold 600   | `#C9922E` | gold on light backgrounds and in print | 7.0      |
-| Night      | `#190428` | brand background                       |          |
-| Neon white | `#FFF5FF` | wordmark                               | 18.1     |
+| Token      | HEX       | Use                                                            | Contrast        |
+| ---------- | --------- | -------------------------------------------------------------- | --------------- |
+| Violet 300 | `#E3A6FA` | neon core, light text                                          | 10.2            |
+| Violet 400 | `#CF7CF6` | neon halo, secondary text                                      | 7.2             |
+| Violet 500 | `#B84DF0` | primary brand colour                                           | 4.9             |
+| Violet 700 | `#6E1A9E` | surfaces only, never text on dark                              | 2.1             |
+| Gold 400   | `#F6C85F` | accent: eyebrows, highlights                                   | 12.3            |
+| Gold 600   | `#C9922E` | large or decorative gold on light backgrounds, print; not text | 7.0 (2.8 white) |
+| Gold 800   | `#8A5F12` | gold text on light backgrounds                                 | 5.6 on white    |
+| Night      | `#190428` | brand background                                               |                 |
+| Neon white | `#FFF5FF` | wordmark                                                       | 18.1            |
 
 Neon glow (CSS): `0 0 2px #fff, 0 0 10px #CF7CF6, 0 0 24px #B84DF0, 0 0 52px #8f2fd0`.
 

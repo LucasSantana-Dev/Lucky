@@ -76,17 +76,36 @@ def chrome() -> str:
     raise SystemExit("No Chrome/Brave found; set CHROME=/path/to/binary")
 
 
-def render(name: str, w: int, h: int, layout: str, outputs: list[str], browser: str, tmp: Path) -> None:
+# Paints the page magenta if any brand font failed to load, so the check below rejects it.
+FONT_GUARD = """<script>window.addEventListener('load', async () => {
+  const faces = ['16px "Neonderthaw"', '16px "Monoton"', '16px "Bungee"', '600 16px "Manrope"'];
+  const loaded = await Promise.all(faces.map(f => document.fonts.load(f).then(r => r.length > 0, () => false)));
+  if (!loaded.every(Boolean)) document.documentElement.style.background = document.body.style.background = '#ff00ff';
+});</script>"""
+MIN_NEON = 0.01  # share of bright pixels (cat + wordmark); a blank render has ~0
+
+
+def render(name: str, w: int, h: int, layout: str, browser: str, tmp: Path) -> Image.Image:
     html = tmp / f"{name}.html"
-    html.write_text(hero(w, h) if layout == "hero" else profile(w, h), encoding="utf-8")
+    page_html = hero(w, h) if layout == "hero" else profile(w, h)
+    html.write_text(page_html.replace("</body>", FONT_GUARD + "</body>"), encoding="utf-8")
     shot = tmp / f"{name}.png"
     subprocess.run([browser, "--headless=new", "--disable-gpu", "--hide-scrollbars",
                     "--force-device-scale-factor=1", "--virtual-time-budget=15000",
                     f"--window-size={w},{h}", f"--screenshot={shot}", html.as_uri()],
-                   check=True, capture_output=True)
+                   check=True, capture_output=True, timeout=120)
     im = Image.open(shot).convert("RGB")
     if im.size != (w, h):
         raise SystemExit(f"{name}: got {im.size}, expected {(w, h)}")
+    if im.getpixel((1, 1)) == (255, 0, 255):
+        raise SystemExit(f"{name}: a brand font did not load (Google Fonts unreachable?)")
+    bright = sum(1 for p in im.get_flattened_data() if max(p) > 200) / (w * h)
+    if bright < MIN_NEON:
+        raise SystemExit(f"{name}: looks blank ({bright:.2%} bright pixels, need {MIN_NEON:.0%})")
+    return im
+
+
+def save(im: Image.Image, outputs: list[str]) -> None:
     for rel in outputs:
         dest = ROOT / rel
         if dest.suffix == ".webp":
@@ -99,5 +118,7 @@ def render(name: str, w: int, h: int, layout: str, outputs: list[str], browser: 
 if __name__ == "__main__":
     browser = chrome()
     with tempfile.TemporaryDirectory() as t:
-        for name, (w, h, layout, outputs) in BANNERS.items():
-            render(name, w, h, layout, outputs, browser, Path(t))
+        # Render and check everything first; shipped files are only touched if all pass.
+        done = [(render(n, w, h, layout, browser, Path(t)), outs) for n, (w, h, layout, outs) in BANNERS.items()]
+    for im, outs in done:
+        save(im, outs)
