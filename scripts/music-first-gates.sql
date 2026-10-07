@@ -19,8 +19,11 @@
 --             the ids in :excluded_ids below. Palacio do Lolo (436677047159619594)
 --             is counted until the owner confirms whether it is the operator's.
 --             Criativaria is a regular guild since 2026-10-07.
---   new       the first JOIN in guild_membership_events inside the cohort window.
---   heard     a track_history row within 1 hour of that join.
+--   new       a guild whose first JOIN in guild_membership_events falls inside
+--             the cohort window; a guild that joined before and came back is
+--             not new.
+--   heard     a track_history row within 1 hour of that join; only joins at
+--             least 1 hour old are eligible.
 --   day 8     activity at or after join + 7 days; only joins at least 8 days
 --             old are eligible.
 --
@@ -31,14 +34,19 @@
 --
 -- Known undercounts: track_history keeps the last 100 rows per guild and
 -- autoplay writes a row at enqueue time (#2667), so play counts are not
--- reliable here; the gates only use "any row", which both issues leave intact.
+-- reliable here; the gates only use "any row". The cap can still hide a
+-- first-hour row: a guild that played 100+ tracks since joining may have had
+-- it trimmed. h1_unknown counts eligible joins where that happened (100 rows
+-- kept, oldest after join + 1 hour); they stay in the denominator as misses,
+-- so heard_1h_pct is a floor.
 
 \set excluded_ids '{110373943822540800,333949691962195969,1541452011466268704}'
 -- 110373943822540800  Discord Bots (listing server)
 -- 333949691962195969  Top.gg Verification Center (listing review)
 -- 1541452011466268704 Lucky's Support Server (operator)
 
-BEGIN TRANSACTION READ ONLY;
+-- REPEATABLE READ: every statement reads the same snapshot.
+BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
 \pset pager off
 
 \echo '=== 1. Weekly active guilds, last 4 weeks (gate: >= 20 for 3 consecutive weeks) ==='
@@ -76,16 +84,20 @@ WITH excluded AS (
           WHERE "guildName" ILIKE '%test%'
 ),
 joins AS (
-    SELECT DISTINCT ON ("guildDiscordId") "guildDiscordId" AS g, "occurredAt" AS t
+    SELECT "guildDiscordId" AS g, min("occurredAt") AS t
     FROM guild_membership_events
-    WHERE kind = 'JOIN' AND "occurredAt" > now() - interval '28 days'
-    ORDER BY "guildDiscordId", "occurredAt"
+    WHERE kind = 'JOIN'
+    GROUP BY "guildDiscordId"
+    HAVING min("occurredAt") > now() - interval '28 days'
 ),
 cohort AS (
     SELECT j.g, j.t,
         EXISTS (SELECT 1 FROM track_history th
                 WHERE th."guildId" = j.g
                   AND th."playedAt" BETWEEN j.t AND j.t + interval '1 hour') AS heard_1h,
+        j.t <= now() - interval '1 hour' AS h1_eligible,
+        (SELECT count(*) >= 100 AND min(th."playedAt") > j.t + interval '1 hour'
+         FROM track_history th WHERE th."guildId" = j.g) AS h1_trimmed,
         j.t <= now() - interval '8 days' AS d8_eligible,
         EXISTS (SELECT 1 FROM track_history th
                 WHERE th."guildId" = j.g AND th."playedAt" >= j.t + interval '7 days')
@@ -97,9 +109,12 @@ cohort AS (
 )
 SELECT coalesce(date_trunc('week', t)::date::text, 'total') AS join_week,
        count(*) AS joins,
-       count(*) FILTER (WHERE heard_1h) AS heard_1h,
-       round(100.0 * count(*) FILTER (WHERE heard_1h) / nullif(count(*), 0), 1)
-           AS heard_1h_pct,
+       count(*) FILTER (WHERE h1_eligible) AS h1_eligible,
+       count(*) FILTER (WHERE h1_eligible AND heard_1h) AS heard_1h,
+       round(100.0 * count(*) FILTER (WHERE h1_eligible AND heard_1h)
+             / nullif(count(*) FILTER (WHERE h1_eligible), 0), 1) AS heard_1h_pct,
+       count(*) FILTER (WHERE h1_eligible AND NOT heard_1h AND h1_trimmed)
+           AS h1_unknown,
        count(*) FILTER (WHERE d8_eligible) AS d8_eligible,
        count(*) FILTER (WHERE d8_eligible AND active_d8) AS active_d8,
        round(100.0 * count(*) FILTER (WHERE d8_eligible AND active_d8)
