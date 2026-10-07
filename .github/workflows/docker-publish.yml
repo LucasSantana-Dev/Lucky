@@ -97,9 +97,12 @@ jobs:
               uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
               with:
                   images: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}
+                  # A release build runs outside the cancel group (see
+                  # concurrency) and can finish after a newer main build, so it
+                  # skips `latest`; deploys pull the `:<sha>` tag.
                   tags: |
                       type=sha,prefix=
-                      type=raw,value=latest
+                      type=raw,value=latest,enable=${{ !startsWith(github.event.head_commit.message, 'chore: release ') }}
 
             - name: Build and push
               uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
