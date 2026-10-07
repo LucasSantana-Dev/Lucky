@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-141 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
+142 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
 ## Accepted (134)
@@ -140,8 +140,9 @@
 - [2026-05-09 - Bot test suite cleanup strategy and proportionality target](2026-05-09-bot-test-suite-cleanup-strategy.md) - _Accepted (in progress)_
 - [2026-04-21 - Lucky redesign port target](2026-04-21-redesign-port-target.md)
 
-## Proposed (2)
+## Proposed (3)
 
+- [2026-10-07 - Weekly recap cards rendered by `lucky-render`, a Rust sidecar](2026-10-07-lucky-render-rust-sidecar.md) - _Proposed (after one critic pass)_
 - [2026-07-11 - Blue/green zero-downtime deploys — true B/G for web tier, fast-rollover for bot](2026-07-11-bluegreen-web-tier.md) - _Proposed (Phase 1 — web tier B/G on staging, ready for sign-off; Phase 1b — prod wiring deferred for explicit operator cutover)_
 - [2026-05-13 - Docker Surface Overhaul (chore/docker-overhaul)](2026-05-13-docker-overhaul.md)
 
