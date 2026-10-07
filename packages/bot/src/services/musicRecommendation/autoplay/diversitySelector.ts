@@ -1,6 +1,6 @@
 import type { Track, GuildQueue } from 'discord-player'
+import { LRUCache } from 'lru-cache'
 import { debugLog } from '@lucky/shared/utils'
-import { trackHistoryService } from '@lucky/shared/services'
 import {
     extractSongCore,
     cleanTitle,
@@ -21,6 +21,54 @@ interface ScoredTrack {
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
 const FUZZY_TITLE_THRESHOLD = 0.75
+
+// #2667: autoplay used to write a track_history row when it queued a pick, so
+// the next replenish would not pick it again, but that row counted as a play
+// even when the track never played. The queue, the player's history and the
+// rows written when a track actually plays already cover the exclusion; this
+// covers a pick that was queued and then cleared or removed before it played.
+const RECOMMENDED_TTL_MS = 2 * 60 * 60 * 1000
+
+type RememberedPick = { title?: string; author?: string; at: number }
+
+// Per guild, each pick keyed by URL with its own timestamp: the LRU bounds
+// memory, the timestamp bounds how long one pick stays excluded. Title and
+// author are kept so the same song from another URL is excluded too.
+const recentlyRecommended = new LRUCache<string, Map<string, RememberedPick>>({
+    max: 1000,
+    ttl: RECOMMENDED_TTL_MS,
+})
+
+function rememberRecommended(guildId: string, track: Track): void {
+    const picks = recentlyRecommended.get(guildId) ?? new Map()
+    picks.set(track.url, {
+        title: track.title,
+        author: track.author,
+        at: Date.now(),
+    })
+    recentlyRecommended.set(guildId, picks)
+}
+
+/** The guild's picks from the last 2 hours; older ones are dropped. */
+function recentPicks(
+    queue: GuildQueue,
+): Array<{ url: string; title?: string; author?: string }> {
+    const picks = queue.guild
+        ? recentlyRecommended.get(queue.guild.id)
+        : undefined
+    if (!picks) return []
+    const cutoff = Date.now() - RECOMMENDED_TTL_MS
+    const live: Array<{ url: string; title?: string; author?: string }> = []
+    for (const [url, pick] of picks) {
+        if (pick.at < cutoff) picks.delete(url)
+        else live.push({ url, title: pick.title, author: pick.author })
+    }
+    return live
+}
+
+export function __resetRecentlyRecommendedForTests(): void {
+    recentlyRecommended.clear()
+}
 
 function randomJitter(max: number): number {
     return Math.random() * max // NOSONAR - non-cryptographic jitter for diversity selection
@@ -170,6 +218,7 @@ export function buildExcludedUrls(
         ...persistentHistory.map((e) => e.url).filter(Boolean),
         ...(mostRecentHistoryUrl ? [mostRecentHistoryUrl] : []),
         ...(mostRecentPersistentUrl ? [mostRecentPersistentUrl] : []),
+        ...recentPicks(queue).map((p) => p.url),
     ]
     const result = new Set<string>()
     for (const url of allUrls) {
@@ -193,6 +242,7 @@ export function buildExcludedKeys(
         ...historyTracks,
         ...queue.tracks.toArray(),
         ...persistentHistory,
+        ...recentPicks(queue),
     ]
     const keys: string[] = []
     for (const t of allTracks) {
@@ -309,7 +359,6 @@ export async function addSelectedTracks(
     requestedById?: string,
     mode?: 'similar' | 'discover' | 'popular',
 ): Promise<void> {
-    const historyWrites: Promise<boolean>[] = []
     const telemetryWrites: Promise<void>[] = []
     const guildId = queue.guild.id
 
@@ -336,22 +385,10 @@ export async function addSelectedTracks(
             candidate.track.author,
         )
         if (core) excludedKeys.add(normalizeText(core))
-        historyWrites.push(
-            trackHistoryService.addTrackToHistory(
-                {
-                    id: candidate.track.id || candidate.track.url,
-                    url: candidate.track.url,
-                    title: candidate.track.title,
-                    author: candidate.track.author,
-                    duration: candidate.track.duration ?? '',
-                    metadata: { isAutoplay: true },
-                },
-                queue.guild.id,
-            ),
-        )
+        rememberRecommended(guildId, candidate.track)
     }
 
-    await Promise.all([...historyWrites, ...telemetryWrites])
+    await Promise.all(telemetryWrites)
 }
 
 export function purgeDuplicatesOfCurrentTrack(
