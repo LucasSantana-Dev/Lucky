@@ -27,15 +27,43 @@ const FUZZY_TITLE_THRESHOLD = 0.75
 // even when the track never played. The queue, the player's history and the
 // rows written when a track actually plays already cover the exclusion; this
 // covers a pick that was queued and then cleared or removed before it played.
-const recentlyRecommended = new LRUCache<string, Set<string>>({
+const RECOMMENDED_TTL_MS = 2 * 60 * 60 * 1000
+
+type RememberedPick = { title?: string; author?: string; at: number }
+
+// Per guild, each pick keyed by URL with its own timestamp: the LRU bounds
+// memory, the timestamp bounds how long one pick stays excluded. Title and
+// author are kept so the same song from another URL is excluded too.
+const recentlyRecommended = new LRUCache<string, Map<string, RememberedPick>>({
     max: 1000,
-    ttl: 2 * 60 * 60 * 1000,
+    ttl: RECOMMENDED_TTL_MS,
 })
 
-function rememberRecommended(guildId: string, url: string): void {
-    const urls = recentlyRecommended.get(guildId) ?? new Set<string>()
-    urls.add(url)
-    recentlyRecommended.set(guildId, urls)
+function rememberRecommended(guildId: string, track: Track): void {
+    const picks = recentlyRecommended.get(guildId) ?? new Map()
+    picks.set(track.url, {
+        title: track.title,
+        author: track.author,
+        at: Date.now(),
+    })
+    recentlyRecommended.set(guildId, picks)
+}
+
+/** The guild's picks from the last 2 hours; older ones are dropped. */
+function recentPicks(
+    queue: GuildQueue,
+): Array<{ url: string; title?: string; author?: string }> {
+    const picks = queue.guild
+        ? recentlyRecommended.get(queue.guild.id)
+        : undefined
+    if (!picks) return []
+    const cutoff = Date.now() - RECOMMENDED_TTL_MS
+    const live: Array<{ url: string; title?: string; author?: string }> = []
+    for (const [url, pick] of picks) {
+        if (pick.at < cutoff) picks.delete(url)
+        else live.push({ url, title: pick.title, author: pick.author })
+    }
+    return live
 }
 
 export function __resetRecentlyRecommendedForTests(): void {
@@ -190,7 +218,7 @@ export function buildExcludedUrls(
         ...persistentHistory.map((e) => e.url).filter(Boolean),
         ...(mostRecentHistoryUrl ? [mostRecentHistoryUrl] : []),
         ...(mostRecentPersistentUrl ? [mostRecentPersistentUrl] : []),
-        ...(queue.guild ? (recentlyRecommended.get(queue.guild.id) ?? []) : []),
+        ...recentPicks(queue).map((p) => p.url),
     ]
     const result = new Set<string>()
     for (const url of allUrls) {
@@ -214,6 +242,7 @@ export function buildExcludedKeys(
         ...historyTracks,
         ...queue.tracks.toArray(),
         ...persistentHistory,
+        ...recentPicks(queue),
     ]
     const keys: string[] = []
     for (const t of allTracks) {
@@ -356,7 +385,7 @@ export async function addSelectedTracks(
             candidate.track.author,
         )
         if (core) excludedKeys.add(normalizeText(core))
-        rememberRecommended(guildId, candidate.track.url)
+        rememberRecommended(guildId, candidate.track)
     }
 
     await Promise.all(telemetryWrites)

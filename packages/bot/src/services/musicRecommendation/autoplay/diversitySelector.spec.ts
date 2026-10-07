@@ -32,6 +32,8 @@ describe('diversitySelector', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
+        // Module-level cache: every addSelectedTracks call writes to it.
+        __resetRecentlyRecommendedForTests()
 
         mockTrack = {
             url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -672,10 +674,6 @@ describe('diversitySelector', () => {
             basis: { source: 'spotify-rec' as const, signals: [] },
         }
 
-        beforeEach(() => {
-            __resetRecentlyRecommendedForTests()
-        })
-
         function queueFor(guildId: string): GuildQueue {
             return {
                 ...mockQueue,
@@ -720,6 +718,67 @@ describe('diversitySelector', () => {
             expect(sameGuild.has(pick.track.url)).toBe(true)
             expect(sameGuild.has('queuedClear')).toBe(true)
             expect(otherGuild.has(pick.track.url)).toBe(false)
+        })
+
+        test('the same song from another URL is excluded by its title keys', async () => {
+            await addSelectedTracks(
+                queueFor('g-1'),
+                [pick],
+                new Set(),
+                new Set(),
+            )
+
+            const keys = buildExcludedKeys(
+                queueFor('g-1'),
+                mockTrack as Track,
+                [],
+            )
+            const otherUrl = {
+                ...pick.track,
+                url: 'https://open.spotify.com/track/other',
+            } as Track
+
+            expect(isDuplicateCandidate(otherUrl, new Set(), keys)).toBe(true)
+        })
+
+        test('each pick expires 2 hours after it was picked, not after the latest pick', async () => {
+            const now = jest.spyOn(Date, 'now')
+            try {
+                now.mockReturnValue(0)
+                await addSelectedTracks(
+                    queueFor('g-1'),
+                    [pick],
+                    new Set(),
+                    new Set(),
+                )
+                const later = {
+                    ...pick,
+                    track: {
+                        ...pick.track,
+                        url: 'https://youtube.com/watch?v=laterPick00',
+                        title: 'Later Song',
+                    } as Track,
+                }
+                now.mockReturnValue(90 * 60 * 1000)
+                await addSelectedTracks(
+                    queueFor('g-1'),
+                    [later],
+                    new Set(),
+                    new Set(),
+                )
+
+                now.mockReturnValue(2 * 60 * 60 * 1000 + 1)
+                const urls = buildExcludedUrls(
+                    queueFor('g-1'),
+                    mockTrack as Track,
+                    [],
+                )
+
+                expect(urls.has(pick.track.url)).toBe(false)
+                expect(urls.has(later.track.url)).toBe(true)
+            } finally {
+                now.mockRestore()
+            }
         })
     })
 })
