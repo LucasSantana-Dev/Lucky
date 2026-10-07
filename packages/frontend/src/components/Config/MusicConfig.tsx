@@ -20,14 +20,47 @@ import { toast } from 'sonner'
 import { api } from '@/services/api'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 
+// Same range as the backend (`defaultVolume` 1-200): a narrower form made a
+// guild saved at 150 from Server Settings unsaveable here.
+const MAX_VOLUME = 200
+
+// Index = discord-player's QueueRepeatMode (0 off, 1 track, 2 queue); the
+// form enum is built from it so the two cannot drift.
+const REPEAT_MODES = ['off', 'track', 'queue'] as const
+
 const musicConfigSchema = z.object({
-    volume: z.number().min(0).max(100),
+    volume: z.number().min(1).max(MAX_VOLUME),
     autoplay: z.boolean(),
-    repeatMode: z.enum(['off', 'track', 'queue']),
+    repeatMode: z.enum(REPEAT_MODES),
     shuffle: z.boolean(),
 })
 
 type MusicConfigValues = z.infer<typeof musicConfigSchema>
+
+// The API speaks GuildSettings column names; repeatMode is the
+// REPEAT_MODES index. Sending form names made every save a 400/500 and
+// autoplay never persisted (#2637).
+
+function toApiSettings(values: MusicConfigValues) {
+    return {
+        defaultVolume: values.volume,
+        autoPlayEnabled: values.autoplay,
+        repeatMode: REPEAT_MODES.indexOf(values.repeatMode),
+        shuffleEnabled: values.shuffle,
+    }
+}
+
+function fromApiSettings(settings: Record<string, unknown>): MusicConfigValues {
+    return {
+        volume: Math.min(
+            MAX_VOLUME,
+            Math.max(1, (settings.defaultVolume as number) ?? 50),
+        ),
+        autoplay: (settings.autoPlayEnabled as boolean) ?? true,
+        repeatMode: REPEAT_MODES[settings.repeatMode as number] ?? 'off',
+        shuffle: (settings.shuffleEnabled as boolean) ?? false,
+    }
+}
 
 interface MusicConfigProps {
     guildId: string
@@ -37,12 +70,16 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
     const [isLoading, setIsLoading] = useState(false)
     const { selectedGuild } = useGuildSelection()
     const isMounted = useRef(true)
+    // Guards against a slow response for a previously selected guild
+    // overwriting the current guild's form.
+    const currentGuildId = useRef(guildId)
+    currentGuildId.current = guildId
 
     const form = useForm<MusicConfigValues>({
         resolver: zodResolver(musicConfigSchema),
         defaultValues: {
             volume: 50,
-            autoplay: false,
+            autoplay: true,
             repeatMode: 'off',
             shuffle: false,
         },
@@ -59,22 +96,19 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
     }, [guildId])
 
     const loadSettings = async () => {
+        const requestedGuildId = guildId
+        const isStale = () =>
+            !isMounted.current || currentGuildId.current !== requestedGuildId
         try {
-            const response = await api.modules.getSettings(guildId, 'music')
-            if (isMounted.current && response.data.settings) {
-                form.reset({
-                    volume: (response.data.settings.volume as number) ?? 50,
-                    autoplay:
-                        (response.data.settings.autoplay as boolean) ?? false,
-                    repeatMode: ((response.data.settings.repeatMode as
-                        | 'off'
-                        | 'track'
-                        | 'queue') ?? 'off') as 'off' | 'track' | 'queue',
-                    shuffle:
-                        (response.data.settings.shuffle as boolean) ?? false,
-                })
+            const response = await api.modules.getSettings(
+                requestedGuildId,
+                'music',
+            )
+            if (!isStale() && response.data.settings) {
+                form.reset(fromApiSettings(response.data.settings))
             }
         } catch (error) {
+            if (isStale()) return
             reportError('Failed to load music settings:', error, {
                 component: 'MusicConfig',
                 action: 'load',
@@ -86,7 +120,11 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
         if (!selectedGuild) return
         setIsLoading(true)
         try {
-            await api.modules.updateSettings(guildId, 'music', data)
+            await api.modules.updateSettings(
+                guildId,
+                'music',
+                toApiSettings(data),
+            )
             if (isMounted.current) {
                 toast.success('Music configuration saved successfully!')
             }
@@ -137,15 +175,15 @@ export default function MusicConfig({ guildId }: MusicConfigProps) {
                     <Input
                         id='volume'
                         type='range'
-                        min={0}
-                        max={100}
+                        min={1}
+                        max={MAX_VOLUME}
                         step={1}
                         {...form.register('volume', { valueAsNumber: true })}
                         className='w-full'
                         aria-label='Volume level'
                     />
                     <p className='text-xs text-lucky-text-secondary'>
-                        Set the default volume level (0-100)
+                        Set the default volume level (1-200)
                     </p>
                 </div>
 

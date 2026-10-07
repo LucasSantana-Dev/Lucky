@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { userEvent } from '@testing-library/user-event'
 import MusicConfig from './MusicConfig'
 import { api } from '@/services/api'
@@ -56,11 +56,12 @@ describe('MusicConfig', () => {
     })
 
     test('loads existing settings on mount', async () => {
+        // API returns GuildSettings column names (#2637)
         const mockSettings = {
-            volume: 75,
-            autoplay: true,
-            repeatMode: 'queue',
-            shuffle: true,
+            defaultVolume: 75,
+            autoPlayEnabled: true,
+            repeatMode: 2,
+            shuffleEnabled: true,
         }
 
         vi.mocked(api.modules.getSettings).mockResolvedValue({
@@ -72,11 +73,16 @@ describe('MusicConfig', () => {
         await waitFor(() => {
             expect(screen.getByText('75%')).toBeInTheDocument()
         })
+        expect(screen.getByLabelText(/toggle autoplay/i)).toBeChecked()
+        expect(screen.getByLabelText(/toggle shuffle/i)).toBeChecked()
+        expect(
+            screen.getByRole('combobox', { name: /select repeat mode/i }),
+        ).toHaveTextContent('Repeat Queue')
     })
 
     test('volume slider displays current value', async () => {
         vi.mocked(api.modules.getSettings).mockResolvedValue({
-            data: { settings: { volume: 75 } },
+            data: { settings: { defaultVolume: 75 } },
         } as never)
 
         render(<MusicConfig guildId={mockGuildId} />)
@@ -89,10 +95,77 @@ describe('MusicConfig', () => {
         expect(volumeSlider).toHaveAttribute('type', 'range')
     })
 
+    test('keeps a stored volume above 100 saveable (backend range 1-200)', async () => {
+        const user = userEvent.setup()
+        vi.mocked(api.modules.getSettings).mockResolvedValue({
+            data: { settings: { defaultVolume: 150 } },
+        } as never)
+        vi.mocked(api.modules.updateSettings).mockResolvedValue({
+            data: {},
+        } as never)
+
+        render(<MusicConfig guildId={mockGuildId} />)
+        await waitFor(() => {
+            expect(screen.getByText('150%')).toBeInTheDocument()
+        })
+        await user.click(
+            screen.getByRole('button', { name: /save configuration/i }),
+        )
+
+        await waitFor(() => {
+            expect(api.modules.updateSettings).toHaveBeenCalledWith(
+                mockGuildId,
+                'music',
+                expect.objectContaining({ defaultVolume: 150 }),
+            )
+        })
+    })
+
+    test('clamps an out-of-range stored volume into 1-200', async () => {
+        vi.mocked(api.modules.getSettings).mockResolvedValue({
+            data: { settings: { defaultVolume: 0 } },
+        } as never)
+
+        render(<MusicConfig guildId={mockGuildId} />)
+
+        await waitFor(() => {
+            expect(screen.getByText('1%')).toBeInTheDocument()
+        })
+    })
+
+    test('ignores a slow response for a previously selected guild', async () => {
+        let resolveOld: (value: unknown) => void = () => {}
+        vi.mocked(api.modules.getSettings)
+            .mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveOld = resolve
+                    }) as never,
+            )
+            .mockResolvedValueOnce({
+                data: { settings: { defaultVolume: 30 } },
+            } as never)
+
+        const { rerender } = render(<MusicConfig guildId='999999999' />)
+        rerender(<MusicConfig guildId={mockGuildId} />)
+        await waitFor(() => {
+            expect(screen.getByText('30%')).toBeInTheDocument()
+        })
+
+        await act(async () => {
+            resolveOld({ data: { settings: { defaultVolume: 90 } } })
+        })
+
+        expect(screen.getByText('30%')).toBeInTheDocument()
+        expect(screen.queryByText('90%')).not.toBeInTheDocument()
+    })
+
     test('toggle switches work correctly', async () => {
         const user = userEvent.setup()
         vi.mocked(api.modules.getSettings).mockResolvedValue({
-            data: { settings: { autoplay: false, shuffle: false } },
+            data: {
+                settings: { autoPlayEnabled: false, shuffleEnabled: false },
+            },
         } as never)
 
         render(<MusicConfig guildId={mockGuildId} />)
@@ -123,12 +196,12 @@ describe('MusicConfig', () => {
             expect(api.modules.updateSettings).toHaveBeenCalledWith(
                 mockGuildId,
                 'music',
-                expect.objectContaining({
-                    volume: 50,
-                    autoplay: false,
-                    repeatMode: 'off',
-                    shuffle: false,
-                }),
+                {
+                    defaultVolume: 50,
+                    autoPlayEnabled: true,
+                    repeatMode: 0,
+                    shuffleEnabled: false,
+                },
             )
             expect(toast.success).toHaveBeenCalledWith(
                 'Music configuration saved successfully!',
