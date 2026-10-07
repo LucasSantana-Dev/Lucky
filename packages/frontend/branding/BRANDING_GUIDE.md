@@ -23,6 +23,71 @@
 - Allowed backgrounds: Dark neutral surfaces.
 - Avoid: Stretching, recoloring, glow backdrops, or gradient overlays behind the logo.
 
+## Brand Identity (marketing assets)
+
+Decided 2026-10-07, see `decisions/2026-10-07-brand-purple-gold-wordmark-family.md`.
+Applies to banners, social previews, the og-image, the bot avatar and store listings.
+The dashboard UI keeps the palette in **Color System** below.
+
+### The cat
+
+- The mark is the original neon lucky cat (purple outline, gold stripes and paw) from
+  `assets/lucky-banner.png`. Never redraw it by hand or in SVG; a refined cat comes from an
+  image model fed the original, or from an illustrator.
+- Masters in `branding/source/`: `cat-neon.png` (transparent, dark backgrounds only) and
+  `avatar-1024.png` (Discord avatar on Night). Regenerate with `cat_cutout.py`.
+- On light backgrounds, put the cat on a Night `#190428` tile (rounded square).
+- Below 24 px the neon cat does not read; a small-size cut is still open.
+
+### Palette
+
+Sampled from the cat. Contrast is against Night `#190428` unless the row says white.
+
+| Token      | HEX       | Use                                                            | Contrast        |
+| ---------- | --------- | -------------------------------------------------------------- | --------------- |
+| Violet 300 | `#E3A6FA` | neon core, light text                                          | 10.2            |
+| Violet 400 | `#CF7CF6` | neon halo, secondary text                                      | 7.2             |
+| Violet 500 | `#B84DF0` | primary brand colour                                           | 4.9             |
+| Violet 700 | `#6E1A9E` | surfaces only, never text on dark                              | 2.1             |
+| Gold 400   | `#F6C85F` | accent: eyebrows, highlights                                   | 12.3            |
+| Gold 600   | `#C9922E` | large or decorative gold on light backgrounds, print; not text | 7.0 (2.8 white) |
+| Gold 800   | `#8A5F12` | gold text on light backgrounds                                 | 5.6 on white    |
+| Night      | `#190428` | brand background                                               |                 |
+| Neon white | `#FFF5FF` | wordmark                                                       | 18.1            |
+
+Neon glow (CSS): `0 0 2px #fff, 0 0 10px #CF7CF6, 0 0 24px #B84DF0, 0 0 52px #8f2fd0`.
+
+### Wordmarks by use
+
+All are Google Fonts under the SIL Open Font License, which allows logo use. Pick by size
+and context; never mix two wordmarks in one piece.
+
+| Role         | Font        | Text    | Use                                                        | Not for                         |
+| ------------ | ----------- | ------- | ---------------------------------------------------------- | ------------------------------- |
+| Assinatura   | Neonderthaw | `Lucky` | hero, social preview, og-image, merch; 64 px+              | UI chrome, anything under 40 px |
+| Letreiro     | Monoton     | `LUCKY` | banners, thumbnails, campaign titles; 26 px+               | under 24 px, running text       |
+| Conservadora | Bungee      | `LUCKY` | UI, docs, README, listings, light backgrounds, small sizes | (default when in doubt)         |
+
+Supporting type in brand pieces: Bungee for gold eyebrows and URLs, Manrope 600 for body copy.
+
+### Lockups
+
+- Horizontal: cat height `H`; gap `0.2H` (`0.1H` for Assinatura, which has its own swash);
+  wordmark vertically centred on the cat.
+- Stacked: wordmark at `0.8H` under the cat, gap `0.04H`.
+
+### Banners
+
+Rendered by `branding/source/banners.py` (headless Chrome, exact sizes):
+
+| Asset                                    | Size     | Wordmark   |
+| ---------------------------------------- | -------- | ---------- |
+| `assets/lucky-social-preview.{png,webp}` | 1280×640 | Assinatura |
+| `packages/frontend/public/og-image.png`  | 1200×630 | Assinatura |
+| `assets/lucky-bot-banner.{png,webp}`     | 1360×480 | Letreiro   |
+
+The Discord profile banner keeps its left quarter empty, where Discord draws the avatar.
+
 ## Color System
 
 **Single accent** (resolved 2026-10-01, see `decisions/2026-10-01-blurple-focus-only.md`, which supersedes the 2026-04-21 dual accent):
@@ -30,7 +95,7 @@
 - **Accent** (CTAs, active nav, live pings, highlights, gradient accents): Neon Pink `#ec4899`; filled buttons use `#db2777`, hover `#be185d`.
 - **Focus rings only**: Discord Blurple `#5865f2`, via the `--color-lucky-focus` token (`ring-lucky-focus`).
 
-Removed gold family (`#d4a017`, etc.) and old purple (`#8b5cf6`, etc.) — not part of the brand palette.
+Removed gold family (`#d4a017`, etc.) and old purple (`#8b5cf6`, etc.) from the UI palette. The brand assets use their own purple and gold (see **Brand Identity** above).
 
 | Purpose                  | Color                                  |
 | ------------------------ | -------------------------------------- |

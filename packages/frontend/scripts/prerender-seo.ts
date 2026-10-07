@@ -42,11 +42,22 @@ function writeRouteFile(html: string, routePath: string): string {
     return rel
 }
 
-/** Generate a real 1200×630 og-image (brand background + centered logo) via resvg.
+/** Emit the 1200×630 og-image. The designed asset `public/og-image.png` (rendered by
+ *  `branding/source/banners.py`) wins; without it, generate one via resvg
+ *  (brand background + centered logo).
  *  Fail-soft: on any error, fall back to copying the existing logo so /og-image.png
  *  always resolves to a real image (build never breaks on the image). */
 async function generateOgImage(): Promise<string> {
     const out = join(distDir, 'og-image.png')
+    const designedPath = join(publicDir, 'og-image.png')
+    if (existsSync(designedPath)) {
+        try {
+            copyFileSync(designedPath, out)
+            return 'designed asset (public/og-image.png)'
+        } catch {
+            // Fall through to the generated image below.
+        }
+    }
     const logoPath = join(publicDir, 'lucky-logo.png')
     try {
         const { Resvg } = await import('@resvg/resvg-js')

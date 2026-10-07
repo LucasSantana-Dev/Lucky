@@ -2,6 +2,7 @@
 
 - **Date:** 2026-07-12
 - **Status:** Accepted — pilot completed (see Pilot outcome + FINAL DECISION below: keep the original mascot)
+- **Amended by:** `decisions/2026-10-07-brand-purple-gold-wordmark-family.md` (owner approved one more reference-anchored image-model pass on the cat)
 - **Deciders:** Lucas Santana
 - **Method:** `/research-and-decide` — CLI-verified capability probe + web-doc research + artifact-only `decision-critic` (returned NEEDS_REVISION → decision revised to hybrid)
 
