@@ -5,25 +5,38 @@ import { getPrismaClient } from '@lucky/shared/utils'
 // /recap command and the scheduler are their only writers (#2678).
 
 /**
- * Opts a guild in. `recapLastPostedAt` is set to now so the first recap waits
- * for the next Sunday instead of posting last week's right away.
+ * Opts a guild in, or moves an opted-in guild to another channel. A new
+ * opt-in stamps `recapLastPostedAt` with now so the first recap waits for the
+ * next Sunday; a channel change keeps the stamp so a due week still posts.
  */
 export async function enableRecap(
     guildId: string,
     channelId: string,
     now: Date,
 ): Promise<void> {
-    await getPrismaClient().guildSettings.upsert({
+    const prisma = getPrismaClient()
+    const moved = await prisma.guildSettings.updateMany({
+        where: { guildId, recapChannelId: { not: null } },
+        data: { recapChannelId: channelId },
+    })
+    if (moved.count > 0) return
+    await prisma.guildSettings.upsert({
         where: { guildId },
         create: { guildId, recapChannelId: channelId, recapLastPostedAt: now },
         update: { recapChannelId: channelId, recapLastPostedAt: now },
     })
 }
 
-/** Opts a guild out. Returns false when it was not opted in. */
-export async function disableRecap(guildId: string): Promise<boolean> {
+/**
+ * Opts a guild out. Returns false when it was not opted in. With `channelId`,
+ * only clears that channel, so a channel picked meanwhile survives.
+ */
+export async function disableRecap(
+    guildId: string,
+    channelId?: string,
+): Promise<boolean> {
     const result = await getPrismaClient().guildSettings.updateMany({
-        where: { guildId, recapChannelId: { not: null } },
+        where: { guildId, recapChannelId: channelId ?? { not: null } },
         data: { recapChannelId: null },
     })
     return result.count > 0
@@ -50,12 +63,28 @@ export async function listDueRecaps(
     )
 }
 
-export async function markRecapPosted(
+/**
+ * Claims the week ending at `boundary` before posting it: one conditional
+ * write, so a guild that turned the recap off or moved it since the due list
+ * was read is not claimed, and a claimed week is never posted twice (at most
+ * once: a send that fails after the claim loses that week).
+ */
+export async function claimRecapWeek(
     guildId: string,
-    at: Date,
-): Promise<void> {
-    await getPrismaClient().guildSettings.update({
-        where: { guildId },
-        data: { recapLastPostedAt: at },
+    channelId: string,
+    boundary: Date,
+    now: Date,
+): Promise<boolean> {
+    const result = await getPrismaClient().guildSettings.updateMany({
+        where: {
+            guildId,
+            recapChannelId: channelId,
+            OR: [
+                { recapLastPostedAt: null },
+                { recapLastPostedAt: { lt: boundary } },
+            ],
+        },
+        data: { recapLastPostedAt: now },
     })
+    return result.count > 0
 }

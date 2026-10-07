@@ -30,10 +30,11 @@ jest.mock('@lucky/shared/utils', () => ({
 
 import recapCommand from './recap'
 
-function interaction(sub: 'channel' | 'off') {
+function interaction(sub: 'channel' | 'off', canManage = true) {
     return {
         guildId: 'g-1',
         guild: { id: 'g-1' },
+        memberPermissions: { has: () => canManage },
         options: {
             getSubcommand: () => sub,
             getChannel: () => ({ id: 'c-1' }),
@@ -103,6 +104,25 @@ describe('recap command (#2678)', () => {
         await recapCommand.execute({ interaction: interaction('off') } as any)
 
         expect(replied()).toBe('music.recap.failed')
+    })
+
+    it('re-checks Manage Server at runtime, since role overrides can bypass the default', async () => {
+        await recapCommand.execute({
+            interaction: interaction('off', false),
+        } as any)
+
+        expect(disableRecapMock).not.toHaveBeenCalled()
+        expect(replied()).toBe('music.recap.needManageGuild')
+    })
+
+    it('replies ephemerally', async () => {
+        disableRecapMock.mockResolvedValue(true)
+
+        await recapCommand.execute({ interaction: interaction('off') } as any)
+
+        expect(interactionReplyMock.mock.calls[0][0].content.ephemeral).toBe(
+            true,
+        )
     })
 
     it('does nothing outside a guild', async () => {

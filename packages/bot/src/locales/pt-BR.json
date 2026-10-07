@@ -90,7 +90,8 @@
             "alreadyOff": "O resumo semanal já está desligado.",
             "notTextChannel": "❌ Escolha um canal de texto para o resumo.",
             "missingPermissions": "❌ Não consigo postar em <#{{channel}}>. Preciso de Ver canal, Enviar mensagens e Inserir links lá.",
-            "failed": "❌ Não consegui atualizar o resumo semanal. Tente de novo daqui a pouco."
+            "failed": "❌ Não consegui atualizar o resumo semanal. Tente de novo daqui a pouco.",
+            "needManageGuild": "Você precisa da permissão **Gerenciar servidor** para configurar o resumo semanal."
         }
     }
 }

@@ -6,7 +6,7 @@ import { IntervalScheduler } from '../../utils/general/IntervalScheduler'
 import { translatorForInteraction } from '../../i18n/translatorForInteraction'
 import { buildRecapEmbed } from './recapEmbed'
 import { latestRecapBoundary, recapWindow } from './recapWindow'
-import { disableRecap, listDueRecaps, markRecapPosted } from './recapStore'
+import { claimRecapWeek, disableRecap, listDueRecaps } from './recapStore'
 
 const HOUR_MS = 60 * 60 * 1000
 /** Below this many plays in the week the recap is skipped, not posted empty. */
@@ -18,7 +18,14 @@ export const RECAP_POST_PERMISSIONS = [
     PermissionFlagsBits.EmbedLinks,
 ]
 
-/** The text channel the bot can post the recap in, or why it cannot. */
+/** Discord codes meaning the channel is gone or hidden from the bot for good. */
+const CHANNEL_GONE_CODES = new Set([10003, 50001])
+
+/**
+ * The text channel the bot can post the recap in, or why it cannot. Only a
+ * definite answer from Discord becomes a reason; a transient failure (5xx,
+ * rate limit, network) throws so the caller retries instead of opting out.
+ */
 export async function resolveRecapChannel(
     guild: Guild,
     channelId: string,
@@ -26,14 +33,20 @@ export async function resolveRecapChannel(
     | { channel: TextChannel }
     | { reason: 'missing_channel' | 'missing_permissions' }
 > {
-    const channel = await guild.channels.fetch(channelId).catch(() => null)
+    let channel
+    try {
+        channel = await guild.channels.fetch(channelId)
+    } catch (error) {
+        const code = Number((error as { code?: unknown }).code)
+        if (CHANNEL_GONE_CODES.has(code)) return { reason: 'missing_channel' }
+        throw error
+    }
     if (!channel || channel.type !== ChannelType.GuildText) {
         return { reason: 'missing_channel' }
     }
-    const me = guild.members.me
+    const me = guild.members.me ?? (await guild.members.fetchMe())
     const canPost =
-        !!me &&
-        (channel.permissionsFor(me)?.has(RECAP_POST_PERMISSIONS) ?? false)
+        channel.permissionsFor(me)?.has(RECAP_POST_PERMISSIONS) ?? false
     return canPost ? { channel } : { reason: 'missing_permissions' }
 }
 
@@ -45,8 +58,9 @@ type RecapSchedulerOptions = {
 /**
  * Posts the weekly recap (#2678). Hourly tick; a guild is due once the most
  * recent Sunday 18:00 UTC is later than its last post, so a restart or a missed
- * hour posts on the next tick and never twice. Guilds are processed one at a
- * time: about 50 guilds, each a few queries and one message.
+ * hour posts on the next tick. Each week is claimed before it is sent, so it
+ * posts at most once. Guilds are processed one at a time: about 50 guilds,
+ * each a few queries and one message.
  */
 export class RecapScheduler extends IntervalScheduler {
     private readonly clock: () => Date
@@ -88,7 +102,7 @@ export class RecapScheduler extends IntervalScheduler {
 
             const target = await resolveRecapChannel(guild, channelId)
             if ('reason' in target) {
-                await disableRecap(guildId)
+                await disableRecap(guildId, channelId)
                 warnLog({
                     message: 'recap: channel unusable, opt-in cleared',
                     data: { guildId, channelId, reason: target.reason },
@@ -98,24 +112,38 @@ export class RecapScheduler extends IntervalScheduler {
 
             const { from, to } = recapWindow(boundary)
             const recap = await getWeeklyRecap(guildId, from, to)
-            if (recap.plays >= RECAP_MIN_PLAYS) {
-                const t = await translatorForInteraction({ guildId, guild })
-                await target.channel.send({
-                    embeds: [buildRecapEmbed(recap, t)],
-                    allowedMentions: { parse: [] },
+            // Claimed even when the week is too quiet to post, so it is not
+            // re-read every hour; a false claim means /recap changed meanwhile.
+            const claimed = await claimRecapWeek(
+                guildId,
+                channelId,
+                boundary,
+                this.clock(),
+            )
+            if (!claimed) {
+                debugLog({
+                    message: 'recap: settings changed since listing, skipped',
+                    data: { guildId },
                 })
-                infoLog({
-                    message: 'recap: posted',
-                    data: { guildId, plays: recap.plays },
-                })
-            } else {
+                return
+            }
+            if (recap.plays < RECAP_MIN_PLAYS) {
                 debugLog({
                     message: 'recap: too few plays, skipped',
                     data: { guildId, plays: recap.plays },
                 })
+                return
             }
-            // Marked even when skipped, so a quiet week is not re-read every hour.
-            await markRecapPosted(guildId, this.clock())
+
+            const t = await translatorForInteraction({ guildId, guild })
+            await target.channel.send({
+                embeds: [buildRecapEmbed(recap, t)],
+                allowedMentions: { parse: [] },
+            })
+            infoLog({
+                message: 'recap: posted',
+                data: { guildId, plays: recap.plays },
+            })
         } catch (error) {
             errorLog({
                 message: 'recap: failed to post',

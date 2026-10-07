@@ -1,15 +1,19 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { ChannelType } from 'discord.js'
+import {
+    ChannelType,
+    PermissionFlagsBits,
+    PermissionsBitField,
+} from 'discord.js'
 
 type AnyFn = (...args: any[]) => any
 const listDueRecapsMock = jest.fn<AnyFn>()
-const markRecapPostedMock = jest.fn<AnyFn>()
+const claimRecapWeekMock = jest.fn<AnyFn>()
 const disableRecapMock = jest.fn<AnyFn>()
 const getWeeklyRecapMock = jest.fn<AnyFn>()
 
 jest.mock('./recapStore', () => ({
     listDueRecaps: (...a: unknown[]) => listDueRecapsMock(...a),
-    markRecapPosted: (...a: unknown[]) => markRecapPostedMock(...a),
+    claimRecapWeek: (...a: unknown[]) => claimRecapWeekMock(...a),
     disableRecap: (...a: unknown[]) => disableRecapMock(...a),
 }))
 
@@ -48,7 +52,26 @@ function recap(plays: number) {
     }
 }
 
-function makeClient(channel: unknown, canPost = true) {
+const ALL_RECAP_PERMS = [
+    PermissionFlagsBits.ViewChannel,
+    PermissionFlagsBits.SendMessages,
+    PermissionFlagsBits.EmbedLinks,
+]
+
+function makeClient(
+    channel: unknown,
+    {
+        perms = ALL_RECAP_PERMS,
+        fetchError,
+        me = {},
+        fetchMe = jest.fn<AnyFn>().mockRejectedValue(new Error('gateway')),
+    }: {
+        perms?: bigint[]
+        fetchError?: unknown
+        me?: unknown
+        fetchMe?: AnyFn
+    } = {},
+) {
     const send = jest.fn<AnyFn>().mockResolvedValue(undefined)
     const ch =
         channel === 'text'
@@ -56,13 +79,16 @@ function makeClient(channel: unknown, canPost = true) {
                   type: ChannelType.GuildText,
                   id: 'c-1',
                   send,
-                  permissionsFor: () => ({ has: () => canPost }),
+                  permissionsFor: () => new PermissionsBitField(perms),
               }
             : channel
+    const fetch = fetchError
+        ? jest.fn<AnyFn>().mockRejectedValue(fetchError)
+        : jest.fn<AnyFn>().mockResolvedValue(ch)
     const guild = {
         id: 'g-1',
-        members: { me: {} },
-        channels: { fetch: jest.fn<AnyFn>().mockResolvedValue(ch) },
+        members: { me, fetchMe },
+        channels: { fetch },
     }
     const client = {
         guilds: {
@@ -84,6 +110,7 @@ describe('RecapScheduler (#2678)', () => {
         listDueRecapsMock.mockResolvedValue([
             { guildId: 'g-1', channelId: 'c-1' },
         ])
+        claimRecapWeekMock.mockResolvedValue(true)
     })
 
     it('asks for guilds due since the latest Sunday 18:00 UTC', async () => {
@@ -93,7 +120,7 @@ describe('RecapScheduler (#2678)', () => {
         expect(listDueRecapsMock).toHaveBeenCalledWith(BOUNDARY)
     })
 
-    it('posts the week ending at the boundary and marks it posted', async () => {
+    it('claims the week, then posts it without pinging anyone', async () => {
         getWeeklyRecapMock.mockResolvedValue(recap(12))
         const { client, send } = makeClient('text')
 
@@ -104,49 +131,111 @@ describe('RecapScheduler (#2678)', () => {
             new Date('2026-10-04T18:00:00.000Z'),
             BOUNDARY,
         )
+        expect(claimRecapWeekMock).toHaveBeenCalledWith(
+            'g-1',
+            'c-1',
+            BOUNDARY,
+            NOW,
+        )
         expect(send).toHaveBeenCalledTimes(1)
         expect(send.mock.calls[0][0]).toEqual(
             expect.objectContaining({ allowedMentions: { parse: [] } }),
         )
-        expect(markRecapPostedMock).toHaveBeenCalledWith('g-1', NOW)
     })
 
-    it('skips a quiet week but still marks it, so it is not re-read hourly', async () => {
+    it('claims a quiet week without posting, so it is not re-read hourly', async () => {
         getWeeklyRecapMock.mockResolvedValue(recap(4))
         const { client, send } = makeClient('text')
 
         await runTick(client)
 
+        expect(claimRecapWeekMock).toHaveBeenCalledTimes(1)
         expect(send).not.toHaveBeenCalled()
-        expect(markRecapPostedMock).toHaveBeenCalledWith('g-1', NOW)
+    })
+
+    it('does not post when the claim fails (/recap changed since listing)', async () => {
+        getWeeklyRecapMock.mockResolvedValue(recap(12))
+        claimRecapWeekMock.mockResolvedValue(false)
+        const { client, send } = makeClient('text')
+
+        await runTick(client)
+
+        expect(send).not.toHaveBeenCalled()
     })
 
     it.each([
-        ['a deleted channel', null, true],
-        ['a non-text channel', { type: ChannelType.GuildVoice }, true],
-        ['missing permissions', 'text', false],
-    ])(
-        'clears the opt-in on %s without posting',
-        async (_, channel, canPost) => {
-            const { client, send } = makeClient(channel, canPost)
+        ['a deleted channel', makeClient(null)],
+        ['a non-text channel', makeClient({ type: ChannelType.GuildVoice })],
+        [
+            'Unknown Channel from Discord',
+            makeClient('text', { fetchError: { code: 10003 } }),
+        ],
+        [
+            'Missing Access from Discord',
+            makeClient('text', { fetchError: { code: 50001 } }),
+        ],
+        [
+            'a missing Embed Links permission',
+            makeClient('text', {
+                perms: [
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.SendMessages,
+                ],
+            }),
+        ],
+    ])('clears that channel on %s without posting', async (_, made) => {
+        await runTick(made.client)
 
-            await runTick(client)
+        expect(disableRecapMock).toHaveBeenCalledWith('g-1', 'c-1')
+        expect(made.send).not.toHaveBeenCalled()
+        expect(getWeeklyRecapMock).not.toHaveBeenCalled()
+        expect(claimRecapWeekMock).not.toHaveBeenCalled()
+    })
 
-            expect(disableRecapMock).toHaveBeenCalledWith('g-1')
-            expect(send).not.toHaveBeenCalled()
-            expect(getWeeklyRecapMock).not.toHaveBeenCalled()
-            expect(markRecapPostedMock).not.toHaveBeenCalled()
-        },
-    )
+    it.each([
+        [
+            'a Discord 5xx on channel fetch',
+            makeClient('text', { fetchError: { code: 0, status: 503 } }),
+        ],
+        [
+            'a network error on channel fetch',
+            makeClient('text', { fetchError: new Error('ECONNRESET') }),
+        ],
+        [
+            'the bot member not cached and fetchMe failing',
+            makeClient('text', { me: null }),
+        ],
+    ])('keeps the opt-in on %s, to retry next tick', async (_, made) => {
+        await runTick(made.client)
 
-    it('does not mark the week when the send fails, so the next tick retries', async () => {
+        expect(disableRecapMock).not.toHaveBeenCalled()
+        expect(claimRecapWeekMock).not.toHaveBeenCalled()
+        expect(made.send).not.toHaveBeenCalled()
+    })
+
+    it('falls back to fetchMe when the bot member is not cached', async () => {
+        getWeeklyRecapMock.mockResolvedValue(recap(12))
+        const { client, send } = makeClient('text', {
+            me: null,
+            fetchMe: jest.fn<AnyFn>().mockResolvedValue({}),
+        })
+
+        await runTick(client)
+
+        expect(send).toHaveBeenCalledTimes(1)
+    })
+
+    it('a send failing after the claim is not retried (at most once)', async () => {
         getWeeklyRecapMock.mockResolvedValue(recap(12))
         const { client, send } = makeClient('text')
         send.mockRejectedValue(new Error('discord down'))
 
         await runTick(client)
+        listDueRecapsMock.mockResolvedValue([])
+        await runTick(client)
 
-        expect(markRecapPostedMock).not.toHaveBeenCalled()
+        expect(send).toHaveBeenCalledTimes(1)
+        expect(claimRecapWeekMock).toHaveBeenCalledTimes(1)
     })
 
     it('one failing guild does not stop the others', async () => {
@@ -172,6 +261,6 @@ describe('RecapScheduler (#2678)', () => {
         await runTick(makeClient('text').client)
 
         expect(disableRecapMock).not.toHaveBeenCalled()
-        expect(markRecapPostedMock).not.toHaveBeenCalled()
+        expect(claimRecapWeekMock).not.toHaveBeenCalled()
     })
 })

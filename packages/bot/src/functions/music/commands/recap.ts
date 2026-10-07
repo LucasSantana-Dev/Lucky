@@ -40,8 +40,20 @@ export default new Command({
         const reply = (content: string) =>
             interactionReply({
                 interaction,
-                content: { content, allowedMentions: { parse: [] } },
+                content: {
+                    content,
+                    allowedMentions: { parse: [] },
+                    ephemeral: true,
+                },
             })
+
+        // Default member permissions can be overridden per role, so check again.
+        if (
+            !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)
+        ) {
+            await reply(t('music.recap.needManageGuild'))
+            return
+        }
 
         try {
             if (interaction.options.getSubcommand() === 'off') {

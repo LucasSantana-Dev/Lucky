@@ -15,10 +15,10 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 import {
+    claimRecapWeek,
     disableRecap,
     enableRecap,
     listDueRecaps,
-    markRecapPosted,
 } from './recapStore'
 
 const NOW = new Date('2026-10-07T12:00:00.000Z')
@@ -26,7 +26,9 @@ const NOW = new Date('2026-10-07T12:00:00.000Z')
 describe('recapStore (#2678)', () => {
     beforeEach(() => jest.clearAllMocks())
 
-    it('enabling stamps the last post as now, so the first recap waits for Sunday', async () => {
+    it('a new opt-in stamps the last post as now, so the first recap waits for Sunday', async () => {
+        prisma.guildSettings.updateMany.mockResolvedValue({ count: 0 })
+
         await enableRecap('g-1', 'c-1', NOW)
 
         expect(prisma.guildSettings.upsert).toHaveBeenCalledWith({
@@ -38,6 +40,18 @@ describe('recapStore (#2678)', () => {
             },
             update: { recapChannelId: 'c-1', recapLastPostedAt: NOW },
         })
+    })
+
+    it('moving an opted-in guild keeps its stamp, so a due week still posts', async () => {
+        prisma.guildSettings.updateMany.mockResolvedValue({ count: 1 })
+
+        await enableRecap('g-1', 'c-2', NOW)
+
+        expect(prisma.guildSettings.updateMany).toHaveBeenCalledWith({
+            where: { guildId: 'g-1', recapChannelId: { not: null } },
+            data: { recapChannelId: 'c-2' },
+        })
+        expect(prisma.guildSettings.upsert).not.toHaveBeenCalled()
     })
 
     it.each([
@@ -75,12 +89,40 @@ describe('recapStore (#2678)', () => {
         )
     })
 
-    it('marks the recap posted', async () => {
-        await markRecapPosted('g-1', NOW)
+    it('disabling with a channel only clears that channel', async () => {
+        prisma.guildSettings.updateMany.mockResolvedValue({ count: 0 })
 
-        expect(prisma.guildSettings.update).toHaveBeenCalledWith({
-            where: { guildId: 'g-1' },
-            data: { recapLastPostedAt: NOW },
+        await disableRecap('g-1', 'c-1')
+
+        expect(prisma.guildSettings.updateMany).toHaveBeenCalledWith({
+            where: { guildId: 'g-1', recapChannelId: 'c-1' },
+            data: { recapChannelId: null },
         })
     })
+
+    it.each([
+        [1, true],
+        [0, false],
+    ])(
+        'claiming the week with %i row(s) changed returns %s',
+        async (count, expected) => {
+            prisma.guildSettings.updateMany.mockResolvedValue({ count })
+            const boundary = new Date('2026-10-04T18:00:00.000Z')
+
+            await expect(
+                claimRecapWeek('g-1', 'c-1', boundary, NOW),
+            ).resolves.toBe(expected)
+            expect(prisma.guildSettings.updateMany).toHaveBeenCalledWith({
+                where: {
+                    guildId: 'g-1',
+                    recapChannelId: 'c-1',
+                    OR: [
+                        { recapLastPostedAt: null },
+                        { recapLastPostedAt: { lt: boundary } },
+                    ],
+                },
+                data: { recapLastPostedAt: NOW },
+            })
+        },
+    )
 })
