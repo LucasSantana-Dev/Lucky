@@ -3,31 +3,31 @@
  "guildId": "golden",
  "from": "2026-10-04T18:00:00.000Z",
  "to": "2026-10-11T18:00:00.000Z",
- "plays": 87,
+ "plays": 62,
  "skips": 9,
- "autoplayPlays": 52,
+ "autoplayPlays": 37,
  "listenedSeconds": 18900,
  "topTracks": [
   {
    "title": "Track 1",
    "author": "Artist 1",
-   "plays": 30,
+   "plays": 12,
    "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPY4fsBK2IYWhIA4ph9QRrlge0AAAAASUVORK5CYII="
   },
   {
    "title": "Track 2",
    "author": "Artist 2",
-   "plays": 29
+   "plays": 11
   },
   {
    "title": "Track 3",
    "author": "Artist 3",
-   "plays": 28
+   "plays": 10
   },
   {
    "title": "Track 4",
    "author": "Artist 4",
-   "plays": 27,
+   "plays": 9,
    "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGM4X/MNK2IYWhIAU1CQQZUKojEAAAAASUVORK5CYII="
   }
  ],
@@ -35,6 +35,18 @@
   {
    "name": "Artist 1",
    "plays": 14
+  },
+  {
+   "name": "Artist 2",
+   "plays": 13
+  },
+  {
+   "name": "Artist 3",
+   "plays": 12
+  },
+  {
+   "name": "Artist 4",
+   "plays": 11
   }
  ]
 }

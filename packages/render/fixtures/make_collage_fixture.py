@@ -36,7 +36,7 @@ TRACKS = [
     ("Do I Wanna Know?", "Arctic Monkeys", 4),
     ("Midnight City", "M83", 3),
     ("Garota de Ipanema", "João Gilberto", 3, "Joao Gilberto Garota de Ipanema"),
-    ("An extremely long title that keeps going well past any slot width the card could ever show, repeated to reach two hundred characters in total", "Unknown", 3, None),
+    ("An extremely long title that keeps going well past any slot width the card could ever show, repeated to reach two hundred characters in totalxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "Unknown", 3, None),
 ]
 
 

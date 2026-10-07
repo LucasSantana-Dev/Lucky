@@ -14,52 +14,52 @@
 <text x="52" y="64" font-family="Bungee" font-size="18" letter-spacing="2" fill="#F6C85F">WEEKLY RECAP</text>
 <text x="40" y="152" font-family="Neonderthaw" font-size="104" fill="#FFF5FF" filter="url(#glow)">Lucky</text>
 <text x="52" y="222" font-size="20" font-weight="600" fill="#E3A6FA">⁨2026-10-04 → 2026-10-11⁩</text>
-<text x="540" y="150" font-family="Bungee, Manrope" font-size="44" fill="#FFF5FF">⁨87⁩</text><text x="540" y="182" font-family="Bungee, Manrope" font-size="13" letter-spacing="1" fill="#CF7CF6">⁨PLAYS · 9 SKIPPED⁩</text>
+<text x="540" y="150" font-family="Bungee, Manrope" font-size="44" fill="#FFF5FF">⁨110⁩</text><text x="540" y="182" font-family="Bungee, Manrope" font-size="13" letter-spacing="1" fill="#CF7CF6">⁨PLAYS · 9 SKIPPED⁩</text>
 <text x="770" y="150" font-family="Bungee, Manrope" font-size="44" fill="#FFF5FF">⁨5H 15M⁩</text><text x="770" y="182" font-family="Bungee, Manrope" font-size="13" letter-spacing="1" fill="#CF7CF6">⁨LISTENED⁩</text>
 <text x="990" y="150" font-family="Bungee, Manrope" font-size="44" fill="#FFF5FF">⁨60%⁩</text><text x="990" y="182" font-family="Bungee, Manrope" font-size="13" letter-spacing="1" fill="#CF7CF6">⁨AUTOPLAY⁩</text>
 <image x="0" y="240" width="400" height="400" preserveAspectRatio="xMidYMid slice" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPY4fsBK2IYWhIA4ph9QRrlge0AAAAASUVORK5CYII="/>
 <rect x="0" y="240" width="400" height="400" fill="url(#scrim)"/>
 <rect x="10" y="250" width="56" height="56" rx="28" fill="#190428" fill-opacity="0.72"/><text x="38" y="289" font-family="Bungee" font-size="33" text-anchor="middle" fill="#F6C85F">1</text>
 <text x="14" y="595" font-size="28" font-weight="700" fill="#FFF5FF">⁨Track 1⁩</text>
-<text x="14" y="626" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 1⁩</text><text x="386" y="626" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×30</text>
+<text x="14" y="626" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 1⁩</text><text x="386" y="626" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×12</text>
 <rect x="400" y="240" width="400" height="400" fill="url(#empty)"/><text x="600" y="480" font-family="Noto Emoji" font-size="100" text-anchor="middle" fill="#CF7CF6" fill-opacity="0.6">🎵</text>
 <rect x="400" y="240" width="400" height="400" fill="url(#scrim)"/>
 <rect x="410" y="250" width="56" height="56" rx="28" fill="#190428" fill-opacity="0.72"/><text x="438" y="289" font-family="Bungee" font-size="33" text-anchor="middle" fill="#F6C85F">2</text>
 <text x="414" y="595" font-size="28" font-weight="700" fill="#FFF5FF">⁨Track 2⁩</text>
-<text x="414" y="626" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 2⁩</text><text x="786" y="626" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×29</text>
+<text x="414" y="626" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 2⁩</text><text x="786" y="626" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×12</text>
 <rect x="800" y="240" width="400" height="400" fill="url(#empty)"/><text x="1000" y="480" font-family="Noto Emoji" font-size="100" text-anchor="middle" fill="#CF7CF6" fill-opacity="0.6">🎵</text>
 <rect x="800" y="240" width="400" height="400" fill="url(#scrim)"/>
 <rect x="810" y="250" width="56" height="56" rx="28" fill="#190428" fill-opacity="0.72"/><text x="838" y="289" font-family="Bungee" font-size="33" text-anchor="middle" fill="#F6C85F">3</text>
 <text x="814" y="595" font-size="28" font-weight="700" fill="#FFF5FF">⁨Track 3⁩</text>
-<text x="814" y="626" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 3⁩</text><text x="1186" y="626" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×28</text>
+<text x="814" y="626" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 3⁩</text><text x="1186" y="626" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×12</text>
 <image x="0" y="640" width="400" height="400" preserveAspectRatio="xMidYMid slice" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGM4X/MNK2IYWhIAU1CQQZUKojEAAAAASUVORK5CYII="/>
 <rect x="0" y="640" width="400" height="400" fill="url(#scrim)"/>
 <rect x="10" y="650" width="56" height="56" rx="28" fill="#190428" fill-opacity="0.72"/><text x="38" y="689" font-family="Bungee" font-size="33" text-anchor="middle" fill="#F6C85F">4</text>
 <text x="14" y="995" font-size="28" font-weight="700" fill="#FFF5FF">⁨Track 4⁩</text>
-<text x="14" y="1026" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 4⁩</text><text x="386" y="1026" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×27</text>
+<text x="14" y="1026" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 4⁩</text><text x="386" y="1026" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×10</text>
 <rect x="400" y="640" width="400" height="400" fill="url(#empty)"/><text x="600" y="880" font-family="Noto Emoji" font-size="100" text-anchor="middle" fill="#CF7CF6" fill-opacity="0.6">🎵</text>
 <rect x="400" y="640" width="400" height="400" fill="url(#scrim)"/>
 <rect x="410" y="650" width="56" height="56" rx="28" fill="#190428" fill-opacity="0.72"/><text x="438" y="689" font-family="Bungee" font-size="33" text-anchor="middle" fill="#F6C85F">5</text>
 <text x="414" y="995" font-size="28" font-weight="700" fill="#FFF5FF">⁨Track 5⁩</text>
-<text x="414" y="1026" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 5⁩</text><text x="786" y="1026" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×26</text>
+<text x="414" y="1026" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 5⁩</text><text x="786" y="1026" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×10</text>
 <rect x="800" y="640" width="400" height="400" fill="url(#empty)"/><text x="1000" y="880" font-family="Noto Emoji" font-size="100" text-anchor="middle" fill="#CF7CF6" fill-opacity="0.6">🎵</text>
 <rect x="800" y="640" width="400" height="400" fill="url(#scrim)"/>
 <rect x="810" y="650" width="56" height="56" rx="28" fill="#190428" fill-opacity="0.72"/><text x="838" y="689" font-family="Bungee" font-size="33" text-anchor="middle" fill="#F6C85F">6</text>
 <text x="814" y="995" font-size="28" font-weight="700" fill="#FFF5FF">⁨Track 6⁩</text>
-<text x="814" y="1026" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 6⁩</text><text x="1186" y="1026" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×25</text>
+<text x="814" y="1026" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 6⁩</text><text x="1186" y="1026" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×10</text>
 <image x="0" y="1040" width="400" height="400" preserveAspectRatio="xMidYMid slice" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPIk5qHFTEMLQkArGxJgebegqQAAAAASUVORK5CYII="/>
 <rect x="0" y="1040" width="400" height="400" fill="url(#scrim)"/>
 <rect x="10" y="1050" width="56" height="56" rx="28" fill="#190428" fill-opacity="0.72"/><text x="38" y="1089" font-family="Bungee" font-size="33" text-anchor="middle" fill="#F6C85F">7</text>
 <text x="14" y="1395" font-size="28" font-weight="700" fill="#FFF5FF">⁨Track 7⁩</text>
-<text x="14" y="1426" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 7⁩</text><text x="386" y="1426" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×24</text>
+<text x="14" y="1426" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 7⁩</text><text x="386" y="1426" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×8</text>
 <rect x="400" y="1040" width="400" height="400" fill="url(#empty)"/><text x="600" y="1280" font-family="Noto Emoji" font-size="100" text-anchor="middle" fill="#CF7CF6" fill-opacity="0.6">🎵</text>
 <rect x="400" y="1040" width="400" height="400" fill="url(#scrim)"/>
 <rect x="410" y="1050" width="56" height="56" rx="28" fill="#190428" fill-opacity="0.72"/><text x="438" y="1089" font-family="Bungee" font-size="33" text-anchor="middle" fill="#F6C85F">8</text>
 <text x="414" y="1395" font-size="28" font-weight="700" fill="#FFF5FF">⁨Track 8⁩</text>
-<text x="414" y="1426" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 8⁩</text><text x="786" y="1426" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×23</text>
+<text x="414" y="1426" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 8⁩</text><text x="786" y="1426" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×8</text>
 <rect x="800" y="1040" width="400" height="400" fill="url(#empty)"/><text x="1000" y="1280" font-family="Noto Emoji" font-size="100" text-anchor="middle" fill="#CF7CF6" fill-opacity="0.6">🎵</text>
 <rect x="800" y="1040" width="400" height="400" fill="url(#scrim)"/>
 <rect x="810" y="1050" width="56" height="56" rx="28" fill="#190428" fill-opacity="0.72"/><text x="838" y="1089" font-family="Bungee" font-size="33" text-anchor="middle" fill="#F6C85F">9</text>
 <text x="814" y="1395" font-size="28" font-weight="700" fill="#FFF5FF">⁨Track 9⁩</text>
-<text x="814" y="1426" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 9⁩</text><text x="1186" y="1426" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×22</text>
+<text x="814" y="1426" font-size="23" font-weight="600" fill="#E3A6FA">⁨Artist 9⁩</text><text x="1186" y="1426" font-size="23" font-weight="700" text-anchor="end" fill="#F6C85F">×8</text>
 </svg>
