@@ -5,10 +5,10 @@ way the bot would pass them (decisions/2026-10-07-lucky-render-rust-sidecar.md).
 """
 
 import base64
+import http.client
 import json
 import pathlib
 import urllib.parse
-import urllib.request
 
 TRACKS = [
     ("夜に駆ける", "YOASOBI", 14),
@@ -40,14 +40,21 @@ TRACKS = [
 
 
 def fetch(url):
-    # urlopen also opens file:// and other schemes; the artwork URL comes from
-    # the API response, so only https on Apple hosts is allowed.
+    # The artwork URL comes from the API response, so only https on Apple
+    # hosts is allowed. HTTPSConnection cannot open file:// or other schemes.
     parts = urllib.parse.urlsplit(url)
     host = parts.hostname or ""
     if parts.scheme != "https" or not (host == "apple.com" or host.endswith((".apple.com", ".mzstatic.com"))):
         raise ValueError(f"refusing to fetch {url!r}")
-    with urllib.request.urlopen(url, timeout=10) as r:  # nosemgrep: dynamic-urllib-use-detected
-        return r.read()
+    conn = http.client.HTTPSConnection(host, timeout=10)
+    try:
+        conn.request("GET", parts.path + (f"?{parts.query}" if parts.query else ""))
+        resp = conn.getresponse()
+        if resp.status != 200:
+            raise ValueError(f"HTTP {resp.status} for {url!r}")
+        return resp.read()
+    finally:
+        conn.close()
 
 
 def cover(term):
