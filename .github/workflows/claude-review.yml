@@ -3,8 +3,9 @@ name: Claude Review
 # On-demand AI code review on the Claude subscription (CLAUDE_CODE_OAUTH_TOKEN
 # from `claude setup-token`) via the org reusable workflow. Comment
 # `/claude-review` on a PR to run it; the reusable caps each PR at 3 runs,
-# refuses fork PRs and fails if no review gets posted. Replaced PR-Agent, which
-# only takes API keys and failed on "credit balance is too low".
+# needs write access, refuses fork and bot PRs and fails if no review gets
+# posted. Replaced PR-Agent, which only takes API keys and failed on "credit
+# balance is too low".
 on:
     issue_comment:
         types: [created]
@@ -17,7 +18,6 @@ permissions:
     contents: read
     pull-requests: write
     issues: write
-    id-token: write
 
 jobs:
     review:
@@ -25,8 +25,8 @@ jobs:
         if: >-
             ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 2666)
             || (github.event.issue.pull_request
-            && startsWith(github.event.comment.body, '/claude-review')
+            && (github.event.comment.body == '/claude-review' || startsWith(github.event.comment.body, '/claude-review '))
             && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) }}
-        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@459a4113fd4fa3c018134eb5d2a9d22b268b75b3 # feat/claude-review-manual-trigger
+        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@1444cb7ac87606b520bedd09d1e2397737e7f3ea # feat/claude-review-manual-trigger
         secrets:
             CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
