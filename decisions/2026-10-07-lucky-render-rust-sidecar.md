@@ -1,6 +1,6 @@
 # ADR 2026-10-07: Weekly recap cards rendered by `lucky-render`, a Rust sidecar
 
-**Status:** Proposed (after one adversarial critic pass, verdict "proceed with changes"; all required changes applied below)
+**Status:** Accepted 2026-10-07 by the owner (after one adversarial critic pass, verdict "proceed with changes"; all required changes applied below)
 **Deciders:** Lucas Santana
 **Related issues:** #2658 (pitch switch to weekly recap, owner decision), #2652 (skips in track history), #2667 (autoplay enqueue rows), #2657 (gate query), #2655 (opus to mediaplex), #2678 (slice 1), #2690 (skips in the top lists)
 **Slice 1 shipped:** #2679, #2680, #2681, #2668, released in v2.52.0. Points 2 and 3 below describe what was built.
