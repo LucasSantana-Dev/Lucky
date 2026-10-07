@@ -23,6 +23,7 @@ import {
     selectDiverseCandidates,
     purgeDuplicatesOfCurrentTrack,
     addSelectedTracks,
+    __resetRecentlyRecommendedForTests,
 } from './diversitySelector'
 
 describe('diversitySelector', () => {
@@ -656,6 +657,69 @@ describe('diversitySelector', () => {
                 'user-id',
                 'similar',
             )
+        })
+    })
+
+    describe('enqueue no longer writes history (#2667)', () => {
+        const pick = {
+            track: {
+                url: 'https://youtube.com/watch?v=queuedClear',
+                title: 'Queued Song',
+                author: 'Queued Artist',
+                id: 'queued-1',
+            } as Track,
+            score: 0.9,
+            basis: { source: 'spotify-rec' as const, signals: [] },
+        }
+
+        beforeEach(() => {
+            __resetRecentlyRecommendedForTests()
+        })
+
+        function queueFor(guildId: string): GuildQueue {
+            return {
+                ...mockQueue,
+                guild: { id: guildId },
+                tracks: { toArray: jest.fn(() => []) },
+                addTrack: jest.fn(),
+            } as unknown as GuildQueue
+        }
+
+        test('adding a pick does not write a track_history row', async () => {
+            const { trackHistoryService } = require('@lucky/shared/services')
+
+            await addSelectedTracks(
+                queueFor('g-1'),
+                [pick],
+                new Set(),
+                new Set(),
+            )
+
+            expect(trackHistoryService.addTrackToHistory).not.toHaveBeenCalled()
+        })
+
+        test('a pick cleared from the queue stays excluded for that guild only', async () => {
+            await addSelectedTracks(
+                queueFor('g-1'),
+                [pick],
+                new Set(),
+                new Set(),
+            )
+
+            const sameGuild = buildExcludedUrls(
+                queueFor('g-1'),
+                mockTrack as Track,
+                [],
+            )
+            const otherGuild = buildExcludedUrls(
+                queueFor('g-2'),
+                mockTrack as Track,
+                [],
+            )
+
+            expect(sameGuild.has(pick.track.url)).toBe(true)
+            expect(sameGuild.has('queuedClear')).toBe(true)
+            expect(otherGuild.has(pick.track.url)).toBe(false)
         })
     })
 })

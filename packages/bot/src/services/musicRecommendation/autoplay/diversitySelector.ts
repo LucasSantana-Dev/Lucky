@@ -1,6 +1,6 @@
 import type { Track, GuildQueue } from 'discord-player'
+import { LRUCache } from 'lru-cache'
 import { debugLog } from '@lucky/shared/utils'
-import { trackHistoryService } from '@lucky/shared/services'
 import {
     extractSongCore,
     cleanTitle,
@@ -21,6 +21,26 @@ interface ScoredTrack {
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
 const FUZZY_TITLE_THRESHOLD = 0.75
+
+// #2667: autoplay used to write a track_history row when it queued a pick, so
+// the next replenish would not pick it again, but that row counted as a play
+// even when the track never played. The queue, the player's history and the
+// rows written when a track actually plays already cover the exclusion; this
+// covers a pick that was queued and then cleared or removed before it played.
+const recentlyRecommended = new LRUCache<string, Set<string>>({
+    max: 1000,
+    ttl: 2 * 60 * 60 * 1000,
+})
+
+function rememberRecommended(guildId: string, url: string): void {
+    const urls = recentlyRecommended.get(guildId) ?? new Set<string>()
+    urls.add(url)
+    recentlyRecommended.set(guildId, urls)
+}
+
+export function __resetRecentlyRecommendedForTests(): void {
+    recentlyRecommended.clear()
+}
 
 function randomJitter(max: number): number {
     return Math.random() * max // NOSONAR - non-cryptographic jitter for diversity selection
@@ -170,6 +190,7 @@ export function buildExcludedUrls(
         ...persistentHistory.map((e) => e.url).filter(Boolean),
         ...(mostRecentHistoryUrl ? [mostRecentHistoryUrl] : []),
         ...(mostRecentPersistentUrl ? [mostRecentPersistentUrl] : []),
+        ...(queue.guild ? (recentlyRecommended.get(queue.guild.id) ?? []) : []),
     ]
     const result = new Set<string>()
     for (const url of allUrls) {
@@ -309,7 +330,6 @@ export async function addSelectedTracks(
     requestedById?: string,
     mode?: 'similar' | 'discover' | 'popular',
 ): Promise<void> {
-    const historyWrites: Promise<boolean>[] = []
     const telemetryWrites: Promise<void>[] = []
     const guildId = queue.guild.id
 
@@ -336,22 +356,10 @@ export async function addSelectedTracks(
             candidate.track.author,
         )
         if (core) excludedKeys.add(normalizeText(core))
-        historyWrites.push(
-            trackHistoryService.addTrackToHistory(
-                {
-                    id: candidate.track.id || candidate.track.url,
-                    url: candidate.track.url,
-                    title: candidate.track.title,
-                    author: candidate.track.author,
-                    duration: candidate.track.duration ?? '',
-                    metadata: { isAutoplay: true },
-                },
-                queue.guild.id,
-            ),
-        )
+        rememberRecommended(guildId, candidate.track.url)
     }
 
-    await Promise.all([...historyWrites, ...telemetryWrites])
+    await Promise.all(telemetryWrites)
 }
 
 export function purgeDuplicatesOfCurrentTrack(
