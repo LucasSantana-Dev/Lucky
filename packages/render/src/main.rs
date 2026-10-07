@@ -2,20 +2,25 @@
 
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::time::Duration;
 
+use lucky_render::health::{healthcheck, parse_port};
 use lucky_render::server::{AppState, router};
 
-fn port() -> u16 {
-    std::env::var("PORT")
-        .ok()
-        .and_then(|p| p.parse().ok())
-        .unwrap_or(8080)
-}
+/// How long SIGTERM waits for an in-flight render before exiting anyway.
+const DRAIN: Duration = Duration::from_secs(10);
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> ExitCode {
+    let port = match parse_port(std::env::var("PORT").ok().as_deref()) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("level=error msg=invalid_port error={e:?}");
+            return ExitCode::FAILURE;
+        }
+    };
     if std::env::args().nth(1).as_deref() == Some("healthcheck") {
-        return if lucky_render::health::healthcheck(port()) {
+        return if healthcheck(port) {
             ExitCode::SUCCESS
         } else {
             ExitCode::FAILURE
@@ -34,7 +39,7 @@ async fn main() -> ExitCode {
     };
     println!("level=info msg=fonts_loaded faces={}", fontdb.len());
 
-    let addr = format!("0.0.0.0:{}", port());
+    let addr = format!("0.0.0.0:{port}");
     let listener = match tokio::net::TcpListener::bind(&addr).await {
         Ok(l) => l,
         Err(e) => {
@@ -44,19 +49,19 @@ async fn main() -> ExitCode {
     };
     println!("level=info msg=listening addr={addr}");
 
-    let served = axum::serve(listener, router(AppState::new(fontdb)))
+    let state = AppState::new(fontdb);
+    let served = axum::serve(listener, router(state.clone()))
         .with_graceful_shutdown(shutdown())
         .await;
-    match served {
-        Ok(()) => {
-            println!("level=info msg=shutdown");
-            ExitCode::SUCCESS
-        }
-        Err(e) => {
-            eprintln!("level=error msg=serve_failed error={e:?}");
-            ExitCode::FAILURE
-        }
+    if let Err(e) = served {
+        eprintln!("level=error msg=serve_failed error={e:?}");
+        return ExitCode::FAILURE;
     }
+    // Detached renders outlive the connections; give them a bounded window,
+    // then exit explicitly so a stuck blocking task cannot hang termination.
+    let idle = state.drain(DRAIN).await;
+    println!("level=info msg=shutdown drained={idle}");
+    std::process::exit(if idle { 0 } else { 1 });
 }
 
 async fn shutdown() {
