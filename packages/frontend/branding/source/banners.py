@@ -2,7 +2,7 @@
 
 Wordmark roles (see ../BRANDING_GUIDE.md): Assinatura = Neonderthaw (hero/social),
 Letreiro = Monoton (Discord profile banner), Conservadora = Bungee (labels).
-Body copy uses Manrope. Fonts load from Google Fonts, so this needs network.
+Body copy uses Manrope. Backgrounds carry the seigaiha wave pattern. Fonts load from Google Fonts, so this needs network.
 
 Run: python3 packages/frontend/branding/source/banners.py   (needs Pillow >= 12.1 + Chrome/Brave;
      set CHROME=/path/to/binary to override). Run cat_cutout.py first if the cat changed.
@@ -11,6 +11,7 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
+from urllib.parse import quote
 
 from PIL import Image
 
@@ -33,6 +34,24 @@ BANNERS = {
 }
 
 
+def seigaiha(r: float, fade: str, alpha: float = 0.30) -> str:
+    """Brand pattern: seigaiha waves as dim purple neon lines, shaped by the CSS mask `fade`.
+
+    Rule: the pattern frames the hero (cat, wordmark) and is never drawn behind it.
+
+    One tile is 2r x r: scales of four concentric rings, filled with Night so each row
+    covers the one above it, which is how the traditional pattern overlaps.
+    """
+    def scale(cx: float, cy: float) -> str:
+        rings = "".join(f'<circle cx="{cx}" cy="{cy}" r="{r*k:.2f}" fill="none"/>' for k in (0.78, 0.56, 0.34))
+        return f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{NIGHT}"/>{rings}'
+    tile = (f'<svg xmlns="http://www.w3.org/2000/svg" width="{2*r}" height="{r}" viewBox="0 0 {2*r} {r}">'
+            f'<g stroke="#B84DF0" stroke-opacity="{alpha}" stroke-width="{max(1.0, r/22):.2f}">'
+            f'{scale(0, 0)}{scale(2*r, 0)}{scale(r, r/2)}{scale(0, r)}{scale(2*r, r)}</g></svg>')
+    return (f'<div style="position:absolute;inset:0;background:url(\'data:image/svg+xml;utf8,{quote(tile)}\');'
+            f'background-size:{2*r}px {r}px;-webkit-mask-image:{fade};mask-image:{fade}"></div>')
+
+
 def page(w: int, h: int, body: str) -> str:
     return f'''<!doctype html><html><head><meta charset=utf-8><link href="{FONTS}" rel=stylesheet>
 <style>html,body{{margin:0;width:{w}px;height:{h}px;overflow:hidden;background:{NIGHT}}}
@@ -43,7 +62,7 @@ def page(w: int, h: int, body: str) -> str:
 def hero(w: int, h: int) -> str:
     s = h / 640  # designed at 1280x640, scales with height
     cat, cx, cy = 470 * s, 300 * s, h / 2
-    return page(w, h, f'''
+    return page(w, h, seigaiha(40 * s, f"radial-gradient(circle at {cx}px {cy}px,transparent {150*s}px,#000 {205*s}px,#000 {300*s}px,transparent {500*s}px)") + f'''
 <div style="position:absolute;left:{cx-330*s}px;top:{cy-330*s}px;width:{660*s}px;height:{660*s}px;
   background:radial-gradient(circle,rgba(184,77,240,.20) 0%,rgba(184,77,240,.06) 45%,rgba(25,4,40,0) 70%)"></div>
 <img src="{CAT}" style="position:absolute;left:{cx-cat/2}px;top:{cy-cat/2}px;width:{cat}px;height:{cat}px">
@@ -57,7 +76,7 @@ def hero(w: int, h: int) -> str:
 
 def profile(w: int, h: int) -> str:
     # Discord draws the avatar over the bottom-left: keep x<26% empty.
-    return page(w, h, f'''
+    return page(w, h, seigaiha(h / 12, "radial-gradient(ellipse 46% 70% at 61% 50%,transparent 55%,#000 100%)", 0.26) + f'''
 <div style="position:absolute;left:{w*0.30}px;top:-{h*0.4}px;width:{w*0.62}px;height:{h*1.8}px;
   background:radial-gradient(ellipse,rgba(184,77,240,.18) 0%,rgba(25,4,40,0) 62%)"></div>
 <div style="position:absolute;left:{w*0.26}px;right:{w*0.04}px;top:0;height:{h}px;display:flex;flex-direction:column;align-items:center;justify-content:center">
