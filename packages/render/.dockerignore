@@ -1,0 +1,5 @@
+target
+fonts/*.ttf
+fixtures/recap-collage.json
+tests
+schema

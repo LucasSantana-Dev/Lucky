@@ -1,0 +1,82 @@
+{
+ "schemaVersion": 1,
+ "guildId": "golden",
+ "from": "2026-10-04T18:00:00.000Z",
+ "to": "2026-10-11T18:00:00.000Z",
+ "plays": 110,
+ "skips": 9,
+ "autoplayPlays": 66,
+ "listenedSeconds": 18900,
+ "topTracks": [
+  {
+   "title": "Track 1",
+   "author": "Artist 1",
+   "plays": 12,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPY4fsBK2IYWhIA4ph9QRrlge0AAAAASUVORK5CYII="
+  },
+  {
+   "title": "Track 2",
+   "author": "Artist 2",
+   "plays": 12
+  },
+  {
+   "title": "Track 3",
+   "author": "Artist 3",
+   "plays": 12
+  },
+  {
+   "title": "Track 4",
+   "author": "Artist 4",
+   "plays": 10,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGM4X/MNK2IYWhIAU1CQQZUKojEAAAAASUVORK5CYII="
+  },
+  {
+   "title": "Track 5",
+   "author": "Artist 5",
+   "plays": 10
+  },
+  {
+   "title": "Track 6",
+   "author": "Artist 6",
+   "plays": 10
+  },
+  {
+   "title": "Track 7",
+   "author": "Artist 7",
+   "plays": 8,
+   "cover": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPIk5qHFTEMLQkArGxJgebegqQAAAAASUVORK5CYII="
+  },
+  {
+   "title": "Track 8",
+   "author": "Artist 8",
+   "plays": 8
+  },
+  {
+   "title": "Track 9",
+   "author": "Artist 9",
+   "plays": 8
+  }
+ ],
+ "topArtists": [
+  {
+   "name": "Artist 1",
+   "plays": 14
+  },
+  {
+   "name": "Artist 2",
+   "plays": 14
+  },
+  {
+   "name": "Artist 3",
+   "plays": 14
+  },
+  {
+   "name": "Artist 4",
+   "plays": 12
+  },
+  {
+   "name": "Artist 5",
+   "plays": 12
+  }
+ ]
+}

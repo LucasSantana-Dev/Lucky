@@ -120,3 +120,7 @@ docker-compose*.yml
 *.cert
 .cache/
 .parcel-cache/
+
+# lucky-render builds from its own context (packages/render); keep cargo output
+# out of the root context used by the node images.
+packages/render/target/

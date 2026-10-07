@@ -126,8 +126,8 @@ notify() {
 }
 
 print_targeted_logs() {
-    log "Collecting backend/frontend/bot/nginx/postgres/redis logs..."
-    docker_compose logs --tail=80 --no-color backend frontend bot nginx postgres redis || true
+    log "Collecting backend/frontend/bot/nginx/render/postgres/redis logs..."
+    docker_compose logs --tail=80 --no-color backend frontend bot nginx render postgres redis || true
 }
 
 verify_cloudflared_config() {
@@ -174,6 +174,11 @@ require_running_containers() {
     # (docker-compose.yml): it is expected to exit 0 and stay stopped, so it
     # must never be treated as a required long-running container.
     local excluded_pattern="^(cloudflared|webhook|alertmanager-config)$"
+    # render has no image for SHAs older than its introduction; a rollback that
+    # could not pull it (ROLLBACK_SKIP_RENDER=1) must not be failed on it.
+    if [[ "${ROLLBACK_SKIP_RENDER:-0}" == "1" ]]; then
+        excluded_pattern="^(cloudflared|webhook|alertmanager-config|render)$"
+    fi
     local expected_services
     expected_services=$(docker_compose config --services 2>/dev/null | grep -v -E "$excluded_pattern" || true)
 
@@ -409,6 +414,23 @@ run_health_checks() {
         return 1
     fi
 
+    # render ships a container healthcheck; running is not enough. Skipped on
+    # the optional (render image unavailable) rollback/pinned paths.
+    if [[ "${ROLLBACK_SKIP_RENDER:-0}" != "1" ]]; then
+        local render_container="${COMPOSE_PROJECT_NAME}-render" render_health="" waited=0
+        while (( waited < 60 )); do
+            render_health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$render_container" 2>/dev/null || true)
+            [[ "$render_health" == "healthy" ]] && break
+            sleep 5
+            waited=$((waited + 5))
+        done
+        if [[ "$render_health" != "healthy" ]]; then
+            print_targeted_logs
+            log "HEALTH: render did not become healthy (status='${render_health:-none}')"
+            return 1
+        fi
+    fi
+
     if ! wait_for_http_ready \
         "API health" \
         "http://nginx:8080/api/health" \
@@ -471,6 +493,18 @@ run_health_checks() {
     return 0
 }
 
+# Succeeds (render is OPTIONAL) only when the target commit is present in the
+# checkout and has no packages/render/Cargo.toml, i.e. it predates the render
+# service. deploy.sh syncs DEPLOY_DIR to origin/main first, so every released
+# SHA is an ancestor and resolvable. An unknown commit or any git error fails
+# closed: render stays mandatory.
+render_optional_for_sha() {
+    local sha="$1"
+    [[ -n "$sha" ]] || return 1
+    git -C "$DEPLOY_DIR" cat-file -e "${sha}^{commit}" 2>/dev/null || return 1
+    ! git -C "$DEPLOY_DIR" cat-file -e "${sha}:packages/render/Cargo.toml" 2>/dev/null
+}
+
 # Auto-rollback: when a deploy fails its health checks, redeploy the last SHA
 # that was known healthy (recorded in LAST_GOOD_FILE) and re-check. Returns 0 if
 # the rollback target is healthy (DEPLOYED_SHA is then repointed at it), 1 if no
@@ -498,7 +532,23 @@ attempt_rollback() {
         notify 16711680 "Rollback Failed" "Could not pull ${last_good} images — manual intervention required"
         return 1
     fi
-    docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx
+    # render is optional on rollback: a last-good SHA older than the render
+    # service has no render image. Keep the running render container as is and
+    # roll back the rest rather than aborting.
+    local rollback_services="bot backend frontend nginx"
+    if docker_compose pull render; then
+        rollback_services="$rollback_services render"
+        unset ROLLBACK_SKIP_RENDER
+    elif ! render_optional_for_sha "$last_good"; then
+        log "ROLLBACK ERROR: could not pull render image for ${IMAGE_TAG} and ${last_good} includes render"
+        notify 16711680 "Rollback Failed" "Could not pull render image for ${last_good} — manual intervention required"
+        return 1
+    else
+        log "ROLLBACK WARN: could not pull render image for ${IMAGE_TAG}; leaving running render container untouched"
+        export ROLLBACK_SKIP_RENDER=1
+    fi
+    # shellcheck disable=SC2086  # intentional word splitting of the service list
+    docker_compose up -d --remove-orphans --no-deps $rollback_services
 
     if run_health_checks; then
         log "Rollback to ${last_good} is healthy"
@@ -603,7 +653,17 @@ else
 fi
 
 log "Pulling images..."
-if ! docker_compose pull bot backend frontend nginx; then
+# Render is optional only when the target commit predates the render service
+# (no packages/render/Cargo.toml in it); then it is pulled separately. Every
+# other deploy, pinned or not, keeps render mandatory.
+_app_services="bot backend frontend nginx render"
+_render_optional=false
+if render_optional_for_sha "$DEPLOY_SHA"; then
+    _render_optional=true
+    _app_services="bot backend frontend nginx"
+fi
+# shellcheck disable=SC2086  # intentional word splitting of the service list
+if ! docker_compose pull $_app_services; then
     if [[ -n "$DEPLOY_SHA" ]]; then
         # A pinned/rollback deploy MUST run the requested image. Building from the
         # current checkout would silently ship different code under the pinned
@@ -616,9 +676,19 @@ if ! docker_compose pull bot backend frontend nginx; then
     _build_commit_sha=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || echo "")
     if ! docker_compose build --parallel \
             --build-arg "COMMIT_SHA=${_build_commit_sha}" \
-            bot backend frontend nginx; then
+            bot backend frontend nginx render; then
         notify 16711680 "Deploy Failed" "Docker build failed"
         exit 1
+    fi
+fi
+
+if [[ "$_render_optional" == "true" ]]; then
+    if docker_compose pull render; then
+        _app_services="$_app_services render"
+        unset ROLLBACK_SKIP_RENDER
+    else
+        log "WARN: could not pull render image for ${IMAGE_TAG}; leaving running render container untouched"
+        export ROLLBACK_SKIP_RENDER=1
     fi
 fi
 
@@ -685,7 +755,8 @@ ensure_on_lucky_network() {
 }
 
 log "Rolling out services..."
-docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx postgres redis
+# shellcheck disable=SC2086  # intentional word splitting of the service list
+docker_compose up -d --remove-orphans --no-deps $_app_services postgres redis
 
 # The webhook runs this script, so it is never recreated here; nginx proxies
 # /webhook/ to it by service name.
