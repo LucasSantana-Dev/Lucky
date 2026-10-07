@@ -523,6 +523,15 @@ jobs:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
             # Toolchain and components (rustfmt, clippy) come from
             # packages/render/rust-toolchain.toml, the single pin.
+            # The Dockerfile compiler and the CI toolchain must not drift.
+            - name: Check toolchain matches Dockerfile
+              run: |
+                  toolchain=$(sed -n 's/^channel *= *"\(.*\)"/\1/p' rust-toolchain.toml)
+                  image=$(sed -n 's/^# rust:\(.*\)-alpine.*/\1/p' Dockerfile)
+                  if [ -z "$toolchain" ] || [ "$toolchain" != "$image" ]; then
+                      echo "rust-toolchain.toml channel='$toolchain' vs Dockerfile rust:<ver>-alpine='$image'"
+                      exit 1
+                  fi
             - name: Install pinned toolchain
               run: rustup show active-toolchain || rustup toolchain install
             - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2

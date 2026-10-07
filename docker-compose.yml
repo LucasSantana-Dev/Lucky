@@ -296,6 +296,8 @@ services:
         pids_limit: 64
         networks:
             - lucky-network
+            # Lets the homelab Prometheus scrape /metrics (scrape job: #2694).
+            - lucky-monitoring
         healthcheck:
             test: ["CMD", "/usr/local/bin/lucky-render", "healthcheck"]
             interval: 30s

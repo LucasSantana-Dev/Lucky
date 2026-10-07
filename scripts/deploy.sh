@@ -493,6 +493,18 @@ run_health_checks() {
     return 0
 }
 
+# Succeeds (render is OPTIONAL) only when the target commit is present in the
+# checkout and has no packages/render/Cargo.toml, i.e. it predates the render
+# service. deploy.sh syncs DEPLOY_DIR to origin/main first, so every released
+# SHA is an ancestor and resolvable. An unknown commit or any git error fails
+# closed: render stays mandatory.
+render_optional_for_sha() {
+    local sha="$1"
+    [[ -n "$sha" ]] || return 1
+    git -C "$DEPLOY_DIR" cat-file -e "${sha}^{commit}" 2>/dev/null || return 1
+    ! git -C "$DEPLOY_DIR" cat-file -e "${sha}:packages/render/Cargo.toml" 2>/dev/null
+}
+
 # Auto-rollback: when a deploy fails its health checks, redeploy the last SHA
 # that was known healthy (recorded in LAST_GOOD_FILE) and re-check. Returns 0 if
 # the rollback target is healthy (DEPLOYED_SHA is then repointed at it), 1 if no
@@ -527,6 +539,10 @@ attempt_rollback() {
     if docker_compose pull render; then
         rollback_services="$rollback_services render"
         unset ROLLBACK_SKIP_RENDER
+    elif ! render_optional_for_sha "$last_good"; then
+        log "ROLLBACK ERROR: could not pull render image for ${IMAGE_TAG} and ${last_good} includes render"
+        notify 16711680 "Rollback Failed" "Could not pull render image for ${last_good} — manual intervention required"
+        return 1
     else
         log "ROLLBACK WARN: could not pull render image for ${IMAGE_TAG}; leaving running render container untouched"
         export ROLLBACK_SKIP_RENDER=1
@@ -637,11 +653,13 @@ else
 fi
 
 log "Pulling images..."
-# A pinned tag (DEPLOY_SHA, e.g. a manual rollback) may predate the render
-# service, so there render is optional and pulled separately. The normal
-# forward deploy keeps render strict.
+# Render is optional only when the target commit predates the render service
+# (no packages/render/Cargo.toml in it); then it is pulled separately. Every
+# other deploy, pinned or not, keeps render mandatory.
 _app_services="bot backend frontend nginx render"
-if [[ -n "$DEPLOY_SHA" ]]; then
+_render_optional=false
+if render_optional_for_sha "$DEPLOY_SHA"; then
+    _render_optional=true
     _app_services="bot backend frontend nginx"
 fi
 # shellcheck disable=SC2086  # intentional word splitting of the service list
@@ -664,7 +682,7 @@ if ! docker_compose pull $_app_services; then
     fi
 fi
 
-if [[ -n "$DEPLOY_SHA" ]]; then
+if [[ "$_render_optional" == "true" ]]; then
     if docker_compose pull render; then
         _app_services="$_app_services render"
         unset ROLLBACK_SKIP_RENDER
