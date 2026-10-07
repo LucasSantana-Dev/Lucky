@@ -35,6 +35,9 @@ export async function getWeeklyRecap(
 ): Promise<RecapPayload> {
     const prisma = getPrismaClient()
     const where = { guildId, playedAt: { gte: from, lt: to } }
+    // Totals count every start; the top lists rank only what was not skipped,
+    // so a track skipped four times cannot top the week (#2690).
+    const listened = { ...where, skipped: false }
 
     const [totals, skips, autoplayPlays, tracks, artists] = await Promise.all([
         prisma.trackHistory.aggregate({
@@ -46,7 +49,7 @@ export async function getWeeklyRecap(
         prisma.trackHistory.count({ where: { ...where, isAutoplay: true } }),
         prisma.trackHistory.groupBy({
             by: ['title', 'author'],
-            where,
+            where: listened,
             _count: { _all: true },
             orderBy: [
                 { _count: { title: 'desc' } },
@@ -57,7 +60,7 @@ export async function getWeeklyRecap(
         }),
         prisma.trackHistory.groupBy({
             by: ['author'],
-            where,
+            where: listened,
             _count: { _all: true },
             orderBy: [{ _count: { author: 'desc' } }, { author: 'asc' }],
             take: TOP_N,
