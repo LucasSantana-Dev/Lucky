@@ -1,6 +1,8 @@
 import { mediaType, readCappedBody } from './recapHttp'
 
-const DEFAULT_RENDER_URL = 'http://render:8080'
+// Plain http is intended: the sidecar is reached only over the compose-internal
+// lucky-network, with no TLS hop between containers.
+const DEFAULT_RENDER_URL = 'http://render:8080' // NOSONAR S5332
 const RENDER_TIMEOUT_MS = 2000
 /** A 1200x1440 JPEG is well under this; anything larger is not our card. */
 export const RENDER_MAX_RESPONSE_BYTES = 3 * 1024 * 1024
@@ -17,9 +19,15 @@ type RenderOptions = {
     timeoutMs?: number
 }
 
+function withoutTrailingSlashes(url: string): string {
+    let end = url.length
+    while (end > 0 && url[end - 1] === '/') end--
+    return url.slice(0, end)
+}
+
 function renderBaseUrl(): string {
     const raw = process.env.RENDER_URL?.trim()
-    return (raw || DEFAULT_RENDER_URL).replace(/\/+$/, '')
+    return withoutTrailingSlashes(raw || DEFAULT_RENDER_URL)
 }
 
 function hasJpegSoi(bytes: Buffer): boolean {
@@ -36,7 +44,7 @@ export async function requestRecapCard(
     payload: unknown,
     options: RenderOptions = {},
 ): Promise<RenderResult> {
-    const base = (options.baseUrl ?? renderBaseUrl()).replace(/\/+$/, '')
+    const base = withoutTrailingSlashes(options.baseUrl ?? renderBaseUrl())
     try {
         const response = await (options.fetch ?? fetch)(
             `${base}/render/recap`,

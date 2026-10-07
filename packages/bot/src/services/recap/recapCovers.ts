@@ -24,13 +24,11 @@ const YOUTUBE_THUMB_PATH = /^\/vi(?:_webp)?\/([\w-]{6,20})\/[^/]+$/
 // Stripped from card text: zero-width and bidi marks (200B-200F), bidi
 // embeddings/overrides (202A-202E), word joiner and invisible operators
 // (2060-2064), bidi isolates (2066-2069), BOM, Arabic letter mark, combining
-// grapheme joiner, and C0/C1 controls. Written as escapes in a string so no
-// invisible character lives in the source.
+// grapheme joiner, and C0/C1 controls. Written as \u escapes so no invisible
+// character lives in the source.
 /* eslint-disable no-control-regex, no-misleading-character-class */
-const INVISIBLE = new RegExp(
-    '[\\u200B-\\u200F\\u202A-\\u202E\\u2060-\\u2064\\u2066-\\u2069\\uFEFF\\u061C\\u034F\\u0000-\\u001F\\u007F-\\u009F]',
-    'g',
-)
+const INVISIBLE =
+    /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF\u061C\u034F\u0000-\u001F\u007F-\u009F]/g
 /* eslint-enable no-control-regex, no-misleading-character-class */
 const LONE_SURROGATE =
     /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g
