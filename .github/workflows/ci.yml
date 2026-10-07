@@ -579,7 +579,10 @@ jobs:
               uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
               with:
                   manifest-path: packages/render/Cargo.toml
-                  command-arguments: --disable-fetch advisories
+                  # cargo-deny 0.20 dropped `check --disable-fetch`; the
+                  # global `--offline` disables the advisory db fetch.
+                  arguments: --all-features --offline
+                  command-arguments: advisories
 
     docker-build:
         name: Build — ${{ matrix.service }}
