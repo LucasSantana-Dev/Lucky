@@ -28,12 +28,12 @@ Two workflows keep fork PRs moving without manual babysitting:
 Safety rule for both: never add a `checkout` step or any step that executes
 PR code to a `pull_request_target` workflow.
 
-**Claude Review** (`claude-review.yml`) does not cover fork PRs: it calls the
+**Claude Review** (`claude-review.yml`) is on demand and does not cover fork
+PRs: comment `/claude-review` on a PR (write access required) and it calls the
 org reusable `claude-review.yml` with `CLAUDE_CODE_OAUTH_TOKEN` (Claude
-subscription) and runs on `pull_request`, not `pull_request_target`, because it
-checks out the PR head. Fork and Dependabot PRs are skipped. It replaced
-PR-Agent (2026-10-07), which only takes API keys and failed once the API credit
-ran out.
+subscription). Max 3 runs per PR; fork and bot-authored PRs are refused because
+the job holds the credential and checks out the PR head. It replaced PR-Agent
+(2026-10-07), which only takes API keys and failed once the API credit ran out.
 
 ## Lock file
 

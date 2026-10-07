@@ -9,10 +9,6 @@ name: Claude Review
 on:
     issue_comment:
         types: [created]
-    # TEMPORARY canary trigger for this PR only (issue_comment runs from the
-    # default branch); removed before merge.
-    pull_request:
-        types: [reopened]
 
 permissions:
     contents: read
@@ -23,12 +19,9 @@ jobs:
     review:
         name: AI Code Review
         if: >-
-            ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 2666)
-            || (github.event.issue.pull_request
+            ${{ github.event.issue.pull_request
             && (github.event.comment.body == '/claude-review' || startsWith(github.event.comment.body, '/claude-review '))
-            && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) }}
-        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@83f004a3767aebb302aa16575964532119134945 # feat/claude-review-manual-trigger
-        with:
-            max_reviews: 5 # TEMPORARY canary headroom; removed before merge
+            && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) }}
+        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@b487626c2b3b3e089e98e0d358baad5bd6671513 # main
         secrets:
             CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

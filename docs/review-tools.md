@@ -58,18 +58,17 @@ A PR is merge-eligible when ALL hold:
 - ✅ Required CI green
 - ✅ SonarCloud Quality Gate `passed`
 - ✅ cubic has no unresolved high-severity findings
-- ✅ Claude review approved or no substantive concerns posted
+- ✅ Claude review (if requested with `/claude-review`) posted no unresolved substantive concerns
 - ✅ Danger has no `fail()` outputs (warnings are fine)
 - ✅ GitGuardian / Socket / TruffleHog clean
 
 cubic is low-false-positive by design and does not gate on style nits.
-Two independent AI angles (cubic + Claude review; PR-Agent was retired
-2026-10-07) cover same-repo PRs, so no single reviewer being quiet causes a
-silent gate-bailout. Claude review runs only on `opened`, `reopened` and
-`ready_for_review` (not on later pushes, to save subscription usage), and it
-is skipped for fork and Dependabot PRs: a green or skipped "AI Code Review"
-there does not mean Claude reviewed it. Re-run it after a big follow-up push by
-closing and reopening the PR.
+cubic reviews every PR automatically. Claude review is **on demand only**
+(PR-Agent was retired 2026-10-07): comment `/claude-review` on the PR (write
+access required), max 3 runs per PR, to save subscription usage. It refuses fork
+and bot-authored PRs, and its job fails (never green) when it did not post a
+`Claude review:` summary, when the 3-run limit is reached, or when the PR is a
+draft. A PR without a `/claude-review` comment has had no Claude review.
 
 ## Tools considered and skipped
 
