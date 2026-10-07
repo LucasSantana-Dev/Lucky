@@ -79,22 +79,52 @@ describe('streamViaYtDlp – URL validation', () => {
 // streamViaYtDlp — cookies (#2034 / ADR 2026-06-18)
 // ---------------------------------------------------------------------------
 
-describe('streamViaYtDlp – cookies file', () => {
+describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () => {
     const validUrl = 'https://www.youtube.com/watch?v=abc123'
     const cookiesPath = '/app/secrets/youtube-cookies.txt'
     const originalEnv = process.env.YTDLP_COOKIES_FILE
+    const SIGN_IN =
+        "ERROR: [youtube] abc123: Sign in to confirm you're not a bot\n"
+    const FORBIDDEN =
+        'ERROR: unable to download video data: HTTP Error 403: Forbidden\n'
 
-    async function runOnce() {
+    // Each spawn returns a process that either streams or fails with the
+    // given stderr line, so a test can script the first and the retry.
+    function procThat(outcome: 'ok' | string) {
         const proc = makeFakeProc()
-        mockSpawn.mockReturnValue(proc)
-        setImmediate(() => proc.stdout.emit('data', Buffer.from('bytes')))
-        await streamViaYtDlp(validUrl)
-        return mockSpawn.mock.calls.at(-1)?.[1] as string[]
+        setImmediate(() => {
+            if (outcome === 'ok') {
+                proc.stdout.emit('data', Buffer.from('bytes'))
+                return
+            }
+            proc.stderr.emit('data', Buffer.from(outcome))
+            proc.emit('close', 1)
+        })
+        return proc
+    }
+
+    function script(...outcomes: Array<'ok' | string>) {
+        for (const outcome of outcomes) {
+            mockSpawn.mockImplementationOnce(() => procThat(outcome))
+        }
+    }
+
+    const spawnArgs = (call: number) =>
+        mockSpawn.mock.calls[call]?.[1] as string[]
+
+    function readableCookies() {
+        process.env.YTDLP_COOKIES_FILE = cookiesPath
+        mockStatSync.mockReturnValue({ isFile: () => true })
+        mockAccessSync.mockReturnValue(undefined)
     }
 
     beforeEach(() => {
         __resetYtdlpCookiesLogStateForTests()
+        mockSpawn.mockReset()
+        mockStatSync.mockReset()
         mockAccessSync.mockReset()
+        mockInfoLog.mockReset()
+        mockWarnLog.mockReset()
     })
 
     afterEach(() => {
@@ -102,13 +132,79 @@ describe('streamViaYtDlp – cookies file', () => {
         else process.env.YTDLP_COOKIES_FILE = originalEnv
     })
 
-    it('logs the missing/applied transition once each, not per call', async () => {
+    it('never passes --cookies on the first attempt, even when configured', async () => {
+        readableCookies()
+        script('ok')
+
+        await streamViaYtDlp(validUrl)
+
+        expect(mockSpawn).toHaveBeenCalledTimes(1)
+        expect(spawnArgs(0)).not.toContain('--cookies')
+    })
+
+    it('retries once with --cookies <file> when YouTube asks to sign in', async () => {
+        readableCookies()
+        script(SIGN_IN, 'ok')
+
+        await streamViaYtDlp(validUrl)
+
+        expect(mockSpawn).toHaveBeenCalledTimes(2)
+        const args = spawnArgs(1)
+        expect(args[args.indexOf('--cookies') + 1]).toBe(cookiesPath)
+    })
+
+    it('does not retry with cookies on a 403 (cookies cause it)', async () => {
+        readableCookies()
+        script(FORBIDDEN)
+
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
+        expect(mockSpawn).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([
+        ['unset', () => delete process.env.YTDLP_COOKIES_FILE],
+        [
+            'missing',
+            () => {
+                process.env.YTDLP_COOKIES_FILE = cookiesPath
+                mockStatSync.mockImplementation(() => {
+                    throw new Error('ENOENT')
+                })
+            },
+        ],
+        [
+            'a directory',
+            () => {
+                process.env.YTDLP_COOKIES_FILE = cookiesPath
+                mockStatSync.mockReturnValue({ isFile: () => false })
+            },
+        ],
+        [
+            'unreadable',
+            () => {
+                process.env.YTDLP_COOKIES_FILE = cookiesPath
+                mockStatSync.mockReturnValue({ isFile: () => true })
+                mockAccessSync.mockImplementation(() => {
+                    throw new Error('EACCES: permission denied')
+                })
+            },
+        ],
+    ])('does not retry when the cookies file is %s', async (_label, setup) => {
+        setup()
+        script(SIGN_IN)
+
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('Sign in')
+        expect(mockSpawn).toHaveBeenCalledTimes(1)
+    })
+
+    it('logs the missing/applied transition once each, not per retry', async () => {
         process.env.YTDLP_COOKIES_FILE = cookiesPath
         mockStatSync.mockImplementation(() => {
             throw new Error('ENOENT')
         })
-        await runOnce()
-        await runOnce()
+        script(SIGN_IN, SIGN_IN)
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow()
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow()
         expect(mockWarnLog).toHaveBeenCalledTimes(1)
         expect(mockWarnLog).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -116,53 +212,16 @@ describe('streamViaYtDlp – cookies file', () => {
             }),
         )
 
-        mockStatSync.mockReturnValue({ isFile: () => true })
-        await runOnce()
-        await runOnce()
+        readableCookies()
+        script(SIGN_IN, 'ok', SIGN_IN, 'ok')
+        await streamViaYtDlp(validUrl)
+        await streamViaYtDlp(validUrl)
         expect(mockInfoLog).toHaveBeenCalledTimes(1)
         expect(mockInfoLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Bridge: yt-dlp cookies file applied',
             }),
         )
-    })
-
-    it('does not pass --cookies when YTDLP_COOKIES_FILE is unset', async () => {
-        delete process.env.YTDLP_COOKIES_FILE
-        expect(await runOnce()).not.toContain('--cookies')
-    })
-
-    it('does not pass --cookies when the configured file does not exist', async () => {
-        process.env.YTDLP_COOKIES_FILE = cookiesPath
-        mockStatSync.mockImplementation(() => {
-            throw new Error('ENOENT')
-        })
-        expect(await runOnce()).not.toContain('--cookies')
-    })
-
-    it('does not pass --cookies when the path is a directory', async () => {
-        process.env.YTDLP_COOKIES_FILE = cookiesPath
-        mockStatSync.mockReturnValue({ isFile: () => false })
-        expect(await runOnce()).not.toContain('--cookies')
-    })
-
-    it('does not pass --cookies when the file exists but is not readable', async () => {
-        process.env.YTDLP_COOKIES_FILE = cookiesPath
-        mockStatSync.mockReturnValue({ isFile: () => true })
-        mockAccessSync.mockImplementation(() => {
-            throw new Error('EACCES: permission denied')
-        })
-        expect(await runOnce()).not.toContain('--cookies')
-    })
-
-    it('passes --cookies <file> when YTDLP_COOKIES_FILE is a readable regular file', async () => {
-        process.env.YTDLP_COOKIES_FILE = cookiesPath
-        mockStatSync.mockReturnValue({ isFile: () => true })
-        mockAccessSync.mockReturnValue(undefined)
-        const args = await runOnce()
-        const idx = args.indexOf('--cookies')
-        expect(idx).toBeGreaterThan(-1)
-        expect(args[idx + 1]).toBe(cookiesPath)
     })
 })
 
