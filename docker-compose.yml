@@ -286,6 +286,14 @@ services:
         mem_limit: 128m
         cpus: 0.5
         restart: unless-stopped
+        # Hardening: the binary needs no writable fs (fonts are read-only in
+        # the image) and no capabilities.
+        read_only: true
+        cap_drop:
+            - ALL
+        security_opt:
+            - no-new-privileges:true
+        pids_limit: 64
         networks:
             - lucky-network
         healthcheck:

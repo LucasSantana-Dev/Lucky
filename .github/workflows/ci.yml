@@ -536,10 +536,19 @@ jobs:
               run: cargo clippy --all-targets -- -D warnings
             - name: cargo test
               run: cargo test
-            - name: cargo deny
+            - name: cargo deny (bans licenses sources)
               uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
               with:
                   manifest-path: packages/render/Cargo.toml
+                  command-arguments: bans licenses sources
+            # Advisories fetch the RustSec db over the network; a flake there
+            # must not fail the job that feeds the required Quality Gates.
+            - name: cargo deny (advisories)
+              continue-on-error: true
+              uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+              with:
+                  manifest-path: packages/render/Cargo.toml
+                  command-arguments: advisories
 
     docker-build:
         name: Build — ${{ matrix.service }}
@@ -567,7 +576,7 @@ jobs:
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
                   context: ${{ matrix.context || '.' }}
-                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
+                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' || matrix.service == 'render' }}
             # Retry on transient failure (buildx setup and build re-run
             # together, matching the previous separate retry steps). Root
             # cause (see issue #2015): a local BuildKit race resolving a
@@ -592,7 +601,7 @@ jobs:
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
                   context: ${{ matrix.context || '.' }}
-                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
+                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' || matrix.service == 'render' }}
                   use-cache: 'false'
             - name: Build ${{ matrix.service }} - retry 2 on transient failure
               id: build-retry-2
@@ -604,7 +613,7 @@ jobs:
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
                   context: ${{ matrix.context || '.' }}
-                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
+                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' || matrix.service == 'render' }}
                   use-cache: 'false'
             - name: Build ${{ matrix.service }} - retry 3 on transient failure
               id: build-retry-3
@@ -616,7 +625,7 @@ jobs:
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
                   context: ${{ matrix.context || '.' }}
-                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
+                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' || matrix.service == 'render' }}
                   use-cache: 'false'
             - name: Build ${{ matrix.service }} - retry 4 on transient failure
               if: steps.build.outcome == 'failure' && steps.build-retry-1.outcome == 'failure' && steps.build-retry-2.outcome == 'failure' && steps.build-retry-3.outcome == 'failure'
@@ -626,7 +635,7 @@ jobs:
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
                   context: ${{ matrix.context || '.' }}
-                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
+                  load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' || matrix.service == 'render' }}
                   use-cache: 'false'
             # A built image is not a working image: the bot's native addons
             # (@discordjs/opus) and the baked Prisma engines only fail at
@@ -676,6 +685,32 @@ jobs:
             - name: Validate nginx config — nginx
               if: matrix.service == 'nginx'
               run: docker run --rm lucky-nginx:ci nginx -t
+            # A built image is not a working image: run the real render image
+            # under the production limits, wait for its own healthcheck, then
+            # render one fixture and assert a JPEG comes back.
+            - name: Smoke test render
+              if: matrix.service == 'render'
+              run: |
+                  c=lucky-render-smoke
+                  trap 'docker rm -f "$c" >/dev/null 2>&1 || true' EXIT
+                  docker run -d --name "$c" --cpus 0.5 --memory 128m -p 127.0.0.1:18080:8080 lucky-render:ci
+                  ok=false
+                  for _ in $(seq 1 30); do
+                      if docker exec "$c" /usr/local/bin/lucky-render healthcheck; then ok=true; break; fi
+                      sleep 1
+                  done
+                  if [ "$ok" != true ]; then
+                      echo "healthcheck never passed"; docker logs "$c"; exit 1
+                  fi
+                  code=$(curl -sS -o render.jpg -w '%{http_code}' -X POST \
+                      -H 'Content-Type: application/json' \
+                      --data-binary @packages/render/tests/fixtures/grid1.json \
+                      http://127.0.0.1:18080/render/recap) || { docker logs "$c"; exit 1; }
+                  magic=$(head -c 3 render.jpg | xxd -p)
+                  if [ "$code" != 200 ] || [ "$magic" != ffd8ff ]; then
+                      echo "render smoke failed: http=$code magic=$magic"; docker logs "$c"; exit 1
+                  fi
+                  echo "render smoke OK: http=$code magic=$magic"
 
     docker-build-check:
         name: Build — Docker images
