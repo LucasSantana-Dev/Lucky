@@ -53,7 +53,7 @@ Facts that constrain the design:
     | 0.5       | 618 ms  | 696 ms  | 41 MB    |
     | 0.25      | 1488 ms | 1599 ms | 41 MB    |
 
-    No tofu in the CJK, emoji, Cyrillic, Greek, Arabic and Hebrew fixture. The RTL gate passes once each slot is isolated (point 4): resvg and a browser show the same order for the same SVG. The p95 gate (under 250 ms) misses at every limit, including a full core. Per render on a fast machine, rasterizing is about 80% (scaling 25 covers is a quarter of it, the neon glow under a tenth) and JPEG encoding the rest. Moving to napi-rs does not change any of that; it would spend the same CPU inside the voice process. The gate was sized for a 1200x630 card; for a weekly batch with a 2 s timeout, the proposal is p95 under 1 s at 0.5 CPU on the homelab, which the 5x5 card meets with about 2.9x headroom to the timeout. **Pending owner confirmation of the new gate.**
+    No tofu in the CJK, emoji, Cyrillic, Greek, Arabic and Hebrew fixture. The RTL gate passes once each slot is isolated (point 4): resvg and a browser show the same order for the same SVG. The p95 gate (under 250 ms) misses at every limit, including a full core. Per render on a fast machine, rasterizing is about 80% (scaling 25 covers is a quarter of it, the neon glow under a tenth) and JPEG encoding the rest. Moving to napi-rs does not change any of that; it would spend the same CPU inside the voice process. The gate was sized for a 1200x630 card; for a weekly batch with a 2 s timeout, the gate becomes p95 under 1 s at 0.5 CPU on the homelab (owner confirmed 2026-10-07), which the 5x5 card meets with about 2.9x headroom to the timeout. Gate passed.
 
 ### Slices
 
