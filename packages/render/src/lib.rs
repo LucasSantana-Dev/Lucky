@@ -64,6 +64,15 @@ pub enum RenderError {
     Encode(String),
 }
 
+/// Families the card needs; a missing one silently falls back to a wrong face.
+const REQUIRED_FAMILIES: [&str; 5] = [
+    "Manrope",
+    "Bungee",
+    "Neonderthaw",
+    "Noto Sans SC",
+    "Noto Emoji",
+];
+
 /// Loads the bundled fonts once; the database is shared by every render.
 /// Fails when the directory holds no usable face, so a bad image dies at boot.
 pub fn font_db(font_dir: &std::path::Path) -> Result<Arc<usvg::fontdb::Database>, String> {
@@ -79,6 +88,21 @@ pub fn font_db(font_dir: &std::path::Path) -> Result<Arc<usvg::fontdb::Database>
     }
     if db.is_empty() {
         return Err(format!("no font faces in {}", font_dir.display()));
+    }
+    let missing: Vec<&str> = REQUIRED_FAMILIES
+        .iter()
+        .copied()
+        .filter(|want| {
+            !db.faces()
+                .any(|f| f.families.iter().any(|(name, _)| name == want))
+        })
+        .collect();
+    if !missing.is_empty() {
+        return Err(format!(
+            "missing font families in {}: {}",
+            font_dir.display(),
+            missing.join(", ")
+        ));
     }
     db.set_sans_serif_family("Manrope");
     Ok(Arc::new(db))
@@ -139,13 +163,22 @@ pub fn slot(raw: &str, max_width: usize) -> String {
     )
 }
 
+/// Raw characters read per slot; the rest is cut before any normalization so
+/// a hostile string cannot make later stages do unbounded work.
+const MAX_RAW_CHARS: usize = 512;
+
 pub fn sanitize(raw: &str) -> String {
-    raw.nfc()
+    raw.chars()
+        .take(MAX_RAW_CHARS)
+        .nfc()
         .filter_map(|c| match c {
             '\t' | '\n' | '\r' => Some(' '),
             '\u{0}'..='\u{1f}' | '\u{7f}'..='\u{9f}' => None,
             '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}' => None,
             '\u{fffe}' | '\u{ffff}' => None,
+            // Zero-width format characters (ZWJ U+200D stays for emoji).
+            '\u{200b}' | '\u{200c}' | '\u{200e}' | '\u{200f}' => None,
+            '\u{2060}'..='\u{2064}' | '\u{feff}' => None,
             c => Some(c),
         })
         .collect::<String>()
@@ -157,7 +190,9 @@ pub fn sanitize(raw: &str) -> String {
 /// Cuts on a grapheme boundary so a slot never exceeds `max_width` columns
 /// (wide CJK counts 2). Adds an ellipsis when it cuts.
 pub fn truncate(text: &str, max_width: usize) -> String {
-    if text.width() <= max_width {
+    // Bound by grapheme count too: zero-width graphemes still cost shaping.
+    let fits = text.graphemes(true).take(max_width + 1).count() <= max_width;
+    if fits && text.width() <= max_width {
         return text.to_string();
     }
     let mut out = String::new();
@@ -327,6 +362,46 @@ mod tests {
     #[test]
     fn cjk_counts_double_width() {
         assert_eq!(truncate("日本語の曲名", 7), "日本語…");
+    }
+
+    #[test]
+    fn font_db_requires_every_brand_and_fallback_family() {
+        let fonts = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fonts");
+        let dir = std::env::temp_dir().join("lucky-render-one-font");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::copy(fonts.join("Manrope.ttf"), dir.join("Manrope.ttf")).unwrap();
+        let err = font_db(&dir).unwrap_err();
+        assert!(
+            err.contains("Bungee") && err.contains("Noto Emoji"),
+            "{err}"
+        );
+        assert!(font_db(&fonts).is_ok());
+    }
+
+    #[test]
+    fn strips_zero_width_format_chars_but_keeps_zwj() {
+        assert_eq!(
+            sanitize("a\u{200b}b\u{200c}c\u{200e}d\u{200f}e\u{2060}f\u{2064}g\u{feff}h"),
+            "abcdefgh"
+        );
+        assert_eq!(sanitize("👩\u{200d}💻"), "👩\u{200d}💻");
+    }
+
+    #[test]
+    fn sanitize_caps_raw_input_before_normalizing() {
+        let long = format!("a{}", "\u{200b}".repeat(200_000));
+        assert_eq!(sanitize(&long), "a");
+        let marks = format!("a{}", "\u{301}".repeat(200_000));
+        assert!(sanitize(&marks).chars().count() <= 512);
+    }
+
+    #[test]
+    fn truncate_bounds_by_grapheme_count_even_when_width_is_zero() {
+        // U+200D joined with nothing has width 0 and does not split graphemes.
+        let text = "a\u{200d}".repeat(100);
+        assert!(truncate(&text, 10).graphemes(true).count() <= 10);
+        let long = "a".repeat(100);
+        assert_eq!(truncate(&long, 10).chars().count(), 10);
     }
 
     fn payload_with_covers(covers: Vec<Option<String>>) -> RecapPayload {

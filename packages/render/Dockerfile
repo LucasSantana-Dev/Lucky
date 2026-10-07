@@ -2,12 +2,14 @@
 #   docker build -t lucky-render:dev packages/render
 # The Rust tag must match rust-toolchain.toml.
 
-FROM alpine:3.22 AS fonts
+# alpine:3.22
+FROM alpine@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8 AS fonts
 RUN apk add --no-cache curl ca-certificates
 COPY scripts/fetch-fonts.sh /fetch-fonts.sh
 RUN sh /fetch-fonts.sh /fonts
 
-FROM rust:1.99.0-alpine AS build
+# rust:1.99.0-alpine (keep in sync with rust-toolchain.toml)
+FROM rust@sha256:0cce0a5e0e8ba67b455257a3a02a1d99005f382748789d6464460028810f1627 AS build
 RUN apk add --no-cache musl-dev
 # Static musl binary. An explicit --target keeps crt-static off the proc macros
 # and build scripts, which must stay dynamic on a musl host.

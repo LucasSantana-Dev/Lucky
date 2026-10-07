@@ -10,6 +10,8 @@ const BUCKETS: [f64; 9] = [0.05, 0.1, 0.2, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0];
 pub enum Outcome {
     Ok,
     BadRequest,
+    /// 503: the waiting room is full or the render slot never freed up.
+    Busy,
     Error,
 }
 
@@ -18,6 +20,7 @@ pub struct Metrics {
     ok: AtomicU64,
     bad_request: AtomicU64,
     error: AtomicU64,
+    busy: AtomicU64,
     covers_dropped: AtomicU64,
     /// Per-bucket (non-cumulative) counts; the last slot is +Inf.
     buckets: [AtomicU64; BUCKETS.len() + 1],
@@ -25,13 +28,18 @@ pub struct Metrics {
 }
 
 impl Metrics {
-    pub fn observe(&self, outcome: Outcome, seconds: f64) {
+    pub fn count(&self, outcome: Outcome) {
         match outcome {
             Outcome::Ok => &self.ok,
             Outcome::BadRequest => &self.bad_request,
+            Outcome::Busy => &self.busy,
             Outcome::Error => &self.error,
         }
         .fetch_add(1, Relaxed);
+    }
+
+    /// Histogram of real renders only (ok and render_failed).
+    pub fn observe_duration(&self, seconds: f64) {
         let slot = BUCKETS
             .iter()
             .position(|&le| seconds <= le)
@@ -52,6 +60,7 @@ impl Metrics {
         for (name, c) in [
             ("ok", &self.ok),
             ("bad_request", &self.bad_request),
+            ("busy", &self.busy),
             ("error", &self.error),
         ] {
             let _ = writeln!(
@@ -60,7 +69,7 @@ impl Metrics {
                 c.load(Relaxed)
             );
         }
-        o.push_str("# HELP lucky_render_duration_seconds Time to handle a render request.\n");
+        o.push_str("# HELP lucky_render_duration_seconds Time spent rendering (ok and failed renders only).\n");
         o.push_str("# TYPE lucky_render_duration_seconds histogram\n");
         let mut cumulative = 0;
         for (i, le) in BUCKETS.iter().enumerate() {
@@ -99,14 +108,16 @@ mod tests {
     #[test]
     fn histogram_buckets_are_cumulative_and_inclusive() {
         let m = Metrics::default();
-        m.observe(Outcome::Ok, 0.05);
-        m.observe(Outcome::Ok, 0.4);
-        m.observe(Outcome::Error, 9.0);
+        m.observe_duration(0.05);
+        m.observe_duration(0.4);
+        m.observe_duration(9.0);
+        m.count(Outcome::Busy);
         let out = m.render();
         assert!(out.contains("_bucket{le=\"0.05\"} 1\n"));
         assert!(out.contains("_bucket{le=\"0.5\"} 2\n"));
         assert!(out.contains("_bucket{le=\"2\"} 2\n"));
         assert!(out.contains("_bucket{le=\"+Inf\"} 3\n"));
         assert!(out.contains("_sum 9.45\n"));
+        assert!(out.contains("requests_total{outcome=\"busy\"} 1\n"));
     }
 }

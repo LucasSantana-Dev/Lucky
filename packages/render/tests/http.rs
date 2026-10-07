@@ -88,8 +88,8 @@ async fn wrong_schema_version_is_422() {
 }
 
 #[tokio::test]
-async fn body_over_3_mb_is_413() {
-    let res = send(&bare_state(), post(vec![b' '; 3 * 1024 * 1024 + 1])).await;
+async fn body_over_2_5_mb_is_413() {
+    let res = send(&bare_state(), post(vec![b' '; 2_621_440 + 1])).await;
     assert_eq!(res.status(), StatusCode::PAYLOAD_TOO_LARGE);
     assert_eq!(text(res).await, r#"{"error":"payload_too_large"}"#);
 }
@@ -142,10 +142,100 @@ async fn metrics_count_outcomes_drops_and_durations() {
         "lucky_render_requests_total{outcome=\"bad_request\"} 1",
         "lucky_render_requests_total{outcome=\"error\"} 0",
         "lucky_render_covers_dropped_total 1",
-        "lucky_render_duration_seconds_bucket{le=\"+Inf\"} 2",
-        "lucky_render_duration_seconds_count 2",
+        "lucky_render_requests_total{outcome=\"busy\"} 0",
+        // The 400 is not a render, so only the ok render is observed.
+        "lucky_render_duration_seconds_bucket{le=\"+Inf\"} 1",
+        "lucky_render_duration_seconds_count 1",
         "# TYPE lucky_render_duration_seconds histogram",
     ] {
         assert!(m.contains(line), "missing {line:?} in:\n{m}");
+    }
+}
+
+type Db = Arc<resvg::usvg::fontdb::Database>;
+
+fn slow(
+    _: &lucky_render::RecapPayload,
+    _: Db,
+) -> Result<lucky_render::Rendered, lucky_render::RenderError> {
+    std::thread::sleep(std::time::Duration::from_millis(400));
+    Ok(lucky_render::Rendered {
+        jpeg: vec![0xff, 0xd8, 0xff],
+        covers_dropped: 0,
+    })
+}
+
+fn empty_db() -> Db {
+    Arc::new(resvg::usvg::fontdb::Database::new())
+}
+
+#[tokio::test]
+async fn fourth_concurrent_request_gets_503_busy_and_is_not_observed() {
+    let state = AppState::with_renderer(empty_db(), slow);
+    let mut tasks = Vec::new();
+    for _ in 0..3 {
+        let s = state.clone();
+        tasks.push(tokio::spawn(
+            async move { send(&s, post(POC)).await.status() },
+        ));
+        tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+    }
+    let res = send(&state, post(POC)).await;
+    assert_eq!(res.status(), StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(text(res).await, r#"{"error":"busy"}"#);
+    for t in tasks {
+        assert_eq!(t.await.unwrap(), StatusCode::OK);
+    }
+    let m = state.metrics.render();
+    assert!(m.contains("requests_total{outcome=\"busy\"} 1"), "{m}");
+    assert!(m.contains("requests_total{outcome=\"ok\"} 3"), "{m}");
+    assert!(m.contains("duration_seconds_count 3"), "{m}");
+}
+
+#[tokio::test]
+async fn metrics_are_recorded_when_the_client_disconnects_mid_render() {
+    let state = AppState::with_renderer(empty_db(), slow);
+    let dropped = tokio::time::timeout(
+        std::time::Duration::from_millis(50),
+        send(&state, post(POC)),
+    )
+    .await;
+    assert!(dropped.is_err(), "request should still be running");
+    tokio::time::sleep(std::time::Duration::from_millis(900)).await;
+    let m = state.metrics.render();
+    assert!(m.contains("requests_total{outcome=\"ok\"} 1"), "{m}");
+    assert!(m.contains("duration_seconds_count 1"), "{m}");
+}
+
+static STUCK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[tokio::test]
+async fn watchdog_fires_when_a_render_exceeds_its_budget() {
+    let state = AppState::with_renderer_and_watchdog(
+        empty_db(),
+        slow,
+        std::time::Duration::from_millis(50),
+        || STUCK.store(true, std::sync::atomic::Ordering::SeqCst),
+    );
+    let _ = send(&state, post(POC)).await;
+    assert!(STUCK.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+#[tokio::test]
+async fn zero_width_and_combining_floods_render_fast_with_bounded_svg() {
+    let state = AppState::new(fonts());
+    for flood in ["\u{200b}", "\u{301}"] {
+        let title = format!("a{}", flood.repeat(200_000));
+        let mut v: serde_json::Value = serde_json::from_str(POC).unwrap();
+        v["topTracks"][0]["title"] = title.into();
+        let started = std::time::Instant::now();
+        let res = send(&state, post(v.to_string())).await;
+        assert_eq!(res.status(), StatusCode::OK);
+        // Was 48.9 s before the fix; debug builds are slower than release,
+        // so the bound is loose but still catches a regression.
+        assert!(started.elapsed() < std::time::Duration::from_secs(5));
+        let payload: lucky_render::RecapPayload = serde_json::from_value(v).unwrap();
+        let svg = lucky_render::build_svg(&payload);
+        assert!(svg.len() < 100_000, "svg grew to {} bytes", svg.len());
     }
 }
