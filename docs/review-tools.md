@@ -7,23 +7,22 @@ what it doesn't, and how to interpret silence.
 
 ## Active stack (currently enforced)
 
-| Tool                    | Type           | What it covers                                                           | Cost                       | Rate limit    |
-| ----------------------- | -------------- | ------------------------------------------------------------------------ | -------------------------- | ------------- |
-| **cubic**               | AI             | Codebase-aware logic review, cross-file intent gaps, low false-positives | Free on public repos       | Generous      |
-| **Claude review**       | AI             | Self-owned reviewer for substantive concerns                             | Anthropic API (~$0.10/PR)  | Pay-as-you-go |
-| **PR-Agent** (Qodo OSS) | AI             | Inline diff comments, auto-describe/improve                              | Anthropic API (negligible) | None          |
-| **SonarCloud**          | SAST + metrics | Quality gate, security hotspots, code smells                             | Free for public repos      | Generous      |
-| **GitGuardian**         | Secret scan    | Leaked credentials                                                       | Free for OSS               | Generous      |
-| **Socket**              | Supply-chain   | Dependency typosquatting, malware                                        | Free                       | Per-PR        |
-| **TruffleHog**          | Secret scan    | Git history secrets                                                      | Free                       | Generous      |
-| **Danger**              | Deterministic  | PR convention rules (lockfile, console.log, …)                           | Free, OSS                  | None          |
+| Tool              | Type           | What it covers                                                           | Cost                  | Rate limit  |
+| ----------------- | -------------- | ------------------------------------------------------------------------ | --------------------- | ----------- |
+| **cubic**         | AI             | Codebase-aware logic review, cross-file intent gaps, low false-positives | Free on public repos  | Generous    |
+| **Claude review** | AI             | Self-owned reviewer for substantive concerns (`claude-review.yml`)       | Claude subscription   | Plan limits |
+| **SonarCloud**    | SAST + metrics | Quality gate, security hotspots, code smells                             | Free for public repos | Generous    |
+| **GitGuardian**   | Secret scan    | Leaked credentials                                                       | Free for OSS          | Generous    |
+| **Socket**        | Supply-chain   | Dependency typosquatting, malware                                        | Free                  | Per-PR      |
+| **TruffleHog**    | Secret scan    | Git history secrets                                                      | Free                  | Generous    |
+| **Danger**        | Deterministic  | PR convention rules (lockfile, console.log, …)                           | Free, OSS             | None        |
 
 ## Retired / not gating
 
-| Tool           | Status                                                                                                                                                                                              |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **CodeRabbit** | Retired 2026-06-04 (paid). Replaced by cubic (free on public repos) + the existing PR-Agent/Claude-review AI angles. See ADR `2026-05-21-replace-plan-limited-review-tools.md` (Update 2026-06-04). |
-| **Greptile**   | Trial cap reached (50 reviews/lifetime). Posts may still appear but **do not gate merges**. Use cubic / Claude review for the same coverage.                                                        |
+| Tool           | Status                                                                                                                                                                           |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CodeRabbit** | Retired 2026-06-04 (paid). Replaced by cubic (free on public repos) + the Claude review AI angle. See ADR `2026-05-21-replace-plan-limited-review-tools.md` (Update 2026-06-04). |
+| **Greptile**   | Trial cap reached (50 reviews/lifetime). Posts may still appear but **do not gate merges**. Use cubic / Claude review for the same coverage.                                     |
 
 ## Why we replaced Greptile + tightened CodeRabbit (2026-05-10)
 
@@ -59,13 +58,17 @@ A PR is merge-eligible when ALL hold:
 - ✅ Required CI green
 - ✅ SonarCloud Quality Gate `passed`
 - ✅ cubic has no unresolved high-severity findings
-- ✅ Claude review / PR-Agent approved or no substantive concerns posted
+- ✅ Claude review (if requested with `/claude-review`) posted no unresolved substantive concerns
 - ✅ Danger has no `fail()` outputs (warnings are fine)
 - ✅ GitGuardian / Socket / TruffleHog clean
 
 cubic is low-false-positive by design and does not gate on style nits.
-Three independent AI angles run per PR (cubic + Claude review + PR-Agent), so
-no single reviewer being quiet causes a silent gate-bailout.
+cubic reviews every PR automatically. Claude review is **on demand only**
+(PR-Agent was retired 2026-10-07): comment `/claude-review` on the PR (write
+access required), max 3 runs per PR, to save subscription usage. It refuses fork
+and bot-authored PRs, and its job fails (never green) when it did not post a
+`Claude review:` summary, when the 3-run limit is reached, or when the PR is a
+draft. A PR without a `/claude-review` comment has had no Claude review.
 
 ## Tools considered and skipped
 

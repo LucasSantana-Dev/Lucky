@@ -224,6 +224,35 @@ function isKnownReactionRoleValidationError(message: string): boolean {
     )
 }
 
+// Maps role-management service errors to responses. Only the errors the role
+// service throws on purpose keep their text; anything else (Prisma, network,
+// bugs) is logged and answered with a generic 500 so internal text never
+// reaches the client (#2629). discord.js errors (bot in guild) are matched by
+// name because the backend does not depend on discord.js directly.
+function toRoleManageError(
+    error: unknown,
+    action: string,
+    data: Record<string, unknown>,
+): AppError {
+    if (error instanceof AppError) return error
+    const message = error instanceof Error ? error.message : ''
+    if (message === 'Role not found') return AppError.notFound(message)
+    if (message === 'Invalid Discord guild id') {
+        return AppError.badRequest(message)
+    }
+    if (
+        message.startsWith('Discord API error') ||
+        message === 'No bot token available'
+    ) {
+        return AppError.badGateway(message)
+    }
+    if (error instanceof Error && error.name.startsWith('DiscordAPIError')) {
+        return AppError.badGateway(`Discord API error: ${message}`)
+    }
+    errorLog({ message: `Failed to ${action}`, error, data })
+    return new AppError(500, `Failed to ${action}`)
+}
+
 export function setupRolesRoutes(app: Express): void {
     // Guarded by the `/reaction-roles` prefix (automation) in
     // routes/index.ts, no separate module check here (#2409).
@@ -469,17 +498,7 @@ export function setupRolesRoutes(app: Express): void {
                 const role = await guildService.createGuildRole(guildId, data)
                 res.status(201).json({ role })
             } catch (error) {
-                const message =
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to create role'
-                if (
-                    message.startsWith('Discord API error') ||
-                    message === 'No bot token available'
-                ) {
-                    throw AppError.badGateway(message)
-                }
-                throw AppError.badRequest(message)
+                throw toRoleManageError(error, 'create role', { guildId })
             }
         }),
     )
@@ -517,20 +536,10 @@ export function setupRolesRoutes(app: Express): void {
                 )
                 res.json({ role })
             } catch (error) {
-                const message =
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to update role'
-                if (message === 'Role not found') {
-                    throw AppError.notFound('Role not found')
-                }
-                if (
-                    message.startsWith('Discord API error') ||
-                    message === 'No bot token available'
-                ) {
-                    throw AppError.badGateway(message)
-                }
-                throw AppError.badRequest(message)
+                throw toRoleManageError(error, 'update role', {
+                    guildId,
+                    roleId,
+                })
             }
         }),
     )
@@ -557,20 +566,10 @@ export function setupRolesRoutes(app: Express): void {
                 await guildService.deleteGuildRole(guildId, roleId)
                 res.json({ success: true })
             } catch (error) {
-                const message =
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to delete role'
-                if (message === 'Role not found') {
-                    throw AppError.notFound(message)
-                }
-                if (
-                    message.startsWith('Discord API error') ||
-                    message === 'No bot token available'
-                ) {
-                    throw AppError.badGateway(message)
-                }
-                throw AppError.badRequest(message)
+                throw toRoleManageError(error, 'delete role', {
+                    guildId,
+                    roleId,
+                })
             }
         }),
     )
@@ -614,14 +613,10 @@ export function setupRolesRoutes(app: Express): void {
 
                 res.status(201).json({ role: duplicatedRole })
             } catch (error) {
-                if (error instanceof AppError) {
-                    throw error
-                }
-                const message =
-                    error instanceof Error
-                        ? error.message
-                        : 'Failed to duplicate role'
-                throw AppError.badRequest(message)
+                throw toRoleManageError(error, 'duplicate role', {
+                    guildId,
+                    roleId,
+                })
             }
         }),
     )

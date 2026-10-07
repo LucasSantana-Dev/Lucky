@@ -6,6 +6,8 @@
   synthesis), operator decisions (bounded test, $50 budget)
 - Amends: `2026-05-23-lucky-oss-positioning.md` (the product pitch only; its repo-governance
   decisions stand)
+- Amended by: `2026-10-07-pitch-leads-with-weekly-recap.md` (decision 1: the positioning
+  check fired, so the pitch now leads with the weekly recap)
 
 ## Context
 

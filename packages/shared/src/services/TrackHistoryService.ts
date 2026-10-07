@@ -26,6 +26,10 @@ export interface TrackHistoryInput {
      * can be queried instead of guessed from the title alone. */
     requestedQuery?: string
     metadata?: { isAutoplay?: boolean }
+    /** True when the play ended by a skip rather than playing out. */
+    skipped?: boolean
+    /** Seconds actually played, when the play start time is known. */
+    playDuration?: number
 }
 
 /** Statistics for guild track playback history. */
@@ -62,21 +66,22 @@ function inferSource(url: string): string {
 /**
  * Manages guild track playback history in Postgres (via Prisma).
  *
- * History is capped per guild to the most-recent `maxHistorySize` rows (trimmed
- * on write) and expires after `ttl` seconds, applied lazily on read (rows older
- * than the cutoff are filtered out). A `cleanupOldData()` sweep is available for
- * housekeeping. The short-lived "recently played" marker used for duplicate
- * detection is kept in-memory (ephemeral — rebuilt after a restart by design).
+ * Most reads expire after `ttl` seconds, applied lazily (rows older than the
+ * cutoff are filtered out), and read helpers take their own row limits; the
+ * exception is `getReplayFrequentTracks`, which counts a fixed 30-day window.
+ * Rows are not trimmed per guild: retention is the scheduled 30-day
+ * `DatabaseService.cleanupOldData` sweep, so a whole week stays readable for
+ * the weekly recap (`weeklyRecap.ts`, #2678). The short-lived "recently
+ * played" marker used for duplicate detection is kept in-memory (ephemeral,
+ * rebuilt after a restart by design).
  */
 export class TrackHistoryService {
     private readonly ttlSeconds: number
-    private readonly maxHistorySize: number
     /** Ephemeral per-(guild,url) recently-played markers → expiry epoch ms. */
     private readonly recentlyPlayed = new Map<string, number>()
 
-    constructor(ttl = 7 * 24 * 60 * 60, maxHistorySize = 100) {
+    constructor(ttl = 7 * 24 * 60 * 60) {
         this.ttlSeconds = ttl
-        this.maxHistorySize = maxHistorySize
     }
 
     /** Cutoff `Date` for TTL-based lazy expiry. */
@@ -117,11 +122,11 @@ export class TrackHistoryService {
                     url: track.url,
                     source: inferSource(track.url),
                     playedBy,
+                    playDuration: track.playDuration,
+                    skipped: track.skipped ?? false,
                     isAutoplay: Boolean(track.metadata?.isAutoplay ?? false),
                 },
             })
-
-            await this.trimToMaxSize(guildId)
 
             infoLog({
                 message: `Added track to history: ${track.title} in guild ${guildId}`,
@@ -133,22 +138,6 @@ export class TrackHistoryService {
         } catch (error) {
             errorLog({ message: 'Failed to add track to history', error })
             return false
-        }
-    }
-
-    /** Trims a guild's history to the most-recent `maxHistorySize` rows. */
-    private async trimToMaxSize(guildId: string): Promise<void> {
-        const prisma = getPrismaClient()
-        const overflow = await prisma.trackHistory.findMany({
-            where: { guildId },
-            orderBy: { playedAt: 'desc' },
-            skip: this.maxHistorySize,
-            select: { id: true },
-        })
-        if (overflow.length > 0) {
-            await prisma.trackHistory.deleteMany({
-                where: { id: { in: overflow.map((r) => r.id) } },
-            })
         }
     }
 
@@ -336,20 +325,6 @@ export class TrackHistoryService {
         return 0
     }
 
-    /** Deletes history rows older than the TTL across all guilds; returns count. */
-    async cleanupOldData(): Promise<number> {
-        try {
-            const prisma = getPrismaClient()
-            const result = await prisma.trackHistory.deleteMany({
-                where: { playedAt: { lt: this.cutoff() } },
-            })
-            return result.count
-        } catch (error) {
-            errorLog({ message: 'Failed to clean up old track history', error })
-            return 0
-        }
-    }
-
     /** Marks a track as recently played (ephemeral, in-memory) for dedup. */
     markTrackAsPlayed(guildId: string, trackUrl: string): Promise<void> {
         const now = Date.now()
@@ -396,39 +371,45 @@ export class TrackHistoryService {
                 Date.now() - 30 * 24 * 60 * 60 * 1000,
             )
 
-            const rows = await prisma.trackHistory.findMany({
-                where: {
-                    guildId,
-                    playedAt: { gte: thirtyDaysAgo },
-                },
-                orderBy: { playedAt: 'desc' },
-                take: 10000,
-                select: { trackId: true, author: true },
-            })
+            // Skipped plays are not replays: they must not earn a boost.
+            const where = {
+                guildId,
+                playedAt: { gte: thirtyDaysAgo },
+                skipped: false,
+            }
 
-            // Count occurrences and filter to replayCount > 2.
-            const trackCounts = new Map<string, number>()
+            // Counted in SQL: history is no longer trimmed per guild (#2678),
+            // so a row cap here would silently drop older plays.
+            const [trackGroups, artistGroups] = await Promise.all([
+                prisma.trackHistory.groupBy({
+                    by: ['trackId'],
+                    where,
+                    _count: { _all: true },
+                }),
+                prisma.trackHistory.groupBy({
+                    by: ['author'],
+                    where,
+                    _count: { _all: true },
+                }),
+            ])
+
+            // Keep only replayCount > 2.
+            const trackIds = new Set(
+                trackGroups
+                    .filter((g) => g._count._all > 2)
+                    .map((g) => g.trackId),
+            )
+
+            // Artist spellings are normalized after grouping, so sum them here.
             const artistCounts = new Map<string, number>()
-
-            for (const row of rows) {
-                trackCounts.set(
-                    row.trackId,
-                    (trackCounts.get(row.trackId) ?? 0) + 1,
-                )
-                const normalizedArtist = row.author.toLowerCase().trim()
+            for (const g of artistGroups) {
+                const normalizedArtist = g.author.toLowerCase().trim()
                 artistCounts.set(
                     normalizedArtist,
-                    (artistCounts.get(normalizedArtist) ?? 0) + 1,
+                    (artistCounts.get(normalizedArtist) ?? 0) + g._count._all,
                 )
             }
-
-            const trackIds = new Set<string>()
             const artists = new Set<string>()
-
-            for (const [trackId, count] of trackCounts.entries()) {
-                if (count > 2) trackIds.add(trackId)
-            }
-
             for (const [artist, count] of artistCounts.entries()) {
                 if (count > 2) artists.add(artist)
             }

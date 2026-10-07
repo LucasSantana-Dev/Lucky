@@ -75,6 +75,24 @@
             "title": "📄 Music Queue",
             "errorTitle": "❌ Queue Error",
             "fallbackProbe": "English only, on purpose"
+        },
+        "recap": {
+            "title": "Your server's week in music",
+            "period": "{{from}} to {{to}} (UTC)",
+            "playsName": "Plays",
+            "playsValue": "{{plays}} tracks · {{skips}} skipped",
+            "listenedName": "Time listened",
+            "autoplayName": "Autoplay",
+            "autoplayValue": "{{percent}}% of the tracks",
+            "topTracksName": "Top tracks",
+            "topArtistsName": "Top artists",
+            "enabled": "📅 The weekly recap will post in <#{{channel}}> every Sunday at 18:00 UTC.",
+            "disabled": "🔕 Weekly recap turned off.",
+            "alreadyOff": "The weekly recap is already off.",
+            "notTextChannel": "❌ Pick a text channel for the recap.",
+            "missingPermissions": "❌ I can't post in <#{{channel}}>. I need View Channel, Send Messages and Embed Links there.",
+            "failed": "❌ Couldn't update the weekly recap. Try again in a moment.",
+            "needManageGuild": "You need the **Manage Server** permission to configure the weekly recap."
         }
     }
 }

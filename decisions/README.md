@@ -3,11 +3,12 @@
 142 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
-## Accepted (134)
+## Accepted (135)
 
+- [2026-10-07 - The pitch leads with the weekly recap; thumbs feedback moves onto the now-playing message](2026-10-07-pitch-leads-with-weekly-recap.md) - _Accepted (amends the pitch of `2026-09-27-music-first-positioning.md`)_
 - [2026-10-01 - Batch merged work into fewer releases; the frontend ships with the release](2026-10-01-batched-releases.md) - _Accepted (supersedes the human ship-checkpoint of `2026-06-16-release-cadence-automate-releases.md`)_
 - [2026-10-01 - Discord blurple is the focus color only; pink is the single brand accent](2026-10-01-blurple-focus-only.md) - _Accepted (supersedes the dual accent of `2026-04-21-redesign-port-target.md`)_
-- [2026-09-27 - Lucky as a taste-learning music bot: one bounded 12-week test, decided 2026-12-20](2026-09-27-music-first-positioning.md)
+- [2026-09-27 - Lucky as a taste-learning music bot: one bounded 12-week test, decided 2026-12-20](2026-09-27-music-first-positioning.md) - _Accepted (pitch amended by `2026-10-07-pitch-leads-with-weekly-recap.md`)_
 - [2026-09-26 - Lucky owns its observability stack as code, portable to any host](2026-09-26-lucky-owned-observability-stack.md)
 - [2026-09-05 - Skip-reason feedback UX redesign: deferred](2026-09-05-skip-feedback-redesign-deferred.md) - _Accepted (defer)_
 - [2026-09-03 - Audit gate takes a second npm audit read before passing](2026-09-03-audit-gate-double-read.md)
