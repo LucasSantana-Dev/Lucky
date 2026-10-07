@@ -283,6 +283,8 @@ services:
             context: ./packages/render
             dockerfile: Dockerfile
         container_name: lucky-render
+        # SIGTERM: up to 15 s for in-flight requests, then a 10 s render drain.
+        stop_grace_period: 30s
         mem_limit: 128m
         cpus: 0.5
         restart: unless-stopped
