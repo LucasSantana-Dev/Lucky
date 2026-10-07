@@ -8,6 +8,7 @@ import type ContextMenuCommand from '../../models/ContextMenuCommand'
 import { startPresenceRotation } from './presence'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
+import { recapScheduler } from '../../services/recap/recapScheduler'
 import { reminderScheduler } from '../../utils/general/reminderScheduler'
 import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
@@ -156,6 +157,15 @@ export async function startClient({
             } catch (error) {
                 errorLog({
                     message: 'Failed to start birthday scheduler',
+                    error,
+                })
+            }
+
+            try {
+                recapScheduler.start(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to start recap scheduler',
                     error,
                 })
             }
