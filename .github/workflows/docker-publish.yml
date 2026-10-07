@@ -42,7 +42,6 @@ jobs:
             security-events: write
 
         strategy:
-            fail-fast: false
             matrix:
                 include:
                     - service: bot

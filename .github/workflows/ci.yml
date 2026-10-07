@@ -460,7 +460,7 @@ jobs:
                   #     ANY image is built, so they force a rebuild of all five.
                   # THIRD copy of this list: keep in sync with
                   # docker-publish.yml's push.paths and deploy.yml's
-                  # docker_path_pattern (those still build all four
+                  # docker_path_pattern (those still build all five
                   # unconditionally on push to main; only this per-PR/
                   # merge_group matrix is now selective).
                   if [ "$EVENT" = "pull_request" ] || [ "$EVENT" = "merge_group" ]; then
@@ -541,14 +541,36 @@ jobs:
               with:
                   manifest-path: packages/render/Cargo.toml
                   command-arguments: bans licenses sources
-            # Advisories fetch the RustSec db over the network; a flake there
-            # must not fail the job that feeds the required Quality Gates.
-            - name: cargo deny (advisories)
+            # RustSec db: fetch with up to 3 attempts (a network outage is
+            # retried), then check with fetching disabled so a real advisory
+            # finding fails the job. The action runs in a container whose
+            # HOME persists across steps, so the fetched db is reused.
+            - name: cargo deny fetch (attempt 1)
+              id: deny-fetch-1
               continue-on-error: true
               uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
               with:
                   manifest-path: packages/render/Cargo.toml
-                  command-arguments: advisories
+                  command: fetch
+            - name: cargo deny fetch (attempt 2)
+              id: deny-fetch-2
+              if: steps.deny-fetch-1.outcome == 'failure'
+              continue-on-error: true
+              uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+              with:
+                  manifest-path: packages/render/Cargo.toml
+                  command: fetch
+            - name: cargo deny fetch (attempt 3)
+              if: steps.deny-fetch-1.outcome == 'failure' && steps.deny-fetch-2.outcome == 'failure'
+              uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+              with:
+                  manifest-path: packages/render/Cargo.toml
+                  command: fetch
+            - name: cargo deny (advisories)
+              uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+              with:
+                  manifest-path: packages/render/Cargo.toml
+                  command-arguments: --disable-fetch advisories
 
     docker-build:
         name: Build — ${{ matrix.service }}
@@ -693,7 +715,9 @@ jobs:
               run: |
                   c=lucky-render-smoke
                   trap 'docker rm -f "$c" >/dev/null 2>&1 || true' EXIT
-                  docker run -d --name "$c" --cpus 0.5 --memory 128m -p 127.0.0.1:18080:8080 lucky-render:ci
+                  docker run -d --name "$c" --cpus 0.5 --memory 128m \
+                      --read-only --cap-drop ALL --security-opt no-new-privileges:true --pids-limit 64 \
+                      -p 127.0.0.1:18080:8080 lucky-render:ci
                   ok=false
                   for _ in $(seq 1 30); do
                       if docker exec "$c" /usr/local/bin/lucky-render healthcheck; then ok=true; break; fi

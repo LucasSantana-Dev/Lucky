@@ -414,6 +414,23 @@ run_health_checks() {
         return 1
     fi
 
+    # render ships a container healthcheck; running is not enough. Skipped on
+    # the optional (render image unavailable) rollback/pinned paths.
+    if [[ "${ROLLBACK_SKIP_RENDER:-0}" != "1" ]]; then
+        local render_container="${COMPOSE_PROJECT_NAME}-render" render_health="" waited=0
+        while (( waited < 60 )); do
+            render_health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$render_container" 2>/dev/null || true)
+            [[ "$render_health" == "healthy" ]] && break
+            sleep 5
+            waited=$((waited + 5))
+        done
+        if [[ "$render_health" != "healthy" ]]; then
+            print_targeted_logs
+            log "HEALTH: render did not become healthy (status='${render_health:-none}')"
+            return 1
+        fi
+    fi
+
     if ! wait_for_http_ready \
         "API health" \
         "http://nginx:8080/api/health" \
@@ -509,6 +526,7 @@ attempt_rollback() {
     local rollback_services="bot backend frontend nginx"
     if docker_compose pull render; then
         rollback_services="$rollback_services render"
+        unset ROLLBACK_SKIP_RENDER
     else
         log "ROLLBACK WARN: could not pull render image for ${IMAGE_TAG}; leaving running render container untouched"
         export ROLLBACK_SKIP_RENDER=1
@@ -649,6 +667,7 @@ fi
 if [[ -n "$DEPLOY_SHA" ]]; then
     if docker_compose pull render; then
         _app_services="$_app_services render"
+        unset ROLLBACK_SKIP_RENDER
     else
         log "WARN: could not pull render image for ${IMAGE_TAG}; leaving running render container untouched"
         export ROLLBACK_SKIP_RENDER=1
