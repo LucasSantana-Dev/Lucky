@@ -1,4 +1,5 @@
 import { isIP } from 'node:net'
+import { mediaType, readCappedBody } from './recapHttp'
 
 /** Hard cap per cover, matching the renderer's own limit (64 KB decoded). */
 export const COVER_MAX_BYTES = 64 * 1024
@@ -20,10 +21,19 @@ const COVER_HOST_SUFFIXES = ['.mzstatic.com']
 const YOUTUBE_HOSTS = new Set(['i.ytimg.com', 'img.youtube.com'])
 const YOUTUBE_THUMB_PATH = /^\/vi(?:_webp)?\/([\w-]{6,20})\/[^/]+$/
 
-// Zero-width, bidi marks, word joiner and invisible operators, BOM, Arabic
-// letter mark, combining grapheme joiner, then C0/C1 controls.
-// eslint-disable-next-line no-control-regex
-const INVISIBLE = /[​-‏⁠-⁤﻿؜͏\u0000-\u001F\u007F-\u009F]/g
+// Stripped from card text: zero-width and bidi marks (200B-200F), bidi
+// embeddings/overrides (202A-202E), word joiner and invisible operators
+// (2060-2064), bidi isolates (2066-2069), BOM, Arabic letter mark, combining
+// grapheme joiner, and C0/C1 controls. Written as escapes in a string so no
+// invisible character lives in the source.
+/* eslint-disable no-control-regex, no-misleading-character-class */
+const INVISIBLE = new RegExp(
+    '[\\u200B-\\u200F\\u202A-\\u202E\\u2060-\\u2064\\u2066-\\u2069\\uFEFF\\u061C\\u034F\\u0000-\\u001F\\u007F-\\u009F]',
+    'g',
+)
+/* eslint-enable no-control-regex, no-misleading-character-class */
+const LONE_SURROGATE =
+    /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g
 
 /**
  * Track metadata is untrusted and goes into an image. The renderer sanitizes
@@ -34,7 +44,9 @@ export function sanitizeCardText(
     text: string,
     max = TEXT_MAX_CODE_POINTS,
 ): string {
-    return Array.from(text.replace(INVISIBLE, '')).slice(0, max).join('')
+    return Array.from(text.replace(LONE_SURROGATE, '').replace(INVISIBLE, ''))
+        .slice(0, max)
+        .join('')
 }
 
 /**
@@ -71,30 +83,11 @@ export function resolveCoverUrl(raw: string | null | undefined): URL | null {
     return url
 }
 
-async function readCapped(
-    response: Response,
-    maxBytes: number,
-): Promise<Buffer | null> {
-    const declared = Number(response.headers.get('content-length'))
-    if (Number.isFinite(declared) && declared > maxBytes) {
-        await response.body?.cancel().catch(() => undefined)
-        return null
-    }
-    const reader = response.body?.getReader()
-    if (!reader) return null
-    const chunks: Uint8Array[] = []
-    let total = 0
-    for (;;) {
-        const { done, value } = await reader.read()
-        if (done) break
-        total += value.byteLength
-        if (total > maxBytes) {
-            await reader.cancel().catch(() => undefined)
-            return null
-        }
-        chunks.push(value)
-    }
-    return Buffer.concat(chunks)
+const JPEG_MAGIC = [0xff, 0xd8, 0xff]
+const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+
+function startsWith(bytes: Buffer, magic: number[]): boolean {
+    return magic.every((b, i) => bytes[i] === b)
 }
 
 type FetchCoverOptions = {
@@ -120,13 +113,17 @@ export async function fetchCover(
             signal,
         })
         if (!response.ok) return null
-        const type = (response.headers.get('content-type') ?? '')
-            .split(';')[0]
-            .trim()
-            .toLowerCase()
+        const type = mediaType(response)
         if (type !== 'image/jpeg' && type !== 'image/png') return null
-        const bytes = await readCapped(response, COVER_MAX_BYTES)
-        return bytes && bytes.length > 0 ? bytes.toString('base64') : null
+        const bytes = await readCappedBody(response, COVER_MAX_BYTES)
+        // The content-type header is the CDN's word; the bytes must agree.
+        if (
+            !bytes ||
+            !(startsWith(bytes, JPEG_MAGIC) || startsWith(bytes, PNG_MAGIC))
+        ) {
+            return null
+        }
+        return bytes.toString('base64')
     } catch {
         return null
     }

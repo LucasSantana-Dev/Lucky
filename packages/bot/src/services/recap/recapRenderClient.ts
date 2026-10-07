@@ -1,3 +1,5 @@
+import { mediaType, readCappedBody } from './recapHttp'
+
 const DEFAULT_RENDER_URL = 'http://render:8080'
 const RENDER_TIMEOUT_MS = 2000
 /** A 1200x1440 JPEG is well under this; anything larger is not our card. */
@@ -20,32 +22,13 @@ function renderBaseUrl(): string {
     return (raw || DEFAULT_RENDER_URL).replace(/\/+$/, '')
 }
 
+function hasJpegSoi(bytes: Buffer): boolean {
+    return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+}
+
 function isTimeout(error: unknown): boolean {
     const name = (error as { name?: unknown } | null)?.name
     return name === 'TimeoutError' || name === 'AbortError'
-}
-
-async function readCapped(response: Response): Promise<Buffer | null> {
-    const declared = Number(response.headers.get('content-length'))
-    if (Number.isFinite(declared) && declared > RENDER_MAX_RESPONSE_BYTES) {
-        await response.body?.cancel().catch(() => undefined)
-        return null
-    }
-    const reader = response.body?.getReader()
-    if (!reader) return null
-    const chunks: Uint8Array[] = []
-    let total = 0
-    for (;;) {
-        const { done, value } = await reader.read()
-        if (done) break
-        total += value.byteLength
-        if (total > RENDER_MAX_RESPONSE_BYTES) {
-            await reader.cancel().catch(() => undefined)
-            return null
-        }
-        chunks.push(value)
-    }
-    return Buffer.concat(chunks)
 }
 
 /** POSTs a recap card payload to the lucky-render sidecar; never throws. */
@@ -71,17 +54,14 @@ export async function requestRecapCard(
             await response.body?.cancel().catch(() => undefined)
             return { ok: false, reason: 'http_error' }
         }
-        const type = (response.headers.get('content-type') ?? '')
-            .split(';')[0]
-            .trim()
-            .toLowerCase()
+        const type = mediaType(response)
         if (type !== 'image/jpeg') {
             await response.body?.cancel().catch(() => undefined)
             return { ok: false, reason: 'bad_response' }
         }
-        const jpeg = await readCapped(response)
+        const jpeg = await readCappedBody(response, RENDER_MAX_RESPONSE_BYTES)
         // JPEG files start with the SOI marker FF D8 FF.
-        if (!jpeg || jpeg.length < 3 || jpeg[0] !== 0xff || jpeg[1] !== 0xd8) {
+        if (!jpeg || !hasJpegSoi(jpeg)) {
             return { ok: false, reason: 'bad_response' }
         }
         return { ok: true, jpeg }

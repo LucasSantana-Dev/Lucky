@@ -1,6 +1,6 @@
 import { getRecapCardTracks } from '@lucky/shared/services'
 import type { RecapPayload } from '@lucky/shared/services'
-import { warnLog } from '@lucky/shared/utils'
+import { debugLog, warnLog } from '@lucky/shared/utils'
 import { fetchCovers, sanitizeCardText } from './recapCovers'
 import { requestRecapCard, type RenderResult } from './recapRenderClient'
 
@@ -66,6 +66,14 @@ export async function buildRecapCardPayload(
         tracks.map((t) => t.thumbnail),
         { fetch: deps.fetch },
     )
+
+    // Counts only: no URLs or titles in logs.
+    const wanted = tracks.filter((t) => t.thumbnail).length
+    const got = covers.filter(Boolean).length
+    debugLog({
+        message: 'recap card: covers fetched',
+        data: { guildId: recap.guildId, wanted, got, dropped: wanted - got },
+    })
 
     return {
         schemaVersion: 1,

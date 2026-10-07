@@ -148,6 +148,20 @@ describe('requestRecapCard', () => {
         )
     })
 
+    it('rejects bytes with only a partial SOI marker', async () => {
+        const fetchFn = jest
+            .fn<AnyFn>()
+            .mockResolvedValue(
+                jpegResponse(Uint8Array.from([0xff, 0xd8, 0x00, 1])),
+            )
+        expect(await requestRecapCard({}, { fetch: asFetch(fetchFn) })).toEqual(
+            {
+                ok: false,
+                reason: 'bad_response',
+            },
+        )
+    })
+
     it('rejects an empty body', async () => {
         const fetchFn = jest
             .fn<AnyFn>()
@@ -171,13 +185,11 @@ describe('requestRecapCard', () => {
             reason: 'bad_response',
         })
 
-        const declared = jest
-            .fn<AnyFn>()
-            .mockResolvedValue(
-                jpegResponse(JPEG, {
-                    'content-length': String(RENDER_MAX_RESPONSE_BYTES + 1),
-                }),
-            )
+        const declared = jest.fn<AnyFn>().mockResolvedValue(
+            jpegResponse(JPEG, {
+                'content-length': String(RENDER_MAX_RESPONSE_BYTES + 1),
+            }),
+        )
         expect(
             await requestRecapCard({}, { fetch: asFetch(declared) }),
         ).toEqual({

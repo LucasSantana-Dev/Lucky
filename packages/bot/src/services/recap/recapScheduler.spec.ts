@@ -401,6 +401,93 @@ describe('RecapScheduler (#2678)', () => {
             expect(disableRecapMock).not.toHaveBeenCalled()
         })
 
+        it('retries as text when Attach Files was revoked mid-send, keeping the opt-in', async () => {
+            getWeeklyRecapMock.mockResolvedValue(recap(12))
+            const { client, send } = makeClient('text', { perms: ATTACH_PERMS })
+            send.mockRejectedValueOnce({ code: 50013 })
+
+            await runTick(client)
+
+            expect(send).toHaveBeenCalledTimes(2)
+            expect(send.mock.calls[0][0].files).toHaveLength(1)
+            textOnly(send.mock.calls[1][0])
+            expect(fallbackLabelsMock).toHaveBeenCalledWith(
+                'no_attach_permission',
+            )
+            expect(fallbackIncMock).toHaveBeenCalledTimes(1)
+            expect(disableRecapMock).not.toHaveBeenCalled()
+            expect(releaseRecapWeekMock).not.toHaveBeenCalled()
+        })
+
+        it('clears the channel when the text retry is refused too', async () => {
+            getWeeklyRecapMock.mockResolvedValue(recap(12))
+            const { client, send } = makeClient('text', { perms: ATTACH_PERMS })
+            send.mockRejectedValue({ code: 50013 })
+
+            await runTick(client)
+
+            expect(send).toHaveBeenCalledTimes(2)
+            expect(disableRecapMock).toHaveBeenCalledWith('g-1', 'c-1')
+            expect(releaseRecapWeekMock).not.toHaveBeenCalled()
+        })
+
+        it('releases the week when the text retry fails transiently', async () => {
+            getWeeklyRecapMock.mockResolvedValue(recap(12))
+            const { client, send } = makeClient('text', { perms: ATTACH_PERMS })
+            send.mockRejectedValueOnce({ code: 50013 }).mockRejectedValueOnce(
+                new Error('discord down'),
+            )
+
+            await runTick(client)
+
+            expect(releaseRecapWeekMock).toHaveBeenCalledWith('g-1', NOW)
+            expect(disableRecapMock).not.toHaveBeenCalled()
+        })
+
+        it('does not retry a card send that failed for another reason', async () => {
+            getWeeklyRecapMock.mockResolvedValue(recap(12))
+            const { client, send } = makeClient('text', { perms: ATTACH_PERMS })
+            send.mockRejectedValue(new Error('discord down'))
+
+            await runTick(client)
+
+            expect(send).toHaveBeenCalledTimes(1)
+            expect(fallbackLabelsMock).not.toHaveBeenCalled()
+        })
+
+        it('renders before claiming, so a crash while rendering leaves the week unclaimed', async () => {
+            getWeeklyRecapMock.mockResolvedValue(recap(12))
+            const { client } = makeClient('text', { perms: ATTACH_PERMS })
+
+            await runTick(client)
+
+            expect(
+                renderRecapCardMock.mock.invocationCallOrder[0],
+            ).toBeLessThan(claimRecapWeekMock.mock.invocationCallOrder[0])
+        })
+
+        it('a crash during render never reaches the claim', async () => {
+            getWeeklyRecapMock.mockResolvedValue(recap(12))
+            renderRecapCardMock.mockRejectedValue(new Error('boom'))
+            const { client, send } = makeClient('text', { perms: ATTACH_PERMS })
+
+            await runTick(client)
+
+            expect(claimRecapWeekMock).not.toHaveBeenCalled()
+            expect(send).not.toHaveBeenCalled()
+        })
+
+        it('a lost claim wastes only the render', async () => {
+            getWeeklyRecapMock.mockResolvedValue(recap(12))
+            claimRecapWeekMock.mockResolvedValue(false)
+            const { client, send } = makeClient('text', { perms: ATTACH_PERMS })
+
+            await runTick(client)
+
+            expect(renderRecapCardMock).toHaveBeenCalledTimes(1)
+            expect(send).not.toHaveBeenCalled()
+        })
+
         it('does not render for a quiet week', async () => {
             getWeeklyRecapMock.mockResolvedValue(recap(2))
             const { client } = makeClient('text', { perms: ATTACH_PERMS })

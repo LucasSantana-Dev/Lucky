@@ -168,6 +168,13 @@ export class RecapScheduler extends IntervalScheduler {
 
             const { from, to } = recapWindow(boundary)
             const recap = await getWeeklyRecap(guildId, from, to)
+            // The card is built before the claim: a crash in the slow render
+            // window then leaves the week unclaimed to retry, and a lost claim
+            // only wastes the render. A render failure is never a send failure.
+            const card =
+                recap.plays >= RECAP_MIN_PLAYS
+                    ? await this.renderCard(recap, guildId, target.canAttach)
+                    : null
             // Claimed even when the week is too quiet to post, so it is not
             // re-read every hour; a false claim means /recap changed meanwhile.
             const claimedAt = this.clock()
@@ -193,27 +200,49 @@ export class RecapScheduler extends IntervalScheduler {
             }
 
             const t = await translatorForInteraction({ guildId, guild })
-            const embed = buildRecapEmbed(recap, t)
-            // A render failure is never a send failure: the claim stays and the
-            // text embed goes out as before.
-            const card = await this.renderCard(recap, guildId, target.canAttach)
+            // Built per message: setImage mutates, and the text retry must
+            // not carry the attachment reference.
+            const textOnly = () => ({
+                embeds: [buildRecapEmbed(recap, t)],
+                allowedMentions: { parse: [] },
+            })
             try {
-                await target.channel.send(
-                    card
-                        ? {
-                              embeds: [
-                                  embed.setImage(`attachment://${CARD_FILE}`),
-                              ],
-                              files: [
-                                  new AttachmentBuilder(card, {
-                                      name: CARD_FILE,
-                                      description: t('music.recap.cardAlt'),
-                                  }),
-                              ],
-                              allowedMentions: { parse: [] },
-                          }
-                        : { embeds: [embed], allowedMentions: { parse: [] } },
-                )
+                try {
+                    await target.channel.send(
+                        card
+                            ? {
+                                  embeds: [
+                                      buildRecapEmbed(recap, t).setImage(
+                                          `attachment://${CARD_FILE}`,
+                                      ),
+                                  ],
+                                  files: [
+                                      new AttachmentBuilder(card, {
+                                          name: CARD_FILE,
+                                          description: t('music.recap.cardAlt'),
+                                      }),
+                                  ],
+                                  allowedMentions: { parse: [] },
+                              }
+                            : textOnly(),
+                    )
+                } catch (error) {
+                    // Attach Files revoked between the check and the send: the
+                    // text embed may still go through, so try it once before
+                    // treating the channel as gone.
+                    if (
+                        !card ||
+                        Number((error as { code?: unknown }).code) !== 50013
+                    ) {
+                        throw error
+                    }
+                    renderFallbackTotal.labels('no_attach_permission').inc()
+                    warnLog({
+                        message: 'recap: card refused, retrying as text',
+                        data: { guildId },
+                    })
+                    await target.channel.send(textOnly())
+                }
             } catch (error) {
                 if (isChannelGone(error)) {
                     // Lost access between the check and the send.

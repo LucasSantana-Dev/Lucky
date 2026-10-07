@@ -1,9 +1,12 @@
 import { describe, expect, it, jest } from '@jest/globals'
+
+type AnyFn = (...args: any[]) => any
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+const debugLogMock = jest.fn<AnyFn>()
 jest.mock('@lucky/shared/utils', () => ({
-    debugLog: jest.fn(),
+    debugLog: (...a: unknown[]) => debugLogMock(...a),
     errorLog: jest.fn(),
     infoLog: jest.fn(),
     warnLog: jest.fn(),
@@ -14,7 +17,6 @@ jest.mock('@lucky/shared/services', () => ({
 
 import { buildRecapCardPayload, renderRecapCard } from './recapCard'
 
-type AnyFn = (...args: any[]) => any
 const asFetch = (fn: AnyFn) => fn as unknown as typeof fetch
 
 const recap = {
@@ -49,9 +51,12 @@ const cardTracks = [
 function coverFetch() {
     return jest.fn<AnyFn>(async (url: string) => {
         if (String(url).startsWith('https://i.scdn.co/')) {
-            return new Response(Uint8Array.from([9, 9]) as BodyInit, {
-                headers: { 'content-type': 'image/jpeg' },
-            })
+            return new Response(
+                Uint8Array.from([0xff, 0xd8, 0xff, 9]) as BodyInit,
+                {
+                    headers: { 'content-type': 'image/jpeg' },
+                },
+            )
         }
         throw new Error('unexpected fetch ' + url)
     })
@@ -68,13 +73,63 @@ describe('buildRecapCardPayload', () => {
             title: 'Song A',
             author: 'Artist A',
             plays: 4,
-            cover: Buffer.from([9, 9]).toString('base64'),
+            cover: Buffer.from([0xff, 0xd8, 0xff, 9]).toString('base64'),
         })
         expect(payload.topTracks[1].title).toBe('Song B')
         expect(Array.from(payload.topTracks[1].author)).toHaveLength(200)
         expect(payload.topTracks[1]).not.toHaveProperty('cover')
         expect(payload.topTracks[2]).not.toHaveProperty('cover')
         expect(payload.topArtists).toEqual([{ name: 'Artist A', plays: 6 }])
+    })
+
+    it('logs only counts of dropped covers', async () => {
+        debugLogMock.mockClear()
+        await buildRecapCardPayload(recap, {
+            fetch: asFetch(coverFetch()),
+            getCardTracks: jest.fn<AnyFn>().mockResolvedValue(cardTracks),
+        })
+
+        // 2 thumbnails wanted (one is off-allowlist), 1 cover obtained.
+        expect(debugLogMock).toHaveBeenCalledWith({
+            message: 'recap card: covers fetched',
+            data: { guildId: 'g-1', wanted: 2, got: 1, dropped: 1 },
+        })
+    })
+
+    it('keeps the worst-case request under 2.5 MB', async () => {
+        const big = Uint8Array.from({ length: 64 * 1024 }, (_, i) =>
+            i < 3 ? [0xff, 0xd8, 0xff][i] : 7,
+        )
+        const fetchFn = jest.fn<AnyFn>(
+            async () =>
+                new Response(big as BodyInit, {
+                    headers: { 'content-type': 'image/jpeg' },
+                }),
+        )
+        const tracks = Array.from({ length: 25 }, (_, i) => ({
+            title: '😀'.repeat(300),
+            author: '😀'.repeat(300),
+            plays: 1000 - i,
+            thumbnail: `https://i.scdn.co/image/${i}`,
+        }))
+        const payload = await buildRecapCardPayload(
+            {
+                ...recap,
+                topArtists: Array.from({ length: 5 }, () => ({
+                    name: '😀'.repeat(300),
+                    plays: 9,
+                })),
+            },
+            {
+                fetch: asFetch(fetchFn),
+                getCardTracks: jest.fn<AnyFn>().mockResolvedValue(tracks),
+            },
+        )
+
+        expect(payload.topTracks.every((t) => t.cover)).toBe(true)
+        expect(Buffer.byteLength(JSON.stringify(payload))).toBeLessThan(
+            2.5 * 1024 * 1024,
+        )
     })
 
     it('falls back to the embed list without covers when the track query fails', async () => {
@@ -132,7 +187,9 @@ const SCHEMA_PATH = resolve(
     '../../../../render/schema/recap.schema.json',
 )
 const schemaPresent = existsSync(SCHEMA_PATH)
-const contract = schemaPresent ? it : it.skip
+// In CI a missing schema is a failure, never a silent skip.
+const inCi = Boolean(process.env.CI)
+const contract = schemaPresent || inCi ? it : it.skip
 
 describe('lucky-render contract (recap.schema.json)', () => {
     if (!schemaPresent) {
@@ -186,6 +243,9 @@ describe('lucky-render contract (recap.schema.json)', () => {
     }
 
     contract('the built payload matches the schema exactly', async () => {
+        if (!schemaPresent) {
+            throw new Error(`CI requires ${SCHEMA_PATH} (lucky-render crate)`)
+        }
         const schema = JSON.parse(
             readFileSync(SCHEMA_PATH, 'utf8'),
         ) as JsonSchema

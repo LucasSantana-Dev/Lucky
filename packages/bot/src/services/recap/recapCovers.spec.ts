@@ -9,13 +9,18 @@ import {
 
 type AnyFn = (...args: any[]) => any
 
+const JPEG_MAGIC = [0xff, 0xd8, 0xff]
+const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+
 function imageResponse(
     bytes: Uint8Array | number,
     headers: Record<string, string> = { 'content-type': 'image/jpeg' },
     status = 200,
 ): Response {
     const body =
-        typeof bytes === 'number' ? new Uint8Array(bytes).fill(1) : bytes
+        typeof bytes === 'number'
+            ? Uint8Array.from({ length: bytes }, (_, i) => JPEG_MAGIC[i] ?? 1)
+            : bytes
     return new Response(body as BodyInit, { status, headers })
 }
 
@@ -23,6 +28,16 @@ describe('sanitizeCardText', () => {
     it('strips invisible and control characters', () => {
         const dirty = 'a​b‏c⁠d⁤e﻿f؜g͏h\u0000i\u0085j\u007Fk\nl'
         expect(sanitizeCardText(dirty)).toBe('abcdefghijkl')
+    })
+
+    it('strips bidi embeddings, overrides and isolates', () => {
+        expect(
+            sanitizeCardText('a\u202Eb\u202Ac\u202Dd\u2066e\u2069f\u2067g'),
+        ).toBe('abcdefg')
+    })
+
+    it('drops lone surrogates but keeps real pairs', () => {
+        expect(sanitizeCardText('a\uD800b\uDC00c😀')).toBe('abc😀')
     })
 
     it('cuts to 200 code points without splitting a surrogate pair', () => {
@@ -91,21 +106,23 @@ describe('fetchCover', () => {
     it('returns base64 and fetches with redirect: error and a signal', async () => {
         const fetchFn = jest
             .fn<AnyFn>()
-            .mockResolvedValue(imageResponse(Uint8Array.from([1, 2, 3])))
+            .mockResolvedValue(
+                imageResponse(Uint8Array.from([0xff, 0xd8, 0xff, 7])),
+            )
         const out = await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch })
 
-        expect(out).toBe(Buffer.from([1, 2, 3]).toString('base64'))
+        expect(out).toBe(Buffer.from([0xff, 0xd8, 0xff, 7]).toString('base64'))
         const init = fetchFn.mock.calls[0][1]
         expect(init.redirect).toBe('error')
         expect(init.signal).toBeInstanceOf(AbortSignal)
     })
 
     it('accepts png', async () => {
-        const fetchFn = jest
-            .fn<AnyFn>()
-            .mockResolvedValue(
-                imageResponse(4, { 'content-type': 'image/png; charset=x' }),
-            )
+        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(
+            imageResponse(Uint8Array.from([...PNG_MAGIC, 1]), {
+                'content-type': 'image/png; charset=x',
+            }),
+        )
         expect(
             await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch }),
         ).not.toBeNull()
@@ -170,6 +187,30 @@ describe('fetchCover', () => {
         ).toBeNull()
     })
 
+    it('accepts a PNG by its magic bytes', async () => {
+        const png = Uint8Array.from([...PNG_MAGIC, 1, 2])
+        const fetchFn = jest
+            .fn<AnyFn>()
+            .mockResolvedValue(
+                imageResponse(png, { 'content-type': 'image/png' }),
+            )
+        expect(
+            await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch }),
+        ).toBe(Buffer.from(png).toString('base64'))
+    })
+
+    it.each([
+        ['html body labelled jpeg', Uint8Array.from(Buffer.from('<html>'))],
+        ['truncated jpeg magic', Uint8Array.from([0xff, 0xd8, 0x00])],
+        ['partial png magic', Uint8Array.from([0x89, 0x50, 0x4e, 0x47])],
+        ['empty body', new Uint8Array(0)],
+    ])('rejects %s despite an image content-type', async (_, bytes) => {
+        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(imageResponse(bytes))
+        expect(
+            await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch }),
+        ).toBeNull()
+    })
+
     it('accepts exactly 64 KB and rejects one byte more', async () => {
         const ok = jest
             .fn<AnyFn>()
@@ -197,13 +238,11 @@ describe('fetchCover', () => {
                 cancelled = true
             },
         })
-        const fetchFn = jest
-            .fn<AnyFn>()
-            .mockResolvedValue(
-                new Response(stream, {
-                    headers: { 'content-type': 'image/jpeg' },
-                }),
-            )
+        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(
+            new Response(stream, {
+                headers: { 'content-type': 'image/jpeg' },
+            }),
+        )
 
         expect(
             await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch }),
@@ -257,7 +296,7 @@ describe('fetchCovers', () => {
             inFlight--
             return url.endsWith('/bad')
                 ? imageResponse(4, { 'content-type': 'text/html' })
-                : imageResponse(Uint8Array.from([url.length]))
+                : imageResponse(Uint8Array.from([0xff, 0xd8, 0xff, url.length]))
         })
         const urls = Array.from({ length: 12 }, (_, i) =>
             i === 3
@@ -271,7 +310,9 @@ describe('fetchCovers', () => {
         expect(out).toHaveLength(12)
         expect(out[3]).toBeNull()
         expect(out[7]).toBeNull()
-        expect(out[0]).toBe(Buffer.from([urls[0].length]).toString('base64'))
+        expect(out[0]).toBe(
+            Buffer.from([0xff, 0xd8, 0xff, urls[0].length]).toString('base64'),
+        )
         expect(peak).toBeLessThanOrEqual(5)
         expect(peak).toBeGreaterThan(1)
     })
