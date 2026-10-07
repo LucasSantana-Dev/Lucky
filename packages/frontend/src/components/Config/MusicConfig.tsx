@@ -24,19 +24,22 @@ import { useGuildSelection } from '@/hooks/useGuildSelection'
 // guild saved at 150 from Server Settings unsaveable here.
 const MAX_VOLUME = 200
 
+// Index = discord-player's QueueRepeatMode (0 off, 1 track, 2 queue); the
+// form enum is built from it so the two cannot drift.
+const REPEAT_MODES = ['off', 'track', 'queue'] as const
+
 const musicConfigSchema = z.object({
     volume: z.number().min(1).max(MAX_VOLUME),
     autoplay: z.boolean(),
-    repeatMode: z.enum(['off', 'track', 'queue']),
+    repeatMode: z.enum(REPEAT_MODES),
     shuffle: z.boolean(),
 })
 
 type MusicConfigValues = z.infer<typeof musicConfigSchema>
 
-// The API speaks GuildSettings column names; repeatMode is discord-player's
-// QueueRepeatMode index. Sending form names made every save a 400/500 and
+// The API speaks GuildSettings column names; repeatMode is the
+// REPEAT_MODES index. Sending form names made every save a 400/500 and
 // autoplay never persisted (#2637).
-const REPEAT_MODES = ['off', 'track', 'queue'] as const
 
 function toApiSettings(values: MusicConfigValues) {
     return {

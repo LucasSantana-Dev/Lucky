@@ -74,6 +74,10 @@ describe('MusicConfig', () => {
             expect(screen.getByText('75%')).toBeInTheDocument()
         })
         expect(screen.getByLabelText(/toggle autoplay/i)).toBeChecked()
+        expect(screen.getByLabelText(/toggle shuffle/i)).toBeChecked()
+        expect(
+            screen.getByRole('combobox', { name: /select repeat mode/i }),
+        ).toHaveTextContent('Repeat Queue')
     })
 
     test('volume slider displays current value', async () => {
