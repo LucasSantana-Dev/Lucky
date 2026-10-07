@@ -1,0 +1,18 @@
+[package]
+name = "lucky-render"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+resvg = { version = "0.48", default-features = false, features = ["text", "raster-images"] }
+jpeg-encoder = "0.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+unicode-normalization = "0.1"
+unicode-segmentation = "1"
+unicode-width = "0.2"
+
+[profile.release]
+lto = true
+codegen-units = 1

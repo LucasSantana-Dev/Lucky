@@ -1,0 +1,48 @@
+"""Builds fixtures/recap-collage.json (gitignored: embeds third-party cover art).
+
+Covers come from the public iTunes Search API, 300x300 JPEG, base64-encoded the
+way the bot would pass them (decisions/2026-10-07-lucky-render-rust-sidecar.md).
+"""
+
+import base64
+import json
+import pathlib
+import urllib.parse
+import urllib.request
+
+TRACKS = [
+    ("夜に駆ける", "YOASOBI", 9),
+    ("Get Lucky", "Daft Punk", 8),
+    ("Birds of a Feather", "Billie Eilish", 7),
+    ("Kifak Inta", "فيروز", 6, "Fairuz Kifak Inta"),
+    ("Tsunami", "עומר אדם", 5, "Omer Adam"),
+    ("Группа крови", "Кино", 5, "Kino Gruppa Krovi"),
+    ("晴天", "周杰倫", 4, "Jay Chou Qing Tian"),
+    ("DtMF", "Bad Bunny", 4),
+    ("An extremely long title that keeps going well past any slot width the card could ever show, repeated to reach two hundred characters in total", "Unknown", 3, None),
+]
+
+
+def cover(term):
+    if term is None:
+        return None
+    q = urllib.parse.urlencode({"term": term, "entity": "song", "limit": 1})
+    with urllib.request.urlopen(f"https://itunes.apple.com/search?{q}", timeout=10) as r:
+        results = json.load(r)["results"]
+    if not results:
+        return None
+    url = results[0]["artworkUrl100"].replace("100x100", "300x300")
+    with urllib.request.urlopen(url, timeout=10) as r:
+        return base64.b64encode(r.read()).decode()
+
+
+top = []
+for t in TRACKS:
+    title, author, plays = t[:3]
+    term = t[3] if len(t) > 3 else f"{author} {title}"
+    top.append({"title": title, "author": author, "plays": plays, "cover": cover(term)})
+    print(title, "cover" if top[-1]["cover"] else "no cover")
+
+fixture = json.loads((pathlib.Path(__file__).parent / "recap-poc.json").read_text())
+fixture["topTracks"] = top
+(pathlib.Path(__file__).parent / "recap-collage.json").write_text(json.dumps(fixture, ensure_ascii=False))
