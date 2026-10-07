@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+ORIGINAL_ARGS=("$@")
 RECEIVED_SECRET="${1:-}"
 # Optional target image SHA (arg 2). When set, deploy that exact :<sha> image
 # tag instead of :latest, enabling SHA-pinned deploys + rollback to a prior SHA.
@@ -13,6 +14,9 @@ LOCK_DIR="/tmp/lucky-deploy.lock"
 LOCK_PID_FILE="$LOCK_DIR/pid"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-lucky}"
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Checksum of this script as launched. cksum is POSIX and ships in busybox
+# (the webhook image is alpine), unlike a guaranteed sha256sum.
+SELF_HASH="$(cksum <"${BASH_SOURCE[0]}" 2>/dev/null || true)"
 
 export COMPOSE_PROJECT_NAME
 GITHUB_DEPLOY_STATUS_TOKEN="${GITHUB_DEPLOY_STATUS_TOKEN:-}"
@@ -378,6 +382,29 @@ acquire_lock() {
     return 0
 }
 
+# The checkout sync replaces deploy.sh on disk (unlink + create), but bash keeps
+# executing the old copy from its open fd while compose files and service lists
+# come from the new checkout. If the synced script differs, re-exec it once.
+reexec_if_script_changed() {
+    local synced="$DEPLOY_DIR/scripts/deploy.sh" synced_hash
+    [[ "${LUCKY_DEPLOY_REEXEC:-}" == "1" ]] && return 0
+    [[ -z "$SELF_HASH" ]] && return 0
+    if [[ ! -r "$synced" ]]; then
+        log "WARN: synced $synced missing or unreadable; continuing with the running script"
+        return 0
+    fi
+    synced_hash="$(cksum <"$synced" 2>/dev/null || true)"
+    [[ -z "$synced_hash" || "$synced_hash" == "$SELF_HASH" ]] && return 0
+
+    log "Synced deploy.sh differs from the running copy; re-executing the synced script"
+    # The new process takes the lock and posts its own statuses, so drop ours
+    # first: no EXIT trap means no spurious failure status from this process.
+    trap - EXIT
+    rm -rf "$LOCK_DIR" 2>/dev/null || true
+    export LUCKY_DEPLOY_REEXEC=1
+    exec bash "$synced" "${ORIGINAL_ARGS[@]}"
+}
+
 post_deploy_status() {
     [[ -z "$GITHUB_DEPLOY_STATUS_TOKEN" ]] && return 0
     [[ -z "$DEPLOYED_SHA" ]] && return 0
@@ -628,6 +655,8 @@ if ! sync_checkout_to_origin_main; then
     notify 16711680 "Deploy Failed" "Checkout recovery failed"
     exit 1
 fi
+
+reexec_if_script_changed
 
 DEPLOYED_SHA="${DEPLOY_SHA:-$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)}"
 post_deploy_status "pending" "Deploy in progress"
