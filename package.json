@@ -150,8 +150,5 @@
         "find-my-way": "9.8.0",
         "deepmerge-ts": "8.0.2",
         "mysql2": "3.24.3"
-    },
-    "allowScripts": {
-        "@discordjs/opus@0.10.0": true
     }
 }
