@@ -1,0 +1,53 @@
+# promtool unit tests for the lucky-recap-render group.
+# Run: promtool test rules observability/prometheus/rules/tests/lucky-recap-render.test.yml
+# Kept in tests/ so the /etc/prometheus/rules/*.yml glob never loads it.
+rule_files:
+  - ../lucky-alerts.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: fallbacks with no card series fire
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_render_fallback_total{reason="timeout"}'
+        values: '0+0x10 1+0x60'
+    alert_rule_test:
+      - eval_time: 60m
+        alertname: LuckyRecapCardAllFellBack
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: lucky-render
+            exp_annotations:
+              summary: "Every weekly recap in the last 12h posted as text, no image card"
+              description: >-
+                Recaps fell back to the text embed and none was posted as the image
+                card in the last 12 hours. Check lucky-render health and the
+                `reason` label on lucky_bot_render_fallback_total (timeout,
+                http_error, bad_response, network, no_attach_permission). The
+                `disabled` reason (RECAP_RENDER_ENABLED kill switch) is excluded on
+                purpose. `unless` keeps this firing when the card series was never
+                incremented.
+
+  - name: fallbacks plus a posted card do not fire
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_render_fallback_total{reason="timeout"}'
+        values: '0+0x10 1+0x60'
+      - series: 'lucky_bot_recap_card_posted_total'
+        values: '0+0x20 1+0x50'
+    alert_rule_test:
+      - eval_time: 60m
+        alertname: LuckyRecapCardAllFellBack
+        exp_alerts: []
+
+  - name: only the disabled reason does not fire
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_render_fallback_total{reason="disabled"}'
+        values: '0+0x10 1+0x60'
+    alert_rule_test:
+      - eval_time: 60m
+        alertname: LuckyRecapCardAllFellBack
+        exp_alerts: []
