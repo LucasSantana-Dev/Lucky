@@ -75,10 +75,23 @@ export function createMusicActionButtons(
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(!isAutoplay)
 
+    // Thumbs feedback (#2658): rates the track playing now for autoplay.
+    const likeButton = new ButtonBuilder()
+        .setCustomId(MUSIC_BUTTON_IDS.LIKE)
+        .setEmoji('👍')
+        .setStyle(ButtonStyle.Secondary)
+
+    const dislikeButton = new ButtonBuilder()
+        .setCustomId(MUSIC_BUTTON_IDS.DISLIKE)
+        .setEmoji('👎')
+        .setStyle(ButtonStyle.Secondary)
+
     return new ActionRowBuilder<ButtonBuilder>().addComponents(
         stopButton,
         clearQueueButton,
         clearAutoplayButton,
+        likeButton,
+        dislikeButton,
     )
 }
 

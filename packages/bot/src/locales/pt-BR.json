@@ -92,6 +92,12 @@
             "missingPermissions": "❌ Não consigo postar em <#{{channel}}>. Preciso de Ver canal, Enviar mensagens e Inserir links lá.",
             "failed": "❌ Não consegui atualizar o resumo semanal. Tente de novo daqui a pouco.",
             "needManageGuild": "Você precisa da permissão **Gerenciar servidor** para configurar o resumo semanal."
+        },
+        "thumbs": {
+            "liked": "👍 **{{title}}** foi para as suas curtidas. O autoplay puxa músicas assim nas que você coloca.",
+            "disliked": "👎 Anotado. O autoplay evita músicas como **{{title}}** nas que você coloca.",
+            "noTrack": "Não há música para avaliar agora.",
+            "failed": "Não deu para salvar agora. Tente de novo daqui a pouco."
         }
     }
 }

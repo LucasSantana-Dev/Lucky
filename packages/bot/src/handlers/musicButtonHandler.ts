@@ -1,4 +1,8 @@
-import { type ButtonInteraction, type GuildMember } from 'discord.js'
+import {
+    type ButtonInteraction,
+    type GuildMember,
+    escapeMarkdown,
+} from 'discord.js'
 import { QueueRepeatMode } from 'discord-player'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../utils/general/embeds'
@@ -21,6 +25,7 @@ import type { CustomClient } from '../types'
 import { buildListPageEmbed } from '../utils/general/responseEmbeds'
 import { levelService } from '@lucky/shared/services'
 import { setReplenishSuppressed } from '../services/musicManagement/replenishSuppressionStore'
+import { recommendationFeedbackService } from '../services/musicRecommendation/feedbackService'
 
 type NonNullQueue = GuildQueue
 
@@ -116,6 +121,10 @@ async function routeButtonAction(
             return handleClearQueue(interaction, queue)
         case MUSIC_BUTTON_IDS.CLEAR_AUTOPLAY:
             return handleClearAutoplay(interaction, queue)
+        case MUSIC_BUTTON_IDS.LIKE:
+            return handleTrackFeedback(interaction, queue, 'like')
+        case MUSIC_BUTTON_IDS.DISLIKE:
+            return handleTrackFeedback(interaction, queue, 'dislike')
         default:
             if (customId.startsWith(QUEUE_BUTTON_PREFIX)) {
                 return handleQueuePage(interaction, queue)
@@ -124,6 +133,67 @@ async function routeButtonAction(
                 return handleLeaderboardPage(interaction)
             }
     }
+}
+
+/** Longest title echoed back in a thumbs reply. */
+const THUMBS_TITLE_LIMIT = 200
+
+/**
+ * 👍/👎 on the now-playing message (#2658): stores the clicker's feedback for
+ * the track playing now, the same rows `/recommendation feedback` writes.
+ * Autoplay reads the votes of whoever queues the music, so the reply says so.
+ */
+async function handleTrackFeedback(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+    feedback: 'like' | 'dislike',
+): Promise<void> {
+    const t = await translatorForInteraction(interaction)
+    const reply = (content: string) =>
+        interaction.followUp({
+            content,
+            ephemeral: true,
+            allowedMentions: { parse: [] },
+        })
+
+    const track = queue.currentTrack
+    const trackKey = track
+        ? recommendationFeedbackService.buildTrackKey(track.title, track.author)
+        : ''
+    // A title and author that normalize to nothing (empty, only symbols)
+    // would make every such track share one "::" key.
+    if (!track || trackKey === '::') {
+        await reply(t('music.thumbs.noTrack'))
+        return
+    }
+
+    const saved = await recommendationFeedbackService.setFeedback(
+        queue.guild.id,
+        interaction.user.id,
+        trackKey,
+        feedback,
+    )
+    if (!saved) {
+        await reply(t('music.thumbs.failed'))
+        return
+    }
+
+    // Track metadata is untrusted: keep it from breaking the reply's markdown.
+    const title = escapeMarkdown(
+        track.title.length > THUMBS_TITLE_LIMIT
+            ? `${track.title.slice(0, THUMBS_TITLE_LIMIT - 1)}…`
+            : track.title,
+    )
+    await reply(
+        t(
+            feedback === 'like'
+                ? 'music.thumbs.liked'
+                : 'music.thumbs.disliked',
+            {
+                title,
+            },
+        ),
+    )
 }
 
 async function handlePrevious(

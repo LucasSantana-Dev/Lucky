@@ -7,6 +7,8 @@ export const MUSIC_BUTTON_IDS = {
     STOP: 'music_stop',
     CLEAR_QUEUE: 'music_clear_queue',
     CLEAR_AUTOPLAY: 'music_clear_autoplay',
+    LIKE: 'music_like',
+    DISLIKE: 'music_dislike',
 } as const
 
 export const QUEUE_BUTTON_PREFIX = 'queue_page'

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { MUSIC_BUTTON_IDS } from '../types/musicButtons'
 
 const resolveGuildQueueMock = jest.fn()
+const setFeedbackMock = jest.fn<(...args: unknown[]) => Promise<boolean>>()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
@@ -39,6 +40,21 @@ jest.mock('@lucky/shared/services', () => ({
 
 jest.mock('../services/musicManagement/replenishSuppressionStore', () => ({
     setReplenishSuppressed: jest.fn(),
+}))
+
+jest.mock('../services/musicRecommendation/feedbackService', () => ({
+    recommendationFeedbackService: {
+        setFeedback: (...args: unknown[]) => setFeedbackMock(...args),
+        // Mirrors normalizeTrackKey's letter/number filter.
+        buildTrackKey: (title: string, author: string) =>
+            `${title.replace(/[^\p{L}\p{N}]/gu, '')}::${author.replace(/[^\p{L}\p{N}]/gu, '')}`,
+    },
+}))
+
+jest.mock('../i18n/translatorForInteraction', () => ({
+    translatorForInteraction:
+        async () => (key: string, options?: { title?: string }) =>
+            options?.title === undefined ? key : `${key}|${options.title}`,
 }))
 
 import { handleMusicButtonInteraction } from './musicButtonHandler'
@@ -113,6 +129,132 @@ describe('handleMusicButtonInteraction — previous button (#1191)', () => {
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
                 embeds: [expect.objectContaining({ title: 'Error' })],
+            }),
+        )
+    })
+})
+
+describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        setFeedbackMock.mockResolvedValue(true)
+    })
+
+    function thumbsInteraction(customId: string) {
+        return { ...createInteraction(customId), user: { id: 'user-1' } }
+    }
+
+    it.each([
+        [MUSIC_BUTTON_IDS.LIKE, 'like', 'music.thumbs.liked'],
+        [MUSIC_BUTTON_IDS.DISLIKE, 'dislike', 'music.thumbs.disliked'],
+    ])(
+        '%s stores the clicker feedback for the track playing now',
+        async (customId, feedback, replyKey) => {
+            const queue = createQueue({
+                guild: { id: 'guild-1' },
+                currentTrack: { title: 'Song', author: 'Artist' },
+            })
+            resolveGuildQueueMock.mockReturnValue({ queue })
+            const interaction = thumbsInteraction(customId)
+
+            await handleMusicButtonInteraction(interaction as never)
+
+            expect(setFeedbackMock).toHaveBeenCalledWith(
+                'guild-1',
+                'user-1',
+                'Song::Artist',
+                feedback,
+            )
+            expect(interaction.followUp).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    content: `${replyKey}|Song`,
+                    ephemeral: true,
+                    allowedMentions: { parse: [] },
+                }),
+            )
+        },
+    )
+
+    it('reports a failed save instead of claiming success', async () => {
+        setFeedbackMock.mockResolvedValue(false)
+        const queue = createQueue({
+            guild: { id: 'guild-1' },
+            currentTrack: { title: 'Song', author: 'Artist' },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = thumbsInteraction(MUSIC_BUTTON_IDS.LIKE)
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(interaction.followUp).toHaveBeenCalledWith(
+            expect.objectContaining({ content: 'music.thumbs.failed' }),
+        )
+    })
+
+    it('escapes markdown and clips long titles in the reply', async () => {
+        const queue = createQueue({
+            guild: { id: 'guild-1' },
+            currentTrack: { title: `**bold** ${'x'.repeat(300)}`, author: 'A' },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = thumbsInteraction(MUSIC_BUTTON_IDS.LIKE)
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        const content = (
+            interaction.followUp.mock.calls[0] as unknown as [
+                { content: string },
+            ]
+        )[0].content
+        expect(content).toContain('\\*\\*bold\\*\\*')
+        expect(content).toContain('…')
+        expect(content.length).toBeLessThan(260)
+    })
+
+    it('stores nothing for a track whose metadata normalizes to nothing', async () => {
+        const queue = createQueue({
+            guild: { id: 'guild-1' },
+            currentTrack: { title: '★ ★', author: '—' },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = thumbsInteraction(MUSIC_BUTTON_IDS.LIKE)
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(setFeedbackMock).not.toHaveBeenCalled()
+    })
+
+    it('stores nothing for a track with neither title nor author', async () => {
+        const queue = createQueue({
+            guild: { id: 'guild-1' },
+            currentTrack: { title: '', author: '' },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = thumbsInteraction(MUSIC_BUTTON_IDS.DISLIKE)
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(setFeedbackMock).not.toHaveBeenCalled()
+        expect(interaction.followUp).toHaveBeenCalledWith(
+            expect.objectContaining({ content: 'music.thumbs.noTrack' }),
+        )
+    })
+
+    it('says nothing is playing and stores nothing without a current track', async () => {
+        const queue = createQueue({
+            guild: { id: 'guild-1' },
+            currentTrack: null,
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = thumbsInteraction(MUSIC_BUTTON_IDS.LIKE)
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(setFeedbackMock).not.toHaveBeenCalled()
+        expect(interaction.followUp).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: 'music.thumbs.noTrack',
+                ephemeral: true,
             }),
         )
     })
