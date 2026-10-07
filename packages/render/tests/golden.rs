@@ -7,7 +7,7 @@ fn root() -> PathBuf {
 }
 
 pub fn check(path: &Path, actual: &str) {
-    if std::env::var_os("UPDATE_GOLDEN").is_some() {
+    if std::env::var("UPDATE_GOLDEN").as_deref() == Ok("1") {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path, actual).unwrap();
         return;

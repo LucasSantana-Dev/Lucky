@@ -7,7 +7,7 @@ fn checked_in_schema_is_current() {
     let mut actual = serde_json::to_string_pretty(&schema).unwrap();
     actual.push('\n');
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("schema/recap.schema.json");
-    if std::env::var_os("UPDATE_GOLDEN").is_some() {
+    if std::env::var("UPDATE_GOLDEN").as_deref() == Ok("1") {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, &actual).unwrap();
         return;
