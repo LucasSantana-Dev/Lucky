@@ -24,9 +24,11 @@ Three workflows keep fork PRs moving without manual babysitting:
   first-timers get a PR comment and the Discord ping brings a maintainer in to
   approve manually. Approved runs still execute under `pull_request` semantics
   (no secrets, read-only token).
-- **PR Agent** (`pr-agent.yml`): uses `pull_request_target` so fork PRs receive
-  AI review (fork `pull_request` runs get no secrets, so the review silently
-  never ran otherwise). It reads the diff via the GitHub API only.
+- **Claude Review** (`claude-review.yml`): calls the org reusable
+  `claude-review.yml` with `CLAUDE_CODE_OAUTH_TOKEN` (Claude subscription). It
+  runs on `pull_request`, not `pull_request_target`, because it checks out the
+  PR head; fork and Dependabot PRs are skipped. Replaced PR-Agent (2026-10-07),
+  which only takes API keys and failed once the API credit ran out.
 
 Safety rule for all three: never add a `checkout` step or any step that executes
 PR code to a `pull_request_target` workflow.
@@ -60,7 +62,7 @@ To bypass hooks (use sparingly): `git commit --no-verify`.
 8. **SonarCloud Scan**: quality gate on PRs (blocking, one retry for transient scanner-download 403s), informational on push.
 9. **Security**: `npm audit --audit-level high` + Secretlint (blocking). GitGuardian (app) and Socket (app) cover PR-level secrets and supply chain outside the workflow.
 
-Other PR gates live in their own workflows: **Migration Gate** (applies the full Prisma chain on Postgres 18; required), **Destructive Interaction Gate** (required), **Mutation Testing** (matrix over shared/backend/bot, path-filtered), **Bundle Size** (`size-limit` hard budget), **PR Labels** (path + size labels, fork-safe), **Review Tools** (danger), **PR Agent** (AI review).
+Other PR gates live in their own workflows: **Migration Gate** (applies the full Prisma chain on Postgres 18; required), **Destructive Interaction Gate** (required), **Mutation Testing** (matrix over shared/backend/bot, path-filtered), **Bundle Size** (`size-limit` hard budget), **PR Labels** (path + size labels, fork-safe), **Review Tools** (danger), **Claude Review** (AI review).
 
 ### E2E (Playwright)
 

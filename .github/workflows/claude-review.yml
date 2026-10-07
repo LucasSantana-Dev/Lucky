@@ -1,0 +1,31 @@
+name: Claude Review
+
+# AI code review on the Claude subscription (CLAUDE_CODE_OAUTH_TOKEN from
+# `claude setup-token`) via the org reusable workflow. Replaced PR-Agent, which
+# only takes API keys and failed on "credit balance is too low".
+#
+# Runs on pull_request, NOT pull_request_target: the reusable workflow checks
+# out and reads the PR head, so it must never run with base-repo secrets on
+# fork code. Fork and Dependabot PRs get no secrets here and are skipped.
+on:
+    pull_request:
+        types: [opened, reopened, ready_for_review]
+        branches:
+            - main
+            - 'release/**'
+
+permissions:
+    contents: read
+    pull-requests: write
+    issues: write
+    id-token: write
+
+jobs:
+    review:
+        name: AI Code Review
+        if: >-
+            ${{ github.event.pull_request.head.repo.full_name == github.repository
+            && github.actor != 'dependabot[bot]' }}
+        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@b64119dca76a0ded28b74c905a9a9361b903a5ec # feat/claude-review-oauth
+        secrets:
+            CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

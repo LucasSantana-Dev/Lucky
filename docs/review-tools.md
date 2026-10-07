@@ -7,16 +7,15 @@ what it doesn't, and how to interpret silence.
 
 ## Active stack (currently enforced)
 
-| Tool                    | Type           | What it covers                                                           | Cost                       | Rate limit    |
-| ----------------------- | -------------- | ------------------------------------------------------------------------ | -------------------------- | ------------- |
-| **cubic**               | AI             | Codebase-aware logic review, cross-file intent gaps, low false-positives | Free on public repos       | Generous      |
-| **Claude review**       | AI             | Self-owned reviewer for substantive concerns                             | Anthropic API (~$0.10/PR)  | Pay-as-you-go |
-| **PR-Agent** (Qodo OSS) | AI             | Inline diff comments, auto-describe/improve                              | Anthropic API (negligible) | None          |
-| **SonarCloud**          | SAST + metrics | Quality gate, security hotspots, code smells                             | Free for public repos      | Generous      |
-| **GitGuardian**         | Secret scan    | Leaked credentials                                                       | Free for OSS               | Generous      |
-| **Socket**              | Supply-chain   | Dependency typosquatting, malware                                        | Free                       | Per-PR        |
-| **TruffleHog**          | Secret scan    | Git history secrets                                                      | Free                       | Generous      |
-| **Danger**              | Deterministic  | PR convention rules (lockfile, console.log, …)                           | Free, OSS                  | None          |
+| Tool              | Type           | What it covers                                                           | Cost                  | Rate limit  |
+| ----------------- | -------------- | ------------------------------------------------------------------------ | --------------------- | ----------- |
+| **cubic**         | AI             | Codebase-aware logic review, cross-file intent gaps, low false-positives | Free on public repos  | Generous    |
+| **Claude review** | AI             | Self-owned reviewer for substantive concerns (`claude-review.yml`)       | Claude subscription   | Plan limits |
+| **SonarCloud**    | SAST + metrics | Quality gate, security hotspots, code smells                             | Free for public repos | Generous    |
+| **GitGuardian**   | Secret scan    | Leaked credentials                                                       | Free for OSS          | Generous    |
+| **Socket**        | Supply-chain   | Dependency typosquatting, malware                                        | Free                  | Per-PR      |
+| **TruffleHog**    | Secret scan    | Git history secrets                                                      | Free                  | Generous    |
+| **Danger**        | Deterministic  | PR convention rules (lockfile, console.log, …)                           | Free, OSS             | None        |
 
 ## Retired / not gating
 
@@ -59,13 +58,14 @@ A PR is merge-eligible when ALL hold:
 - ✅ Required CI green
 - ✅ SonarCloud Quality Gate `passed`
 - ✅ cubic has no unresolved high-severity findings
-- ✅ Claude review / PR-Agent approved or no substantive concerns posted
+- ✅ Claude review approved or no substantive concerns posted
 - ✅ Danger has no `fail()` outputs (warnings are fine)
 - ✅ GitGuardian / Socket / TruffleHog clean
 
 cubic is low-false-positive by design and does not gate on style nits.
-Three independent AI angles run per PR (cubic + Claude review + PR-Agent), so
-no single reviewer being quiet causes a silent gate-bailout.
+Two independent AI angles run per PR (cubic + Claude review; PR-Agent was
+retired 2026-10-07), so no single reviewer being quiet causes a silent
+gate-bailout.
 
 ## Tools considered and skipped
 
