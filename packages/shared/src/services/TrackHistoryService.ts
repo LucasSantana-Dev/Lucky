@@ -363,39 +363,40 @@ export class TrackHistoryService {
                 Date.now() - 30 * 24 * 60 * 60 * 1000,
             )
 
-            const rows = await prisma.trackHistory.findMany({
-                where: {
-                    guildId,
-                    playedAt: { gte: thirtyDaysAgo },
-                },
-                orderBy: { playedAt: 'desc' },
-                take: 10000,
-                select: { trackId: true, author: true },
-            })
+            const where = { guildId, playedAt: { gte: thirtyDaysAgo } }
 
-            // Count occurrences and filter to replayCount > 2.
-            const trackCounts = new Map<string, number>()
+            // Counted in SQL: history is no longer trimmed per guild (#2678),
+            // so a row cap here would silently drop older plays.
+            const [trackGroups, artistGroups] = await Promise.all([
+                prisma.trackHistory.groupBy({
+                    by: ['trackId'],
+                    where,
+                    _count: { _all: true },
+                }),
+                prisma.trackHistory.groupBy({
+                    by: ['author'],
+                    where,
+                    _count: { _all: true },
+                }),
+            ])
+
+            // Keep only replayCount > 2.
+            const trackIds = new Set(
+                trackGroups
+                    .filter((g) => g._count._all > 2)
+                    .map((g) => g.trackId),
+            )
+
+            // Artist spellings are normalized after grouping, so sum them here.
             const artistCounts = new Map<string, number>()
-
-            for (const row of rows) {
-                trackCounts.set(
-                    row.trackId,
-                    (trackCounts.get(row.trackId) ?? 0) + 1,
-                )
-                const normalizedArtist = row.author.toLowerCase().trim()
+            for (const g of artistGroups) {
+                const normalizedArtist = g.author.toLowerCase().trim()
                 artistCounts.set(
                     normalizedArtist,
-                    (artistCounts.get(normalizedArtist) ?? 0) + 1,
+                    (artistCounts.get(normalizedArtist) ?? 0) + g._count._all,
                 )
             }
-
-            const trackIds = new Set<string>()
             const artists = new Set<string>()
-
-            for (const [trackId, count] of trackCounts.entries()) {
-                if (count > 2) trackIds.add(trackId)
-            }
-
             for (const [artist, count] of artistCounts.entries()) {
                 if (count > 2) artists.add(artist)
             }

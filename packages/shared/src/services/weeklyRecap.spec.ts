@@ -67,9 +67,12 @@ describe('getWeeklyRecap (#2678)', () => {
         await getWeeklyRecap(GUILD, FROM, TO)
 
         const where = { guildId: GUILD, playedAt: { gte: FROM, lt: TO } }
-        expect(mockAggregate).toHaveBeenCalledWith(
-            expect.objectContaining({ where }),
-        )
+        // Exact options: no take/skip, so the whole window is counted.
+        expect(mockAggregate).toHaveBeenCalledWith({
+            where,
+            _count: { _all: true },
+            _sum: { playDuration: true },
+        })
         expect(mockCount).toHaveBeenCalledWith({
             where: { ...where, skipped: true },
         })
@@ -110,7 +113,11 @@ describe('getWeeklyRecap (#2678)', () => {
         expect(mockGroupBy).toHaveBeenCalledWith(
             expect.objectContaining({
                 by: ['title', 'author'],
-                orderBy: [{ _count: { title: 'desc' } }, { title: 'asc' }],
+                orderBy: [
+                    { _count: { title: 'desc' } },
+                    { title: 'asc' },
+                    { author: 'asc' },
+                ],
             }),
         )
         expect(mockGroupBy).toHaveBeenCalledWith(
