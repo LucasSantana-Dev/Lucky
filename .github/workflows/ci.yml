@@ -396,6 +396,7 @@ jobs:
             backend: ${{ steps.filter.outputs.backend }}
             frontend: ${{ steps.filter.outputs.frontend }}
             nginx: ${{ steps.filter.outputs.nginx }}
+            render: ${{ steps.filter.outputs.render }}
             services: ${{ steps.filter.outputs.services }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
@@ -451,18 +452,21 @@ jobs:
                   #   - .dockerignore shapes the build context for every
                   #     target built from this Dockerfile, so it forces all
                   #     four the same as a Dockerfile/ci.yml change.
+                  #   - packages/render/** feeds only the render image (its own
+                  #     Dockerfile and build context, no shared stages) and the
+                  #     `rust` job.
                   #   - Changes to this workflow file or the
                   #     docker-build-service composite action can change how
-                  #     ANY image is built, so they force a rebuild of all four.
+                  #     ANY image is built, so they force a rebuild of all five.
                   # THIRD copy of this list: keep in sync with
                   # docker-publish.yml's push.paths and deploy.yml's
                   # docker_path_pattern (those still build all four
                   # unconditionally on push to main; only this per-PR/
                   # merge_group matrix is now selective).
                   if [ "$EVENT" = "pull_request" ] || [ "$EVENT" = "merge_group" ]; then
-                      bot=false; backend=false; frontend=false; nginx=false
+                      bot=false; backend=false; frontend=false; nginx=false; render=false
                       if echo "$CHANGED" | grep -qE '^(\.github/workflows/ci\.yml$|\.github/actions/docker-build-service/|\.dockerignore$)'; then
-                          bot=true; backend=true; frontend=true; nginx=true
+                          bot=true; backend=true; frontend=true; nginx=true; render=true
                       else
                           if echo "$CHANGED" | grep -qE '^(packages/shared/|prisma/|package.*\.json$|Dockerfile$)'; then
                               bot=true; backend=true; frontend=true
@@ -471,9 +475,10 @@ jobs:
                           echo "$CHANGED" | grep -qE '^packages/backend/' && backend=true
                           echo "$CHANGED" | grep -qE '^(packages/frontend/|CHANGELOG\.md$|nginx/frontend\.conf$)' && frontend=true
                           echo "$CHANGED" | grep -qE '^(nginx/nginx\.conf$|nginx/upstream-active\.conf$|Dockerfile\.nginx$)' && nginx=true
+                          echo "$CHANGED" | grep -qE '^packages/render/' && render=true
                       fi
                   else
-                      bot=true; backend=true; frontend=true; nginx=true
+                      bot=true; backend=true; frontend=true; nginx=true; render=true
                   fi
 
                   {
@@ -482,20 +487,59 @@ jobs:
                       echo "backend=$backend"
                       echo "frontend=$frontend"
                       echo "nginx=$nginx"
+                      echo "render=$render"
                   } >> "$GITHUB_OUTPUT"
 
-                  FULL_MATRIX='[{"service":"bot","file":"Dockerfile","target":"production-bot"},{"service":"backend","file":"Dockerfile","target":"production-backend"},{"service":"frontend","file":"Dockerfile","target":"production-frontend"},{"service":"nginx","file":"Dockerfile.nginx","target":""}]'
+                  FULL_MATRIX='[{"service":"bot","file":"Dockerfile","target":"production-bot"},{"service":"backend","file":"Dockerfile","target":"production-backend"},{"service":"frontend","file":"Dockerfile","target":"production-frontend"},{"service":"nginx","file":"Dockerfile.nginx","target":""},{"service":"render","file":"packages/render/Dockerfile","target":"","context":"packages/render"}]'
                   SERVICES=$(echo "$FULL_MATRIX" | jq -c \
                       --argjson bot "$bot" --argjson backend "$backend" \
-                      --argjson frontend "$frontend" --argjson nginx "$nginx" '
+                      --argjson frontend "$frontend" --argjson nginx "$nginx" \
+                      --argjson render "$render" '
                       [ .[] | select(
                           (.service == "bot" and $bot) or
                           (.service == "backend" and $backend) or
                           (.service == "frontend" and $frontend) or
-                          (.service == "nginx" and $nginx)
+                          (.service == "nginx" and $nginx) or
+                          (.service == "render" and $render)
                       ) ]')
                   echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
-                  echo "Resolved: code=$code bot=$bot backend=$backend frontend=$frontend nginx=$nginx services=$SERVICES"
+                  echo "Resolved: code=$code bot=$bot backend=$backend frontend=$frontend nginx=$nginx render=$render services=$SERVICES"
+
+    # lucky-render (packages/render) is a standalone Rust crate: its own
+    # toolchain pin, fmt/clippy/test/deny gates, no npm or build-shared deps.
+    # Runs when `changes` says render changed (always on push, and on any
+    # ci.yml / docker-build-service / .dockerignore change). Skipped otherwise,
+    # which quality-gate accepts only when render did not change.
+    rust:
+        name: Rust — render
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        needs: changes
+        if: needs.changes.outputs.render == 'true'
+        defaults:
+            run:
+                working-directory: packages/render
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+            # Toolchain and components (rustfmt, clippy) come from
+            # packages/render/rust-toolchain.toml, the single pin.
+            - name: Install pinned toolchain
+              run: rustup show active-toolchain || rustup toolchain install
+            - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+              with:
+                  workspaces: packages/render
+            - name: Fetch fonts
+              run: ./scripts/fetch-fonts.sh fonts
+            - name: cargo fmt
+              run: cargo fmt --check
+            - name: cargo clippy
+              run: cargo clippy --all-targets -- -D warnings
+            - name: cargo test
+              run: cargo test
+            - name: cargo deny
+              uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+              with:
+                  manifest-path: packages/render/Cargo.toml
 
     docker-build:
         name: Build — ${{ matrix.service }}
@@ -522,6 +566,7 @@ jobs:
                   service: ${{ matrix.service }}
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
+                  context: ${{ matrix.context || '.' }}
                   load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
             # Retry on transient failure (buildx setup and build re-run
             # together, matching the previous separate retry steps). Root
@@ -546,6 +591,7 @@ jobs:
                   service: ${{ matrix.service }}
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
+                  context: ${{ matrix.context || '.' }}
                   load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
                   use-cache: 'false'
             - name: Build ${{ matrix.service }} - retry 2 on transient failure
@@ -557,6 +603,7 @@ jobs:
                   service: ${{ matrix.service }}
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
+                  context: ${{ matrix.context || '.' }}
                   load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
                   use-cache: 'false'
             - name: Build ${{ matrix.service }} - retry 3 on transient failure
@@ -568,6 +615,7 @@ jobs:
                   service: ${{ matrix.service }}
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
+                  context: ${{ matrix.context || '.' }}
                   load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
                   use-cache: 'false'
             - name: Build ${{ matrix.service }} - retry 4 on transient failure
@@ -577,6 +625,7 @@ jobs:
                   service: ${{ matrix.service }}
                   file: ${{ matrix.file }}
                   target: ${{ matrix.target }}
+                  context: ${{ matrix.context || '.' }}
                   load: ${{ matrix.service == 'bot' || matrix.service == 'nginx' }}
                   use-cache: 'false'
             # A built image is not a working image: the bot's native addons
@@ -655,7 +704,7 @@ jobs:
         name: Quality Gates
         runs-on: ubuntu-latest
         timeout-minutes: 10
-        needs: [changes, build-shared, checks, test-shared, test-backend, test-bot, test-frontend]
+        needs: [changes, build-shared, checks, test-shared, test-backend, test-bot, test-frontend, rust]
         if: always()
         steps:
             - name: Assert all jobs passed
@@ -689,6 +738,17 @@ jobs:
                   docs_only_skip_ok=false
                   if [[ "${{ github.event_name }}" == "pull_request" && "${{ needs.changes.outputs.code }}" != "true" ]]; then
                       docs_only_skip_ok=true
+                  fi
+
+                  # rust is gated on `render`, not `code`: skipped is a pass
+                  # only when render did not change (docs-only PRs included).
+                  # If render changed and the job was skipped, upstream broke.
+                  rust="${{ needs.rust.result }}"
+                  if [[ "$rust" != "success" ]]; then
+                      if [[ "$rust" != "skipped" || "${{ needs.changes.outputs.render }}" == "true" ]]; then
+                          echo "Job results: rust=$rust (render changed=${{ needs.changes.outputs.render }})"
+                          exit 1
+                      fi
                   fi
 
                   for r in "$shared_build" "$checks" "$shared" "$backend" "$bot" "$frontend"; do

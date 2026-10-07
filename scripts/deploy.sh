@@ -126,8 +126,8 @@ notify() {
 }
 
 print_targeted_logs() {
-    log "Collecting backend/frontend/bot/nginx/postgres/redis logs..."
-    docker_compose logs --tail=80 --no-color backend frontend bot nginx postgres redis || true
+    log "Collecting backend/frontend/bot/nginx/render/postgres/redis logs..."
+    docker_compose logs --tail=80 --no-color backend frontend bot nginx render postgres redis || true
 }
 
 verify_cloudflared_config() {
@@ -493,12 +493,12 @@ attempt_rollback() {
 
     # Registry images are tagged with the 7-char short SHA, so pin to that.
     export IMAGE_TAG="${last_good:0:7}"
-    if ! docker_compose pull bot backend frontend nginx; then
+    if ! docker_compose pull bot backend frontend nginx render; then
         log "ROLLBACK ERROR: could not pull last-good images (${last_good})"
         notify 16711680 "Rollback Failed" "Could not pull ${last_good} images — manual intervention required"
         return 1
     fi
-    docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx
+    docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx render
 
     if run_health_checks; then
         log "Rollback to ${last_good} is healthy"
@@ -603,7 +603,7 @@ else
 fi
 
 log "Pulling images..."
-if ! docker_compose pull bot backend frontend nginx; then
+if ! docker_compose pull bot backend frontend nginx render; then
     if [[ -n "$DEPLOY_SHA" ]]; then
         # A pinned/rollback deploy MUST run the requested image. Building from the
         # current checkout would silently ship different code under the pinned
@@ -616,7 +616,7 @@ if ! docker_compose pull bot backend frontend nginx; then
     _build_commit_sha=$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || echo "")
     if ! docker_compose build --parallel \
             --build-arg "COMMIT_SHA=${_build_commit_sha}" \
-            bot backend frontend nginx; then
+            bot backend frontend nginx render; then
         notify 16711680 "Deploy Failed" "Docker build failed"
         exit 1
     fi
@@ -685,7 +685,7 @@ ensure_on_lucky_network() {
 }
 
 log "Rolling out services..."
-docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx postgres redis
+docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx render postgres redis
 
 # The webhook runs this script, so it is never recreated here; nginx proxies
 # /webhook/ to it by service name.

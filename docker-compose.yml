@@ -273,6 +273,34 @@ services:
                 max-file: "3"
                 tag: "{{.Name}}"
 
+    # lucky-render: standalone Rust sidecar (packages/render). Own build
+    # context (not repo root) and no depends_on to or from the bot; it only
+    # joins lucky-network and publishes no ports. 128m/0.5 matches neither
+    # x-small-svc nor x-medium-svc, so limits are explicit.
+    render:
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-render:${IMAGE_TAG:-latest}
+        build:
+            context: ./packages/render
+            dockerfile: Dockerfile
+        container_name: lucky-render
+        mem_limit: 128m
+        cpus: 0.5
+        restart: unless-stopped
+        networks:
+            - lucky-network
+        healthcheck:
+            test: ["CMD", "/usr/local/bin/lucky-render", "healthcheck"]
+            interval: 30s
+            timeout: 5s
+            retries: 3
+            start_period: 10s
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
     webhook:
         <<: *small-svc
         build:

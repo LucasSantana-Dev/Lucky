@@ -56,6 +56,13 @@ jobs:
                     - service: nginx
                       dockerfile: Dockerfile.nginx
                       target: ''
+                    # Own build context (not repo root): the root .dockerignore
+                    # drops Dockerfile* and tests/, so the crate builds from
+                    # packages/render. No build target; single final stage.
+                    - service: render
+                      dockerfile: packages/render/Dockerfile
+                      target: ''
+                      context: packages/render
 
         steps:
             - name: Checkout
@@ -93,7 +100,7 @@ jobs:
             - name: Build and push
               uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
               with:
-                  context: .
+                  context: ${{ matrix.context || '.' }}
                   file: ${{ matrix.dockerfile }}
                   target: ${{ matrix.target || '' }}
                   push: true
