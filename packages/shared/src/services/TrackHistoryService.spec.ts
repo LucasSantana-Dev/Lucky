@@ -98,23 +98,16 @@ describe('TrackHistoryService', () => {
             })
         })
 
-        it('trims rows beyond maxHistorySize after insert', async () => {
+        it('does not trim the guild after an insert (#2678)', async () => {
             mockCreate.mockResolvedValue(row())
-            mockFindMany.mockResolvedValue([{ id: 'old-1' }, { id: 'old-2' }])
 
-            const service = new TrackHistoryService(7 * 24 * 60 * 60, 2)
-            await service.addTrackToHistory(sampleInput, GUILD)
-
-            expect(mockFindMany).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    where: { guildId: GUILD },
-                    skip: 2,
-                    orderBy: { playedAt: 'desc' },
-                }),
+            await new TrackHistoryService().addTrackToHistory(
+                sampleInput,
+                GUILD,
             )
-            expect(mockDeleteMany).toHaveBeenCalledWith({
-                where: { id: { in: ['old-1', 'old-2'] } },
-            })
+
+            expect(mockFindMany).not.toHaveBeenCalled()
+            expect(mockDeleteMany).not.toHaveBeenCalled()
         })
 
         it('returns false when the insert fails', async () => {
@@ -207,18 +200,6 @@ describe('TrackHistoryService', () => {
         })
     })
 
-    describe('cleanupOldData', () => {
-        it('sweeps rows older than the TTL and returns the deleted count', async () => {
-            mockDeleteMany.mockResolvedValue({ count: 12 })
-
-            const service = new TrackHistoryService()
-            expect(await service.cleanupOldData()).toBe(12)
-            expect(mockDeleteMany).toHaveBeenCalledWith({
-                where: { playedAt: { lt: expect.any(Date) } },
-            })
-        })
-    })
-
     describe('isDuplicateTrack', () => {
         it('detects a recently played url within the window', async () => {
             mockFindMany.mockResolvedValue([
@@ -298,24 +279,6 @@ describe('TrackHistoryService', () => {
             expect(result?.totalTracks).toBe(3)
             expect(result?.totalPlayTime).toBe(270)
             expect(result?.topArtists[0]).toEqual({ artist: 'A', plays: 2 })
-        })
-    })
-
-    describe('cleanupOldData', () => {
-        it('deletes rows older than the cutoff and returns the count', async () => {
-            mockDeleteMany.mockResolvedValue({ count: 9 })
-
-            const result = await new TrackHistoryService().cleanupOldData()
-
-            expect(result).toBe(9)
-            expect(mockDeleteMany).toHaveBeenCalledWith({
-                where: { playedAt: { lt: expect.any(Date) } },
-            })
-        })
-
-        it('returns 0 on error', async () => {
-            mockDeleteMany.mockRejectedValue(new Error('db'))
-            expect(await new TrackHistoryService().cleanupOldData()).toBe(0)
         })
     })
 

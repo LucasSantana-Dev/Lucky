@@ -62,21 +62,20 @@ function inferSource(url: string): string {
 /**
  * Manages guild track playback history in Postgres (via Prisma).
  *
- * History is capped per guild to the most-recent `maxHistorySize` rows (trimmed
- * on write) and expires after `ttl` seconds, applied lazily on read (rows older
- * than the cutoff are filtered out). A `cleanupOldData()` sweep is available for
- * housekeeping. The short-lived "recently played" marker used for duplicate
+ * Reads expire after `ttl` seconds, applied lazily (rows older than the cutoff
+ * are filtered out), and read helpers take their own row limits. Rows are not
+ * trimmed per guild: retention is the scheduled 30-day
+ * `DatabaseService.cleanupOldData` sweep, so a whole week stays readable for the
+ * weekly recap (`weeklyRecap.ts`, #2678). The short-lived "recently played" marker used for duplicate
  * detection is kept in-memory (ephemeral — rebuilt after a restart by design).
  */
 export class TrackHistoryService {
     private readonly ttlSeconds: number
-    private readonly maxHistorySize: number
     /** Ephemeral per-(guild,url) recently-played markers → expiry epoch ms. */
     private readonly recentlyPlayed = new Map<string, number>()
 
-    constructor(ttl = 7 * 24 * 60 * 60, maxHistorySize = 100) {
+    constructor(ttl = 7 * 24 * 60 * 60) {
         this.ttlSeconds = ttl
-        this.maxHistorySize = maxHistorySize
     }
 
     /** Cutoff `Date` for TTL-based lazy expiry. */
@@ -121,8 +120,6 @@ export class TrackHistoryService {
                 },
             })
 
-            await this.trimToMaxSize(guildId)
-
             infoLog({
                 message: `Added track to history: ${track.title} in guild ${guildId}`,
                 data: track.requestedQuery
@@ -133,22 +130,6 @@ export class TrackHistoryService {
         } catch (error) {
             errorLog({ message: 'Failed to add track to history', error })
             return false
-        }
-    }
-
-    /** Trims a guild's history to the most-recent `maxHistorySize` rows. */
-    private async trimToMaxSize(guildId: string): Promise<void> {
-        const prisma = getPrismaClient()
-        const overflow = await prisma.trackHistory.findMany({
-            where: { guildId },
-            orderBy: { playedAt: 'desc' },
-            skip: this.maxHistorySize,
-            select: { id: true },
-        })
-        if (overflow.length > 0) {
-            await prisma.trackHistory.deleteMany({
-                where: { id: { in: overflow.map((r) => r.id) } },
-            })
         }
     }
 
@@ -334,20 +315,6 @@ export class TrackHistoryService {
             return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10)
         }
         return 0
-    }
-
-    /** Deletes history rows older than the TTL across all guilds; returns count. */
-    async cleanupOldData(): Promise<number> {
-        try {
-            const prisma = getPrismaClient()
-            const result = await prisma.trackHistory.deleteMany({
-                where: { playedAt: { lt: this.cutoff() } },
-            })
-            return result.count
-        } catch (error) {
-            errorLog({ message: 'Failed to clean up old track history', error })
-            return 0
-        }
     }
 
     /** Marks a track as recently played (ephemeral, in-memory) for dedup. */

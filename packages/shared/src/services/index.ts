@@ -42,6 +42,7 @@ export {
     type TrackHistoryInput,
     type TrackHistoryStats,
 } from './TrackHistoryService'
+export { getWeeklyRecap, type RecapPayload } from './weeklyRecap'
 export {
     guildSettingsService,
     GUILD_SETTINGS_EDITABLE_FIELDS,
