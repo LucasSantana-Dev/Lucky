@@ -98,6 +98,31 @@ describe('TrackHistoryService', () => {
             })
         })
 
+        it('persists skipped and playDuration, defaulting to not skipped (#2652)', async () => {
+            mockCreate.mockResolvedValue(row())
+            mockFindMany.mockResolvedValue([])
+            const service = new TrackHistoryService()
+
+            await service.addTrackToHistory(
+                { ...sampleInput, skipped: true, playDuration: 42 },
+                GUILD,
+            )
+            await service.addTrackToHistory(sampleInput, GUILD)
+
+            expect(mockCreate).toHaveBeenNthCalledWith(1, {
+                data: expect.objectContaining({
+                    skipped: true,
+                    playDuration: 42,
+                }),
+            })
+            expect(mockCreate).toHaveBeenNthCalledWith(2, {
+                data: expect.objectContaining({
+                    skipped: false,
+                    playDuration: undefined,
+                }),
+            })
+        })
+
         it('trims rows beyond maxHistorySize after insert', async () => {
             mockCreate.mockResolvedValue(row())
             mockFindMany.mockResolvedValue([{ id: 'old-1' }, { id: 'old-2' }])

@@ -41,6 +41,13 @@ import {
     OUTCOME_ACCEPT_PLAY_RATIO,
 } from './autoplayOutcomeTracking'
 
+// A manual skip emits playerSkip and then, once the voice player has played
+// its silence padding (~100 ms), playerFinish for the same Track instance.
+// The skip path scrobbles and records that play, so it marks the track and
+// the finish path leaves it alone instead of writing a second history row and
+// a second scrobble (#2652). playerStart clears a mark whose finish never came.
+const recordedBySkip = new WeakSet<Track>()
+
 type PlayerEvents = {
     events: { on: (event: string, handler: Function) => void }
 }
@@ -64,9 +71,12 @@ export const setupTrackHandlers = ({
             await handlePlayerFinish(queue, track)
         },
     )
-    player.events.on('playerSkip', async (queue: GuildQueue, track: Track) => {
-        await handlePlayerSkip(queue, track)
-    })
+    player.events.on(
+        'playerSkip',
+        async (queue: GuildQueue, track: Track, reason?: string) => {
+            await handlePlayerSkip(queue, track, reason)
+        },
+    )
     player.events.on('audioTracksAdd', (queue: GuildQueue, tracks: Track[]) => {
         if (Array.isArray(tracks) && tracks.length > 0) {
             infoLog({
@@ -154,6 +164,7 @@ const handlePlayerStart = async (
 ): Promise<void> => {
     try {
         setTrackPlayStart(track, Date.now())
+        recordedBySkip.delete(track)
         const requestedQuery = (
             track.metadata as { requestedQuery?: string } | null
         )?.requestedQuery
@@ -217,14 +228,21 @@ async function replenishIfAutoplay(
     }
 }
 
+function playedSeconds(startTime: number | undefined): number | undefined {
+    return startTime === undefined
+        ? undefined
+        : Math.round((Date.now() - startTime) / 1000)
+}
+
 async function scrobbleAndRecord(
     queue: GuildQueue,
-    track?: Track,
+    track: Track | undefined,
+    playDuration: number | undefined,
 ): Promise<void> {
     const trackToRecord = track ?? queue.currentTrack
     if (!trackToRecord) return
     await scrobbleCurrentTrackIfLastFm(queue, trackToRecord)
-    await addTrackToHistory(trackToRecord, queue.guild.id)
+    await addTrackToHistory(trackToRecord, queue.guild.id, { playDuration })
 }
 
 const handlePlayerFinish = async (
@@ -235,8 +253,11 @@ const handlePlayerFinish = async (
         // Claimed before the awaits below: this event ends one play, and the
         // entry has to be taken while nothing else can interleave with it.
         const startTime = track ? takeTrackPlayStart(track) : undefined
+        const recordedOnSkip = track ? recordedBySkip.delete(track) : false
 
-        await scrobbleAndRecord(queue, track)
+        if (!recordedOnSkip) {
+            await scrobbleAndRecord(queue, track, playedSeconds(startTime))
+        }
 
         if (track) {
             if (isRecommendationAutoplay(track)) {
@@ -282,6 +303,7 @@ const handlePlayerFinish = async (
 const handlePlayerSkip = async (
     queue: GuildQueue,
     track?: Track,
+    reason?: string,
 ): Promise<void> => {
     try {
         // Claimed before the awaits below, for the same reason as in
@@ -298,8 +320,14 @@ const handlePlayerSkip = async (
                 currentTrack: queue.currentTrack?.title ?? 'none',
             },
         })
-        if (track) {
-            await addTrackToHistory(track, queue.guild.id)
+        // ERR_NO_STREAM: the stream never started, so there is no play to
+        // record and no playerFinish follows.
+        if (track && reason !== 'ERR_NO_STREAM') {
+            recordedBySkip.add(track)
+            await addTrackToHistory(track, queue.guild.id, {
+                skipped: true,
+                playDuration: playedSeconds(startTime),
+            })
         }
         await scrobbleCurrentTrackIfLastFm(queue, track)
 

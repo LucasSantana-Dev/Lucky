@@ -26,6 +26,10 @@ export interface TrackHistoryInput {
      * can be queried instead of guessed from the title alone. */
     requestedQuery?: string
     metadata?: { isAutoplay?: boolean }
+    /** True when the play ended by a skip rather than playing out. */
+    skipped?: boolean
+    /** Seconds actually played, when the play start time is known. */
+    playDuration?: number
 }
 
 /** Statistics for guild track playback history. */
@@ -65,8 +69,11 @@ function inferSource(url: string): string {
  * History is capped per guild to the most-recent `maxHistorySize` rows (trimmed
  * on write) and expires after `ttl` seconds, applied lazily on read (rows older
  * than the cutoff are filtered out). A `cleanupOldData()` sweep is available for
- * housekeeping. The short-lived "recently played" marker used for duplicate
- * detection is kept in-memory (ephemeral — rebuilt after a restart by design).
+ * housekeeping. The cap serves the readers here (autoplay exclusion, /history,
+ * leaderboards), not analytics: a busy guild keeps only its last 100 plays, so
+ * per-guild play counts over a window undercount it (#2652). The short-lived
+ * "recently played" marker used for duplicate detection is kept in-memory
+ * (ephemeral — rebuilt after a restart by design).
  */
 export class TrackHistoryService {
     private readonly ttlSeconds: number
@@ -117,6 +124,8 @@ export class TrackHistoryService {
                     url: track.url,
                     source: inferSource(track.url),
                     playedBy,
+                    playDuration: track.playDuration,
+                    skipped: track.skipped ?? false,
                     isAutoplay: Boolean(track.metadata?.isAutoplay ?? false),
                 },
             })
