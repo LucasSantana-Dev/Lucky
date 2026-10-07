@@ -16,6 +16,35 @@ const mockCount = jest.fn() as jest.MockedFunction<
 const mockDeleteMany = jest.fn() as jest.MockedFunction<
     (...args: any[]) => Promise<any>
 >
+const mockGroupBy = jest.fn() as jest.MockedFunction<
+    (...args: any[]) => Promise<any>
+>
+
+/** Makes groupBy answer as SQL would over these history rows. */
+function groupByFrom(
+    rows: Array<{ trackId: string; author: string; skipped?: boolean }>,
+) {
+    mockGroupBy.mockImplementation(
+        async ({
+            by,
+            where,
+        }: {
+            by: string[]
+            where: { skipped?: boolean }
+        }) => {
+            const key = by[0] as 'trackId' | 'author'
+            const counts = new Map<string, number>()
+            for (const r of rows) {
+                if (where.skipped === false && r.skipped) continue
+                counts.set(r[key], (counts.get(r[key]) ?? 0) + 1)
+            }
+            return [...counts].map(([value, n]) => ({
+                [key]: value,
+                _count: { _all: n },
+            }))
+        },
+    )
+}
 const mockGetPrismaClient = jest.fn()
 
 jest.mock('../utils/database/prismaClient', () => ({
@@ -64,6 +93,7 @@ describe('TrackHistoryService', () => {
             trackHistory: {
                 create: mockCreate,
                 findMany: mockFindMany,
+                groupBy: mockGroupBy,
                 findFirst: mockFindFirst,
                 count: mockCount,
                 deleteMany: mockDeleteMany,
@@ -123,23 +153,16 @@ describe('TrackHistoryService', () => {
             })
         })
 
-        it('trims rows beyond maxHistorySize after insert', async () => {
+        it('does not trim the guild after an insert (#2678)', async () => {
             mockCreate.mockResolvedValue(row())
-            mockFindMany.mockResolvedValue([{ id: 'old-1' }, { id: 'old-2' }])
 
-            const service = new TrackHistoryService(7 * 24 * 60 * 60, 2)
-            await service.addTrackToHistory(sampleInput, GUILD)
-
-            expect(mockFindMany).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    where: { guildId: GUILD },
-                    skip: 2,
-                    orderBy: { playedAt: 'desc' },
-                }),
+            await new TrackHistoryService().addTrackToHistory(
+                sampleInput,
+                GUILD,
             )
-            expect(mockDeleteMany).toHaveBeenCalledWith({
-                where: { id: { in: ['old-1', 'old-2'] } },
-            })
+
+            expect(mockFindMany).not.toHaveBeenCalled()
+            expect(mockDeleteMany).not.toHaveBeenCalled()
         })
 
         it('returns false when the insert fails', async () => {
@@ -232,18 +255,6 @@ describe('TrackHistoryService', () => {
         })
     })
 
-    describe('cleanupOldData', () => {
-        it('sweeps rows older than the TTL and returns the deleted count', async () => {
-            mockDeleteMany.mockResolvedValue({ count: 12 })
-
-            const service = new TrackHistoryService()
-            expect(await service.cleanupOldData()).toBe(12)
-            expect(mockDeleteMany).toHaveBeenCalledWith({
-                where: { playedAt: { lt: expect.any(Date) } },
-            })
-        })
-    })
-
     describe('isDuplicateTrack', () => {
         it('detects a recently played url within the window', async () => {
             mockFindMany.mockResolvedValue([
@@ -326,24 +337,6 @@ describe('TrackHistoryService', () => {
         })
     })
 
-    describe('cleanupOldData', () => {
-        it('deletes rows older than the cutoff and returns the count', async () => {
-            mockDeleteMany.mockResolvedValue({ count: 9 })
-
-            const result = await new TrackHistoryService().cleanupOldData()
-
-            expect(result).toBe(9)
-            expect(mockDeleteMany).toHaveBeenCalledWith({
-                where: { playedAt: { lt: expect.any(Date) } },
-            })
-        })
-
-        it('returns 0 on error', async () => {
-            mockDeleteMany.mockRejectedValue(new Error('db'))
-            expect(await new TrackHistoryService().cleanupOldData()).toBe(0)
-        })
-    })
-
     describe('clearAllGuildCaches', () => {
         it('deletes all rows for the guild', async () => {
             mockDeleteMany.mockResolvedValue({ count: 3 })
@@ -358,7 +351,7 @@ describe('TrackHistoryService', () => {
 
     describe('getReplayFrequentTracks', () => {
         it('includes only tracks/artists replayed more than twice', async () => {
-            mockFindMany.mockResolvedValue([
+            groupByFrom([
                 { trackId: 't1', author: 'Frequent' },
                 { trackId: 't1', author: 'Frequent' },
                 { trackId: 't1', author: 'Frequent' },
@@ -375,7 +368,7 @@ describe('TrackHistoryService', () => {
         })
 
         it('fails open with empty sets on error', async () => {
-            mockFindMany.mockRejectedValue(new Error('db'))
+            mockGroupBy.mockRejectedValue(new Error('db'))
             const result =
                 await new TrackHistoryService().getReplayFrequentTracks(GUILD)
             expect(result.trackIds.size).toBe(0)
@@ -426,7 +419,7 @@ describe('TrackHistoryService', () => {
     // cover the remaining query-only methods.
     describe('query-arg + branch hardening', () => {
         it('getReplayFrequentTracks queries the right window/shape and excludes count==2', async () => {
-            mockFindMany.mockResolvedValue([
+            groupByFrom([
                 { trackId: 't3', author: 'Thrice' },
                 { trackId: 't3', author: 'Thrice' },
                 { trackId: 't3', author: 'Thrice' },
@@ -440,15 +433,21 @@ describe('TrackHistoryService', () => {
             // count==2 must be EXCLUDED (kills the `> 2` boundary mutant)
             expect(result.trackIds.has('t3')).toBe(true)
             expect(result.trackIds.has('t2')).toBe(false)
-            expect(mockFindMany).toHaveBeenCalledWith({
-                where: {
-                    guildId: GUILD,
-                    playedAt: { gte: expect.any(Date) },
-                    skipped: false,
-                },
-                orderBy: { playedAt: 'desc' },
-                take: 10000,
-                select: { trackId: true, author: true },
+            // Grouped in SQL over the whole window: no row cap.
+            const where = {
+                guildId: GUILD,
+                playedAt: { gte: expect.any(Date) },
+                skipped: false,
+            }
+            expect(mockGroupBy).toHaveBeenCalledWith({
+                by: ['trackId'],
+                where,
+                _count: { _all: true },
+            })
+            expect(mockGroupBy).toHaveBeenCalledWith({
+                by: ['author'],
+                where,
+                _count: { _all: true },
             })
         })
 
@@ -581,7 +580,7 @@ describe('TrackHistoryService', () => {
         })
 
         it('getReplayFrequentTracks normalizes artist case/whitespace before counting', async () => {
-            mockFindMany.mockResolvedValue([
+            groupByFrom([
                 { trackId: 'x1', author: 'The Band ' },
                 { trackId: 'x2', author: 'the band' },
                 { trackId: 'x3', author: 'THE BAND' },
@@ -594,8 +593,22 @@ describe('TrackHistoryService', () => {
             expect(result.artists.has('the band')).toBe(true)
         })
 
+        it('getReplayFrequentTracks ignores skipped plays', async () => {
+            groupByFrom([
+                { trackId: 's1', author: 'Skipper' },
+                { trackId: 's1', author: 'Skipper', skipped: true },
+                { trackId: 's1', author: 'Skipper', skipped: true },
+            ])
+
+            const result =
+                await new TrackHistoryService().getReplayFrequentTracks(GUILD)
+
+            expect(result.trackIds.has('s1')).toBe(false)
+            expect(result.artists.has('skipper')).toBe(false)
+        })
+
         it('getReplayFrequentTracks excludes an artist seen exactly twice', async () => {
-            mockFindMany.mockResolvedValue([
+            groupByFrom([
                 { trackId: 'a', author: 'Pair' },
                 { trackId: 'b', author: 'Pair' },
             ])
