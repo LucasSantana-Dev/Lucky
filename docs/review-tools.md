@@ -63,9 +63,13 @@ A PR is merge-eligible when ALL hold:
 - ✅ GitGuardian / Socket / TruffleHog clean
 
 cubic is low-false-positive by design and does not gate on style nits.
-Two independent AI angles run per PR (cubic + Claude review; PR-Agent was
-retired 2026-10-07), so no single reviewer being quiet causes a silent
-gate-bailout.
+Two independent AI angles (cubic + Claude review; PR-Agent was retired
+2026-10-07) cover same-repo PRs, so no single reviewer being quiet causes a
+silent gate-bailout. Claude review runs only on `opened`, `reopened` and
+`ready_for_review` (not on later pushes, to save subscription usage), and it
+is skipped for fork and Dependabot PRs: a green or skipped "AI Code Review"
+there does not mean Claude reviewed it. Re-run it after a big follow-up push by
+closing and reopening the PR.
 
 ## Tools considered and skipped
 
