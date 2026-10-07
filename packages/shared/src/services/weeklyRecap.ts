@@ -48,7 +48,11 @@ export async function getWeeklyRecap(
             by: ['title', 'author'],
             where,
             _count: { _all: true },
-            orderBy: [{ _count: { title: 'desc' } }, { title: 'asc' }],
+            orderBy: [
+                { _count: { title: 'desc' } },
+                { title: 'asc' },
+                { author: 'asc' },
+            ],
             take: TOP_N,
         }),
         prisma.trackHistory.groupBy({

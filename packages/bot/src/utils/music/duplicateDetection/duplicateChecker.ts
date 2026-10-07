@@ -123,6 +123,7 @@ export async function checkForDuplicate(
 export async function addTrackToHistory(
     track: Track,
     guildId: string,
+    playback?: { skipped?: boolean; playDuration?: number },
 ): Promise<void> {
     try {
         const rawMetadata = (track as unknown as { metadata?: unknown })
@@ -147,6 +148,8 @@ export async function addTrackToHistory(
                 url: track.url,
                 requestedQuery: metadata?.requestedQuery,
                 metadata: { isAutoplay: Boolean(metadata?.isAutoplay) },
+                skipped: playback?.skipped,
+                playDuration: playback?.playDuration,
             },
             guildId,
             track.requestedBy?.id,

@@ -1456,4 +1456,121 @@ describe('Roles Routes', () => {
             })
         })
     })
+
+    describe('roles/manage error mapping (#2629)', () => {
+        const ROLE_ID = '999999999999999999'
+        const role = {
+            id: ROLE_ID,
+            name: 'Target Role',
+            color: 0,
+            hoist: false,
+            mentionable: false,
+            permissions: '0',
+            position: 1,
+            managed: false,
+        }
+
+        function discordApiError(message: string): Error {
+            const error = new Error(message)
+            error.name = 'DiscordAPIError[50013]'
+            return error
+        }
+
+        const routes = [
+            {
+                name: 'create',
+                mock: () => mockCreateGuildRole,
+                call: () =>
+                    request(app)
+                        .post(`/api/guilds/${GUILD_ID}/roles/manage`)
+                        .set('Cookie', ['sessionId=valid_session_id'])
+                        .send({ name: 'New Role' }),
+                generic: 'Failed to create role',
+            },
+            {
+                name: 'update',
+                mock: () => mockUpdateGuildRole,
+                call: () =>
+                    request(app)
+                        .patch(
+                            `/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}`,
+                        )
+                        .set('Cookie', ['sessionId=valid_session_id'])
+                        .send({ name: 'Renamed' }),
+                generic: 'Failed to update role',
+            },
+            {
+                name: 'delete',
+                mock: () => mockDeleteGuildRole,
+                call: () =>
+                    request(app)
+                        .delete(
+                            `/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}`,
+                        )
+                        .set('Cookie', ['sessionId=valid_session_id']),
+                generic: 'Failed to delete role',
+            },
+            {
+                name: 'duplicate',
+                mock: () => mockCreateGuildRole,
+                call: () =>
+                    request(app)
+                        .post(
+                            `/api/guilds/${GUILD_ID}/roles/manage/${ROLE_ID}/duplicate`,
+                        )
+                        .set('Cookie', ['sessionId=valid_session_id']),
+                generic: 'Failed to duplicate role',
+            },
+        ]
+
+        beforeEach(() => {
+            authed({ owner: true, isAdmin: true })
+            mockGetFullGuildRoles.mockResolvedValue([role])
+        })
+
+        describe.each(routes)('$name', ({ mock, call, generic }) => {
+            test('returns a generic 500 without leaking the raw error text', async () => {
+                mock().mockRejectedValue(
+                    new Error('Invalid `prisma.role.create()` invocation'),
+                )
+
+                const res = await call()
+
+                expect(res.status).toBe(500)
+                expect(res.body.error).toBe(generic)
+                expect(JSON.stringify(res.body)).not.toMatch(/prisma/)
+            })
+
+            test.each([
+                ['Discord API error: {"code":50013}', 502],
+                ['No bot token available', 502],
+                ['Invalid Discord guild id', 400],
+            ])('maps "%s" to %i', async (message, status) => {
+                mock().mockRejectedValue(new Error(message))
+
+                expect((await call()).status).toBe(status)
+            })
+
+            test('maps a discord.js DiscordAPIError to 502', async () => {
+                mock().mockRejectedValue(discordApiError('Missing Permissions'))
+
+                const res = await call()
+
+                expect(res.status).toBe(502)
+                expect(res.body.error).toBe(
+                    'Discord API error: Missing Permissions',
+                )
+            })
+        })
+
+        test.each(['update', 'delete'])(
+            '%s keeps mapping "Role not found" to 404',
+            async (name) => {
+                const route = routes.find((r) => r.name === name)!
+                route.mock().mockRejectedValue(new Error('Role not found'))
+
+                expect((await route.call()).status).toBe(404)
+            },
+        )
+    })
 })

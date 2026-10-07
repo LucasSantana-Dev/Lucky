@@ -26,6 +26,10 @@ export interface TrackHistoryInput {
      * can be queried instead of guessed from the title alone. */
     requestedQuery?: string
     metadata?: { isAutoplay?: boolean }
+    /** True when the play ended by a skip rather than playing out. */
+    skipped?: boolean
+    /** Seconds actually played, when the play start time is known. */
+    playDuration?: number
 }
 
 /** Statistics for guild track playback history. */
@@ -62,12 +66,14 @@ function inferSource(url: string): string {
 /**
  * Manages guild track playback history in Postgres (via Prisma).
  *
- * Reads expire after `ttl` seconds, applied lazily (rows older than the cutoff
- * are filtered out), and read helpers take their own row limits. Rows are not
- * trimmed per guild: retention is the scheduled 30-day
- * `DatabaseService.cleanupOldData` sweep, so a whole week stays readable for the
- * weekly recap (`weeklyRecap.ts`, #2678). The short-lived "recently played" marker used for duplicate
- * detection is kept in-memory (ephemeral — rebuilt after a restart by design).
+ * Most reads expire after `ttl` seconds, applied lazily (rows older than the
+ * cutoff are filtered out), and read helpers take their own row limits; the
+ * exception is `getReplayFrequentTracks`, which counts a fixed 30-day window.
+ * Rows are not trimmed per guild: retention is the scheduled 30-day
+ * `DatabaseService.cleanupOldData` sweep, so a whole week stays readable for
+ * the weekly recap (`weeklyRecap.ts`, #2678). The short-lived "recently
+ * played" marker used for duplicate detection is kept in-memory (ephemeral,
+ * rebuilt after a restart by design).
  */
 export class TrackHistoryService {
     private readonly ttlSeconds: number
@@ -116,6 +122,8 @@ export class TrackHistoryService {
                     url: track.url,
                     source: inferSource(track.url),
                     playedBy,
+                    playDuration: track.playDuration,
+                    skipped: track.skipped ?? false,
                     isAutoplay: Boolean(track.metadata?.isAutoplay ?? false),
                 },
             })
@@ -363,39 +371,45 @@ export class TrackHistoryService {
                 Date.now() - 30 * 24 * 60 * 60 * 1000,
             )
 
-            const rows = await prisma.trackHistory.findMany({
-                where: {
-                    guildId,
-                    playedAt: { gte: thirtyDaysAgo },
-                },
-                orderBy: { playedAt: 'desc' },
-                take: 10000,
-                select: { trackId: true, author: true },
-            })
+            // Skipped plays are not replays: they must not earn a boost.
+            const where = {
+                guildId,
+                playedAt: { gte: thirtyDaysAgo },
+                skipped: false,
+            }
 
-            // Count occurrences and filter to replayCount > 2.
-            const trackCounts = new Map<string, number>()
+            // Counted in SQL: history is no longer trimmed per guild (#2678),
+            // so a row cap here would silently drop older plays.
+            const [trackGroups, artistGroups] = await Promise.all([
+                prisma.trackHistory.groupBy({
+                    by: ['trackId'],
+                    where,
+                    _count: { _all: true },
+                }),
+                prisma.trackHistory.groupBy({
+                    by: ['author'],
+                    where,
+                    _count: { _all: true },
+                }),
+            ])
+
+            // Keep only replayCount > 2.
+            const trackIds = new Set(
+                trackGroups
+                    .filter((g) => g._count._all > 2)
+                    .map((g) => g.trackId),
+            )
+
+            // Artist spellings are normalized after grouping, so sum them here.
             const artistCounts = new Map<string, number>()
-
-            for (const row of rows) {
-                trackCounts.set(
-                    row.trackId,
-                    (trackCounts.get(row.trackId) ?? 0) + 1,
-                )
-                const normalizedArtist = row.author.toLowerCase().trim()
+            for (const g of artistGroups) {
+                const normalizedArtist = g.author.toLowerCase().trim()
                 artistCounts.set(
                     normalizedArtist,
-                    (artistCounts.get(normalizedArtist) ?? 0) + 1,
+                    (artistCounts.get(normalizedArtist) ?? 0) + g._count._all,
                 )
             }
-
-            const trackIds = new Set<string>()
             const artists = new Set<string>()
-
-            for (const [trackId, count] of trackCounts.entries()) {
-                if (count > 2) trackIds.add(trackId)
-            }
-
             for (const [artist, count] of artistCounts.entries()) {
                 if (count > 2) artists.add(artist)
             }
