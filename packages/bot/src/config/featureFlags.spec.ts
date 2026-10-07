@@ -15,6 +15,7 @@ jest.mock('@lucky/shared/utils', () => ({
 
 import {
     isHostedYoutubeEnabled,
+    isRecapRenderEnabled,
     __resetHostedYoutubeWarnStateForTests,
 } from './featureFlags'
 
@@ -66,5 +67,29 @@ describe('isHostedYoutubeEnabled', () => {
                 data: { value: 'nope' },
             }),
         )
+    })
+})
+
+describe('isRecapRenderEnabled (#2693)', () => {
+    const original = process.env.RECAP_RENDER_ENABLED
+
+    afterEach(() => {
+        if (original === undefined) delete process.env.RECAP_RENDER_ENABLED
+        else process.env.RECAP_RENDER_ENABLED = original
+    })
+
+    it('is on when unset', () => {
+        delete process.env.RECAP_RENDER_ENABLED
+        expect(isRecapRenderEnabled()).toBe(true)
+    })
+
+    it.each(['false', '0', ' FALSE ', 'False'])('is off for %j', (value) => {
+        process.env.RECAP_RENDER_ENABLED = value
+        expect(isRecapRenderEnabled()).toBe(false)
+    })
+
+    it.each(['true', '1', 'yes', ''])('stays on for %j', (value) => {
+        process.env.RECAP_RENDER_ENABLED = value
+        expect(isRecapRenderEnabled()).toBe(true)
     })
 })

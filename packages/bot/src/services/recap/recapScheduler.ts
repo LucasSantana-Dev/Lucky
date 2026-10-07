@@ -1,10 +1,14 @@
 import type { Client, Guild, TextChannel } from 'discord.js'
-import { ChannelType, PermissionFlagsBits } from 'discord.js'
-import { getWeeklyRecap } from '@lucky/shared/services'
+import { AttachmentBuilder, ChannelType, PermissionFlagsBits } from 'discord.js'
+import { getWeeklyRecap, type RecapPayload } from '@lucky/shared/services'
 import { debugLog, errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { IntervalScheduler } from '../../utils/general/IntervalScheduler'
 import { translatorForInteraction } from '../../i18n/translatorForInteraction'
+import { isRecapRenderEnabled } from '../../config/featureFlags'
+import { renderFallbackTotal } from '../../utils/monitoring/prometheus'
+import { renderRecapCard } from './recapCard'
 import { buildRecapEmbed } from './recapEmbed'
+import type { RenderFailureReason } from './recapRenderClient'
 import { latestRecapBoundary, recapWindow } from './recapWindow'
 import {
     claimRecapWeek,
@@ -17,6 +21,14 @@ const HOUR_MS = 60 * 60 * 1000
 /** Below this many plays in the week the recap is skipped, not posted empty. */
 export const RECAP_MIN_PLAYS = 5
 
+type FallbackReason = RenderFailureReason | 'disabled' | 'no_attach_permission'
+
+const CARD_FILE = 'recap.jpg'
+
+/**
+ * Attach Files is deliberately NOT here: it would make a channel without it
+ * "unusable" and clear the opt-in. Missing it only drops the image card.
+ */
 export const RECAP_POST_PERMISSIONS = [
     PermissionFlagsBits.ViewChannel,
     PermissionFlagsBits.SendMessages,
@@ -42,7 +54,7 @@ export async function resolveRecapChannel(
     guild: Guild,
     channelId: string,
 ): Promise<
-    | { channel: TextChannel }
+    | { channel: TextChannel; canAttach: boolean }
     | { reason: 'missing_channel' | 'missing_permissions' }
 > {
     let channel
@@ -56,9 +68,15 @@ export async function resolveRecapChannel(
         return { reason: 'missing_channel' }
     }
     const me = guild.members.me ?? (await guild.members.fetchMe())
-    const canPost =
-        channel.permissionsFor(me)?.has(RECAP_POST_PERMISSIONS) ?? false
-    return canPost ? { channel } : { reason: 'missing_permissions' }
+    const permissions = channel.permissionsFor(me)
+    if (!permissions?.has(RECAP_POST_PERMISSIONS)) {
+        return { reason: 'missing_permissions' }
+    }
+    // Attach Files is optional: without it the recap posts as text only.
+    return {
+        channel,
+        canAttach: permissions.has(PermissionFlagsBits.AttachFiles),
+    }
 }
 
 type RecapSchedulerOptions = {
@@ -94,6 +112,33 @@ export class RecapScheduler extends IntervalScheduler {
         for (const { guildId, channelId } of due) {
             await this.postForGuild(guildId, channelId, boundary)
         }
+    }
+
+    /** The card JPEG, or null after counting and logging why it fell back. */
+    private async renderCard(
+        recap: RecapPayload,
+        guildId: string,
+        canAttach: boolean,
+    ): Promise<Buffer | null> {
+        let reason: FallbackReason
+        if (!isRecapRenderEnabled()) {
+            reason = 'disabled'
+        } else if (!canAttach) {
+            reason = 'no_attach_permission'
+        } else {
+            const result = await renderRecapCard(recap)
+            if (result.ok) return result.jpeg
+            reason = result.reason
+        }
+        renderFallbackTotal.labels(reason).inc()
+        // 'disabled' is a deliberate operator choice, not worth a warning.
+        if (reason !== 'disabled') {
+            warnLog({
+                message: 'recap: card unavailable, posting text embed',
+                data: { guildId, reason },
+            })
+        }
+        return null
     }
 
     private async postForGuild(
@@ -148,11 +193,27 @@ export class RecapScheduler extends IntervalScheduler {
             }
 
             const t = await translatorForInteraction({ guildId, guild })
+            const embed = buildRecapEmbed(recap, t)
+            // A render failure is never a send failure: the claim stays and the
+            // text embed goes out as before.
+            const card = await this.renderCard(recap, guildId, target.canAttach)
             try {
-                await target.channel.send({
-                    embeds: [buildRecapEmbed(recap, t)],
-                    allowedMentions: { parse: [] },
-                })
+                await target.channel.send(
+                    card
+                        ? {
+                              embeds: [
+                                  embed.setImage(`attachment://${CARD_FILE}`),
+                              ],
+                              files: [
+                                  new AttachmentBuilder(card, {
+                                      name: CARD_FILE,
+                                      description: t('music.recap.cardAlt'),
+                                  }),
+                              ],
+                              allowedMentions: { parse: [] },
+                          }
+                        : { embeds: [embed], allowedMentions: { parse: [] } },
+                )
             } catch (error) {
                 if (isChannelGone(error)) {
                     // Lost access between the check and the send.

@@ -49,3 +49,14 @@ export function isHostedYoutubeEnabled(): boolean {
 
     return true
 }
+
+/**
+ * Kill switch for the weekly recap image card (#2693). Defaults to enabled;
+ * "false" or "0" (trimmed, any case) posts the text embed only, without a
+ * code change. Re-reads `process.env` on every call.
+ */
+export function isRecapRenderEnabled(): boolean {
+    const raw = process.env.RECAP_RENDER_ENABLED
+    if (raw === undefined) return true
+    return !DISABLED_VALUES.has(raw.trim().toLowerCase())
+}

@@ -11,6 +11,10 @@ const claimRecapWeekMock = jest.fn<AnyFn>()
 const releaseRecapWeekMock = jest.fn<AnyFn>()
 const disableRecapMock = jest.fn<AnyFn>()
 const getWeeklyRecapMock = jest.fn<AnyFn>()
+const renderRecapCardMock = jest.fn<AnyFn>()
+const fallbackIncMock = jest.fn<AnyFn>()
+const fallbackLabelsMock = jest.fn<AnyFn>(() => ({ inc: fallbackIncMock }))
+const warnLogMock = jest.fn<AnyFn>()
 
 jest.mock('./recapStore', () => ({
     listDueRecaps: (...a: unknown[]) => listDueRecapsMock(...a),
@@ -27,7 +31,17 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
     infoLog: jest.fn(),
-    warnLog: jest.fn(),
+    warnLog: (...a: unknown[]) => warnLogMock(...a),
+}))
+
+jest.mock('./recapCard', () => ({
+    renderRecapCard: (...a: unknown[]) => renderRecapCardMock(...a),
+}))
+
+jest.mock('../../utils/monitoring/prometheus', () => ({
+    renderFallbackTotal: {
+        labels: (...a: unknown[]) => fallbackLabelsMock(...a),
+    },
 }))
 
 jest.mock('../../i18n/translatorForInteraction', () => ({
@@ -35,6 +49,18 @@ jest.mock('../../i18n/translatorForInteraction', () => ({
 }))
 
 import { RecapScheduler } from './recapScheduler'
+
+const JPEG = Buffer.from([0xff, 0xd8, 0xff, 1])
+const ATTACH_PERMS = ALL_RECAP_PERMS_FOR_CARD()
+
+function ALL_RECAP_PERMS_FOR_CARD() {
+    return [
+        PermissionFlagsBits.ViewChannel,
+        PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.EmbedLinks,
+        PermissionFlagsBits.AttachFiles,
+    ]
+}
 
 const NOW = new Date('2026-10-11T18:20:00.000Z')
 const BOUNDARY = new Date('2026-10-11T18:00:00.000Z')
@@ -109,6 +135,8 @@ async function runTick(client: unknown) {
 describe('RecapScheduler (#2678)', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        delete process.env.RECAP_RENDER_ENABLED
+        renderRecapCardMock.mockResolvedValue({ ok: true, jpeg: JPEG })
         listDueRecapsMock.mockResolvedValue([
             { guildId: 'g-1', channelId: 'c-1' },
         ])
@@ -273,5 +301,114 @@ describe('RecapScheduler (#2678)', () => {
 
         expect(disableRecapMock).not.toHaveBeenCalled()
         expect(claimRecapWeekMock).not.toHaveBeenCalled()
+    })
+
+    describe('image card (#2693)', () => {
+        const textOnly = (call: any) => {
+            expect(call.files).toBeUndefined()
+            expect(call.embeds[0].toJSON().image).toBeUndefined()
+            expect(call.allowedMentions).toEqual({ parse: [] })
+        }
+
+        it('sends the embed with the JPEG attached and its alt text', async () => {
+            getWeeklyRecapMock.mockResolvedValue(recap(12))
+            const { client, send } = makeClient('text', { perms: ATTACH_PERMS })
+
+            await runTick(client)
+
+            expect(renderRecapCardMock).toHaveBeenCalledWith(recap(12))
+            expect(send).toHaveBeenCalledTimes(1)
+            const call = send.mock.calls[0][0]
+            expect(call.allowedMentions).toEqual({ parse: [] })
+            expect(call.embeds[0].toJSON().image).toEqual({
+                url: 'attachment://recap.jpg',
+            })
+            expect(call.files).toHaveLength(1)
+            expect(call.files[0].name).toBe('recap.jpg')
+            expect(call.files[0].description).toBe('music.recap.cardAlt')
+            expect(call.files[0].attachment).toBe(JPEG)
+            expect(fallbackLabelsMock).not.toHaveBeenCalled()
+        })
+
+        it.each(['timeout', 'http_error', 'bad_response', 'network'])(
+            'falls back to the text embed on render %s and counts it',
+            async (reason) => {
+                getWeeklyRecapMock.mockResolvedValue(recap(12))
+                renderRecapCardMock.mockResolvedValue({ ok: false, reason })
+                const { client, send } = makeClient('text', {
+                    perms: ATTACH_PERMS,
+                })
+
+                await runTick(client)
+
+                expect(send).toHaveBeenCalledTimes(1)
+                textOnly(send.mock.calls[0][0])
+                expect(fallbackLabelsMock).toHaveBeenCalledWith(reason)
+                expect(fallbackIncMock).toHaveBeenCalledTimes(1)
+                expect(warnLogMock).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        data: { guildId: 'g-1', reason },
+                    }),
+                )
+                // A render failure is not a send failure.
+                expect(releaseRecapWeekMock).not.toHaveBeenCalled()
+                expect(disableRecapMock).not.toHaveBeenCalled()
+            },
+        )
+
+        it.each(['false', '0', ' FALSE '])(
+            'RECAP_RENDER_ENABLED=%j posts text only without calling render',
+            async (value) => {
+                process.env.RECAP_RENDER_ENABLED = value
+                getWeeklyRecapMock.mockResolvedValue(recap(12))
+                const { client, send } = makeClient('text', {
+                    perms: ATTACH_PERMS,
+                })
+
+                await runTick(client)
+
+                expect(renderRecapCardMock).not.toHaveBeenCalled()
+                textOnly(send.mock.calls[0][0])
+                expect(fallbackLabelsMock).toHaveBeenCalledWith('disabled')
+                expect(fallbackIncMock).toHaveBeenCalledTimes(1)
+            },
+        )
+
+        it('without Attach Files posts text only, keeps the opt-in and skips render', async () => {
+            getWeeklyRecapMock.mockResolvedValue(recap(12))
+            const { client, send } = makeClient('text') // no AttachFiles
+
+            await runTick(client)
+
+            expect(renderRecapCardMock).not.toHaveBeenCalled()
+            expect(send).toHaveBeenCalledTimes(1)
+            textOnly(send.mock.calls[0][0])
+            expect(fallbackLabelsMock).toHaveBeenCalledWith(
+                'no_attach_permission',
+            )
+            expect(disableRecapMock).not.toHaveBeenCalled()
+            expect(releaseRecapWeekMock).not.toHaveBeenCalled()
+        })
+
+        it('a send failure after a good render still follows the release path', async () => {
+            getWeeklyRecapMock.mockResolvedValue(recap(12))
+            const { client, send } = makeClient('text', { perms: ATTACH_PERMS })
+            send.mockRejectedValue(new Error('discord down'))
+
+            await runTick(client)
+
+            expect(releaseRecapWeekMock).toHaveBeenCalledWith('g-1', NOW)
+            expect(disableRecapMock).not.toHaveBeenCalled()
+        })
+
+        it('does not render for a quiet week', async () => {
+            getWeeklyRecapMock.mockResolvedValue(recap(2))
+            const { client } = makeClient('text', { perms: ATTACH_PERMS })
+
+            await runTick(client)
+
+            expect(renderRecapCardMock).not.toHaveBeenCalled()
+            expect(fallbackLabelsMock).not.toHaveBeenCalled()
+        })
     })
 })

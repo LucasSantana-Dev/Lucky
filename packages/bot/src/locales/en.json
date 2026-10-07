@@ -85,6 +85,7 @@
             "autoplayName": "Autoplay",
             "autoplayValue": "{{percent}}% of the tracks",
             "topTracksName": "Top tracks",
+            "cardAlt": "Weekly recap: top tracks collage",
             "topArtistsName": "Top artists",
             "enabled": "📅 The weekly recap will post in <#{{channel}}> every Sunday at 18:00 UTC.",
             "disabled": "🔕 Weekly recap turned off.",
