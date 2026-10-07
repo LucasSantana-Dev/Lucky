@@ -14,6 +14,7 @@ const getWeeklyRecapMock = jest.fn<AnyFn>()
 const renderRecapCardMock = jest.fn<AnyFn>()
 const fallbackIncMock = jest.fn<AnyFn>()
 const fallbackLabelsMock = jest.fn<AnyFn>(() => ({ inc: fallbackIncMock }))
+const cardPostedIncMock = jest.fn<AnyFn>()
 const warnLogMock = jest.fn<AnyFn>()
 
 jest.mock('./recapStore', () => ({
@@ -39,6 +40,7 @@ jest.mock('./recapCard', () => ({
 }))
 
 jest.mock('../../utils/monitoring/prometheus', () => ({
+    recapCardPostedTotal: { inc: () => cardPostedIncMock() },
     renderFallbackTotal: {
         labels: (...a: unknown[]) => fallbackLabelsMock(...a),
     },
@@ -328,6 +330,7 @@ describe('RecapScheduler (#2678)', () => {
             expect(call.files[0].description).toBe('music.recap.cardAlt')
             expect(call.files[0].attachment).toBe(JPEG)
             expect(fallbackLabelsMock).not.toHaveBeenCalled()
+            expect(cardPostedIncMock).toHaveBeenCalledTimes(1)
         })
 
         it.each(['timeout', 'http_error', 'bad_response', 'network'])(
@@ -345,6 +348,7 @@ describe('RecapScheduler (#2678)', () => {
                 textOnly(send.mock.calls[0][0])
                 expect(fallbackLabelsMock).toHaveBeenCalledWith(reason)
                 expect(fallbackIncMock).toHaveBeenCalledTimes(1)
+                expect(cardPostedIncMock).not.toHaveBeenCalled()
                 expect(warnLogMock).toHaveBeenCalledWith(
                     expect.objectContaining({
                         data: { guildId: 'g-1', reason },
@@ -371,6 +375,7 @@ describe('RecapScheduler (#2678)', () => {
                 textOnly(send.mock.calls[0][0])
                 expect(fallbackLabelsMock).toHaveBeenCalledWith('disabled')
                 expect(fallbackIncMock).toHaveBeenCalledTimes(1)
+                expect(cardPostedIncMock).not.toHaveBeenCalled()
             },
         )
 
@@ -386,6 +391,7 @@ describe('RecapScheduler (#2678)', () => {
             expect(fallbackLabelsMock).toHaveBeenCalledWith(
                 'no_attach_permission',
             )
+            expect(cardPostedIncMock).not.toHaveBeenCalled()
             expect(disableRecapMock).not.toHaveBeenCalled()
             expect(releaseRecapWeekMock).not.toHaveBeenCalled()
         })
@@ -399,6 +405,7 @@ describe('RecapScheduler (#2678)', () => {
 
             expect(releaseRecapWeekMock).toHaveBeenCalledWith('g-1', NOW)
             expect(disableRecapMock).not.toHaveBeenCalled()
+            expect(cardPostedIncMock).not.toHaveBeenCalled()
         })
 
         it('retries as text when Attach Files was revoked mid-send, keeping the opt-in', async () => {
@@ -415,6 +422,7 @@ describe('RecapScheduler (#2678)', () => {
                 'no_attach_permission',
             )
             expect(fallbackIncMock).toHaveBeenCalledTimes(1)
+            expect(cardPostedIncMock).not.toHaveBeenCalled()
             expect(disableRecapMock).not.toHaveBeenCalled()
             expect(releaseRecapWeekMock).not.toHaveBeenCalled()
         })

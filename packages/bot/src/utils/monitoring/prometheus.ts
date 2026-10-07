@@ -97,6 +97,13 @@ export const renderFallbackTotal = new Counter<'reason'>({
     registers: [registry],
 })
 
+/** Counter: weekly recaps posted as the lucky-render image card (#2694). */
+export const recapCardPostedTotal = new Counter({
+    name: 'lucky_bot_recap_card_posted_total',
+    help: 'Count of weekly recaps posted as the lucky-render image card.',
+    registers: [registry],
+})
+
 /**
  * Counter: handled slash/context interactions (#2391). Cardinality is bounded:
  * `command` is a registered command name or "unknown", never raw user input.

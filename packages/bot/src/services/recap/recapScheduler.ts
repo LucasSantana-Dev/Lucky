@@ -5,7 +5,10 @@ import { debugLog, errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { IntervalScheduler } from '../../utils/general/IntervalScheduler'
 import { translatorForInteraction } from '../../i18n/translatorForInteraction'
 import { isRecapRenderEnabled } from '../../config/featureFlags'
-import { renderFallbackTotal } from '../../utils/monitoring/prometheus'
+import {
+    recapCardPostedTotal,
+    renderFallbackTotal,
+} from '../../utils/monitoring/prometheus'
 import { renderRecapCard } from './recapCard'
 import { buildRecapEmbed } from './recapEmbed'
 import type { RenderFailureReason } from './recapRenderClient'
@@ -226,6 +229,8 @@ export class RecapScheduler extends IntervalScheduler {
                               }
                             : textOnly(),
                     )
+                    // Only a resolved send that carried the card counts.
+                    if (card) recapCardPostedTotal.inc()
                 } catch (error) {
                     // Attach Files revoked between the check and the send: the
                     // text embed may still go through, so try it once before
