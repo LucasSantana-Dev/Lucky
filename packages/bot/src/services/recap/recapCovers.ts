@@ -15,8 +15,9 @@ const COVER_HOSTS = new Set([
     'mosaic.scdn.co',
     'image-cdn-ak.spotifycdn.com',
     'image-cdn-fa.spotifycdn.com',
-    'i1.sndcdn.com',
 ])
+// SoundCloud artwork shards i1..i9, matched exactly (no i10, xi1 or suffix tricks).
+const SOUNDCLOUD_SHARD = /^i[1-9]\.sndcdn\.com$/
 const COVER_HOST_SUFFIXES = ['.mzstatic.com']
 const YOUTUBE_HOSTS = new Set(['i.ytimg.com', 'img.youtube.com'])
 const YOUTUBE_THUMB_PATH = /^\/vi(?:_webp)?\/([\w-]{6,20})\/[^/]+$/
@@ -67,6 +68,7 @@ export function resolveCoverUrl(raw: string | null | undefined): URL | null {
     if (isIP(host.replace(/^\[|\]$/g, '')) !== 0) return null
     const allowed =
         COVER_HOSTS.has(host) ||
+        SOUNDCLOUD_SHARD.test(host) ||
         COVER_HOST_SUFFIXES.some(
             (suffix) => host.endsWith(suffix) && host.length > suffix.length,
         )

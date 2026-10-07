@@ -62,9 +62,15 @@ export async function buildRecapCardPayload(
         })
     }
 
-    const covers = await fetchCovers(
-        tracks.map((t) => t.thumbnail),
-        { fetch: deps.fetch },
+    // Tracks often share art (an album): fetch each URL once and map the
+    // result back so covers[i] stays aligned with tracks[i].
+    const unique = [
+        ...new Set(tracks.map((t) => t.thumbnail).filter(Boolean)),
+    ] as string[]
+    const fetched = await fetchCovers(unique, { fetch: deps.fetch })
+    const byUrl = new Map(unique.map((url, i) => [url, fetched[i]]))
+    const covers = tracks.map((t) =>
+        t.thumbnail ? (byUrl.get(t.thumbnail) ?? null) : null,
     )
 
     // Counts only: no URLs or titles in logs.
@@ -112,7 +118,15 @@ export async function renderRecapCard(
             fetch: deps.fetch,
             baseUrl: deps.renderBaseUrl,
         })
-    } catch {
+    } catch (error) {
+        // Never the payload: only the guild and the error.
+        warnLog({
+            message: 'recap card: unexpected error building or requesting',
+            data: {
+                guildId: recap.guildId,
+                error: error instanceof Error ? error.message : String(error),
+            },
+        })
         return { ok: false, reason: 'bad_response' }
     }
 }

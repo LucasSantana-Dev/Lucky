@@ -5,11 +5,12 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const debugLogMock = jest.fn<AnyFn>()
+const warnLogMock = jest.fn<AnyFn>()
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...a: unknown[]) => debugLogMock(...a),
     errorLog: jest.fn(),
     infoLog: jest.fn(),
-    warnLog: jest.fn(),
+    warnLog: (...a: unknown[]) => warnLogMock(...a),
 }))
 jest.mock('@lucky/shared/services', () => ({
     getRecapCardTracks: jest.fn(),
@@ -96,6 +97,29 @@ describe('buildRecapCardPayload', () => {
         })
     })
 
+    it('fetches a shared cover URL once and gives every track its cover', async () => {
+        const fetchFn = coverFetch()
+        const shared = 'https://i.scdn.co/image/album'
+        const payload = await buildRecapCardPayload(recap, {
+            fetch: asFetch(fetchFn),
+            getCardTracks: jest.fn<AnyFn>().mockResolvedValue([
+                { title: 'A', author: 'X', plays: 3, thumbnail: shared },
+                { title: 'B', author: 'X', plays: 2, thumbnail: null },
+                { title: 'C', author: 'X', plays: 2, thumbnail: shared },
+                { title: 'D', author: 'X', plays: 1, thumbnail: shared },
+            ]),
+        })
+
+        expect(fetchFn).toHaveBeenCalledTimes(1)
+        const cover = Buffer.from([0xff, 0xd8, 0xff, 9]).toString('base64')
+        expect(payload.topTracks.map((t) => t.cover)).toEqual([
+            cover,
+            undefined,
+            cover,
+            cover,
+        ])
+    })
+
     it('keeps the worst-case request under 2.5 MB', async () => {
         const big = Uint8Array.from({ length: 64 * 1024 }, (_, i) =>
             i < 3 ? [0xff, 0xd8, 0xff][i] : 7,
@@ -171,11 +195,16 @@ describe('renderRecapCard', () => {
         expect(JSON.parse(render?.[1].body).guildId).toBe('g-1')
     })
 
-    it('never throws: an unexpected error becomes bad_response', async () => {
+    it('never throws: an unexpected error is logged and becomes bad_response', async () => {
+        warnLogMock.mockClear()
         const out = await renderRecapCard(recap, {
             getCardTracks: jest.fn<AnyFn>().mockResolvedValue(null),
         })
         expect(out).toEqual({ ok: false, reason: 'bad_response' })
+        expect(warnLogMock).toHaveBeenCalledWith({
+            message: 'recap card: unexpected error building or requesting',
+            data: { guildId: 'g-1', error: expect.any(String) },
+        })
     })
 })
 
@@ -202,7 +231,12 @@ describe('lucky-render contract (recap.schema.json)', () => {
     type JsonSchema = {
         properties: Record<
             string,
-            { type?: string | string[]; const?: unknown }
+            {
+                type?: string | string[]
+                const?: unknown
+                minimum?: number
+                maximum?: number
+            }
         >
         required: string[]
         additionalProperties: boolean
@@ -239,8 +273,38 @@ describe('lucky-render contract (recap.schema.json)', () => {
                 })
             }
             if (spec.const !== undefined) expect(v).toBe(spec.const)
+            if (typeof v === 'number') {
+                if (spec.minimum !== undefined) {
+                    expect({ key, v, ok: v >= spec.minimum }).toEqual({
+                        key,
+                        v,
+                        ok: true,
+                    })
+                }
+                if (spec.maximum !== undefined) {
+                    expect({ key, v, ok: v <= spec.maximum }).toEqual({
+                        key,
+                        v,
+                        ok: true,
+                    })
+                }
+            }
         }
     }
+
+    it('the contract helper enforces integer minimum and maximum', () => {
+        const schema: JsonSchema = {
+            properties: {
+                plays: { type: 'integer', minimum: 0, maximum: 4294967295 },
+            },
+            required: ['plays'],
+            additionalProperties: false,
+            $defs: {},
+        }
+        expect(() => assertMatches({ plays: 4294967295 }, schema)).not.toThrow()
+        expect(() => assertMatches({ plays: 4294967296 }, schema)).toThrow()
+        expect(() => assertMatches({ plays: -1 }, schema)).toThrow()
+    })
 
     contract('the built payload matches the schema exactly', async () => {
         if (!schemaPresent) {

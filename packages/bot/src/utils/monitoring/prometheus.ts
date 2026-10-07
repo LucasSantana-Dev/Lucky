@@ -85,13 +85,14 @@ export const guildAutomationUsageTotal = new Counter<'operation'>({
 })
 
 /**
- * Counter: weekly recap posts that went out as the text embed instead of the
- * image card (#2693). reason: disabled|no_attach_permission|timeout|http_error|
- * bad_response|network.
+ * Counter: weekly recaps where the image card path was abandoned and the text
+ * embed was chosen instead (#2693). Counted when the fallback is chosen, not
+ * when a post succeeds as text. reason: disabled|no_attach_permission|timeout|
+ * http_error|bad_response|network.
  */
 export const renderFallbackTotal = new Counter<'reason'>({
     name: 'lucky_bot_render_fallback_total',
-    help: 'Count of weekly recap posts that fell back to the text embed instead of the lucky-render image card, labelled by reason.',
+    help: 'Count of weekly recaps where the lucky-render image card path was abandoned and the text embed chosen instead, labelled by reason.',
     labelNames: ['reason'],
     registers: [registry],
 })
