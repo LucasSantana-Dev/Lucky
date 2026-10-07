@@ -22,13 +22,18 @@ pub const HEIGHT: u32 = 1440;
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RecapPayload {
     /// Must equal 1.
+    #[schemars(extend("const" = 1))]
     pub schema_version: u32,
     pub guild_id: String,
     pub from: String,
     pub to: String,
+    #[schemars(range(max = 4_294_967_295u32))]
     pub plays: u32,
+    #[schemars(range(max = 4_294_967_295u32))]
     pub skips: u32,
+    #[schemars(range(max = 4_294_967_295u32))]
     pub autoplay_plays: u32,
+    #[schemars(range(max = 18_446_744_073_709_551_615u64))]
     pub listened_seconds: u64,
     /// Only the first 25 are used.
     pub top_tracks: Vec<TopTrack>,
@@ -40,6 +45,7 @@ pub struct RecapPayload {
 pub struct TopTrack {
     pub title: String,
     pub author: String,
+    #[schemars(range(max = 4_294_967_295u32))]
     pub plays: u32,
     /// Optional standard base64 PNG or JPEG: at most 64 KB decoded and
     /// 1024x1024 pixels. An invalid cover is dropped, the card still renders.
@@ -51,6 +57,7 @@ pub struct TopTrack {
 #[serde(deny_unknown_fields)]
 pub struct TopArtist {
     pub name: String,
+    #[schemars(range(max = 4_294_967_295u32))]
     pub plays: u32,
 }
 
@@ -65,12 +72,15 @@ pub enum RenderError {
 }
 
 /// Families the card needs; a missing one silently falls back to a wrong face.
-const REQUIRED_FAMILIES: [&str; 5] = [
+const REQUIRED_FAMILIES: [&str; 8] = [
     "Manrope",
     "Bungee",
     "Neonderthaw",
     "Noto Sans SC",
+    "Noto Sans Arabic",
+    "Noto Sans Hebrew",
     "Noto Emoji",
+    "Noto Sans",
 ];
 
 /// Loads the bundled fonts once; the database is shared by every render.
@@ -178,6 +188,7 @@ pub fn sanitize(raw: &str) -> String {
             '\u{fffe}' | '\u{ffff}' => None,
             // Zero-width format characters (ZWJ U+200D stays for emoji).
             '\u{200b}' | '\u{200c}' | '\u{200e}' | '\u{200f}' => None,
+            '\u{61c}' | '\u{34f}' => None,
             '\u{2060}'..='\u{2064}' | '\u{feff}' => None,
             c => Some(c),
         })
@@ -235,6 +246,13 @@ const GOLD: &str = "#F6C85F";
 const NEON_WHITE: &str = "#FFF5FF";
 const HEADER: usize = 240;
 
+/// Rounded share of autoplay plays; u64 so no u32 input can overflow.
+fn autoplay_percent(autoplay: u32, plays: u32) -> u64 {
+    (u64::from(autoplay) * 100 + u64::from(plays) / 2)
+        .checked_div(u64::from(plays))
+        .unwrap_or(0)
+}
+
 /// Tapmusic-style collage: brand header with the week's numbers, then the
 /// top tracks' covers in the largest full square grid the week fills (5x5
 /// down to one tile).
@@ -247,9 +265,7 @@ pub fn build_svg_counted(r: &RecapPayload) -> (String, usize) {
     let mut dropped = 0;
     let hours = r.listened_seconds / 3600;
     let minutes = (r.listened_seconds % 3600) / 60;
-    let autoplay = (r.autoplay_plays * 100 + r.plays / 2)
-        .checked_div(r.plays)
-        .unwrap_or(0);
+    let autoplay = autoplay_percent(r.autoplay_plays, r.plays);
     let w = WIDTH as usize;
 
     let mut s = format!(
@@ -376,6 +392,25 @@ mod tests {
             "{err}"
         );
         assert!(font_db(&fonts).is_ok());
+    }
+
+    #[test]
+    fn strips_arabic_letter_mark_and_combining_grapheme_joiner() {
+        assert_eq!(sanitize("a\u{61c}b\u{34f}c"), "abc");
+    }
+
+    #[test]
+    fn autoplay_percent_does_not_overflow() {
+        assert_eq!(autoplay_percent(u32::MAX, u32::MAX), 100);
+        assert_eq!(autoplay_percent(52, 87), 60);
+        assert_eq!(autoplay_percent(5, 0), 0);
+    }
+
+    #[test]
+    fn every_family_in_the_fallback_chain_is_required() {
+        for family in FALLBACK.split(", ") {
+            assert!(REQUIRED_FAMILIES.contains(&family), "{family}");
+        }
     }
 
     #[test]
