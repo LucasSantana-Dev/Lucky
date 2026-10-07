@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.51.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.51.2...v2.51.3) (2026-10-07)
+
+
+### Bug Fixes
+
+* **api:** scope module settings writes to the module's own columns ([#2660](https://github.com/LucasSantana-Dev/Lucky/issues/2660)) ([8011456](https://github.com/LucasSantana-Dev/Lucky/commit/80114560f08b2dbf1207ad06d22660937c295fef))
+* **deps:** bump @sentry/node from 10.73.0 to 11.0.0 ([#2583](https://github.com/LucasSantana-Dev/Lucky/issues/2583)) ([6e6f609](https://github.com/LucasSantana-Dev/Lucky/commit/6e6f609089c2247defb36efa03dc95a4b25ea2b6))
+* **deps:** bump dotenv from 17.4.2 to 18.0.4 ([#2584](https://github.com/LucasSantana-Dev/Lucky/issues/2584)) ([6259a76](https://github.com/LucasSantana-Dev/Lucky/commit/6259a761827ebf3fd6f138bff4a2be95b9708bd9))
+* **deps:** bump the minor-patch group across 1 directory with 9 updates ([#2613](https://github.com/LucasSantana-Dev/Lucky/issues/2613)) ([4b2a431](https://github.com/LucasSantana-Dev/Lucky/commit/4b2a43175d3bc29e4ca32cb755de930ac9dd85c3))
+* **shared:** never treat the guild id ([@everyone](https://github.com/everyone)) as a moderation role ([#2659](https://github.com/LucasSantana-Dev/Lucky/issues/2659)) ([ccec425](https://github.com/LucasSantana-Dev/Lucky/commit/ccec425e7450a3e3c33a96cb85fe61e7216cc9ee))
+
 ## [2.51.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.51.1...v2.51.2) (2026-10-04)
 
 
