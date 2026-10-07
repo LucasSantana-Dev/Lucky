@@ -1000,7 +1000,7 @@ describe('track history playback fields (#2652)', () => {
         })
     })
 
-    it('a stream that never started (ERR_NO_STREAM) is not recorded as a play', async () => {
+    it('a stream that never started (ERR_NO_STREAM) is neither recorded nor scrobbled', async () => {
         const handlers = setupHandlers()
         const queue = createQueue(QueueRepeatMode.OFF)
         const track = createTrack('history-no-stream')
@@ -1008,6 +1008,7 @@ describe('track history playback fields (#2652)', () => {
         await handlers.playerSkip(queue, track, 'ERR_NO_STREAM')
 
         expect(addTrackToHistoryMock).not.toHaveBeenCalled()
+        expect(scrobbleCurrentTrackIfLastFmMock).not.toHaveBeenCalled()
     })
 
     it('a skip whose finish never came does not suppress the next play of the same track', async () => {

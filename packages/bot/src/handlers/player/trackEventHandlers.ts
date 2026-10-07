@@ -321,15 +321,17 @@ const handlePlayerSkip = async (
             },
         })
         // ERR_NO_STREAM: the stream never started, so there is no play to
-        // record and no playerFinish follows.
-        if (track && reason !== 'ERR_NO_STREAM') {
-            recordedBySkip.add(track)
-            await addTrackToHistory(track, queue.guild.id, {
-                skipped: true,
-                playDuration: playedSeconds(startTime),
-            })
+        // record or scrobble, and no playerFinish follows.
+        if (reason !== 'ERR_NO_STREAM') {
+            if (track) {
+                recordedBySkip.add(track)
+                await addTrackToHistory(track, queue.guild.id, {
+                    skipped: true,
+                    playDuration: playedSeconds(startTime),
+                })
+            }
+            await scrobbleCurrentTrackIfLastFm(queue, track)
         }
-        await scrobbleCurrentTrackIfLastFm(queue, track)
 
         if (track) {
             if (isRecommendationAutoplay(track)) {

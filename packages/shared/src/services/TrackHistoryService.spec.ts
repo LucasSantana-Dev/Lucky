@@ -441,7 +441,11 @@ describe('TrackHistoryService', () => {
             expect(result.trackIds.has('t3')).toBe(true)
             expect(result.trackIds.has('t2')).toBe(false)
             expect(mockFindMany).toHaveBeenCalledWith({
-                where: { guildId: GUILD, playedAt: { gte: expect.any(Date) } },
+                where: {
+                    guildId: GUILD,
+                    playedAt: { gte: expect.any(Date) },
+                    skipped: false,
+                },
                 orderBy: { playedAt: 'desc' },
                 take: 10000,
                 select: { trackId: true, author: true },

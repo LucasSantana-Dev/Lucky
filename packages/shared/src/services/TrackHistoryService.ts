@@ -409,6 +409,8 @@ export class TrackHistoryService {
                 where: {
                     guildId,
                     playedAt: { gte: thirtyDaysAgo },
+                    // A skip is not a replay (#2652).
+                    skipped: false,
                 },
                 orderBy: { playedAt: 'desc' },
                 take: 10000,
