@@ -19,10 +19,10 @@ what it doesn't, and how to interpret silence.
 
 ## Retired / not gating
 
-| Tool           | Status                                                                                                                                                                                              |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **CodeRabbit** | Retired 2026-06-04 (paid). Replaced by cubic (free on public repos) + the existing PR-Agent/Claude-review AI angles. See ADR `2026-05-21-replace-plan-limited-review-tools.md` (Update 2026-06-04). |
-| **Greptile**   | Trial cap reached (50 reviews/lifetime). Posts may still appear but **do not gate merges**. Use cubic / Claude review for the same coverage.                                                        |
+| Tool           | Status                                                                                                                                                                           |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **CodeRabbit** | Retired 2026-06-04 (paid). Replaced by cubic (free on public repos) + the Claude review AI angle. See ADR `2026-05-21-replace-plan-limited-review-tools.md` (Update 2026-06-04). |
+| **Greptile**   | Trial cap reached (50 reviews/lifetime). Posts may still appear but **do not gate merges**. Use cubic / Claude review for the same coverage.                                     |
 
 ## Why we replaced Greptile + tightened CodeRabbit (2026-05-10)
 

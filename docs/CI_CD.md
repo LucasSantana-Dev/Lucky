@@ -9,7 +9,7 @@ This document describes the continuous integration and deployment setup for Luck
 
 ## External contributors
 
-Three workflows keep fork PRs moving without manual babysitting:
+Two workflows keep fork PRs moving without manual babysitting:
 
 - **External PR Notify** (`external-pr-notify.yml`): posts a Discord alert to
   `DISCORD_DEPLOY_ALERT_WEBHOOK` when an external author opens/reopens/marks a PR
@@ -24,14 +24,16 @@ Three workflows keep fork PRs moving without manual babysitting:
   first-timers get a PR comment and the Discord ping brings a maintainer in to
   approve manually. Approved runs still execute under `pull_request` semantics
   (no secrets, read-only token).
-- **Claude Review** (`claude-review.yml`): calls the org reusable
-  `claude-review.yml` with `CLAUDE_CODE_OAUTH_TOKEN` (Claude subscription). It
-  runs on `pull_request`, not `pull_request_target`, because it checks out the
-  PR head; fork and Dependabot PRs are skipped. Replaced PR-Agent (2026-10-07),
-  which only takes API keys and failed once the API credit ran out.
 
-Safety rule for all three: never add a `checkout` step or any step that executes
+Safety rule for both: never add a `checkout` step or any step that executes
 PR code to a `pull_request_target` workflow.
+
+**Claude Review** (`claude-review.yml`) does not cover fork PRs: it calls the
+org reusable `claude-review.yml` with `CLAUDE_CODE_OAUTH_TOKEN` (Claude
+subscription) and runs on `pull_request`, not `pull_request_target`, because it
+checks out the PR head. Fork and Dependabot PRs are skipped. It replaced
+PR-Agent (2026-10-07), which only takes API keys and failed once the API credit
+ran out.
 
 ## Lock file
 
