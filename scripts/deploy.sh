@@ -174,6 +174,11 @@ require_running_containers() {
     # (docker-compose.yml): it is expected to exit 0 and stay stopped, so it
     # must never be treated as a required long-running container.
     local excluded_pattern="^(cloudflared|webhook|alertmanager-config)$"
+    # render has no image for SHAs older than its introduction; a rollback that
+    # could not pull it (ROLLBACK_SKIP_RENDER=1) must not be failed on it.
+    if [[ "${ROLLBACK_SKIP_RENDER:-0}" == "1" ]]; then
+        excluded_pattern="^(cloudflared|webhook|alertmanager-config|render)$"
+    fi
     local expected_services
     expected_services=$(docker_compose config --services 2>/dev/null | grep -v -E "$excluded_pattern" || true)
 
@@ -493,12 +498,23 @@ attempt_rollback() {
 
     # Registry images are tagged with the 7-char short SHA, so pin to that.
     export IMAGE_TAG="${last_good:0:7}"
-    if ! docker_compose pull bot backend frontend nginx render; then
+    if ! docker_compose pull bot backend frontend nginx; then
         log "ROLLBACK ERROR: could not pull last-good images (${last_good})"
         notify 16711680 "Rollback Failed" "Could not pull ${last_good} images — manual intervention required"
         return 1
     fi
-    docker_compose up -d --remove-orphans --no-deps bot backend frontend nginx render
+    # render is optional on rollback: a last-good SHA older than the render
+    # service has no render image. Keep the running render container as is and
+    # roll back the rest rather than aborting.
+    local rollback_services="bot backend frontend nginx"
+    if docker_compose pull render; then
+        rollback_services="$rollback_services render"
+    else
+        log "ROLLBACK WARN: no render image for ${IMAGE_TAG}; leaving running render container untouched"
+        export ROLLBACK_SKIP_RENDER=1
+    fi
+    # shellcheck disable=SC2086  # intentional word splitting of the service list
+    docker_compose up -d --remove-orphans --no-deps $rollback_services
 
     if run_health_checks; then
         log "Rollback to ${last_good} is healthy"
