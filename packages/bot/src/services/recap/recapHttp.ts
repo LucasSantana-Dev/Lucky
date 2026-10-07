@@ -17,7 +17,7 @@ export async function readCappedBody(
 ): Promise<Buffer | null> {
     const declared = Number(response.headers.get('content-length'))
     if (Number.isFinite(declared) && declared > maxBytes) {
-        await response.body?.cancel().catch(() => undefined)
+        await discardBody(response)
         return null
     }
     const reader = response.body?.getReader()
@@ -38,4 +38,13 @@ export async function readCappedBody(
         chunks.push(value)
     }
     return Buffer.concat(chunks)
+}
+
+/** Releases the connection of a response we will not read. Never throws. */
+export async function discardBody(response: Response): Promise<void> {
+    try {
+        await response.body?.cancel()
+    } catch {
+        // Already closed or errored: nothing to release.
+    }
 }

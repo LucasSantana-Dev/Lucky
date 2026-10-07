@@ -1,4 +1,4 @@
-import { mediaType, readCappedBody } from './recapHttp'
+import { discardBody, mediaType, readCappedBody } from './recapHttp'
 
 // Plain http is intended: the sidecar is reached only over the compose-internal
 // lucky-network, with no TLS hop between containers.
@@ -59,12 +59,12 @@ export async function requestRecapCard(
             },
         )
         if (response.status !== 200) {
-            await response.body?.cancel().catch(() => undefined)
+            await discardBody(response)
             return { ok: false, reason: 'http_error' }
         }
         const type = mediaType(response)
         if (type !== 'image/jpeg') {
-            await response.body?.cancel().catch(() => undefined)
+            await discardBody(response)
             return { ok: false, reason: 'bad_response' }
         }
         const jpeg = await readCappedBody(response, RENDER_MAX_RESPONSE_BYTES)

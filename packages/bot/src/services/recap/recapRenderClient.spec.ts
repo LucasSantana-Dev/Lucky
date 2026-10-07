@@ -205,4 +205,22 @@ describe('requestRecapCard', () => {
         const out = await requestRecapCard({}, { fetch: asFetch(fetchFn) })
         expect(out.ok).toBe(true)
     })
+
+    it.each([
+        ['a non-200 status', { status: 500 }],
+        [
+            'a non-jpeg content-type',
+            { headers: { 'content-type': 'image/png' } },
+        ],
+    ])('releases the body on %s without reading it', async (_, init) => {
+        const response = new Response(new Uint8Array(8), init)
+        const getReader = jest.spyOn(response.body!, 'getReader')
+        const cancel = jest.spyOn(response.body!, 'cancel')
+        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(response)
+
+        await requestRecapCard({}, { fetch: asFetch(fetchFn) })
+
+        expect(getReader).not.toHaveBeenCalled()
+        expect(cancel).toHaveBeenCalledTimes(1)
+    })
 })

@@ -1,5 +1,5 @@
 import { isIP } from 'node:net'
-import { mediaType, readCappedBody } from './recapHttp'
+import { discardBody, mediaType, readCappedBody } from './recapHttp'
 
 /** Hard cap per cover, matching the renderer's own limit (64 KB decoded). */
 export const COVER_MAX_BYTES = 64 * 1024
@@ -112,9 +112,15 @@ export async function fetchCover(
             redirect: 'error',
             signal,
         })
-        if (!response.ok) return null
+        if (!response.ok) {
+            await discardBody(response)
+            return null
+        }
         const type = mediaType(response)
-        if (type !== 'image/jpeg' && type !== 'image/png') return null
+        if (type !== 'image/jpeg' && type !== 'image/png') {
+            await discardBody(response)
+            return null
+        }
         const bytes = await readCappedBody(response, COVER_MAX_BYTES)
         // The content-type header is the CDN's word; the bytes must agree.
         if (

@@ -257,16 +257,44 @@ describe('fetchCover', () => {
         expect(sent).toBeLessThan(COVER_MAX_BYTES * 3)
     })
 
-    it('rejects an oversized declared content-length without reading', async () => {
-        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(
-            imageResponse(8, {
+    function spiedResponse(init: ResponseInit) {
+        const response = new Response(new Uint8Array(8), init)
+        const getReader = jest.spyOn(response.body!, 'getReader')
+        const cancel = jest.spyOn(response.body!, 'cancel')
+        return { response, getReader, cancel }
+    }
+
+    it('rejects an oversized declared content-length without reading, releasing the body', async () => {
+        const { response, getReader, cancel } = spiedResponse({
+            headers: {
                 'content-type': 'image/jpeg',
                 'content-length': String(COVER_MAX_BYTES + 1),
-            }),
-        )
+            },
+        })
+        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(response)
+
         expect(
             await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch }),
         ).toBeNull()
+        expect(getReader).not.toHaveBeenCalled()
+        expect(cancel).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([
+        [
+            'a non-2xx status',
+            { status: 404, headers: { 'content-type': 'image/jpeg' } },
+        ],
+        ['a wrong content-type', { headers: { 'content-type': 'text/html' } }],
+    ])('releases the body on %s without reading it', async (_, init) => {
+        const { response, getReader, cancel } = spiedResponse(init)
+        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(response)
+
+        expect(
+            await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch }),
+        ).toBeNull()
+        expect(getReader).not.toHaveBeenCalled()
+        expect(cancel).toHaveBeenCalledTimes(1)
     })
 
     it('gives up on a hung request after the per-image timeout', async () => {

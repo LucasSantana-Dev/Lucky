@@ -126,6 +126,8 @@ export async function getRecapCardTracks(
     const thumbs = await prisma.trackHistory.findMany({
         where: {
             ...where,
+            // A play that counts toward the ranking, not a skipped start.
+            skipped: false,
             thumbnail: { not: null },
             OR: tracks.map((t) => ({ title: t.title, author: t.author })),
         },

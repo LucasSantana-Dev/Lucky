@@ -213,6 +213,7 @@ describe('getRecapCardTracks (#2693)', () => {
             where: {
                 guildId: GUILD,
                 playedAt: { gte: FROM, lt: TO },
+                skipped: false,
                 thumbnail: { not: null },
                 OR: [
                     { title: 'A', author: 'X' },
