@@ -66,8 +66,8 @@ export async function listDueRecaps(
 /**
  * Claims the week ending at `boundary` before posting it: one conditional
  * write, so a guild that turned the recap off or moved it since the due list
- * was read is not claimed, and a claimed week is never posted twice (at most
- * once: a send that fails after the claim loses that week).
+ * was read is not claimed, and a claimed week is never posted twice. A send
+ * that fails for a transient reason hands the week back (`releaseRecapWeek`).
  */
 export async function claimRecapWeek(
     guildId: string,
@@ -87,4 +87,18 @@ export async function claimRecapWeek(
         data: { recapLastPostedAt: now },
     })
     return result.count > 0
+}
+
+/**
+ * Hands a claimed week back after a transient send failure, so the next tick
+ * retries it. Only undoes this claim: a newer write to the row is kept.
+ */
+export async function releaseRecapWeek(
+    guildId: string,
+    claimedAt: Date,
+): Promise<void> {
+    await getPrismaClient().guildSettings.updateMany({
+        where: { guildId, recapLastPostedAt: claimedAt },
+        data: { recapLastPostedAt: null },
+    })
 }

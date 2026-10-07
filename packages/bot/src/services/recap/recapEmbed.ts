@@ -21,11 +21,16 @@ function listened(seconds: number): string {
     return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
 }
 
+/** Track metadata is untrusted: a newline would forge an extra ranked entry. */
+function oneLine(text: string): string {
+    return text.replace(/[\r\n]+/g, ' ')
+}
+
 function rankedLines(items: Array<{ label: string; plays: number }>): string {
     const text = items
         .map(
             (item, i) =>
-                `**${i + 1}.** ${clip(escapeMarkdown(item.label), LINE_LIMIT)} · ×${item.plays}`,
+                `**${i + 1}.** ${clip(escapeMarkdown(oneLine(item.label)), LINE_LIMIT)} · ×${item.plays}`,
         )
         .join('\n')
     return clip(text, FIELD_LIMIT)

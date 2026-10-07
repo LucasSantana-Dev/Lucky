@@ -85,7 +85,7 @@
             "autoplayValue": "{{percent}}% de las canciones",
             "topTracksName": "Más escuchadas",
             "topArtistsName": "Artistas más escuchados",
-            "enabled": "📅 El resumen semanal se publicará en <#{{channel}}> cada domingo a las 18:00 UTC. El primero llega el próximo domingo.",
+            "enabled": "📅 El resumen semanal se publicará en <#{{channel}}> cada domingo a las 18:00 UTC.",
             "disabled": "🔕 Resumen semanal desactivado.",
             "alreadyOff": "El resumen semanal ya está desactivado.",
             "notTextChannel": "❌ Elige un canal de texto para el resumen.",

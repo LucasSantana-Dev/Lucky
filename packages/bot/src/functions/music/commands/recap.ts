@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import { ChannelType, PermissionFlagsBits } from 'discord.js'
+import { ChannelType, MessageFlags, PermissionFlagsBits } from 'discord.js'
 import { errorLog, infoLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
 import type { CommandExecuteParams } from '../../../types/CommandData'
@@ -36,6 +36,8 @@ export default new Command({
         if (!(await requireGuild(interaction))) return
         const guild = interaction.guild
         if (!guild) return
+        // Acknowledge first: the work below can outlast Discord's 3 s window.
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral })
         const t = await translatorForInteraction(interaction)
         const reply = (content: string) =>
             interactionReply({

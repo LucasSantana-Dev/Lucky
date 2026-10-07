@@ -615,6 +615,7 @@ describe('BotInitializer', () => {
                 ['presence rotation', stopPresenceRotationMock],
                 ['web music handler', stopWebMusicHandlerMock],
                 ['birthday scheduler', birthdaySchedulerStopMock],
+                ['recap scheduler', recapSchedulerStopMock],
                 ['support session scheduler', supportStop],
                 ['reminder scheduler', reminderStop],
                 ['giveaway scheduler', giveawayStop],

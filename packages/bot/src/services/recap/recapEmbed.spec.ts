@@ -57,6 +57,23 @@ describe('buildRecapEmbed (#2678)', () => {
         expect(JSON.stringify(json)).not.toContain('playedBy')
     })
 
+    it('flattens newlines in track metadata so it cannot forge entries', () => {
+        const json = buildRecapEmbed(
+            {
+                ...recap,
+                topTracks: [
+                    { title: 'Song\n**2.** Fake', author: 'A\r\nB', plays: 1 },
+                ],
+            },
+            t,
+        ).toJSON()
+        const value =
+            json.fields?.find((f) => f.name === 'music.recap.topTracksName')
+                ?.value ?? ''
+
+        expect(value).not.toContain('\n')
+    })
+
     it('keeps long titles inside the field limit', () => {
         const long = 'x'.repeat(500)
         const json = buildRecapEmbed(

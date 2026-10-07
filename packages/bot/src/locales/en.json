@@ -86,7 +86,7 @@
             "autoplayValue": "{{percent}}% of the tracks",
             "topTracksName": "Top tracks",
             "topArtistsName": "Top artists",
-            "enabled": "📅 The weekly recap will post in <#{{channel}}> every Sunday at 18:00 UTC. The first one arrives next Sunday.",
+            "enabled": "📅 The weekly recap will post in <#{{channel}}> every Sunday at 18:00 UTC.",
             "disabled": "🔕 Weekly recap turned off.",
             "alreadyOff": "The weekly recap is already off.",
             "notTextChannel": "❌ Pick a text channel for the recap.",

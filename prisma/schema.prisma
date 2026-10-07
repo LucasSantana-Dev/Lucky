@@ -243,7 +243,8 @@ model GuildSettings {
   supportAgentRoleId String?
 
   // Weekly recap (#2678): opt-in channel, null = off. recapLastPostedAt is
-  // written after a successful post so a restart neither skips nor repeats.
+  // stamped on opt-in and when the scheduler claims a week (before sending);
+  // a transient send failure clears it again so the week is retried.
   recapChannelId    String?
   recapLastPostedAt DateTime?
 

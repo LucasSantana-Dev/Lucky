@@ -6,7 +6,12 @@ import { IntervalScheduler } from '../../utils/general/IntervalScheduler'
 import { translatorForInteraction } from '../../i18n/translatorForInteraction'
 import { buildRecapEmbed } from './recapEmbed'
 import { latestRecapBoundary, recapWindow } from './recapWindow'
-import { claimRecapWeek, disableRecap, listDueRecaps } from './recapStore'
+import {
+    claimRecapWeek,
+    disableRecap,
+    listDueRecaps,
+    releaseRecapWeek,
+} from './recapStore'
 
 const HOUR_MS = 60 * 60 * 1000
 /** Below this many plays in the week the recap is skipped, not posted empty. */
@@ -18,8 +23,15 @@ export const RECAP_POST_PERMISSIONS = [
     PermissionFlagsBits.EmbedLinks,
 ]
 
-/** Discord codes meaning the channel is gone or hidden from the bot for good. */
-const CHANNEL_GONE_CODES = new Set([10003, 50001])
+/**
+ * Discord codes meaning the bot cannot post in the channel until someone acts:
+ * Unknown Channel, Missing Access, Missing Permissions.
+ */
+const CHANNEL_GONE_CODES = new Set([10003, 50001, 50013])
+
+function isChannelGone(error: unknown): boolean {
+    return CHANNEL_GONE_CODES.has(Number((error as { code?: unknown }).code))
+}
 
 /**
  * The text channel the bot can post the recap in, or why it cannot. Only a
@@ -37,8 +49,7 @@ export async function resolveRecapChannel(
     try {
         channel = await guild.channels.fetch(channelId)
     } catch (error) {
-        const code = Number((error as { code?: unknown }).code)
-        if (CHANNEL_GONE_CODES.has(code)) return { reason: 'missing_channel' }
+        if (isChannelGone(error)) return { reason: 'missing_channel' }
         throw error
     }
     if (!channel || channel.type !== ChannelType.GuildText) {
@@ -59,7 +70,7 @@ type RecapSchedulerOptions = {
  * Posts the weekly recap (#2678). Hourly tick; a guild is due once the most
  * recent Sunday 18:00 UTC is later than its last post, so a restart or a missed
  * hour posts on the next tick. Each week is claimed before it is sent, so it
- * posts at most once. Guilds are processed one at a time: about 50 guilds,
+ * never posts twice; a transient send failure releases the claim to retry. Guilds are processed one at a time: about 50 guilds,
  * each a few queries and one message.
  */
 export class RecapScheduler extends IntervalScheduler {
@@ -114,11 +125,12 @@ export class RecapScheduler extends IntervalScheduler {
             const recap = await getWeeklyRecap(guildId, from, to)
             // Claimed even when the week is too quiet to post, so it is not
             // re-read every hour; a false claim means /recap changed meanwhile.
+            const claimedAt = this.clock()
             const claimed = await claimRecapWeek(
                 guildId,
                 channelId,
                 boundary,
-                this.clock(),
+                claimedAt,
             )
             if (!claimed) {
                 debugLog({
@@ -136,10 +148,24 @@ export class RecapScheduler extends IntervalScheduler {
             }
 
             const t = await translatorForInteraction({ guildId, guild })
-            await target.channel.send({
-                embeds: [buildRecapEmbed(recap, t)],
-                allowedMentions: { parse: [] },
-            })
+            try {
+                await target.channel.send({
+                    embeds: [buildRecapEmbed(recap, t)],
+                    allowedMentions: { parse: [] },
+                })
+            } catch (error) {
+                if (isChannelGone(error)) {
+                    // Lost access between the check and the send.
+                    await disableRecap(guildId, channelId)
+                    warnLog({
+                        message: 'recap: send refused, opt-in cleared',
+                        data: { guildId, channelId },
+                    })
+                    return
+                }
+                await releaseRecapWeek(guildId, claimedAt)
+                throw error
+            }
             infoLog({
                 message: 'recap: posted',
                 data: { guildId, plays: recap.plays },

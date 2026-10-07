@@ -19,6 +19,7 @@ import {
     disableRecap,
     enableRecap,
     listDueRecaps,
+    releaseRecapWeek,
 } from './recapStore'
 
 const NOW = new Date('2026-10-07T12:00:00.000Z')
@@ -125,4 +126,13 @@ describe('recapStore (#2678)', () => {
             })
         },
     )
+
+    it('releasing only undoes this claim', async () => {
+        await releaseRecapWeek('g-1', NOW)
+
+        expect(prisma.guildSettings.updateMany).toHaveBeenCalledWith({
+            where: { guildId: 'g-1', recapLastPostedAt: NOW },
+            data: { recapLastPostedAt: null },
+        })
+    })
 })

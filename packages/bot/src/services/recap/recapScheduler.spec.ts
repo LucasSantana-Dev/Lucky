@@ -8,12 +8,14 @@ import {
 type AnyFn = (...args: any[]) => any
 const listDueRecapsMock = jest.fn<AnyFn>()
 const claimRecapWeekMock = jest.fn<AnyFn>()
+const releaseRecapWeekMock = jest.fn<AnyFn>()
 const disableRecapMock = jest.fn<AnyFn>()
 const getWeeklyRecapMock = jest.fn<AnyFn>()
 
 jest.mock('./recapStore', () => ({
     listDueRecaps: (...a: unknown[]) => listDueRecapsMock(...a),
     claimRecapWeek: (...a: unknown[]) => claimRecapWeekMock(...a),
+    releaseRecapWeek: (...a: unknown[]) => releaseRecapWeekMock(...a),
     disableRecap: (...a: unknown[]) => disableRecapMock(...a),
 }))
 
@@ -225,17 +227,26 @@ describe('RecapScheduler (#2678)', () => {
         expect(send).toHaveBeenCalledTimes(1)
     })
 
-    it('a send failing after the claim is not retried (at most once)', async () => {
+    it('a transient send failure hands the week back for the next tick', async () => {
         getWeeklyRecapMock.mockResolvedValue(recap(12))
         const { client, send } = makeClient('text')
         send.mockRejectedValue(new Error('discord down'))
 
         await runTick(client)
-        listDueRecapsMock.mockResolvedValue([])
+
+        expect(releaseRecapWeekMock).toHaveBeenCalledWith('g-1', NOW)
+        expect(disableRecapMock).not.toHaveBeenCalled()
+    })
+
+    it('a send refused for permissions clears that channel, keeping the claim', async () => {
+        getWeeklyRecapMock.mockResolvedValue(recap(12))
+        const { client, send } = makeClient('text')
+        send.mockRejectedValue({ code: 50013 })
+
         await runTick(client)
 
-        expect(send).toHaveBeenCalledTimes(1)
-        expect(claimRecapWeekMock).toHaveBeenCalledTimes(1)
+        expect(disableRecapMock).toHaveBeenCalledWith('g-1', 'c-1')
+        expect(releaseRecapWeekMock).not.toHaveBeenCalled()
     })
 
     it('one failing guild does not stop the others', async () => {

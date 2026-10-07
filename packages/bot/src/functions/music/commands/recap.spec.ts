@@ -35,6 +35,7 @@ function interaction(sub: 'channel' | 'off', canManage = true) {
         guildId: 'g-1',
         guild: { id: 'g-1' },
         memberPermissions: { has: () => canManage },
+        deferReply: jest.fn<AnyFn>().mockResolvedValue(undefined),
         options: {
             getSubcommand: () => sub,
             getChannel: () => ({ id: 'c-1' }),
@@ -115,10 +116,16 @@ describe('recap command (#2678)', () => {
         expect(replied()).toBe('music.recap.needManageGuild')
     })
 
-    it('replies ephemerally', async () => {
+    it('defers ephemerally before any slow work, then replies ephemerally', async () => {
         disableRecapMock.mockResolvedValue(true)
+        const i = interaction('off')
 
-        await recapCommand.execute({ interaction: interaction('off') } as any)
+        await recapCommand.execute({ interaction: i } as any)
+
+        expect(i.deferReply).toHaveBeenCalledWith({ flags: 64 })
+        expect(i.deferReply.mock.invocationCallOrder[0]).toBeLessThan(
+            disableRecapMock.mock.invocationCallOrder[0],
+        )
 
         expect(interactionReplyMock.mock.calls[0][0].content.ephemeral).toBe(
             true,
