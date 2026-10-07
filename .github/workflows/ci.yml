@@ -580,6 +580,9 @@ jobs:
                     if (!frame.length) throw new Error('opus encoded an empty frame');
                     console.log('opus OK — encoded', frame.length, 'bytes');
                   "
+                  # #2664: yt-dlp needs the EJS solver scripts in its venv.
+                  docker run --rm lucky-bot:ci /opt/ytdlp/bin/python -c \
+                    "import yt_dlp_ejs; print('yt-dlp-ejs OK')"
             # ESM load-time bugs (bare JSON imports, a missing file extension
             # add-js-extensions.js failed to patch, a circular import) pass every
             # other check and only surface when Node actually loads the built
