@@ -1,18 +1,17 @@
 name: Claude Review
 
-# AI code review on the Claude subscription (CLAUDE_CODE_OAUTH_TOKEN from
-# `claude setup-token`) via the org reusable workflow. Replaced PR-Agent, which
+# On-demand AI code review on the Claude subscription (CLAUDE_CODE_OAUTH_TOKEN
+# from `claude setup-token`) via the org reusable workflow. Comment
+# `/claude-review` on a PR to run it; the reusable caps each PR at 3 runs,
+# refuses fork PRs and fails if no review gets posted. Replaced PR-Agent, which
 # only takes API keys and failed on "credit balance is too low".
-#
-# Runs on pull_request, NOT pull_request_target: the reusable workflow checks
-# out and reads the PR head, so it must never run with base-repo secrets on
-# fork code. Fork and Dependabot PRs get no secrets here and are skipped.
 on:
+    issue_comment:
+        types: [created]
+    # TEMPORARY canary trigger for this PR only (issue_comment runs from the
+    # default branch); removed before merge.
     pull_request:
-        types: [opened, reopened, ready_for_review]
-        branches:
-            - main
-            - 'release/**'
+        types: [reopened]
 
 permissions:
     contents: read
@@ -24,12 +23,10 @@ jobs:
     review:
         name: AI Code Review
         if: >-
-            ${{ github.event.pull_request.head.repo.full_name == github.repository
-            && github.event.pull_request.user.login != 'dependabot[bot]' }}
-        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@511ebff42a5f2f8f587fe98fe8ad67cf842de57f # main
-        with:
-            # The reusable default (3) ends with error_max_turns before the
-            # review is posted: reading the diff and posting take several turns.
-            max_turns: 15
+            ${{ (github.event_name == 'pull_request' && github.event.pull_request.number == 2666)
+            || (github.event.issue.pull_request
+            && startsWith(github.event.comment.body, '/claude-review')
+            && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) }}
+        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@459a4113fd4fa3c018134eb5d2a9d22b268b75b3 # feat/claude-review-manual-trigger
         secrets:
             CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
