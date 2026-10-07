@@ -27,6 +27,8 @@ jobs:
             || (github.event.issue.pull_request
             && (github.event.comment.body == '/claude-review' || startsWith(github.event.comment.body, '/claude-review '))
             && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) }}
-        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@1444cb7ac87606b520bedd09d1e2397737e7f3ea # feat/claude-review-manual-trigger
+        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@83f004a3767aebb302aa16575964532119134945 # feat/claude-review-manual-trigger
+        with:
+            max_reviews: 5 # TEMPORARY canary headroom; removed before merge
         secrets:
             CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
