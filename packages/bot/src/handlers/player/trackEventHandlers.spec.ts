@@ -1062,17 +1062,24 @@ describe('track history when a queue is deleted mid-play', () => {
         jest.useRealTimers()
     })
 
-    function queueWithCurrent(track: Track | null): GuildQueue {
+    // discord-player stops the voice player before it emits queueDelete (and
+    // after skip/finish), so queue.currentTrack is null on these paths; the
+    // handlers must not depend on it.
+    function makeQueue(guildId = 'guild-1'): GuildQueue {
+        const base = createQueue(QueueRepeatMode.OFF) as unknown as {
+            guild: { id: string; name: string }
+        }
         return {
-            ...createQueue(QueueRepeatMode.OFF),
-            currentTrack: track,
+            ...base,
+            guild: { ...base.guild, id: guildId },
+            currentTrack: null,
         } as unknown as GuildQueue
     }
 
     it('records the interrupted play once, with the seconds played (/stop, /leave, disconnect, empty channel)', async () => {
         const handlers = setupHandlers()
         const track = { ...createTrack('delete-stop'), durationMS: 200_000 }
-        const queue = queueWithCurrent(track)
+        const queue = makeQueue()
 
         await handlers.playerStart(queue, track)
         jest.advanceTimersByTime(65_000)
@@ -1096,13 +1103,13 @@ describe('track history when a queue is deleted mid-play', () => {
     it('hands the cut-short play time to the scrobbler for a short /stop and a long skip', async () => {
         const handlers = setupHandlers()
         const stopped = { ...createTrack('stop-short'), durationMS: 200_000 }
-        const stopQueue = queueWithCurrent(stopped)
+        const stopQueue = makeQueue()
         await handlers.playerStart(stopQueue, stopped)
         jest.advanceTimersByTime(2_000)
         await handlers.queueDelete(stopQueue)
 
         const skipped = { ...createTrack('skip-long'), durationMS: 200_000 }
-        const skipQueue = queueWithCurrent(skipped)
+        const skipQueue = makeQueue()
         await handlers.playerStart(skipQueue, skipped)
         jest.advanceTimersByTime(150_000)
         await handlers.playerSkip(skipQueue, skipped, 'MANUAL')
@@ -1127,7 +1134,7 @@ describe('track history when a queue is deleted mid-play', () => {
             ...createTrack('delete-after-skip'),
             durationMS: 200_000,
         }
-        const queue = queueWithCurrent(track)
+        const queue = makeQueue()
 
         await handlers.playerStart(queue, track)
         jest.advanceTimersByTime(10_000)
@@ -1147,7 +1154,7 @@ describe('track history when a queue is deleted mid-play', () => {
             ...createTrack('delete-after-finish'),
             durationMS: 200_000,
         }
-        const queue = queueWithCurrent(track)
+        const queue = makeQueue()
 
         await handlers.playerStart(queue, track)
         jest.advanceTimersByTime(200_000)
@@ -1163,7 +1170,7 @@ describe('track history when a queue is deleted mid-play', () => {
     it('still records a normal finish exactly once when no delete follows', async () => {
         const handlers = setupHandlers()
         const track = { ...createTrack('finish-only'), durationMS: 100_000 }
-        const queue = queueWithCurrent(track)
+        const queue = makeQueue()
 
         await handlers.playerStart(queue, track)
         jest.advanceTimersByTime(100_000)
@@ -1175,11 +1182,11 @@ describe('track history when a queue is deleted mid-play', () => {
     it('records nothing for a stream that never started (ERR_NO_STREAM) or an idle queue', async () => {
         const handlers = setupHandlers()
         const failed = createTrack('delete-no-stream')
-        const failedQueue = queueWithCurrent(failed)
+        const failedQueue = makeQueue()
 
         await handlers.playerSkip(failedQueue, failed, 'ERR_NO_STREAM')
         await handlers.queueDelete(failedQueue)
-        await handlers.queueDelete(queueWithCurrent(null))
+        await handlers.queueDelete(makeQueue())
 
         expect(addTrackToHistoryMock).not.toHaveBeenCalled()
         expect(scrobbleCurrentTrackIfLastFmMock).not.toHaveBeenCalled()
@@ -1191,7 +1198,7 @@ describe('track history when a queue is deleted mid-play', () => {
             ...createTrack('delete-scrobble-error'),
             durationMS: 200_000,
         }
-        const queue = queueWithCurrent(track)
+        const queue = makeQueue()
         scrobbleCurrentTrackIfLastFmMock.mockRejectedValueOnce(
             new Error('boom'),
         )
@@ -1206,7 +1213,7 @@ describe('track history when a queue is deleted mid-play', () => {
             ...createTrack('delete-history-error'),
             durationMS: 200_000,
         }
-        const queue = queueWithCurrent(track)
+        const queue = makeQueue()
         addTrackToHistoryMock.mockRejectedValueOnce(new Error('db down'))
 
         await handlers.playerStart(queue, track)
@@ -1218,7 +1225,7 @@ describe('track history when a queue is deleted mid-play', () => {
     it('does not count paused time as played (stop after pause and resume)', async () => {
         const handlers = setupHandlers()
         const track = { ...createTrack('delete-paused'), durationMS: 200_000 }
-        const queue = queueWithCurrent(track)
+        const queue = makeQueue()
 
         await handlers.playerStart(queue, track)
         jest.advanceTimersByTime(10_000)
@@ -1241,7 +1248,7 @@ describe('track history when a queue is deleted mid-play', () => {
     it('does not count a pause still open at skip time', async () => {
         const handlers = setupHandlers()
         const track = { ...createTrack('skip-paused'), durationMS: 200_000 }
-        const queue = queueWithCurrent(track)
+        const queue = makeQueue()
 
         await handlers.playerStart(queue, track)
         jest.advanceTimersByTime(5_000)
@@ -1259,7 +1266,7 @@ describe('track history when a queue is deleted mid-play', () => {
         const handlers = setupHandlers()
         const first = { ...createTrack('pause-first'), durationMS: 200_000 }
         const second = { ...createTrack('pause-second'), durationMS: 200_000 }
-        const queue = queueWithCurrent(first)
+        const queue = makeQueue()
 
         await handlers.playerStart(queue, first)
         handlers.playerPause(queue)
@@ -1274,5 +1281,61 @@ describe('track history when a queue is deleted mid-play', () => {
             'guild-1',
             { playDuration: 40 },
         )
+    })
+
+    it('does not record a different guild\'s play on delete', async () => {
+        const handlers = setupHandlers()
+        const track = { ...createTrack('guild-a-track'), durationMS: 200_000 }
+        const guildA = makeQueue('guild-a')
+        const guildB = makeQueue('guild-b')
+
+        await handlers.playerStart(guildA, track)
+        jest.advanceTimersByTime(30_000)
+        await handlers.queueDelete(guildB)
+        expect(addTrackToHistoryMock).not.toHaveBeenCalled()
+
+        await handlers.queueDelete(guildA)
+        expect(addTrackToHistoryMock).toHaveBeenCalledTimes(1)
+        expect(addTrackToHistoryMock).toHaveBeenCalledWith(track, 'guild-a', {
+            playDuration: 30,
+        })
+    })
+
+    it('records the latest started track when several played in a row', async () => {
+        const handlers = setupHandlers()
+        const first = { ...createTrack('seq-first'), durationMS: 200_000 }
+        const second = { ...createTrack('seq-second'), durationMS: 200_000 }
+        const queue = makeQueue()
+
+        await handlers.playerStart(queue, first)
+        jest.advanceTimersByTime(200_000)
+        await handlers.playerFinish(queue, first)
+        await handlers.playerStart(queue, second)
+        jest.advanceTimersByTime(12_000)
+        await handlers.queueDelete(queue)
+
+        expect(addTrackToHistoryMock).toHaveBeenCalledTimes(2)
+        expect(addTrackToHistoryMock).toHaveBeenLastCalledWith(
+            second,
+            'guild-1',
+            { playDuration: 12 },
+        )
+    })
+
+    it('still falls back to queue.currentTrack when it is set', async () => {
+        const handlers = setupHandlers()
+        const track = { ...createTrack('current-set'), durationMS: 200_000 }
+        const queue = {
+            ...makeQueue(),
+            currentTrack: track,
+        } as unknown as GuildQueue
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(8_000)
+        await handlers.queueDelete(queue)
+
+        expect(addTrackToHistoryMock).toHaveBeenCalledWith(track, 'guild-1', {
+            playDuration: 8,
+        })
     })
 })

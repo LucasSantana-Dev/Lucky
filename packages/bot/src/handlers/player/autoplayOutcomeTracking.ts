@@ -40,6 +40,24 @@ export const OUTCOME_ACCEPT_PLAY_RATIO = 0.3
 // exported binding captured by an importer would go on pointing at the old map.
 let trackPlayStartTimes = new WeakMap<Track, number[]>()
 
+// The last track that started in each guild. discord-player tears the voice
+// player down before it emits queueDelete, so queue.currentTrack is already
+// null there and the interrupted track can only be found from here. It is a
+// lookup key for takeTrackPlayStart, not proof the track is still playing: a
+// finished or skipped track has no start entry left, so it is ignored.
+const guildLastStartedTrack = new Map<string, Track>()
+
+export function setGuildLastStartedTrack(guildId: string, track: Track): void {
+    guildLastStartedTrack.set(guildId, track)
+}
+
+/** Removes and returns the guild's last started track, if any. */
+export function takeGuildLastStartedTrack(guildId: string): Track | undefined {
+    const track = guildLastStartedTrack.get(guildId)
+    guildLastStartedTrack.delete(guildId)
+    return track
+}
+
 export function setTrackPlayStart(track: Track, startedAt: number): void {
     const queue = trackPlayStartTimes.get(track)
     if (queue) {
@@ -123,6 +141,7 @@ export function getPausedMs(guildId: string, now: number): number {
 export function __resetTrackHandlerCachesForTests(): void {
     guildRecentSkipCounts.clear()
     guildPauseStates.clear()
+    guildLastStartedTrack.clear()
     // A WeakMap has no clear(), so drop the whole map. Tests rely on this to
     // simulate a start time being lost before its finish event arrives.
     trackPlayStartTimes = new WeakMap<Track, number[]>()

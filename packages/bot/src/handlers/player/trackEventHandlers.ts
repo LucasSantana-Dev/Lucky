@@ -36,6 +36,8 @@ import {
     recordImplicitTrackFeedback,
     logAutoplayOutcomeEval,
     setTrackPlayStart,
+    setGuildLastStartedTrack,
+    takeGuildLastStartedTrack,
     takeTrackPlayStart,
     resetPausedTime,
     markPaused,
@@ -177,6 +179,7 @@ const handlePlayerStart = async (
 ): Promise<void> => {
     try {
         setTrackPlayStart(track, Date.now())
+        setGuildLastStartedTrack(queue.guild.id, track)
         recordedBySkip.delete(track)
         resetPausedTime(queue.guild.id)
         const requestedQuery = (
@@ -334,8 +337,9 @@ const handlePlayerFinish = async (
  * playerFinish that /stop, /leave, a voice disconnect, the empty-channel leave
  * and the idle disconnect would otherwise cause is swallowed, and the track
  * was never written to track_history. delete() emits queueDelete itself,
- * synchronously and before anything is torn down, so currentTrack is still
- * the interrupted track here.
+ * after the node manager has already stopped the voice player, so the audio
+ * resource is gone and queue.currentTrack is null here. The interrupted track
+ * is therefore the guild's last started track.
  *
  * The play-start entry is what keeps this exclusive with the other paths:
  * playerFinish and playerSkip each consume exactly one entry per play, so a
@@ -344,7 +348,8 @@ const handlePlayerFinish = async (
  */
 const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
     try {
-        const track = queue.currentTrack ?? undefined
+        const lastStarted = takeGuildLastStartedTrack(queue.guild.id)
+        const track = queue.currentTrack ?? lastStarted
         // Claimed before the awaits below, like the finish and skip paths.
         const startTime = track ? takeTrackPlayStart(track) : undefined
         if (!track || startTime === undefined) return
