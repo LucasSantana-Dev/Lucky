@@ -14,6 +14,9 @@
 -- depends on the column); grants do not.
 -- default_transaction_read_only and statement_timeout are guardrails a session
 -- can override; the privileges below are the actual control.
+-- CONNECTION LIMIT 5 is intentional: keep the Grafana datasource's
+-- maxOpenConns at 5 or below (the homelab one uses 2), or panels fail with
+-- "too many connections for role grafana_ro".
 
 SELECT format('CREATE ROLE grafana_ro LOGIN PASSWORD %L', :'pw')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'grafana_ro') \gexec
