@@ -15,13 +15,13 @@
 <text x="49" y="583" font-size="33" font-weight="600" fill="#211D2E">⁨Track 1⁩</text>
 <text x="49" y="616" font-size="24" font-weight="600" fill="#211D2E">⁨Artist 1⁩</text><text x="404" y="616" font-size="24" font-weight="600" text-anchor="end" fill="#211D2E">×12</text>
 <rect x="40" y="256" width="373" height="373" fill="none" stroke="#211D2E" stroke-width="4"/>
-<rect x="413" y="256" width="373" height="373" fill="#F3E6CB"/><circle class="sun" cx="599" cy="400" r="70" fill="#52387B"/>
+<rect x="413" y="256" width="373" height="373" fill="#F3E6CB"/><circle class="sun" cx="599" cy="400" r="37" fill="#52387B"/>
 <rect x="413" y="545" width="373" height="84" fill="#F3E6CB"/><rect x="413" y="545" width="373" height="4" fill="#211D2E"/>
 <circle cx="463" cy="306" r="41" fill="#52387B" stroke="#211D2E" stroke-width="4"/><text x="463" y="321" font-family="Dela Gothic One" font-size="45" text-anchor="middle" fill="#F3E6CB">2</text>
 <text x="422" y="583" font-size="33" font-weight="600" fill="#211D2E">⁨Track 2⁩</text>
 <text x="422" y="616" font-size="24" font-weight="600" fill="#211D2E">⁨Artist 2⁩</text><text x="777" y="616" font-size="24" font-weight="600" text-anchor="end" fill="#211D2E">×12</text>
 <rect x="413" y="256" width="373" height="373" fill="none" stroke="#211D2E" stroke-width="4"/>
-<rect x="786" y="256" width="373" height="373" fill="#F3E6CB"/><circle class="sun" cx="972" cy="400" r="70" fill="#52387B"/>
+<rect x="786" y="256" width="373" height="373" fill="#F3E6CB"/><circle class="sun" cx="972" cy="400" r="37" fill="#52387B"/>
 <rect x="786" y="545" width="373" height="84" fill="#F3E6CB"/><rect x="786" y="545" width="373" height="4" fill="#211D2E"/>
 <circle cx="836" cy="306" r="41" fill="#52387B" stroke="#211D2E" stroke-width="4"/><text x="836" y="321" font-family="Dela Gothic One" font-size="45" text-anchor="middle" fill="#F3E6CB">3</text>
 <text x="795" y="583" font-size="33" font-weight="600" fill="#211D2E">⁨Track 3⁩</text>
@@ -33,13 +33,13 @@
 <text x="49" y="956" font-size="33" font-weight="600" fill="#211D2E">⁨Track 4⁩</text>
 <text x="49" y="989" font-size="24" font-weight="600" fill="#211D2E">⁨Artist 4⁩</text><text x="404" y="989" font-size="24" font-weight="600" text-anchor="end" fill="#211D2E">×10</text>
 <rect x="40" y="629" width="373" height="373" fill="none" stroke="#211D2E" stroke-width="4"/>
-<rect x="413" y="629" width="373" height="373" fill="#F3E6CB"/><circle class="sun" cx="599" cy="773" r="70" fill="#52387B"/>
+<rect x="413" y="629" width="373" height="373" fill="#F3E6CB"/><circle class="sun" cx="599" cy="773" r="37" fill="#52387B"/>
 <rect x="413" y="918" width="373" height="84" fill="#F3E6CB"/><rect x="413" y="918" width="373" height="4" fill="#211D2E"/>
 <circle cx="463" cy="679" r="41" fill="#52387B" stroke="#211D2E" stroke-width="4"/><text x="463" y="694" font-family="Dela Gothic One" font-size="45" text-anchor="middle" fill="#F3E6CB">5</text>
 <text x="422" y="956" font-size="33" font-weight="600" fill="#211D2E">⁨Track 5⁩</text>
 <text x="422" y="989" font-size="24" font-weight="600" fill="#211D2E">⁨Artist 5⁩</text><text x="777" y="989" font-size="24" font-weight="600" text-anchor="end" fill="#211D2E">×10</text>
 <rect x="413" y="629" width="373" height="373" fill="none" stroke="#211D2E" stroke-width="4"/>
-<rect x="786" y="629" width="373" height="373" fill="#F3E6CB"/><circle class="sun" cx="972" cy="773" r="70" fill="#52387B"/>
+<rect x="786" y="629" width="373" height="373" fill="#F3E6CB"/><circle class="sun" cx="972" cy="773" r="37" fill="#52387B"/>
 <rect x="786" y="918" width="373" height="84" fill="#F3E6CB"/><rect x="786" y="918" width="373" height="4" fill="#211D2E"/>
 <circle cx="836" cy="679" r="41" fill="#52387B" stroke="#211D2E" stroke-width="4"/><text x="836" y="694" font-family="Dela Gothic One" font-size="45" text-anchor="middle" fill="#F3E6CB">6</text>
 <text x="795" y="956" font-size="33" font-weight="600" fill="#211D2E">⁨Track 6⁩</text>
@@ -51,13 +51,13 @@
 <text x="49" y="1329" font-size="33" font-weight="600" fill="#211D2E">⁨Track 7⁩</text>
 <text x="49" y="1362" font-size="24" font-weight="600" fill="#211D2E">⁨Artist 7⁩</text><text x="404" y="1362" font-size="24" font-weight="600" text-anchor="end" fill="#211D2E">×8</text>
 <rect x="40" y="1002" width="373" height="373" fill="none" stroke="#211D2E" stroke-width="4"/>
-<rect x="413" y="1002" width="373" height="373" fill="#F3E6CB"/><circle class="sun" cx="599" cy="1146" r="70" fill="#52387B"/>
+<rect x="413" y="1002" width="373" height="373" fill="#F3E6CB"/><circle class="sun" cx="599" cy="1146" r="37" fill="#52387B"/>
 <rect x="413" y="1291" width="373" height="84" fill="#F3E6CB"/><rect x="413" y="1291" width="373" height="4" fill="#211D2E"/>
 <circle cx="463" cy="1052" r="41" fill="#52387B" stroke="#211D2E" stroke-width="4"/><text x="463" y="1067" font-family="Dela Gothic One" font-size="45" text-anchor="middle" fill="#F3E6CB">8</text>
 <text x="422" y="1329" font-size="33" font-weight="600" fill="#211D2E">⁨Track 8⁩</text>
 <text x="422" y="1362" font-size="24" font-weight="600" fill="#211D2E">⁨Artist 8⁩</text><text x="777" y="1362" font-size="24" font-weight="600" text-anchor="end" fill="#211D2E">×8</text>
 <rect x="413" y="1002" width="373" height="373" fill="none" stroke="#211D2E" stroke-width="4"/>
-<rect x="786" y="1002" width="373" height="373" fill="#F3E6CB"/><circle class="sun" cx="972" cy="1146" r="70" fill="#52387B"/>
+<rect x="786" y="1002" width="373" height="373" fill="#F3E6CB"/><circle class="sun" cx="972" cy="1146" r="37" fill="#52387B"/>
 <rect x="786" y="1291" width="373" height="84" fill="#F3E6CB"/><rect x="786" y="1291" width="373" height="4" fill="#211D2E"/>
 <circle cx="836" cy="1052" r="41" fill="#52387B" stroke="#211D2E" stroke-width="4"/><text x="836" y="1067" font-family="Dela Gothic One" font-size="45" text-anchor="middle" fill="#F3E6CB">9</text>
 <text x="795" y="1329" font-size="33" font-weight="600" fill="#211D2E">⁨Track 9⁩</text>

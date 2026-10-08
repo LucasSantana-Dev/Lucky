@@ -357,7 +357,7 @@ pub fn build_svg_counted(r: &RecapPayload) -> (String, usize) {
                 r##"<rect x="{x}" y="{y}" width="{tile}" height="{tile}" fill="{CREAM}"/><circle class="sun" cx="{}" cy="{}" r="{}" fill="{PURPLE}"/>"##,
                 x + tile / 2,
                 y + (tile - band) / 2,
-                tile * 19 / 100
+                tile / 10
             )),
         }
         let band_y = y + tile - band;

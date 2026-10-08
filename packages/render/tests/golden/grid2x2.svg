@@ -15,13 +15,13 @@
 <text x="54" y="748" font-size="50" font-weight="600" fill="#211D2E">⁨Track 1⁩</text>
 <text x="54" y="796" font-size="34" font-weight="600" fill="#211D2E">⁨Artist 1⁩</text><text x="586" y="796" font-size="34" font-weight="600" text-anchor="end" fill="#211D2E">×12</text>
 <rect x="40" y="256" width="560" height="560" fill="none" stroke="#211D2E" stroke-width="4"/>
-<rect x="600" y="256" width="560" height="560" fill="#F3E6CB"/><circle class="sun" cx="880" cy="473" r="106" fill="#52387B"/>
+<rect x="600" y="256" width="560" height="560" fill="#F3E6CB"/><circle class="sun" cx="880" cy="473" r="56" fill="#52387B"/>
 <rect x="600" y="690" width="560" height="126" fill="#F3E6CB"/><rect x="600" y="690" width="560" height="4" fill="#211D2E"/>
 <circle cx="670" cy="326" r="56" fill="#52387B" stroke="#211D2E" stroke-width="4"/><text x="670" y="347" font-family="Dela Gothic One" font-size="61" text-anchor="middle" fill="#F3E6CB">2</text>
 <text x="614" y="748" font-size="50" font-weight="600" fill="#211D2E">⁨Track 2⁩</text>
 <text x="614" y="796" font-size="34" font-weight="600" fill="#211D2E">⁨Artist 2⁩</text><text x="1146" y="796" font-size="34" font-weight="600" text-anchor="end" fill="#211D2E">×11</text>
 <rect x="600" y="256" width="560" height="560" fill="none" stroke="#211D2E" stroke-width="4"/>
-<rect x="40" y="816" width="560" height="560" fill="#F3E6CB"/><circle class="sun" cx="320" cy="1033" r="106" fill="#52387B"/>
+<rect x="40" y="816" width="560" height="560" fill="#F3E6CB"/><circle class="sun" cx="320" cy="1033" r="56" fill="#52387B"/>
 <rect x="40" y="1250" width="560" height="126" fill="#F3E6CB"/><rect x="40" y="1250" width="560" height="4" fill="#211D2E"/>
 <circle cx="110" cy="886" r="56" fill="#52387B" stroke="#211D2E" stroke-width="4"/><text x="110" y="907" font-family="Dela Gothic One" font-size="61" text-anchor="middle" fill="#F3E6CB">3</text>
 <text x="54" y="1308" font-size="50" font-weight="600" fill="#211D2E">⁨Track 3⁩</text>
