@@ -381,6 +381,11 @@ async function ensureGuildRecord(guild: Guild): Promise<{ id: string }> {
             name: guild.name,
             ownerId: guild.ownerId,
             icon: guild.iconURL() ?? null,
+            // The bot is in this guild; without joinedAt the row would not
+            // count as joined (lucky_bot_guilds_total, analytics).
+            joinedAt: guild.joinedTimestamp
+                ? new Date(guild.joinedTimestamp)
+                : new Date(),
         },
         update: {
             name: guild.name,

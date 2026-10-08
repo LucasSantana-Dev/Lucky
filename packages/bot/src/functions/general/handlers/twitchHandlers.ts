@@ -3,13 +3,19 @@ import { interactionReply } from '../../../utils/general/interactionReply'
 import { twitchNotificationService } from '@lucky/shared/services'
 import { getPrismaClient } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
-import { createErrorEmbed, createSuccessEmbed } from '../../../utils/general/embeds'
+import {
+    createErrorEmbed,
+    createSuccessEmbed,
+} from '../../../utils/general/embeds'
 import { getTwitchUserByLogin } from '../../../twitch/twitchApi'
 import { refreshTwitchSubscriptions } from '../../../twitch'
 
 async function ensureGuild(interaction: ChatInputCommandInteraction) {
     const prisma = getPrismaClient()
-    const guildObj = assertDefined(interaction.guild, 'Guild required for handler')
+    const guildObj = assertDefined(
+        interaction.guild,
+        'Guild required for handler',
+    )
     let guild = await prisma.guild.findUnique({
         where: { discordId: guildObj.id },
     })
@@ -19,6 +25,10 @@ async function ensureGuild(interaction: ChatInputCommandInteraction) {
                 discordId: guildObj.id,
                 name: guildObj.name,
                 ownerId: guildObj.ownerId,
+                // The bot is in this guild, so record it as joined.
+                joinedAt: guildObj.joinedTimestamp
+                    ? new Date(guildObj.joinedTimestamp)
+                    : new Date(),
             },
         })
     }
@@ -32,7 +42,10 @@ async function replyError(
 ) {
     await interactionReply({
         interaction,
-        content: { embeds: [createErrorEmbed(title, description)], ephemeral: true },
+        content: {
+            embeds: [createErrorEmbed(title, description)],
+            ephemeral: true,
+        },
     })
 }
 
@@ -117,7 +130,10 @@ export async function handleTwitchRemove(
     }
 
     const prisma = getPrismaClient()
-    const guildObj = assertDefined(interaction.guild, 'Guild required for handler')
+    const guildObj = assertDefined(
+        interaction.guild,
+        'Guild required for handler',
+    )
     const guild = await prisma.guild.findUnique({
         where: { discordId: guildObj.id },
     })
@@ -154,7 +170,10 @@ export async function handleTwitchList(
     interaction: ChatInputCommandInteraction,
 ): Promise<void> {
     const prisma = getPrismaClient()
-    const guildObj = assertDefined(interaction.guild, 'Guild required for handler')
+    const guildObj = assertDefined(
+        interaction.guild,
+        'Guild required for handler',
+    )
     const guild = await prisma.guild.findUnique({
         where: { discordId: guildObj.id },
     })

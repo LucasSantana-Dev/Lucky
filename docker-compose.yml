@@ -420,10 +420,13 @@ services:
             # Grafana is dashboards-only: alert evaluation and notification
             # live in Prometheus + Alertmanager (single source of truth for
             # rules). No SMTP/contact-point env vars needed here anymore.
-            GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/files/lucky-inicio.json
+            GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/dashboards/lucky-inicio.json
         volumes:
             - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
-            - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards/files:ro
+            # Not nested under the read-only provisioning mount above: Docker
+            # cannot create a mountpoint inside a read-only bind, so the
+            # container would fail to start.
+            - ./observability/grafana/dashboards:/etc/grafana/dashboards:ro
             - grafana_data:/var/lib/grafana
         networks:
             - lucky-network
