@@ -80,6 +80,33 @@ describe('auditHandler ignore-list gating', () => {
         expect(mockCreateLog).toHaveBeenCalled()
     })
 
+    it('logs a deleted message with author and channel but no content', async () => {
+        const { client, listeners } = createMockClient()
+        handleAuditEvents(client)
+
+        await listeners.get(Events.MessageDelete)?.({
+            guild: { id: 'g1', name: 'Guild' },
+            author: { bot: false, id: 'u1', tag: 'u#1' },
+            channelId: 'c1',
+            content: 'secret text',
+        })
+
+        expect(mockCreateLog).toHaveBeenCalledWith(
+            'g1',
+            'message_delete',
+            'Message deleted',
+            { authorId: 'u1', authorTag: 'u#1' },
+            { userId: 'u1', channelId: 'c1' },
+        )
+        const embed = mockPostToModLog.mock.calls[0][1] as any
+        const fields = embed.data.fields as { name: string }[]
+        expect(fields.map((f) => f.name)).toEqual(['Author', 'Channel'])
+        expect(JSON.stringify(embed.data)).not.toContain('secret text')
+        expect(JSON.stringify(mockCreateLog.mock.calls[0])).not.toContain(
+            'secret text',
+        )
+    })
+
     it('skips logging a ban when the banned user is ignored', async () => {
         mockIsIgnored.mockResolvedValue(true)
         const { client, listeners } = createMockClient()
