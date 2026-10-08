@@ -984,6 +984,11 @@ describe('track history playback fields (#2652)', () => {
             playDuration: 42,
         })
         expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledTimes(1)
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledWith(
+            queue,
+            track,
+            42,
+        )
     })
 
     it('a play that ends on its own records the seconds played and is not skipped', async () => {
@@ -998,6 +1003,12 @@ describe('track history playback fields (#2652)', () => {
         expect(addTrackToHistoryMock).toHaveBeenCalledWith(track, 'guild-1', {
             playDuration: 200,
         })
+        // Natural finish: no play-time argument, the scrobble rule holds.
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledWith(
+            queue,
+            track,
+            undefined,
+        )
     })
 
     it('a stream that never started (ERR_NO_STREAM) is neither recorded nor scrobbled', async () => {
@@ -1075,6 +1086,39 @@ describe('track history when a queue is deleted mid-play', () => {
             playDuration: 65,
         })
         expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledTimes(1)
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledWith(
+            queue,
+            track,
+            65,
+        )
+    })
+
+    it('hands the cut-short play time to the scrobbler for a short /stop and a long skip', async () => {
+        const handlers = setupHandlers()
+        const stopped = { ...createTrack('stop-short'), durationMS: 200_000 }
+        const stopQueue = queueWithCurrent(stopped)
+        await handlers.playerStart(stopQueue, stopped)
+        jest.advanceTimersByTime(2_000)
+        await handlers.queueDelete(stopQueue)
+
+        const skipped = { ...createTrack('skip-long'), durationMS: 200_000 }
+        const skipQueue = queueWithCurrent(skipped)
+        await handlers.playerStart(skipQueue, skipped)
+        jest.advanceTimersByTime(150_000)
+        await handlers.playerSkip(skipQueue, skipped, 'MANUAL')
+
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenNthCalledWith(
+            1,
+            stopQueue,
+            stopped,
+            2,
+        )
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenNthCalledWith(
+            2,
+            skipQueue,
+            skipped,
+            150,
+        )
     })
 
     it('does not record again when a skip already recorded the play', async () => {

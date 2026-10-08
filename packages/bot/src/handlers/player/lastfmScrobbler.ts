@@ -117,16 +117,60 @@ export async function updateLastFmNowPlaying(
     }
 }
 
+const SCROBBLE_MIN_TRACK_SECONDS = 30
+const SCROBBLE_MAX_REQUIRED_PLAY_SECONDS = 240
+
+/**
+ * Last.fm's scrobble rule: the track is longer than 30 seconds AND it played
+ * for at least half its duration or 4 minutes, whichever comes first. With an
+ * unknown duration (live streams, missing metadata) neither bound can be
+ * checked, so only the 4 minute bound is enforced: the conservative reading,
+ * since it never scrobbles a short play of something we cannot measure.
+ */
+export function meetsScrobbleRule(
+    durationMS: number | undefined,
+    playedSeconds: number,
+): boolean {
+    if (!durationMS || durationMS <= 0) {
+        return playedSeconds >= SCROBBLE_MAX_REQUIRED_PLAY_SECONDS
+    }
+    const durationSeconds = durationMS / 1000
+    if (durationSeconds <= SCROBBLE_MIN_TRACK_SECONDS) return false
+    return (
+        playedSeconds >=
+        Math.min(durationSeconds / 2, SCROBBLE_MAX_REQUIRED_PLAY_SECONDS)
+    )
+}
+
 /**
  * Scrobble the currently-playing (or specified) track to Last.fm.
  * Uses the stored track start timestamp if available, otherwise uses current time.
+ * When `playedSeconds` is given (a skip or a stop, where the play was cut
+ * short), the scrobble is skipped unless Last.fm's rule holds. Omit it for a
+ * natural finish, which satisfies the rule by definition.
  */
 export async function scrobbleCurrentTrackIfLastFm(
     queue: GuildQueue,
     track?: Track,
+    playedSeconds?: number,
 ): Promise<void> {
     const trackToScrobble = track ?? queue.currentTrack
     if (!trackToScrobble || !isLastFmConfigured()) return
+    if (
+        playedSeconds !== undefined &&
+        !meetsScrobbleRule(trackToScrobble.durationMS, playedSeconds)
+    ) {
+        lastFmTrackStartTime.delete(queue.guild.id)
+        debugLog({
+            message: 'Last.fm scrobble skipped: play too short',
+            data: {
+                title: trackToScrobble.title,
+                playedSeconds,
+                durationMS: trackToScrobble.durationMS,
+            },
+        })
+        return
+    }
     const requesterId = getLastFmRequesterId(queue, trackToScrobble)
     const sessionKey = await getSessionKeyForUser(requesterId, {
         allowEnvFallback: requesterId === undefined,

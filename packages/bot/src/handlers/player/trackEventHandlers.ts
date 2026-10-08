@@ -241,10 +241,17 @@ async function scrobbleAndRecord(
     queue: GuildQueue,
     track: Track | undefined,
     playDuration: number | undefined,
+    { cutShort = false }: { cutShort?: boolean } = {},
 ): Promise<void> {
     const trackToRecord = track ?? queue.currentTrack
     if (!trackToRecord) return
-    await scrobbleCurrentTrackIfLastFm(queue, trackToRecord)
+    // A cut-short play (stop, queue delete) has to pass Last.fm's play-time
+    // rule; a natural finish satisfies it by definition.
+    await scrobbleCurrentTrackIfLastFm(
+        queue,
+        trackToRecord,
+        cutShort ? (playDuration ?? 0) : undefined,
+    )
     await addTrackToHistory(trackToRecord, queue.guild.id, { playDuration })
 }
 
@@ -329,7 +336,9 @@ const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
             message: 'Queue deleted mid-track, recording the interrupted play',
             data: { guildId: queue.guild.id, title: track.title },
         })
-        await scrobbleAndRecord(queue, track, playedSeconds(startTime))
+        await scrobbleAndRecord(queue, track, playedSeconds(startTime), {
+            cutShort: true,
+        })
     } catch (error) {
         errorLog({ message: 'Error in queueDelete event:', error })
     }
@@ -365,7 +374,11 @@ const handlePlayerSkip = async (
                     playDuration: playedSeconds(startTime),
                 })
             }
-            await scrobbleCurrentTrackIfLastFm(queue, track)
+            await scrobbleCurrentTrackIfLastFm(
+                queue,
+                track,
+                playedSeconds(startTime) ?? 0,
+            )
         }
 
         if (track) {

@@ -451,6 +451,71 @@ describe('lastfmScrobbler', () => {
         })
     })
 
+    describe('scrobble play-time rule (playedSeconds given)', () => {
+        const scrobbleAfter = (playedSeconds: number | undefined) =>
+            scrobbleCurrentTrackIfLastFm(
+                mockQueue as GuildQueue,
+                undefined,
+                playedSeconds,
+            )
+
+        it('does not scrobble a play shorter than half of a 3 minute track', async () => {
+            await scrobbleAfter(2)
+            await scrobbleAfter(89)
+
+            expect(mockLastFm.scrobble).not.toHaveBeenCalled()
+            expect(mockDebugLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('play too short'),
+                }),
+            )
+        })
+
+        it('scrobbles once half of the track has played', async () => {
+            await scrobbleAfter(90)
+
+            expect(mockLastFm.scrobble).toHaveBeenCalledTimes(1)
+        })
+
+        it('caps the requirement at 4 minutes for a long track', async () => {
+            mockTrack.durationMS = 20 * 60 * 1000
+
+            await scrobbleAfter(239)
+            expect(mockLastFm.scrobble).not.toHaveBeenCalled()
+
+            await scrobbleAfter(240)
+            expect(mockLastFm.scrobble).toHaveBeenCalledTimes(1)
+        })
+
+        it('never scrobbles a track of 30 seconds or less', async () => {
+            mockTrack.durationMS = 30_000
+
+            await scrobbleAfter(30)
+            mockTrack.durationMS = 20_000
+            await scrobbleAfter(20)
+
+            expect(mockLastFm.scrobble).not.toHaveBeenCalled()
+        })
+
+        it('with unknown duration requires the 4 minute bound', async () => {
+            mockTrack.durationMS = 0
+
+            await scrobbleAfter(120)
+            expect(mockLastFm.scrobble).not.toHaveBeenCalled()
+
+            await scrobbleAfter(240)
+            expect(mockLastFm.scrobble).toHaveBeenCalledTimes(1)
+        })
+
+        it('scrobbles without any check when playedSeconds is omitted (natural finish)', async () => {
+            mockTrack.durationMS = 20_000
+
+            await scrobbleAfter(undefined)
+
+            expect(mockLastFm.scrobble).toHaveBeenCalledTimes(1)
+        })
+    })
+
     describe('clearLastFmTrackTiming', () => {
         it('clears track timing without error', async () => {
             // This is a simple state cleanup function
