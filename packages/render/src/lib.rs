@@ -88,7 +88,17 @@ pub fn font_db(font_dir: &std::path::Path) -> Result<Arc<usvg::fontdb::Database>
     let mut db = usvg::fontdb::Database::new();
     let entries = std::fs::read_dir(font_dir)
         .map_err(|e| format!("cannot read font dir {}: {e}", font_dir.display()))?;
-    for path in entries.filter_map(|e| e.ok().map(|e| e.path())) {
+    let mut paths: Vec<_> = entries.filter_map(|e| e.ok().map(|e| e.path())).collect();
+    // usvg picks a glyph fallback from the first loaded face that has the
+    // character. Dela Gothic One carries kana and kanji but is far heavier
+    // than Manrope, so it loads last and the Noto faces win the fallback.
+    paths.sort_by_key(|p| {
+        (
+            p.file_name().is_some_and(|n| n == "DelaGothicOne.ttf"),
+            p.clone(),
+        )
+    });
+    for path in paths {
         if path.extension().is_some_and(|x| x == "ttf") {
             let data = std::fs::read(&path)
                 .map_err(|e| format!("cannot read font {}: {e}", path.display()))?;
@@ -293,8 +303,8 @@ pub fn build_svg_counted(r: &RecapPayload) -> (String, usize) {
 <image x="{MARGIN}" y="30" width="150" height="150" href="{icon}"/>
 <text x="224" y="52" font-family="Dela Gothic One" font-size="20" letter-spacing="2" fill="{VERMILION}">WEEKLY RECAP</text>
 <text x="{right}" y="52" font-size="22" font-weight="600" text-anchor="end" fill="{INK}">{}</text>
-<g transform="translate(224,70) scale(0.13)">{WORDMARK}</g>
-<text x="{right}" y="140" font-family="Dela Gothic One" font-size="44" text-anchor="end" fill="{PURPLE}">ラッキー</text>
+<g transform="translate(224,64) scale(0.11)">{WORDMARK}</g>
+<text x="226" y="156" font-family="Dela Gothic One" font-size="26" letter-spacing="3" fill="{PURPLE}">ラッキー</text>
 "##,
         slot(&format!("{} → {}", date(&r.from), date(&r.to)), 40),
     );
@@ -306,7 +316,7 @@ pub fn build_svg_counted(r: &RecapPayload) -> (String, usize) {
     ];
     for ((value, label), x) in stats.iter().zip([224, 520, 850]) {
         s.push_str(&format!(
-            r##"<text x="{x}" y="190" font-family="Dela Gothic One" font-size="38" fill="{INK}">{}</text><text x="{x}" y="216" font-size="15" font-weight="600" letter-spacing="1" fill="{INK}">{}</text>
+            r##"<text x="{x}" y="198" font-family="Dela Gothic One" font-size="36" fill="{INK}">{}</text><text x="{x}" y="222" font-size="15" font-weight="600" letter-spacing="1" fill="{INK}">{}</text>
 "##,
             slot(value, 10),
             slot(label, 24)
@@ -347,7 +357,7 @@ pub fn build_svg_counted(r: &RecapPayload) -> (String, usize) {
                 r##"<rect x="{x}" y="{y}" width="{tile}" height="{tile}" fill="{CREAM}"/><circle class="sun" cx="{}" cy="{}" r="{}" fill="{PURPLE}"/>"##,
                 x + tile / 2,
                 y + (tile - band) / 2,
-                tile / 5
+                tile * 19 / 100
             )),
         }
         let band_y = y + tile - band;
