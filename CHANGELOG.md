@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.6](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.5...v2.58.6) (2026-10-08)
+
+
+### Bug Fixes
+
+* **bot:** reply to /play after search and report total start failure ([#2770](https://github.com/LucasSantana-Dev/Lucky/issues/2770)) ([f995633](https://github.com/LucasSantana-Dev/Lucky/commit/f9956336b1c1b0ad81edf441d41ff33873e02295))
+
 ## [2.58.5](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.4...v2.58.5) (2026-10-08)
 
 
