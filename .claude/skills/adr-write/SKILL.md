@@ -108,8 +108,10 @@ Harness-global decisions (about the agent system itself) go to
 
 New ADR filenames are date slugs: `YYYY-MM-DD-<slug>.md`. No NNNN numbering:
 concurrent sessions and machines computing "next number" produced duplicate
-numbers (6 collisions in the global dir). Date slugs are unique by construction,
-sort chronologically, and need no allocator. Existing NNNN files stay as-is.
+numbers (6 collisions in the global dir). Date slugs sort chronologically and need
+no allocator, but they are not unique on their own: two sessions recording the
+same title on the same day get the same name. Step 5 never overwrites; it adds a
+`-2`, `-3`, ... suffix instead. Existing NNNN files stay as-is.
 
 ### 3. Gather the decision content
 
@@ -152,10 +154,17 @@ it; the new ACCEPTED line with a matching subject is the supersession (newest wi
 ### 5. Write the file (full ADR path)
 
 ```bash
-SLUG=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-\|-$//g')
+# sed -E so this also runs on macOS/BSD sed (GNU-only `\|` left edge dashes in place)
+SLUG=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
 DATE=$(date -u +%Y-%m-%d)
 FILE="docs/adr/${DATE}-${SLUG}.md"
 mkdir -p docs/adr
+# Reserve the name now (noclobber: create fails if it exists), so another session
+# in this checkout cannot take it while the ADR is being drafted.
+N=2
+until (set -C; : > "$FILE") 2>/dev/null; do
+  FILE="docs/adr/${DATE}-${SLUG}-${N}.md"; N=$((N + 1))
+done
 ```
 
 Write this template (one per ADR, no skipped sections):
@@ -218,7 +227,7 @@ unfamiliar with the project can act on it.>
 INDEX="docs/adr/README.md"
 if [ -f "$INDEX" ]; then
   # Append a new row to the index table; do not rewrite the whole file
-  echo "| ${DATE} | [${TITLE}](./${DATE}-${SLUG}.md) | Accepted |" >> "$INDEX"
+  echo "| ${DATE} | [${TITLE}](./$(basename "$FILE")) | Accepted |" >> "$INDEX"
 fi
 ```
 
@@ -236,12 +245,23 @@ If the new ADR replaces a previous one:
 
 ### 8. Stage and report
 
+Stage only what this run wrote. Set `WROTE_DECISIONS=1` when this run appended a
+`DECISIONS.md` line (the default path, or the SUPERSEDED line of a full ADR).
+`DECISIONS.md` and the ADR index are shared files: if either already had
+uncommitted edits before this run, `git add` would sweep those in too, so leave
+it unstaged and tell the user to stage just the new line (`git add -p <file>`).
+Check that before appending:
+
 ```bash
-git add "$FILE"
-[ -f "$INDEX" ] && git add "$INDEX"
+# Before appending (step 1 or 6):
+git diff --quiet -- DECISIONS.md 2>/dev/null && DECISIONS_CLEAN=1
+[ -f "$INDEX" ] && git diff --quiet -- "$INDEX" && INDEX_CLEAN=1
+
+# Stage:
+[ -n "$FILE" ] && git add "$FILE"
+[ -n "$FILE" ] && [ -n "$INDEX_CLEAN" ] && git add "$INDEX"
 [ -n "$SUPERSEDED" ] && git add "$SUPERSEDED"
-# DECISIONS.md path:
-git add DECISIONS.md
+[ -n "$WROTE_DECISIONS" ] && [ -n "$DECISIONS_CLEAN" ] && git add DECISIONS.md
 ```
 
 Do not auto-commit. The record usually accompanies the change it documents — let the
