@@ -117,7 +117,6 @@ jobs:
                   sbom: false
                   build-args: |
                       COMMIT_SHA=${{ github.sha }}
-                      NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
                   # Ref-scoped, matching .github/actions/docker-build-service.
                   # A bare service scope is shared with every other workflow
                   # building the same service, so a mode=max export written by

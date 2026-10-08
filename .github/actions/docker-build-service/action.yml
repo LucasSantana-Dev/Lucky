@@ -98,4 +98,3 @@ runs:
               cache-from: ${{ inputs.use-cache == 'true' && format('type=gha,scope=main-{0}', inputs.service) || '' }}
               build-args: |
                   COMMIT_SHA=${{ github.sha }}
-                  NPM_CACHE_KEY=${{ hashFiles('package-lock.json') }}
