@@ -65,7 +65,7 @@
             {
                 "name": "excluidas",
                 "type": "constant",
-                "query": "'110373943822540800','333949691962195969','1541452011466268704'",
+                "query": "110373943822540800,333949691962195969,1541452011466268704",
                 "hide": 2,
                 "description": "Guildas do operador, de listagem e de teste: nunca contam como uso."
             }
@@ -588,7 +588,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT count(DISTINCT g) AS \"Guildas ativas\" FROM (SELECT \"guildId\" AS g, \"playedAt\" AS t FROM track_history UNION ALL SELECT \"guildId\", \"occurredAt\" FROM command_events WHERE \"guildId\" IS NOT NULL) a WHERE t >= now() - interval '7 days' AND g NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "rawSql": "SELECT count(DISTINCT g) AS \"Guildas ativas\" FROM (SELECT \"guildId\" AS g, \"playedAt\" AS t FROM track_history UNION ALL SELECT \"guildId\", \"occurredAt\" FROM command_events WHERE \"guildId\" IS NOT NULL) a WHERE t >= now() - interval '7 days' AND g NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -652,7 +652,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT count(*) AS \"Faixas\" FROM track_history WHERE $__timeFilter(\"playedAt\") AND \"guildId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "rawSql": "SELECT count(*) AS \"Faixas\" FROM track_history WHERE $__timeFilter(\"playedAt\") AND \"guildId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -695,7 +695,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT count(*) AS \"Comandos\" FROM command_events WHERE $__timeFilter(\"occurredAt\") AND coalesce(\"guildId\", '') NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "rawSql": "SELECT count(*) AS \"Comandos\" FROM command_events WHERE $__timeFilter(\"occurredAt\") AND coalesce(\"guildId\", '') NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",

@@ -409,7 +409,19 @@
             ],
             "fieldConfig": {
                 "defaults": {
-                    "unit": "s"
+                    "unit": "s",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "text",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
                 },
                 "overrides": []
             },
@@ -419,7 +431,7 @@
                     "fields": "",
                     "values": false
                 },
-                "colorMode": "value",
+                "colorMode": "background",
                 "graphMode": "none",
                 "textMode": "auto"
             },
