@@ -11,6 +11,10 @@ set -euo pipefail
 # Every loop it reads the docker-publish run first: a run that is `completed`
 # with anything but success aborts the deploy even when all images exist
 # (smoke failed after push, or a re-run whose earlier attempt left images).
+# An unreadable run state never allows success: it keeps polling and fails
+# closed at the deadline. The run is read once more right before any success
+# exit. Every external call is capped by `timeout`, and sleeps by the time
+# left, so MAX_WAIT is honored.
 #
 # Required env:
 #   RUN_ID       docker-publish run id for the deploy SHA
@@ -19,7 +23,7 @@ set -euo pipefail
 #   IMAGE_PREFIX ghcr image prefix, lowercase (e.g. ghcr.io/owner/lucky)
 #   GH_TOKEN     used by gh
 # Optional env:
-#   MAX_WAIT (default 1800), INTERVAL (default 10)
+#   MAX_WAIT (default 1800), INTERVAL (default 10), CALL_TIMEOUT (default 30)
 #   SERVICES (default "bot backend frontend nginx render")
 #
 # Tag format: docker/metadata-action `type=sha,prefix=` in docker-publish.yml
@@ -36,12 +40,33 @@ repo="${REPO:?REPO is required}"
 image_prefix="${IMAGE_PREFIX:?IMAGE_PREFIX is required}"
 max_wait="${MAX_WAIT:-1800}"
 interval="${INTERVAL:-10}"
+call_cap="${CALL_TIMEOUT:-30}"
 services="${SERVICES:-bot backend frontend nginx render}"
 tag="${commit_sha:0:7}"
 esm_step_prefix="Verify ESM module load"
 
 logged_errors=" "
 label_warned=false
+manifest_missing=""
+esm=""
+
+start=$(date +%s)
+deadline=$((start + max_wait))
+
+remaining() { echo $((deadline - $(date +%s))); }
+
+# Per-call cap: min(call_cap, time left), never below 1s.
+call_timeout() {
+  local left
+  left=$(remaining)
+  if [ "$left" -gt "$call_cap" ]; then
+    echo "$call_cap"
+  elif [ "$left" -lt 1 ]; then
+    echo 1
+  else
+    echo "$left"
+  fi
+}
 
 # Sets manifest_missing (space-separated services without a usable manifest).
 # Returns 0 when all exist, 1 when some are missing, 2 when the registry
@@ -49,22 +74,33 @@ label_warned=false
 # whole-run wait instead of timing out on a check that can never succeed.
 check_manifests() {
   manifest_missing=""
-  local svc ref out
+  local svc ref out crc ct
   for svc in $services; do
+    if [ "$(remaining)" -le 0 ]; then
+      manifest_missing="${manifest_missing:+$manifest_missing }$svc"
+      continue
+    fi
     ref="${image_prefix}-${svc}:${tag}"
-    if ! out=$(docker manifest inspect "$ref" 2>&1); then
+    crc=0
+    ct=$(call_timeout)
+    out=$(timeout "$ct" docker manifest inspect "$ref" 2>&1) || crc=$?
+    if [ "$crc" -ne 0 ]; then
       if printf '%s' "$out" | grep -Eqi 'unauthorized|denied|forbidden|authentication required'; then
         echo "  registry refused ${ref}: $(printf '%s' "$out" | head -1)"
         return 2
       fi
-      if ! printf '%s' "$out" | grep -Eqi 'no such manifest|manifest unknown|not found|name unknown'; then
-        # Rate limit, 5xx, network: say so once per service so a ghcr outage
-        # shows up long before the timeout.
+      if [ "$crc" -eq 124 ] || ! printf '%s' "$out" | grep -Eqi 'no such manifest|manifest unknown|not found|name unknown'; then
+        # Timeout, rate limit, 5xx, network: say so once per service so a ghcr
+        # outage shows up long before the deadline.
         case "$logged_errors" in
           *" ${svc} "*) ;;
           *)
             logged_errors="${logged_errors}${svc} "
-            echo "::warning::manifest check for ${ref} failed (not a plain 'not found'): $(printf '%s' "$out" | head -3 | tr '\n' ' ')"
+            if [ "$crc" -eq 124 ]; then
+              echo "::warning::manifest check for ${ref} timed out after ${ct}s"
+            else
+              echo "::warning::manifest check for ${ref} failed (not a plain 'not found'): $(printf '%s' "$out" | head -3 | tr '\n' ' ')"
+            fi
             ;;
         esac
       fi
@@ -82,7 +118,7 @@ check_manifests() {
 # deploy SHA. An absent label or an unreadable config only warns (once).
 revision_matches() {
   local ref="$1" labels revision
-  if ! labels=$(docker buildx imagetools inspect "$ref" --format '{{json .Image.Config.Labels}}' 2>/dev/null); then
+  if ! labels=$(timeout "$(call_timeout)" docker buildx imagetools inspect "$ref" --format '{{json .Image.Config.Labels}}' 2>/dev/null); then
     labels=""
   fi
   revision=$(printf '%s' "$labels" | jq -r '.["org.opencontainers.image.revision"] // empty' 2>/dev/null || true)
@@ -100,16 +136,51 @@ revision_matches() {
   return 0
 }
 
+# Prints "<status> <conclusion>", or nothing when the run cannot be read.
 run_state() {
-  gh run view "$run_id" --repo "$repo" --json status,conclusion \
+  timeout "$(call_timeout)" gh run view "$run_id" --repo "$repo" --json status,conclusion \
     --jq '"\(.status) \(.conclusion)"' 2>/dev/null || true
+}
+
+# Last look at the run right before a success exit. Exits 1 if the run ended
+# unsuccessfully meanwhile; returns 1 if it cannot be read (caller keeps
+# polling); returns 0 when it is safe to deploy.
+final_gate() {
+  local st s c
+  st=$(run_state)
+  s=$(printf '%s' "$st" | awk '{print $1}')
+  c=$(printf '%s' "$st" | awk '{print $2}')
+  if [ -z "$s" ]; then
+    echo "  run state unreadable at the final check, not deploying yet"
+    return 1
+  fi
+  if [ "$s" = "completed" ] && [ "$c" != "success" ]; then
+    echo "::error::docker-publish ended (conclusion=${c}) just before deploy, aborting"
+    exit 1
+  fi
+  return 0
+}
+
+# Sleep until the next poll, or fail at the deadline. Never sleeps past it.
+wait_or_die() {
+  local left
+  left=$(remaining)
+  if [ "$left" -le 0 ]; then
+    echo "::error::Timed out waiting for Docker images after ${max_wait}s (missing: ${manifest_missing:-none}, esm: ${esm:-n/a})"
+    exit 1
+  fi
+  if [ "$left" -lt "$interval" ]; then
+    sleep "$left"
+  else
+    sleep "$interval"
+  fi
 }
 
 # Prints success, failure or pending for the bot job's ESM load step. Matrix
 # jobs that skip the step report conclusion "skipped" and are ignored.
 esm_state() {
   local lines line st con result="pending" seen=false
-  lines=$(gh api --paginate "repos/${repo}/actions/runs/${run_id}/jobs?per_page=100" \
+  lines=$(timeout "$(call_timeout)" gh api --paginate "repos/${repo}/actions/runs/${run_id}/jobs?per_page=100" \
     --jq ".jobs[].steps[]? | select(.name | startswith(\"${esm_step_prefix}\")) | select(.conclusion != \"skipped\") | \"\\(.status) \\(.conclusion)\"" \
     2>/dev/null || true)
   while read -r line; do
@@ -133,17 +204,24 @@ esm_state() {
 
 echo "==> Waiting for ${image_prefix}-{${services// /,}}:${tag} (docker-publish run ${run_id}, max ${max_wait}s)"
 
-start=$(date +%s)
-deadline=$((start + max_wait))
 registry_blind=false
-esm=""
 
 while true; do
+  if [ "$(remaining)" -le 0 ]; then
+    wait_or_die
+  fi
   elapsed=$(($(date +%s) - start))
 
   state=$(run_state)
   status=$(printf '%s' "$state" | awk '{print $1}')
   conclusion=$(printf '%s' "$state" | awk '{print $2}')
+
+  # Unreadable run state is not "still running": never allow success on it.
+  if [ -z "$status" ]; then
+    echo "  docker-publish: run state unreadable (${elapsed}s elapsed), retrying"
+    wait_or_die
+    continue
+  fi
 
   # The run outranks the images: a finished, unsuccessful run never deploys.
   if [ "$status" = "completed" ] && [ "$conclusion" != "success" ]; then
@@ -161,51 +239,52 @@ while true; do
 
   if [ "$status" = "completed" ]; then
     # conclusion is success here.
-    if [ "$rc" -eq 0 ]; then
-      echo "==> docker-publish succeeded and all images for ${tag} exist (${elapsed}s)."
+    if [ "$rc" -eq 1 ]; then
+      # Run succeeded but a manifest is still absent: allow one registry
+      # propagation retry, then fail rather than deploy a missing image.
+      wait_or_die
+      rc=0
+      check_manifests || rc=$?
+      if [ "$rc" -eq 1 ]; then
+        echo "::error::docker-publish succeeded but images are missing for ${tag}: ${manifest_missing:-unknown}"
+        exit 1
+      fi
+    fi
+    # rc 0: images exist. rc 2: registry unreadable, trust the successful run.
+    if final_gate; then
+      if [ "$rc" -eq 2 ]; then
+        echo "==> docker-publish succeeded (registry unreadable, trusting the run)."
+      else
+        echo "==> docker-publish succeeded and all images for ${tag} exist (${elapsed}s)."
+      fi
       exit 0
     fi
-    if [ "$rc" -eq 2 ]; then
-      echo "==> docker-publish succeeded (registry unreadable, trusting the run)."
-      exit 0
-    fi
-    # Run succeeded but a manifest is still absent: allow one registry
-    # propagation retry, then fail rather than deploy a missing image.
-    sleep "$interval"
-    rc=0
-    check_manifests || rc=$?
-    if [ "$rc" -eq 0 ]; then
-      echo "==> All images for ${tag} exist in the registry."
-      exit 0
-    fi
-    echo "::error::docker-publish succeeded but images are missing for ${tag}: ${manifest_missing:-unknown}"
-    exit 1
+    wait_or_die
+    continue
   fi
 
   if [ "$rc" -eq 0 ]; then
     esm=$(esm_state)
     case "$esm" in
       success)
-        echo "==> All images for ${tag} exist and bot ESM load check passed (${elapsed}s). Deploying without waiting for Trivy/smoke/cache export."
-        exit 0
+        if final_gate; then
+          echo "==> All images for ${tag} exist and bot ESM load check passed (${elapsed}s). Deploying without waiting for Trivy/smoke/cache export."
+          exit 0
+        fi
         ;;
       failure)
         echo "::error::'${esm_step_prefix}' failed in docker-publish, aborting deploy (images exist but the bot does not load)"
         exit 1
         ;;
       *)
-        echo "  docker-publish: ${status:-unknown}, images exist, waiting for '${esm_step_prefix}' (${elapsed}s elapsed)"
+        echo "  docker-publish: ${status}, images exist, waiting for '${esm_step_prefix}' (${elapsed}s elapsed)"
         ;;
     esac
   elif [ "$rc" -eq 2 ]; then
-    echo "  docker-publish: ${status:-unknown} (${elapsed}s elapsed), registry unreadable"
+    echo "  docker-publish: ${status} (${elapsed}s elapsed), registry unreadable"
   else
-    echo "  docker-publish: ${status:-unknown}, missing: ${manifest_missing} (${elapsed}s elapsed)"
+    echo "  docker-publish: ${status}, missing: ${manifest_missing} (${elapsed}s elapsed)"
   fi
 
-  if [ "$(date +%s)" -ge "$deadline" ]; then
-    echo "::error::Timed out waiting for Docker images after ${max_wait}s (missing: ${manifest_missing:-none}, esm: ${esm:-n/a})"
-    exit 1
-  fi
-  sleep "$interval"
+  wait_or_die
 done
