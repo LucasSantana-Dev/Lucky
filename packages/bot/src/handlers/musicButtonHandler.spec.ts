@@ -141,7 +141,10 @@ describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
     })
 
     function thumbsInteraction(customId: string) {
-        return { ...createInteraction(customId), user: { id: 'user-1' } }
+        return {
+            ...createInteraction(customId),
+            user: { id: 'user-1', username: 'listener' },
+        }
     }
 
     it.each([
@@ -162,6 +165,7 @@ describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
             expect(setFeedbackMock).toHaveBeenCalledWith(
                 'guild-1',
                 'user-1',
+                'listener',
                 'Song::Artist',
                 feedback,
             )

@@ -170,6 +170,7 @@ async function handleTrackFeedback(
     const saved = await recommendationFeedbackService.setFeedback(
         queue.guild.id,
         interaction.user.id,
+        interaction.user.username,
         trackKey,
         feedback,
     )

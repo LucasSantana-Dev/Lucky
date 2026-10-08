@@ -8,6 +8,14 @@ const mockUserTrackFeedback = {
     count: jest.fn().mockResolvedValue(0),
 }
 
+const mockUser = {
+    upsert: jest.fn().mockResolvedValue({}),
+}
+
+const mockTransaction = jest.fn(async (ops: Promise<unknown>[]) =>
+    Promise.all(ops),
+)
+
 const mockUserArtistPreference = {
     upsert: jest.fn().mockResolvedValue({}),
     deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
@@ -20,6 +28,8 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
     telemetryLog: (...args: unknown[]) => telemetryLogMock(...args),
     getPrismaClient: () => ({
+        $transaction: (ops: Promise<unknown>[]) => mockTransaction(ops),
+        user: mockUser,
         userTrackFeedback: mockUserTrackFeedback,
         userArtistPreference: mockUserArtistPreference,
     }),
@@ -29,6 +39,8 @@ import { RecommendationFeedbackService } from './feedbackService'
 
 describe('RecommendationFeedbackService', () => {
     beforeEach(() => {
+        mockUser.upsert.mockClear()
+        mockTransaction.mockClear()
         mockUserTrackFeedback.upsert.mockClear()
         mockUserTrackFeedback.deleteMany.mockClear()
         mockUserTrackFeedback.findMany.mockClear()
@@ -60,7 +72,14 @@ describe('RecommendationFeedbackService', () => {
                 { trackKey: key, updatedAt: new Date(now) },
             ])
 
-            await service.setFeedback('guild-1', 'user-1', key, feedback, now)
+            await service.setFeedback(
+                'guild-1',
+                'user-1',
+                'User One',
+                key,
+                feedback,
+                now,
+            )
             const keys = await (service[getter as keyof typeof service] as any)(
                 'guild-1',
                 'user-1',
@@ -81,7 +100,7 @@ describe('RecommendationFeedbackService', () => {
         const key = service.buildTrackKey('Song', 'Artist')
         mockUserTrackFeedback.upsert.mockRejectedValueOnce(new Error('db down'))
 
-        await service.setFeedback('guild-1', 'user-1', key, 'like')
+        await service.setFeedback('guild-1', 'user-1', 'User One', key, 'like')
 
         expect(telemetryLogMock).not.toHaveBeenCalled()
     })
@@ -651,12 +670,48 @@ describe('implicit feedback', () => {
         const service = new RecommendationFeedbackService(30)
         mockUserTrackFeedback.upsert.mockResolvedValueOnce({})
         await expect(
-            service.setFeedback('guild-1', 'user-1', 'k', 'like'),
+            service.setFeedback('guild-1', 'user-1', 'User One', 'k', 'like'),
         ).resolves.toBe(true)
 
         mockUserTrackFeedback.upsert.mockRejectedValueOnce(new Error('db down'))
         await expect(
-            service.setFeedback('guild-1', 'user-1', 'k', 'like'),
+            service.setFeedback('guild-1', 'user-1', 'User One', 'k', 'like'),
         ).resolves.toBe(false)
+    })
+
+    it('setFeedback ensures the voter User row before the vote (FK to User.discordId)', async () => {
+        const service = new RecommendationFeedbackService(30)
+        const order: string[] = []
+        mockUser.upsert.mockImplementationOnce(async () => {
+            order.push('user')
+            return {}
+        })
+        mockUserTrackFeedback.upsert.mockImplementationOnce(async () => {
+            order.push('feedback')
+            return {}
+        })
+
+        await expect(
+            service.setFeedback('guild-1', 'user-9', 'NewVoter', 'k', 'like'),
+        ).resolves.toBe(true)
+
+        expect(mockTransaction).toHaveBeenCalledTimes(1)
+        // update: {} so a dashboard user's stored username/avatar is kept
+        expect(mockUser.upsert).toHaveBeenCalledWith({
+            where: { discordId: 'user-9' },
+            update: {},
+            create: { discordId: 'user-9', username: 'NewVoter' },
+        })
+        expect(order).toEqual(['user', 'feedback'])
+    })
+
+    it('setFeedback resolves false when the transaction fails', async () => {
+        const service = new RecommendationFeedbackService(30)
+        mockTransaction.mockRejectedValueOnce(new Error('fk violated'))
+
+        await expect(
+            service.setFeedback('guild-1', 'user-1', 'User One', 'k', 'like'),
+        ).resolves.toBe(false)
+        expect(telemetryLogMock).not.toHaveBeenCalled()
     })
 })

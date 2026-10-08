@@ -65,6 +65,7 @@ export async function handleFeedback(
     await recommendationFeedbackService.setFeedback(
         guildId,
         interaction.user.id,
+        interaction.user.username,
         trackKey,
         feedback,
     )
