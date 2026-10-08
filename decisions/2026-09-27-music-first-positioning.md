@@ -104,6 +104,9 @@ and the Discord Bots listing server (the 38-guild base of the diagnosis).
 consecutive weeks; 35% or more of new guilds hear a track within their first hour; 15% or
 more of new guilds still active on day 8.
 
+Measured with `scripts/music-first-gates.sql` (read-only), which also holds the excluded
+guild ids. track_history keeps 30 days, so each run covers the last 4 weeks.
+
 **Positioning check, not a continuation gate:** if under 20% of active guilds used thumbs
 feedback, drop the "learns your taste" pitch and lead with the weekly recap; the test still
 continues if the three gates above hold.
