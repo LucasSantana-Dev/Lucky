@@ -158,11 +158,13 @@ it; the new ACCEPTED line with a matching subject is the supersession (newest wi
 SLUG=$(echo "$TITLE" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
 DATE=$(date -u +%Y-%m-%d)
 FILE="docs/adr/${DATE}-${SLUG}.md"
+mkdir -p docs/adr
+# Reserve the name now (noclobber: create fails if it exists), so another session
+# in this checkout cannot take it while the ADR is being drafted.
 N=2
-while [ -e "$FILE" ]; do   # never overwrite a same-day, same-title ADR
+until (set -C; : > "$FILE") 2>/dev/null; do
   FILE="docs/adr/${DATE}-${SLUG}-${N}.md"; N=$((N + 1))
 done
-mkdir -p docs/adr
 ```
 
 Write this template (one per ADR, no skipped sections):
@@ -244,14 +246,22 @@ If the new ADR replaces a previous one:
 ### 8. Stage and report
 
 Stage only what this run wrote. Set `WROTE_DECISIONS=1` when this run appended a
-`DECISIONS.md` line (the default path, or the SUPERSEDED line of a full ADR), so
-unrelated edits already in that file are never swept in.
+`DECISIONS.md` line (the default path, or the SUPERSEDED line of a full ADR).
+`DECISIONS.md` and the ADR index are shared files: if either already had
+uncommitted edits before this run, `git add` would sweep those in too, so leave
+it unstaged and tell the user to stage just the new line (`git add -p <file>`).
+Check that before appending:
 
 ```bash
+# Before appending (step 1 or 6):
+git diff --quiet -- DECISIONS.md 2>/dev/null && DECISIONS_CLEAN=1
+[ -f "$INDEX" ] && git diff --quiet -- "$INDEX" && INDEX_CLEAN=1
+
+# Stage:
 [ -n "$FILE" ] && git add "$FILE"
-[ -n "$FILE" ] && [ -f "$INDEX" ] && git add "$INDEX"
+[ -n "$FILE" ] && [ -n "$INDEX_CLEAN" ] && git add "$INDEX"
 [ -n "$SUPERSEDED" ] && git add "$SUPERSEDED"
-[ -n "$WROTE_DECISIONS" ] && git add DECISIONS.md
+[ -n "$WROTE_DECISIONS" ] && [ -n "$DECISIONS_CLEAN" ] && git add DECISIONS.md
 ```
 
 Do not auto-commit. The record usually accompanies the change it documents — let the

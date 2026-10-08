@@ -150,7 +150,7 @@ Pre-flight:            <cache status | (failed: ...) | (skipped: ...)>
 Discover:              <N completed✓, M errored✗ | (skipped: all audits returned CLEAN)>
 Rank:                  <N findings ranked | (skipped: no findings)>
 Critic:                <confidence summary | (skipped: ...)>
-Recall:                <HIGH/MEDIUM reconciled against memory | (blocked: ...)>
+Recall:                <CRITICAL/HIGH/MEDIUM reconciled against memory | (blocked: ...)>
 Remediation:           <plan from AUTO_FIX findings | (skipped: ...)>
 Snapshot:              <path to handoff/audit report | (none — task ongoing)>
 Open watch:            <future obligation | (none)>
