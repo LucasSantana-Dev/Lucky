@@ -151,7 +151,7 @@ export const commandDurationSeconds = new Histogram<'command'>({
  */
 export const playStageSeconds = new Histogram<'stage' | 'outcome'>({
     name: 'lucky_bot_play_stage_seconds',
-    help: 'Duration in seconds of each /play stream bridge stage (ytdlp_url|ytdlp_search|soundcloud|bridge_total), by outcome (ok|fail).',
+    help: 'Duration in seconds of each /play stream bridge stage (ytdlp_url|ytdlp_search|soundcloud_full|soundcloud_title|soundcloud_core|bridge_total), by outcome (ok|fail).',
     labelNames: ['stage', 'outcome'],
     buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 8, 12, 20, 30],
     registers: [registry],
