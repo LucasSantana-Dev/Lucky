@@ -66,6 +66,14 @@ jest.mock('./ytdlpProcess', () => ({
 jest.mock('./streamFallbackState', () => ({
     stampFallbackStage: (...args: unknown[]) => mockStampFallbackStage(...args),
 }))
+const mockIsYtDlpBlocked = jest.fn(() => false)
+const mockRecordYtDlpFailure = jest.fn()
+const mockRecordYtDlpSuccess = jest.fn()
+jest.mock('./ytdlpBlockBreaker', () => ({
+    isYtDlpBlocked: () => mockIsYtDlpBlocked(),
+    recordYtDlpFailure: (...args: unknown[]) => mockRecordYtDlpFailure(...args),
+    recordYtDlpSuccess: () => mockRecordYtDlpSuccess(),
+}))
 
 import { createResilientStream } from './resilientStreamBridge'
 
@@ -439,5 +447,62 @@ describe('fallback stage stamping', () => {
             track,
             'soundcloud-full',
         )
+    })
+})
+
+// ---------------------------------------------------------------------------
+// yt-dlp block breaker (#2653)
+// ---------------------------------------------------------------------------
+
+describe('yt-dlp block breaker wiring (#2653)', () => {
+    const spotifyTrack = () =>
+        makeTrack({ url: 'https://open.spotify.com/track/123' })
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockCleanTitle.mockReturnValue('Test Track')
+        mockCleanAuthor.mockReturnValue('Test Artist')
+        mockCleanSearchQuery.mockReturnValue('test track test artist')
+        mockExtractSongCore.mockReturnValue(null)
+        mockIsAvailable.mockReturnValue(true)
+        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+    })
+
+    it('skips the yt-dlp search stage while blocked and goes straight to SoundCloud', async () => {
+        mockIsYtDlpBlocked.mockReturnValueOnce(true)
+
+        const result = await createResilientStream(spotifyTrack())
+
+        expect(result).toBe(fakeStream)
+        expect(mockStreamViaYtDlpSearch).not.toHaveBeenCalled()
+        expect(mockStreamViaSoundCloud).toHaveBeenCalled()
+    })
+
+    it('skips the yt-dlp URL stage while blocked', async () => {
+        mockIsYtDlpBlocked.mockReturnValueOnce(true)
+
+        await createResilientStream(makeTrack())
+
+        expect(mockStreamViaYtDlp).not.toHaveBeenCalled()
+        expect(mockStreamViaSoundCloud).toHaveBeenCalled()
+    })
+
+    it('records a yt-dlp failure with its error', async () => {
+        const error = new Error('HTTP Error 403: Forbidden')
+        mockStreamViaYtDlpSearch.mockRejectedValueOnce(error)
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockRecordYtDlpFailure).toHaveBeenCalledWith(error)
+        expect(mockRecordYtDlpSuccess).not.toHaveBeenCalled()
+    })
+
+    it('records a yt-dlp success so the breaker closes', async () => {
+        mockStreamViaYtDlp.mockResolvedValueOnce(fakeStream)
+
+        await createResilientStream(makeTrack())
+
+        expect(mockRecordYtDlpSuccess).toHaveBeenCalled()
+        expect(mockRecordYtDlpFailure).not.toHaveBeenCalled()
     })
 })

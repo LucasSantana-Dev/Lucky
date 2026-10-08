@@ -119,7 +119,8 @@ function ytdlpCookiesArgs(): string[] {
 
 // #2141: the prior 6s budget (set by #2044) sat inside the normal latency
 // distribution rather than above it. Prod measurement with --cookies (the
-// live path, since YTDLP_COOKIES_FILE is set) gave a p100 of 7673ms, and the
+// live path then; since #2653 cookies only apply on a sign-in retry) gave a
+// p100 of 7673ms, and the
 // 6s budget was killing 16.8% of otherwise-healthy resolutions. Set just
 // above that measured p100.
 export const YTDLP_STREAM_START_TIMEOUT_MS = 8_000
@@ -145,6 +146,25 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
     } catch (err) {
         return Promise.reject(err)
     }
+    // Cookies only answer a sign-in challenge (#2653). Since 2026-10-06 a
+    // logged-in session makes yt-dlp use web clients that need a GVS PO
+    // token, so every cookie-backed download got HTTP 403, while the same
+    // download without cookies streams. The bot-check that cookies were added
+    // for (#2036) logged 0 times in the 30 days before.
+    return spawnYtDlp(url, []).catch((error: unknown) => {
+        const cookiesArgs = needsSignIn(error) ? ytdlpCookiesArgs() : []
+        if (cookiesArgs.length === 0) throw error
+        return spawnYtDlp(url, cookiesArgs)
+    })
+}
+
+function needsSignIn(error: unknown): boolean {
+    return (
+        error instanceof Error && error.message.includes('Sign in to confirm')
+    )
+}
+
+function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
     return new Promise<Readable>((resolve, reject) => {
         const proc = spawn(
             YTDLP_BINARY_PATH,
@@ -159,7 +179,7 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
                 '--no-progress',
                 '--js-runtimes',
                 `node:${process.execPath}`,
-                ...ytdlpCookiesArgs(),
+                ...cookiesArgs,
                 url,
             ],
             { stdio: ['ignore', 'pipe', 'pipe'] },

@@ -18,6 +18,11 @@ import {
 import { isHost } from '../../utils/general/urlHost'
 import { streamViaYtDlp, streamViaYtDlpSearch } from './ytdlpProcess'
 import {
+    isYtDlpBlocked,
+    recordYtDlpFailure,
+    recordYtDlpSuccess,
+} from './ytdlpBlockBreaker'
+import {
     stampFallbackStage,
     type StreamBridgeFallbackStage,
 } from './streamFallbackState'
@@ -33,6 +38,7 @@ async function attemptYtDlpUrl(
 ): Promise<Readable | null> {
     try {
         const stream = await streamViaYtDlp(track.url as string)
+        recordYtDlpSuccess()
         addBreadcrumb(
             'YouTube stream resolved via yt-dlp',
             'music.youtube-extraction',
@@ -44,6 +50,7 @@ async function attemptYtDlpUrl(
         })
         return stream
     } catch (ytdlpError) {
+        recordYtDlpFailure(ytdlpError)
         addBreadcrumb(
             'YouTube extraction failed via yt-dlp URL',
             'music.youtube-extraction',
@@ -78,6 +85,7 @@ async function attemptYtDlpSearch(
     const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
     try {
         const stream = await streamViaYtDlpSearch(ytQuery)
+        recordYtDlpSuccess()
         addBreadcrumb(
             'YouTube search stream resolved for Spotify source',
             'music.youtube-extraction',
@@ -90,6 +98,7 @@ async function attemptYtDlpSearch(
         })
         return stream
     } catch (ytSearchError) {
+        recordYtDlpFailure(ytSearchError)
         addBreadcrumb(
             'YouTube extraction failed via search',
             'music.youtube-extraction',
@@ -246,13 +255,25 @@ export async function createResilientStream(
 
     let youtubeStage: string | undefined
 
-    if (track.url && !isSpotifyUrl) {
+    // YouTube is answering media downloads with 403: skip yt-dlp instead of
+    // paying 4-10 s per play for a known failure (#2653).
+    const ytDlpBlocked = isYtDlpBlocked()
+    if (ytDlpBlocked) {
+        youtubeStage = 'yt-dlp-blocked'
+        debugLog({
+            message:
+                'Bridge: yt-dlp blocked (YouTube 403), skipping to SoundCloud',
+            data: { title: track.title },
+        })
+    }
+
+    if (!ytDlpBlocked && track.url && !isSpotifyUrl) {
         const stream = await attemptYtDlpUrl(track, cleanedTitle)
         if (stream) return stream
         youtubeStage = 'yt-dlp-url'
     }
 
-    if (isSpotifyUrl) {
+    if (!ytDlpBlocked && isSpotifyUrl) {
         const stream = await attemptYtDlpSearch(cleanedTitle, cleanedAuthor)
         if (stream) return stream
         youtubeStage = 'yt-dlp-search'

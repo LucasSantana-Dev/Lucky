@@ -169,6 +169,19 @@ export const musicExtractorDegradedGauge = new Gauge<'extractor'>({
 })
 
 /**
+ * Counter: yt-dlp stream extraction failures by type
+ * (forbidden|empty|timeout|other). `forbidden` is YouTube's HTTP 403 on the
+ * media download, which opens the bridge's yt-dlp block breaker (#2653).
+ * This is the counter the 2026-08-03 Lavalink re-evaluation ADR asked for.
+ */
+export const extractionFailuresTotal = new Counter<'type'>({
+    name: 'lucky_bot_extraction_failures_total',
+    help: 'yt-dlp stream extraction failures, by type (forbidden|empty|timeout|other).',
+    labelNames: ['type'],
+    registers: [registry],
+})
+
+/**
  * Render the registry as Prometheus text exposition format.
  */
 export async function renderMetrics(): Promise<string> {
