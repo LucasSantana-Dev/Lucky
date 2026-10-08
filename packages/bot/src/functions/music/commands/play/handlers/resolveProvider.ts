@@ -137,8 +137,40 @@ interface ResolutionTelemetry {
 }
 
 /**
+ * Wraps the exact-match reranker so the caller learns about a non-empty
+ * result as soon as the search has produced it, before discord-player goes on
+ * to connect to voice and create the stream (seconds on a cold start). The
+ * callback is fire-and-forget: a throw in it must never fail the play.
+ */
+function rerankThenNotify(
+    query: string,
+    onSearchResolved?: (result: SearchResult) => void,
+): (result: SearchResult) => Promise<SearchResult> {
+    const rerank = preferExactMatch(query)
+    return async (result) => {
+        const ranked = await rerank(result)
+        if (onSearchResolved && ranked.tracks.length > 0) {
+            try {
+                onSearchResolved(ranked)
+            } catch (error) {
+                warnLog({
+                    message: 'onSearchResolved callback failed',
+                    data: { error: String(error) },
+                })
+            }
+        }
+        return ranked
+    }
+}
+
+/**
  * Resolve a query via the discord-player with fallback chain.
  * Emits telemetry breadcrumbs for observability.
+ *
+ * `onSearchResolved` runs on every arm that finds results, right after the
+ * search and before the voice connection and stream, so the caller can answer
+ * the user without waiting for audio. Because a later arm can also resolve
+ * (for example after a voice connect failure), it may fire more than once.
  */
 export async function resolveQueryWithFallbacks(
     player: Player,
@@ -147,6 +179,7 @@ export async function resolveQueryWithFallbacks(
     requestedProvider: string,
     searchEngine: QueryType,
     playOptions: PlayerNodeInitializerOptions<unknown>,
+    onSearchResolved?: (result: SearchResult) => void,
 ): Promise<{
     result: PlayerNodeInitializationResult<unknown>
     telemetry: ResolutionTelemetry
@@ -159,7 +192,7 @@ export async function resolveQueryWithFallbacks(
     }
     const resolvedPlayOptions = {
         ...playOptions,
-        afterSearch: preferExactMatch(query),
+        afterSearch: rerankThenNotify(query, onSearchResolved),
     }
 
     try {

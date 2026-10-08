@@ -556,6 +556,95 @@ function makeMockTrack(title: string, author: string) {
     return { title, author, metadata: null, setMetadata: jest.fn() }
 }
 
+describe('resolveQueryWithFallbacks onSearchResolved', () => {
+    const channel = { id: 'vc-1' } as never
+    const searchResultOf = (...titles: string[]) =>
+        ({
+            tracks: titles.map((t) => makeMockTrack(t, 'Artist')),
+            hasPlaylist: () => false,
+        }) as never
+
+    it('is called with the reranked result from inside afterSearch, before play resolves', async () => {
+        const seen: unknown[] = []
+        let releasePlay!: () => void
+        const playGate = new Promise<void>((resolve) => {
+            releasePlay = resolve
+        })
+        const player: any = {
+            play: jest.fn(async (_c: unknown, _q: unknown, opts: any) => {
+                await opts.afterSearch(searchResultOf('Song'))
+                await playGate
+                return { track: { title: 'Song' } }
+            }),
+        }
+
+        const pending = resolveQueryWithFallbacks(
+            player,
+            channel,
+            'song',
+            'default',
+            QueryType.AUTO,
+            {},
+            (result) => seen.push(result),
+        )
+        await new Promise((resolve) => setImmediate(resolve))
+
+        expect(seen).toHaveLength(1)
+        releasePlay()
+        await pending
+    })
+
+    it('is not called for an empty result', async () => {
+        const onSearchResolved = jest.fn()
+        const player: any = {
+            play: jest.fn(async (_c: unknown, _q: unknown, opts: any) => {
+                await opts.afterSearch(searchResultOf())
+                return { track: {} }
+            }),
+        }
+
+        await resolveQueryWithFallbacks(
+            player,
+            channel,
+            'song',
+            'default',
+            QueryType.AUTO,
+            {},
+            onSearchResolved,
+        )
+
+        expect(onSearchResolved).not.toHaveBeenCalled()
+    })
+
+    it('never lets a throwing callback fail the play', async () => {
+        const player: any = {
+            play: jest.fn(async (_c: unknown, _q: unknown, opts: any) => {
+                await opts.afterSearch(searchResultOf('Song'))
+                return { track: { title: 'Song' } }
+            }),
+        }
+
+        await expect(
+            resolveQueryWithFallbacks(
+                player,
+                channel,
+                'song',
+                'default',
+                QueryType.AUTO,
+                {},
+                () => {
+                    throw new Error('callback bug')
+                },
+            ),
+        ).resolves.toMatchObject({ telemetry: { resolvedVia: 'primary' } })
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'onSearchResolved callback failed',
+            }),
+        )
+    })
+})
+
 describe('preferExactMatch', () => {
     it('promotes a track whose author exactly matches the query', async () => {
         const tracks = [
