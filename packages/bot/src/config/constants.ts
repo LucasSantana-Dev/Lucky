@@ -1,9 +1,5 @@
 export type CommandCategory =
-    | 'music'
-    | 'general'
-    | 'moderation'
-    | 'management'
-    | 'automod'
+    'music' | 'general' | 'moderation' | 'management' | 'automod'
 
 export const COMMAND_CATEGORIES = {
     music: {
@@ -49,7 +45,6 @@ export const COMMAND_CATEGORIES = {
             'embed',
             'reactionroles',
             'serverlog',
-            'customcommand',
             'serversetup',
             'guildconfig',
         ],

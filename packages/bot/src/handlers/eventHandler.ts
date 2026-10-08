@@ -28,7 +28,6 @@ import { mintCorrelationId } from '@lucky/shared/utils/support/correlationId'
 import { handleMessageCreate } from './messageHandler'
 import { handleMemberEvents } from './memberHandler'
 import { handleAuditEvents } from './auditHandler'
-import { handleExternalScrobbler } from './externalScrobbler'
 import { handleReactionEvents } from './reactionHandler'
 import { scheduledEventNotificationService } from '../services/ScheduledEventNotificationService'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
@@ -44,10 +43,6 @@ import {
     LEADERBOARD_BUTTON_PREFIX,
 } from '../types/musicButtons'
 import { classifyOutcome } from '../utils/monitoring/commandOutcome'
-import {
-    handleMoveMessageSelect,
-    MOVE_MESSAGE_SELECT_PREFIX,
-} from './moveMessageHandler'
 import {
     handleHelpCategorySelect,
     HELP_CATEGORY_SELECT_ID,
@@ -268,7 +263,7 @@ async function handleInteractionError(
     errorLog({ message: 'Error handling interaction:', error })
     if (error instanceof Error) {
         // Command interactions carry commandName; components/modals (e.g. the
-        // move-message channel select) carry customId instead — don't blindly
+        // help category select) carry customId instead; don't blindly
         // read commandName or telemetry logs undefined for those.
         const label =
             (interaction as { commandName?: string }).commandName ??
@@ -371,7 +366,6 @@ function handleInteractionCreate(
 // this as a label, so it is always a fixed family, never the raw customId.
 // `/vaga` preview buttons are owned by that command's own collector.
 const VAGA_BUTTON_PREFIX = 'vaga_'
-const COMPONENT_FAMILY_MOVE_MESSAGE = 'move_message_select'
 const COMPONENT_FAMILY_HELP = 'help_category_select'
 
 function buttonFamily(id: string): string | null {
@@ -519,22 +513,6 @@ async function runInteraction(
         }
 
         if (
-            interaction.isChannelSelectMenu() &&
-            interaction.customId.startsWith(MOVE_MESSAGE_SELECT_PREFIX)
-        ) {
-            await runRecordedComponent(
-                interaction,
-                COMPONENT_FAMILY_MOVE_MESSAGE,
-                () =>
-                    handleMoveMessageSelect(
-                        interaction,
-                        client as CustomClient,
-                    ),
-            )
-            return
-        }
-
-        if (
             interaction.isStringSelectMenu() &&
             interaction.customId === HELP_CATEGORY_SELECT_ID
         ) {
@@ -651,7 +629,6 @@ export default function handleEvents(client: Client) {
     handleMessageCreate(client)
     handleMemberEvents(client)
     handleAuditEvents(client)
-    handleExternalScrobbler(client)
     handleReactionEvents(client)
     handleError(client)
     handleWarn(client)

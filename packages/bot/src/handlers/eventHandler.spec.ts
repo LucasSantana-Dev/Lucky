@@ -12,7 +12,6 @@ const createUserFriendlyErrorMock = jest.fn()
 const handleMessageCreateMock = jest.fn()
 const handleMemberEventsMock = jest.fn()
 const handleAuditEventsMock = jest.fn()
-const handleExternalScrobblerMock = jest.fn()
 const handleReactionEventsMock = jest.fn()
 const handleMusicButtonInteractionMock = jest.fn()
 const handleButtonInteractionMock = jest.fn()
@@ -22,7 +21,6 @@ const createOnboardingStationRowMock = jest.fn(async () => ({}))
 const handleOnboardingStationButtonMock = jest.fn()
 const executeCommandMock = jest.fn()
 const executeContextMenuMock = jest.fn()
-const handleMoveMessageSelectMock = jest.fn()
 const handleHelpCategorySelectMock = jest.fn()
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
@@ -59,11 +57,6 @@ jest.mock('./memberHandler', () => ({
 
 jest.mock('./auditHandler', () => ({
     handleAuditEvents: (...args: unknown[]) => handleAuditEventsMock(...args),
-}))
-
-jest.mock('./externalScrobbler', () => ({
-    handleExternalScrobbler: (...args: unknown[]) =>
-        handleExternalScrobblerMock(...args),
 }))
 
 jest.mock('./reactionHandler', () => ({
@@ -109,12 +102,6 @@ jest.mock('../functions/general/commands/help', () => ({
     HELP_CATEGORY_SELECT_ID: 'help_category_select_id',
     handleHelpCategorySelect: (...args: unknown[]) =>
         handleHelpCategorySelectMock(...args),
-}))
-
-jest.mock('./moveMessageHandler', () => ({
-    handleMoveMessageSelect: (...args: unknown[]) =>
-        handleMoveMessageSelectMock(...args),
-    MOVE_MESSAGE_SELECT_PREFIX: 'movemsg:',
 }))
 
 // Mock the batch worker — its real module pulls in BatchJobService → prismaClient
@@ -395,30 +382,6 @@ describe('eventHandler', () => {
             interaction,
             client,
         })
-    })
-
-    it('routes the move-message channel select to handleMoveMessageSelect', async () => {
-        const { client, onMock } = createMockClient()
-        handleEvents(client as unknown as never)
-        const interactionHandler = getInteractionCreateHandler(onMock)
-
-        const interaction = {
-            isAutocomplete: () => false,
-            isButton: () => false,
-            isMessageContextMenuCommand: () => false,
-            isChannelSelectMenu: () => true,
-            isStringSelectMenu: () => false,
-            isChatInputCommand: () => false,
-            customId: 'movemsg:src:msg',
-        } as unknown as Interaction
-
-        interactionHandler?.(interaction)
-        await flushAsyncHandlers()
-
-        expect(handleMoveMessageSelectMock).toHaveBeenCalledWith(
-            interaction,
-            client,
-        )
     })
 
     it('sends user-friendly error reply when command execution fails', async () => {
@@ -767,7 +730,6 @@ describe('eventHandler', () => {
         beforeEach(() => {
             handleMusicButtonInteractionMock.mockResolvedValue(undefined)
             handleButtonInteractionMock.mockResolvedValue(undefined)
-            handleMoveMessageSelectMock.mockResolvedValue(undefined)
         })
 
         it('records one ok component event with a family label, not the customId', async () => {
@@ -925,19 +887,6 @@ describe('eventHandler', () => {
                         (c[0] as { error?: Error }).error?.message === 'boom',
                 ),
             ).toBe(true)
-        })
-
-        it('records the move-message channel select', async () => {
-            await dispatch({
-                isChannelSelectMenu: () => true,
-                customId: 'movemsg:abc',
-            })
-            expect(recordCommandEventMock).toHaveBeenCalledTimes(1)
-            expect(recordCommandEventMock.mock.calls[0]?.[0]).toMatchObject({
-                kind: 'component',
-                outcome: 'ok',
-                commandName: 'move_message_select',
-            })
         })
     })
 

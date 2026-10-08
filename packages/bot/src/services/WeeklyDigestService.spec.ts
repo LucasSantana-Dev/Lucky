@@ -398,7 +398,6 @@ describe('WeeklyDigestService', () => {
                         id: 'msg-1',
                         url: 'https://discord.com/msg-1',
                         author: { id: 'user-1' },
-                        content: 'Hello!',
                         reactions: { cache: new Map([['👍', reaction]]) },
                     },
                 ],
@@ -421,6 +420,14 @@ describe('WeeklyDigestService', () => {
             setClient(svc, client)
             await svc.tick()
             expect(digestChannel.send).toHaveBeenCalled()
+            const payload = (digestChannel.send as jest.Mock).mock
+                .calls[0][0] as any
+            const top = payload.embeds[0].data.fields.find(
+                (f: { name: string }) => f.name === '💬 Top da semana',
+            )
+            expect(top.value).toBe(
+                '[💬 Ver mensagem](https://discord.com/msg-1) de <@user-1>',
+            )
         })
 
         test('fetches starter messages from threads when channel is GuildForum', async () => {
@@ -430,7 +437,6 @@ describe('WeeklyDigestService', () => {
                 id: 'post-1',
                 url: 'https://discord.com/post-1',
                 author: { id: 'user-1' },
-                content: 'Forum post!',
                 createdTimestamp: MONDAY_12_UTC - 1000,
                 reactions: { cache: new Map([['🔥', reaction]]) },
             }

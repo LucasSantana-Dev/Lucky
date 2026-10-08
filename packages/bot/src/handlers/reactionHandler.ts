@@ -5,9 +5,8 @@ import {
     type User,
     type PartialMessageReaction,
     type PartialUser,
-    type TextChannel,
 } from 'discord.js'
-import { starboardService, giveawayService } from '@lucky/shared/services'
+import { giveawayService } from '@lucky/shared/services'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 import { getSongInfoMessage } from './player/nowPlayingDisplay'
 import { recordRecommendationSkipReason } from '../services/musicRecommendation/recommendationTelemetry'
@@ -32,92 +31,6 @@ async function handleGiveawayReaction(
     if (giveaway.endedAt) return
 
     await giveawayService.addEntry(giveaway.id, user.id)
-}
-
-export async function handleStarboardReaction(
-    reaction: MessageReaction | PartialMessageReaction,
-    user: User | PartialUser,
-    client: Client,
-): Promise<void> {
-    await Promise.all([
-        reaction.partial ? reaction.fetch() : Promise.resolve(),
-        user.partial ? user.fetch() : Promise.resolve(),
-    ])
-    if (!reaction.message.guild) return
-    if (user.bot) return
-
-    const guildId = reaction.message.guild.id
-    const config = await starboardService.getConfig(guildId)
-    if (!config) return
-
-    const emoji = reaction.emoji.name ?? ''
-    if (emoji !== config.emoji) return
-
-    const msg = reaction.message.partial
-        ? await reaction.message.fetch()
-        : reaction.message
-
-    if (!config.selfStar && msg.author?.id === user.id) return
-
-    // One-time DM introducing the starboard the first time a member stars
-    // anything (per-guild opt-in; text overridable per guild).
-    if (config.firstStarDm) {
-        const first = await starboardService
-            .tryClaimFirstStarDm(guildId, user.id)
-            .catch(() => false)
-        if (first) {
-            const dmText =
-                config.firstStarDmMessage ??
-                `${config.emoji} You just starred a message! When a message collects ${config.threshold}× ${config.emoji}, it gets featured in <#${config.channelId}>.`
-            await (user as User).send(dmText).catch(() => undefined)
-        }
-    }
-
-    // The bot's own seed reaction must never count toward the threshold.
-    const starCount = Math.max(0, (reaction.count ?? 1) - (reaction.me ? 1 : 0))
-    const entry = await starboardService.upsertEntry(guildId, msg.id, {
-        channelId: msg.channelId,
-        authorId: msg.author?.id ?? '',
-        content: msg.content ?? undefined,
-        starCount,
-    })
-
-    if (starCount < config.threshold) return
-
-    const rawChannel = await client.channels
-        .fetch(config.channelId)
-        .catch(() => null)
-    if (!rawChannel || !rawChannel.isTextBased()) return
-    const channel = rawChannel as TextChannel
-
-    const starEmbed = {
-        color: 0xffd700,
-        description: msg.content ?? '*(no text content)*',
-        fields: [{ name: 'Source', value: `[Jump to message](${msg.url})` }],
-        footer: {
-            text: `${config.emoji} ${starCount} • #${msg.channel && 'name' in msg.channel ? msg.channel.name : 'unknown'}`,
-        },
-        author: {
-            name: msg.author?.username ?? 'Unknown',
-            icon_url: msg.author?.displayAvatarURL() ?? undefined,
-        },
-    }
-
-    if (entry.starboardMsgId) {
-        const starMsg = await channel.messages
-            .fetch(entry.starboardMsgId)
-            .catch(() => null)
-        if (starMsg) await starMsg.edit({ embeds: [starEmbed] })
-    } else {
-        const posted = await channel.send({ embeds: [starEmbed] })
-        await starboardService.upsertEntry(guildId, msg.id, {
-            channelId: msg.channelId,
-            authorId: msg.author?.id ?? '',
-            content: msg.content ?? undefined,
-            starCount,
-            starboardMsgId: posted.id,
-        })
-    }
 }
 
 async function handleSkipReasonReaction(
@@ -227,7 +140,6 @@ export function handleReactionEvents(client: Client): void {
         ) => {
             try {
                 await handleGiveawayReaction(reaction, user)
-                await handleStarboardReaction(reaction, user, client)
                 await handleSkipReasonReaction(reaction, user)
             } catch (error) {
                 errorLog({ message: 'Error handling reaction:', error })

@@ -26,12 +26,6 @@ export default new Command({
                 .setName('user')
                 .setDescription('Filter by user (optional)')
                 .setRequired(false),
-        )
-        .addStringOption((option) =>
-            option
-                .setName('contains')
-                .setDescription('Filter by text content (case-insensitive, optional)')
-                .setRequired(false),
         ),
     category: 'moderation',
     execute: async ({ interaction }) => {
@@ -49,7 +43,8 @@ export default new Command({
             await interactionReply({
                 interaction,
                 content: {
-                    content: '❌ This command can only be used in text channels.',
+                    content:
+                        '❌ This command can only be used in text channels.',
                 },
             })
             return
@@ -57,7 +52,6 @@ export default new Command({
 
         const amount = interaction.options.getInteger('amount', true)
         const filterUser = interaction.options.getUser('user')
-        const filterText = interaction.options.getString('contains')?.toLowerCase()
 
         try {
             const messages = await interaction.channel.messages.fetch({
@@ -73,10 +67,6 @@ export default new Command({
                 }
 
                 if (filterUser && msg.author.id !== filterUser.id) {
-                    return false
-                }
-
-                if (filterText && !msg.content.toLowerCase().includes(filterText)) {
                     return false
                 }
 
@@ -110,13 +100,6 @@ export default new Command({
                 embed.addFields({
                     name: 'Filter',
                     value: `From ${filterUser.tag}`,
-                })
-            }
-
-            if (filterText) {
-                embed.addFields({
-                    name: 'Text Filter',
-                    value: filterText,
                 })
             }
 

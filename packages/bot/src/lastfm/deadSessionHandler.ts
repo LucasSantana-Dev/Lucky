@@ -14,7 +14,7 @@ let envKeyWarned = false
 interface DeadSessionOptions {
     /** True when the failed key came from the env LASTFM_SESSION_KEY fallback. */
     envFallbackUsed: boolean
-    /** Scrobble path label for logs (e.g. 'scrobble', 'externalScrobbler'). */
+    /** Scrobble path label for logs (e.g. 'scrobble'). */
     via: string
 }
 

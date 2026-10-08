@@ -4,6 +4,7 @@ import { PermissionFlagsBits } from 'discord.js'
 const batchJobServiceMock = {
     getById: jest.fn(),
     markInProgress: jest.fn(),
+    markCancelled: jest.fn(),
 }
 const enqueueBatchJobMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -12,6 +13,16 @@ const interactionReplyMock = jest.fn()
 
 jest.mock('@lucky/shared/services/batch', () => ({
     batchJobService: batchJobServiceMock,
+    // Mirrors BATCH_JOB_TYPES so any unlisted legacy type is rejected.
+    isBatchJobType: (value: string) =>
+        [
+            'bulk_ban',
+            'bulk_kick',
+            'bulk_warn',
+            'bulk_add_role',
+            'bulk_remove_role',
+            'purge_batch',
+        ].includes(value),
 }))
 
 jest.mock('../../../utils/batch/batchQueue', () => ({
@@ -35,6 +46,7 @@ function createMockJob(overrides: Record<string, unknown> = {}) {
         guildId: 'guild-123',
         initiatedBy: 'user-123',
         status: 'paused',
+        jobType: 'bulk_kick',
         ...overrides,
     }
 }
@@ -79,6 +91,7 @@ describe('batchResume command', () => {
         batchJobServiceMock.getById.mockResolvedValue(null)
         batchJobServiceMock.markInProgress.mockResolvedValue(undefined)
         enqueueBatchJobMock.mockResolvedValue(undefined)
+        batchJobServiceMock.markCancelled.mockResolvedValue(undefined)
     })
 
     describe('metadata', () => {
@@ -292,6 +305,40 @@ describe('batchResume command', () => {
             expect(batchJobServiceMock.markInProgress).toHaveBeenCalledWith(
                 'job-123',
             )
+            expect(enqueueBatchJobMock).toHaveBeenCalledWith('job-123')
+        })
+
+        test('cancels and rejects a legacy job type that is no longer supported', async () => {
+            batchJobServiceMock.getById.mockResolvedValue(
+                createMockJob({
+                    jobType: 'channel_move_batch',
+                    status: 'failed',
+                }),
+            )
+
+            const interaction = createInteraction({ userId: 'user-123' })
+
+            await batchResumeCommand.execute({ interaction } as any)
+
+            expect(batchJobServiceMock.markCancelled).toHaveBeenCalledWith(
+                'job-123',
+            )
+            expect(batchJobServiceMock.markInProgress).not.toHaveBeenCalled()
+            expect(enqueueBatchJobMock).not.toHaveBeenCalled()
+            const reply = interactionReplyMock.mock.calls[0][0] as any
+            expect(reply.content.content).toContain('no longer supported')
+        })
+
+        test('resumes a known job type without any executor registered', async () => {
+            batchJobServiceMock.getById.mockResolvedValue(
+                createMockJob({ jobType: 'bulk_kick', status: 'failed' }),
+            )
+
+            const interaction = createInteraction({ userId: 'user-123' })
+
+            await batchResumeCommand.execute({ interaction } as any)
+
+            expect(batchJobServiceMock.markCancelled).not.toHaveBeenCalled()
             expect(enqueueBatchJobMock).toHaveBeenCalledWith('job-123')
         })
 

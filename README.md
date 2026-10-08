@@ -57,13 +57,12 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 
 ### 🛡️ Moderation & Auto-mod
 - **Case tracking**: `/warn` `/mute` `/kick` `/ban` with full history
-- **Auto-mod presets**: Word filter, link filter, spam detection
+- **Auto-mod presets**: Spam detection
 - **Scheduled digests**: Automated reports of moderation activity
 - **RBAC**: Role-based access control on the dashboard
 
 ### 📊 Engagement & Community
 - **Leveling system**: XP-based progression with role rewards
-- **Starboard**: Community-curated highlight board
 - **Last.fm integration**: Scrobble and share your listening activity
 - **Social commands**: Hug, pat, kiss, dance, bonk, wave — interactive fun
 - **Twitch notifications**: Stream alerts for your favorite streamers
@@ -222,7 +221,6 @@ SENTRY_DSN=...
 | Command | Purpose |
 |---------|---------|
 | `/level` | Check your level and XP |
-| `/starboard` | View community highlights |
 | `/lastfm` | Link and view Last.fm stats |
 | `/hug` `/pat` `/kiss` `/dance` `/bonk` `/wave` | Social interactions |
 

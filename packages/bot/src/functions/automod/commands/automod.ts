@@ -45,79 +45,30 @@ export default new Command({
         )
         .addSubcommand((subcommand) =>
             subcommand
-                .setName('caps')
-                .setDescription('Configure caps detection')
-                .addBooleanOption((option) =>
-                    option
-                        .setName('enabled')
-                        .setDescription('Enable caps detection')
-                        .setRequired(true),
-                )
-                .addIntegerOption((option) =>
-                    option
-                        .setName('percentage')
-                        .setDescription('Max caps percentage (default: 70)')
-                        .setRequired(false)
-                        .setMinValue(50)
-                        .setMaxValue(100),
-                )
-                .addIntegerOption((option) =>
-                    option
-                        .setName('min_length')
-                        .setDescription(
-                            'Minimum message length to check (default: 10)',
-                        )
-                        .setRequired(false)
-                        .setMinValue(5)
-                        .setMaxValue(50),
-                ),
-        )
-        .addSubcommand((subcommand) =>
-            subcommand
-                .setName('links')
-                .setDescription('Configure link filtering')
-                .addBooleanOption((option) =>
-                    option
-                        .setName('enabled')
-                        .setDescription('Enable link filtering')
-                        .setRequired(true),
-                ),
-        )
-        .addSubcommand((subcommand) =>
-            subcommand
-                .setName('invites')
-                .setDescription('Configure invite link filtering')
-                .addBooleanOption((option) =>
-                    option
-                        .setName('enabled')
-                        .setDescription('Enable invite filtering')
-                        .setRequired(true),
-                ),
-        )
-        .addSubcommand((subcommand) =>
-            subcommand
-                .setName('words')
-                .setDescription('Configure bad words filter')
-                .addBooleanOption((option) =>
-                    option
-                        .setName('enabled')
-                        .setDescription('Enable bad words filter')
-                        .setRequired(true),
-                ),
-        )
-        .addSubcommand((subcommand) =>
-            subcommand
                 .setName('preset')
-                .setDescription('Apply a preset configuration pack to auto-moderation')
+                .setDescription(
+                    'Apply a preset configuration pack to auto-moderation',
+                )
                 .addStringOption((option) =>
                     option
                         .setName('name')
-                        .setDescription('Preset to apply — omit to list available presets')
+                        .setDescription(
+                            'Preset to apply — omit to list available presets',
+                        )
                         .setRequired(false)
                         .addChoices(
-                            { name: 'Balanced — baseline for mixed communities', value: 'balanced' },
-                            { name: 'Strict Shield — aggressive anti-spam for public servers', value: 'strict' },
-                            { name: 'Light — basic spam and link protection only', value: 'light' },
+                            {
+                                name: 'Balanced — baseline for mixed communities',
+                                value: 'balanced',
+                            },
+                            {
+                                name: 'Strict Shield — aggressive anti-spam for public servers',
+                                value: 'strict',
+                            },
+                            {
+                                name: 'Light - basic spam protection only',
+                                value: 'light',
+                            },
                         ),
                 ),
         )
@@ -150,7 +101,7 @@ export default new Command({
                         interaction,
                         content: {
                             content:
-                                'No auto-mod settings found. Use `/automod spam`, `/automod links`, or `/automod preset` first.',
+                                'No auto-mod settings found. Use `/automod spam` or `/automod preset` first.',
                         },
                     })
                     return
@@ -159,36 +110,12 @@ export default new Command({
                 const embed = new EmbedBuilder()
                     .setColor(COLOR.DISCORD_BLURPLE)
                     .setTitle('Auto-Moderation Settings')
-                    .addFields(
-                        {
-                            name: 'Spam Detection',
-                            value: settings.spamEnabled
-                                ? `Enabled — ${settings.spamThreshold} messages in ${settings.spamTimeWindow}s`
-                                : 'Disabled',
-                        },
-                        {
-                            name: 'Caps Detection',
-                            value: settings.capsEnabled
-                                ? `Enabled — ${settings.capsThreshold}% caps threshold`
-                                : 'Disabled',
-                        },
-                        {
-                            name: 'Link Filtering',
-                            value: settings.linksEnabled
-                                ? `Enabled — ${settings.allowedDomains.length} allowed domains`
-                                : 'Disabled',
-                        },
-                        {
-                            name: 'Invite Filtering',
-                            value: settings.invitesEnabled ? 'Enabled' : 'Disabled',
-                        },
-                        {
-                            name: 'Bad Words Filter',
-                            value: settings.wordsEnabled
-                                ? `Enabled — ${settings.bannedWords.length} banned words`
-                                : 'Disabled',
-                        },
-                    )
+                    .addFields({
+                        name: 'Spam Detection',
+                        value: settings.spamEnabled
+                            ? `Enabled — ${settings.spamThreshold} messages in ${settings.spamTimeWindow}s`
+                            : 'Disabled',
+                    })
                     .setTimestamp()
 
                 if (settings.exemptChannels.length > 0) {
@@ -242,50 +169,23 @@ export default new Command({
                     return
                 }
 
-                const { settings, template } = await autoModService.applyTemplate(
-                    interaction.guild.id,
-                    presetName,
-                )
+                const { settings, template } =
+                    await autoModService.applyTemplate(
+                        interaction.guild.id,
+                        presetName,
+                    )
 
                 const embed = new EmbedBuilder()
                     .setColor(COLOR.ENABLED_GREEN)
                     .setTitle(`Preset Applied: ${template.name}`)
                     .setDescription(template.description)
-                    .addFields(
-                        {
-                            name: 'Spam Detection',
-                            value: settings.spamEnabled
-                                ? `Enabled — ${settings.spamThreshold} messages in ${settings.spamTimeWindow}s`
-                                : 'Disabled',
-                            inline: true,
-                        },
-                        {
-                            name: 'Caps Detection',
-                            value: settings.capsEnabled
-                                ? `Enabled — ${settings.capsThreshold}%`
-                                : 'Disabled',
-                            inline: true,
-                        },
-                        {
-                            name: 'Link Filtering',
-                            value: settings.linksEnabled
-                                ? `Enabled — ${settings.allowedDomains.length} domains`
-                                : 'Disabled',
-                            inline: true,
-                        },
-                        {
-                            name: 'Invite Filtering',
-                            value: settings.invitesEnabled ? 'Enabled' : 'Disabled',
-                            inline: true,
-                        },
-                        {
-                            name: 'Bad Words Filter',
-                            value: settings.wordsEnabled
-                                ? `Enabled — ${settings.bannedWords.length} words`
-                                : 'Disabled',
-                            inline: true,
-                        },
-                    )
+                    .addFields({
+                        name: 'Spam Detection',
+                        value: settings.spamEnabled
+                            ? `Enabled — ${settings.spamThreshold} messages in ${settings.spamTimeWindow}s`
+                            : 'Disabled',
+                        inline: true,
+                    })
                     .setTimestamp()
 
                 await interactionReply({
@@ -313,20 +213,6 @@ export default new Command({
                     if (threshold) updateData.spamThreshold = threshold
                     if (timewindow) updateData.spamTimeWindow = timewindow
                 }
-            } else if (subcommand === 'caps') {
-                updateData.capsEnabled = enabled
-                if (enabled) {
-                    const percentage =
-                        interaction.options.getInteger('percentage')
-
-                    if (percentage) updateData.capsThreshold = percentage
-                }
-            } else if (subcommand === 'links') {
-                updateData.linksEnabled = enabled
-            } else if (subcommand === 'invites') {
-                updateData.invitesEnabled = enabled
-            } else if (subcommand === 'words') {
-                updateData.wordsEnabled = enabled
             }
 
             await autoModService.updateSettings(
@@ -336,9 +222,7 @@ export default new Command({
 
             const embed = new EmbedBuilder()
                 .setColor(enabled ? COLOR.ENABLED_GREEN : COLOR.DISABLED_RED)
-                .setTitle(
-                    `Auto-Moderation ${enabled ? 'Enabled' : 'Disabled'}`,
-                )
+                .setTitle(`Auto-Moderation ${enabled ? 'Enabled' : 'Disabled'}`)
                 .addFields({
                     name: 'Module',
                     value: subcommand.toUpperCase(),

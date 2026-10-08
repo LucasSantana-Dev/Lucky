@@ -44,7 +44,7 @@ function makeModule(opts: {
         executorExecute ?? jest.fn().mockResolvedValue({ moved: 5 })
     const mockExecutor = executorMissing
         ? null
-        : { jobType: 'bulk_move_messages', execute: mockExecute }
+        : { jobType: 'bulk_kick', execute: mockExecute }
 
     const mockGetExecutor = jest.fn().mockReturnValue(mockExecutor)
     const mockRegisterExecutor = executorRegistrationThrows
@@ -77,11 +77,6 @@ function makeModule(opts: {
                   capturedProcessor = processor
                   return { on: mockWorkerOn, close: mockWorkerClose }
               })
-
-    const MockChannelMoveBatchExecutor = jest.fn().mockImplementation(() => ({
-        jobType: 'bulk_move_messages',
-        execute: mockExecute,
-    }))
 
     const MockBulkKickExecutor = jest.fn().mockImplementation(() => ({
         jobType: 'bulk_kick',
@@ -135,12 +130,6 @@ function makeModule(opts: {
             registerExecutor: mockRegisterExecutor,
         }))
         jest.doMock('bullmq', () => ({ Worker: MockWorker }))
-        jest.doMock(
-            '../functions/moderation/batch/channelMoveExecutor',
-            () => ({
-                ChannelMoveBatchExecutor: MockChannelMoveBatchExecutor,
-            }),
-        )
         jest.doMock('../functions/moderation/batch/bulkKickExecutor', () => ({
             BulkKickExecutor: MockBulkKickExecutor,
         }))
@@ -306,7 +295,7 @@ describe('batchJobWorker', () => {
             const dbJob = {
                 id: 'job-abc',
                 guildId: 'g1',
-                jobType: 'bulk_move_messages',
+                jobType: 'bulk_kick',
                 totalItems: 5,
                 options: {},
             }
@@ -332,7 +321,7 @@ describe('batchJobWorker', () => {
             const dbJob = {
                 id: 'job-abc',
                 guildId: 'g1',
-                jobType: 'bulk_move_messages',
+                jobType: 'bulk_kick',
                 totalItems: 5,
                 options: {},
             }
@@ -383,7 +372,7 @@ describe('batchJobWorker', () => {
             const dbJob = {
                 id: 'job-abc',
                 guildId: 'g1',
-                jobType: 'bulk_move_messages',
+                jobType: 'bulk_kick',
                 totalItems: 10,
                 options: {},
             }
@@ -424,7 +413,7 @@ describe('batchJobWorker', () => {
             const dbJob = {
                 id: 'job-abc',
                 guildId: 'g1',
-                jobType: 'bulk_move_messages',
+                jobType: 'bulk_kick',
                 totalItems: 10,
                 options: {},
             }
@@ -443,7 +432,7 @@ describe('batchJobWorker', () => {
         const dbJob = {
             id: 'job-abc',
             guildId: 'g1',
-            jobType: 'bulk_move_messages',
+            jobType: 'bulk_kick',
             totalItems: 10,
             options: {},
         }
@@ -464,7 +453,7 @@ describe('batchJobWorker', () => {
         const dbJob = {
             id: 'job-abc',
             guildId: 'g1',
-            jobType: 'bulk_move_messages',
+            jobType: 'bulk_kick',
             totalItems: 10,
             options: {},
         }
@@ -485,7 +474,7 @@ describe('batchJobWorker', () => {
         const dbJob = {
             id: 'job-abc',
             guildId: 'g1',
-            jobType: 'bulk_move_messages',
+            jobType: 'bulk_kick',
             totalItems: 10,
             options: {},
         }

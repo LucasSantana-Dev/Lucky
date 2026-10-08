@@ -10,10 +10,6 @@ const PERMISSION_REQUIREMENTS: Record<
         target?: string[]
     }
 > = {
-    channel_move_batch: {
-        source: ['ManageMessages'],
-        target: ['SendMessages', 'EmbedLinks', 'AttachFiles'],
-    },
     bulk_ban: {
         target: ['BanMembers'],
     },
