@@ -38,6 +38,11 @@ FROM node:${NODE_VERSION} AS base-runtime
 # libexpat is pulled in as a python3 dependency; upgrade only that package
 # to the current index to close CVE-2026-76641 / CVE-2026-66046
 # (libexpat < 2.8.4-r0) without floating the rest of the digest-pinned base.
+# yt-dlp-ejs ships the scripts yt-dlp runs (with the node runtime the bot
+# passes via --js-runtimes) to solve YouTube's signature and n challenges;
+# without it yt-dlp skips solving and formats can go missing (#2664). yt-dlp
+# only accepts the yt-dlp-ejs version it pins, so it comes in through the
+# `default` extra, which carries that pin; yt-dlp itself floats on rebuilds.
 RUN apk add --no-cache \
     python3 \
     py3-pip \
@@ -46,7 +51,7 @@ RUN apk add --no-cache \
     opus-tools \
     && apk upgrade --no-cache libexpat \
     && python3 -m venv /opt/ytdlp \
-    && /opt/ytdlp/bin/pip install --no-cache-dir --upgrade pip yt-dlp \
+    && /opt/ytdlp/bin/pip install --no-cache-dir --upgrade pip 'yt-dlp[default]' \
     && ln -s /opt/ytdlp/bin/yt-dlp /usr/local/bin/yt-dlp \
     && rm -rf /var/cache/apk/* /root/.cache \
     && npm install -g npm@latest \
