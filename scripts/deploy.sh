@@ -35,13 +35,31 @@ log() { echo "$LOG_PREFIX $(date '+%H:%M:%S') $1"; }
 
 # Per-phase timing (observability only). phase_start/phase_end log
 # "phase=<name> seconds=<n>"; names must be shell identifiers. Phases may nest.
+# A phase left open by an early return/exit is reported by phase_flush as
+# "phase=<name> seconds=<n> unfinished" (called on failure paths and in _on_exit).
 # DEPLOY_T0 survives the re-exec so phase=total covers the whole run.
 DEPLOY_T0="${LUCKY_DEPLOY_T0:-$(date +%s)}"
 export LUCKY_DEPLOY_T0="$DEPLOY_T0"
-phase_start() { printf -v "_PHASE_T0_$1" '%s' "$(date +%s)"; }
+_PHASES_OPEN=""
+phase_start() {
+    printf -v "_PHASE_T0_$1" '%s' "$(date +%s)"
+    case " $_PHASES_OPEN " in *" $1 "*) ;; *) _PHASES_OPEN="${_PHASES_OPEN:+$_PHASES_OPEN }$1" ;; esac
+}
 phase_end() {
-    local _t0="_PHASE_T0_$1"
+    local _t0="_PHASE_T0_$1" _p _rest=""
     log "phase=$1 seconds=$(( $(date +%s) - ${!_t0} ))"
+    for _p in $_PHASES_OPEN; do
+        [[ "$_p" == "$1" ]] || _rest="${_rest:+$_rest }$_p"
+    done
+    _PHASES_OPEN="$_rest"
+}
+phase_flush() {
+    local _p _t0
+    for _p in $_PHASES_OPEN; do
+        _t0="_PHASE_T0_$_p"
+        log "phase=$_p seconds=$(( $(date +%s) - ${!_t0} )) unfinished"
+    done
+    _PHASES_OPEN=""
 }
 
 resolve_cloudflared_config_dir() {
@@ -621,6 +639,7 @@ attempt_rollback() {
         return 0
     fi
 
+    phase_flush
     log "ROLLBACK ERROR: last-good ${last_good} is ALSO unhealthy — manual intervention required"
     notify 16711680 "Rollback Failed" "${last_good} also unhealthy — manual intervention required"
     return 1
@@ -663,7 +682,7 @@ if ! acquire_lock; then
     notify 16711680 "Deploy Skipped" "Another deploy is already in progress"
     exit 1
 fi
-_on_exit() { rm -rf "$LOCK_DIR" 2>/dev/null || true; log "phase=total seconds=$(( $(date +%s) - DEPLOY_T0 ))"; post_deploy_status "$DEPLOY_FINAL_STATE" "$DEPLOY_FINAL_DESC"; }
+_on_exit() { rm -rf "$LOCK_DIR" 2>/dev/null || true; phase_flush; log "phase=total seconds=$(( $(date +%s) - DEPLOY_T0 ))"; post_deploy_status "$DEPLOY_FINAL_STATE" "$DEPLOY_FINAL_DESC"; }
 trap _on_exit EXIT
 
 COMPOSE_WORKDIR="$(resolve_compose_workdir)"
@@ -882,6 +901,7 @@ phase_start health_checks
 _health_rc=0
 run_health_checks || _health_rc=$?
 phase_end health_checks
+[[ "$_health_rc" -eq 0 ]] || phase_flush
 if [[ "$_health_rc" -eq 0 ]]; then
     # Record the rollback target for future failed deploys as the RUNNING image's
     # baked COMMIT_SHA — not git HEAD. git HEAD drifts from the deployed image on
