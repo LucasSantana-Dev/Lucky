@@ -25,10 +25,6 @@
 # against another). Bump the digest deliberately when moving to a new Node
 # patch, not implicitly via upstream republish.
 ARG NODE_VERSION=24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf
-# Lockfile-hash cache key — auto-busts npm BuildKit caches when package-lock.json
-# changes. Passed as a build-arg from the workflow: hashFiles('package-lock.json').
-# Bump the default (v3 → v4) only if you need a forced one-off cache wipe.
-ARG NPM_CACHE_KEY=v4
 
 FROM node:${NODE_VERSION} AS base-runtime
 
@@ -76,27 +72,47 @@ ENV NODE_ENV=development \
 # nosemgrep: dockerfile.security.missing-user.missing-user
 CMD ["sh", "-c", "npm ci --legacy-peer-deps --no-audit --no-fund && npx prisma generate && npm run dev --workspace=packages/bot"]
 
+# Version-independent dependency manifests. release-please bumps only the root
+# version fields (package.json "version", package-lock.json top-level "version"
+# and packages[""].version; workspace package.json versions never change), so a
+# release commit used to invalidate every `COPY package*.json` and with it both
+# `npm ci` layers and everything built on them. This stage normalizes those
+# three fields to 0.0.0; the npm ci stages copy manifests only from here, so a
+# release commit yields byte-identical layers and the npm layers stay cached.
+# The real root package.json is copied late in each production stage instead.
+# LEAF stage: nothing may FROM it, only `COPY --from=manifests` (see #2015).
+FROM node:${NODE_VERSION} AS manifests
+WORKDIR /m
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/bot/package.json ./packages/bot/
+COPY packages/backend/package.json ./packages/backend/
+COPY packages/frontend/package.json ./packages/frontend/
+RUN node -e "\
+const fs = require('fs');\
+const rw = (f, fn) => { const j = JSON.parse(fs.readFileSync(f, 'utf8')); fn(j); fs.writeFileSync(f, JSON.stringify(j, null, 4) + '\\n'); };\
+rw('package.json', (j) => { j.version = '0.0.0'; });\
+rw('package-lock.json', (j) => { j.version = '0.0.0'; j.packages[''].version = '0.0.0'; });\
+"
+
 # Build stage — installs all deps. Prisma generation and the per-workspace
 # builds happen in the stages below (source-copied, build-shared, build-bot,
 # build-backend, build-frontend), split apart to avoid coupling unrelated
 # COPY --from steps to each other's build RUNs — see the comments there.
 FROM node:${NODE_VERSION} AS build
-ARG NPM_CACHE_KEY
 
 RUN apk add --no-cache git build-base python3 python3-dev opus-dev && rm -rf /var/cache/apk/* && npm install -g npm@latest && npm cache clean --force
 
 WORKDIR /app
 
-COPY package*.json ./
-COPY packages/shared/package*.json ./packages/shared/
-COPY packages/bot/package*.json ./packages/bot/
-COPY packages/backend/package*.json ./packages/backend/
-COPY packages/frontend/package*.json ./packages/frontend/
+COPY --from=manifests /m/ ./
 
-RUN --mount=type=cache,id=npm-build-stage-v4-${NPM_CACHE_KEY},target=/root/.npm,sharing=locked \
-    YOUTUBE_DL_SKIP_DOWNLOAD=1 \
+# No BuildKit cache mount: ephemeral CI runners never persist it, and the layer
+# cache above is what saves the install. Drop the npm cache so it is not
+# exported into the layer.
+RUN YOUTUBE_DL_SKIP_DOWNLOAD=1 \
     npm ci --legacy-peer-deps --no-audit --no-fund && \
-    (npm cache verify 2>/dev/null || true)
+    rm -rf /root/.npm
 
 # Checkpoint right after npm ci, before any source COPY or per-workspace
 # build runs: every workspace's node_modules is fully installed and final
@@ -174,7 +190,6 @@ RUN npm run build --workspace=packages/frontend
 # and without the GHA cache, alone and concurrent, disk headroom confirmed
 # fine every time — never root-caused beyond "eliminate the unneeded COPY").
 FROM node:${NODE_VERSION} AS deps-production-base
-ARG NPM_CACHE_KEY
 
 # build-base + python3-dev + opus-dev: @discordjs/opus falls back to a source
 # build whenever its musl prebuilt is missing for the current base image
@@ -189,11 +204,7 @@ WORKDIR /app
 # workspace resolution below sees the same workspace graph as the original
 # single-stage version — only which node_modules directories get copied (and
 # therefore pruned/shipped) actually differs per target.
-COPY package*.json ./
-COPY packages/shared/package*.json ./packages/shared/
-COPY packages/bot/package*.json ./packages/bot/
-COPY packages/backend/package*.json ./packages/backend/
-COPY packages/frontend/package*.json ./packages/frontend/
+COPY --from=manifests /m/ ./
 
 # Independent npm ci instead of COPY --from=installed-deps (issue #2015).
 # installed-deps is concurrently extended by a second live branch
@@ -207,9 +218,9 @@ COPY packages/frontend/package*.json ./packages/frontend/
 # it's a one-time cost per build, not per target — but fully decouples this
 # lineage from installed-deps: no more cross-stage read of a stage still
 # being written to elsewhere.
-RUN --mount=type=cache,id=npm-build-stage-v4-${NPM_CACHE_KEY},target=/root/.npm,sharing=locked \
-    YOUTUBE_DL_SKIP_DOWNLOAD=1 \
-    npm ci --legacy-peer-deps --no-audit --no-fund
+RUN YOUTUBE_DL_SKIP_DOWNLOAD=1 \
+    npm ci --legacy-peer-deps --no-audit --no-fund && \
+    rm -rf /root/.npm
 
 FROM deps-production-base AS deps-production-bot
 RUN npm prune --omit=dev --legacy-peer-deps
@@ -229,15 +240,12 @@ RUN mkdir -p packages/backend/node_modules packages/shared/node_modules
 # Production stage — bot (full runtime with ffmpeg/opus/yt-dlp)
 FROM base-runtime AS production-bot
 
-ARG COMMIT_SHA
 ENV NODE_ENV=production \
-    NPM_CONFIG_LOGLEVEL=silent \
-    COMMIT_SHA=$COMMIT_SHA
+    NPM_CONFIG_LOGLEVEL=silent
 
 WORKDIR /app
 
 COPY --from=deps-production-bot /app/node_modules ./node_modules
-COPY --from=deps-production-bot /app/package*.json ./
 COPY --from=deps-production-bot /app/packages/shared/package*.json ./packages/shared/
 COPY --from=deps-production-bot /app/packages/bot/package*.json ./packages/bot/
 COPY --from=deps-production-bot /app/packages/bot/node_modules ./packages/bot/node_modules
@@ -268,6 +276,15 @@ RUN mkdir -p downloads logs && \
     chown -R bot:nodejs /app/downloads /app/logs /app/node_modules/@prisma && \
     chmod -R 755 /app/downloads
 
+# Late layers, kept last so a release commit (root version bump) or a new
+# COMMIT_SHA only invalidates these tiny layers, not the COPY --from layers
+# above. The real root package.json carries the version the runtime reports
+# (version.ts, shared environment.ts); the deps stages only see the
+# normalized one from the manifests stage.
+COPY package.json package-lock.json ./
+ARG COMMIT_SHA
+ENV COMMIT_SHA=$COMMIT_SHA
+
 USER bot
 
 # Gateway readiness via /healthz — returns 200 when client.isReady(), 503 otherwise.
@@ -283,13 +300,10 @@ CMD ["sh", "-c", "npx prisma migrate deploy --config prisma/prisma.config.ts && 
 FROM node:${NODE_VERSION} AS production-backend
 WORKDIR /app
 
-ARG COMMIT_SHA
 ENV NODE_ENV=production \
-    NPM_CONFIG_LOGLEVEL=silent \
-    COMMIT_SHA=$COMMIT_SHA
+    NPM_CONFIG_LOGLEVEL=silent
 
 COPY --from=deps-production-backend /app/node_modules ./node_modules
-COPY --from=deps-production-backend /app/package*.json ./
 COPY --from=deps-production-backend /app/packages/shared/package*.json ./packages/shared/
 COPY --from=deps-production-backend /app/packages/backend/package*.json ./packages/backend/
 COPY --from=deps-production-backend /app/packages/backend/node_modules ./packages/backend/node_modules
@@ -317,6 +331,15 @@ COPY --from=source-copied /app/node_modules/@prisma ./node_modules/@prisma
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S backend -u 1001 -G nodejs && \
     chown -R backend:nodejs /app/packages/backend/dist /app/prisma /app/node_modules/@prisma
+
+# Late layers, kept last so a release commit (root version bump) or a new
+# COMMIT_SHA only invalidates these tiny layers, not the COPY --from layers
+# above. The real root package.json carries the version the runtime reports
+# (version.ts, shared environment.ts); the deps stages only see the
+# normalized one from the manifests stage.
+COPY package.json package-lock.json ./
+ARG COMMIT_SHA
+ENV COMMIT_SHA=$COMMIT_SHA
 
 USER backend
 

@@ -1,7 +1,7 @@
 # ADR: Docker BuildKit npm cache key strategy
 
 **Date:** 2026-05-24
-**Status:** Accepted
+**Status:** Superseded (2026-10-08): the `NPM_CACHE_KEY` build-arg and the npm cache mounts were removed. Ephemeral runners never persisted the mounts; the `manifests` stage in `Dockerfile` now keeps the `npm ci` layers cached across release commits (version-normalized manifests).
 
 ## Context
 
