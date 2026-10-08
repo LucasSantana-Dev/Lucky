@@ -309,10 +309,39 @@ function logAllStagesExhausted(
     })
 }
 
+// discord-player runs the extractor chain for one track more than once when a
+// stream cannot be produced: `createGenericStream` hands the track to every
+// extractor (YoutubeExtractor.validate accepts any string, so it reaches
+// `createResilientStream`), and on failure `createFallbackStream` searches
+// YouTube for "title author" and calls `createResilientStream` again with the
+// search hit. Both calls happen inside one `extractors.context.provide(...)`
+// scope, which is the only identity they share. A pass that already failed
+// there is recorded here (with the URL that failed) so the second call does
+// not repeat every yt-dlp/SoundCloud attempt (#2740). The fallback hit is a
+// different upload, which can succeed where the original was geo-blocked or
+// private, so a different URL still gets one direct yt-dlp attempt.
+const exhaustedPasses = new WeakMap<object, string | null>()
+
+function currentPassKey(ext: unknown): object | null {
+    try {
+        const scope = (
+            ext as { context?: { getContext?: () => unknown } } | undefined
+        )?.context?.getContext?.()
+        return scope !== null && typeof scope === 'object' ? scope : null
+    } catch {
+        return null
+    }
+}
+
 export async function createResilientStream(
     track: BridgeTrack,
-    _ext?: unknown,
+    ext?: unknown,
 ): Promise<Readable> {
+    const passKey = currentPassKey(ext)
+    if (passKey && exhaustedPasses.has(passKey)) {
+        return retryExhaustedPass(track, exhaustedPasses.get(passKey) ?? null)
+    }
+
     const startedAt = Date.now()
     try {
         const stream = await resolveResilientStream(track)
@@ -324,6 +353,7 @@ export async function createResilientStream(
         return stream
     } catch (error) {
         const durationMs = observeStage('bridge_total', startedAt, 'fail')
+        if (passKey) exhaustedPasses.set(passKey, track.url ?? null)
         debugLog({
             message: 'Bridge: failed',
             data: {
@@ -334,6 +364,46 @@ export async function createResilientStream(
         })
         throw error
     }
+}
+
+// Second call inside an exhausted pass. No bridge_total observation here: it
+// must stay one per track so the /play latency percentiles are not skewed.
+// Only a different, non-Spotify URL gets a single yt-dlp URL attempt (the
+// stage observation of that attempt is fine); no search, no SoundCloud.
+async function retryExhaustedPass(
+    track: BridgeTrack,
+    failedUrl: string | null,
+): Promise<Readable> {
+    const url = track.url
+    const canRescue =
+        Boolean(url) &&
+        url !== failedUrl &&
+        !isHost(url as string, 'open.spotify.com') &&
+        !isYtDlpBlocked()
+    if (canRescue) {
+        const stream = await attemptYtDlpUrl(track, cleanTitle(track.title))
+        if (stream) return stream
+    }
+    debugLog({
+        message: 'Bridge: already exhausted for this play, failing fast',
+        data: { title: track.title, rescueTried: canRescue },
+    })
+    throw new Error(`Bridge exhausted: no stream for "${track.title}"`)
+}
+
+/**
+ * `onBeforeCreateStream` hook: Spotify has metadata only, so every Spotify
+ * track is resolved by the bridge. Running it from this hook skips
+ * discord-player's own pre-bridge work (SpotifyExtractor.stream ->
+ * requestBridge -> SoundCloudExtractor.bridge does a SoundCloud search and
+ * stream resolve before our bridge ever starts) and its generic/fallback
+ * second pass. Other sources return null and keep the normal extractor chain.
+ */
+export async function streamSpotifyTrackViaBridge(
+    track: Pick<Track, 'source'> & BridgeTrack,
+): Promise<Readable | null> {
+    if (track.source !== 'spotify') return null
+    return createResilientStream(track)
 }
 
 async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {

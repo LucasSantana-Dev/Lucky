@@ -9,7 +9,7 @@ jest.mock('discord-player', () => {
             removeAllListeners: jest.fn(),
         }
     })
-    return { Player: MockPlayer }
+    return { Player: MockPlayer, onBeforeCreateStream: jest.fn() }
 })
 
 jest.mock('@discord-player/extractor', () => ({
@@ -208,7 +208,7 @@ describe('playerFactory', () => {
                         removeAllListeners: jest.fn(),
                     }
                 })
-                return { Player: MockPlayer }
+                return { Player: MockPlayer, onBeforeCreateStream: jest.fn() }
             })
 
             const { createPlayer } =
@@ -257,7 +257,7 @@ describe('playerFactory', () => {
                         removeAllListeners: jest.fn(),
                     }
                 })
-                return { Player: MockPlayer }
+                return { Player: MockPlayer, onBeforeCreateStream: jest.fn() }
             })
 
             const { createPlayer } =
@@ -301,7 +301,7 @@ describe('playerFactory', () => {
                         removeAllListeners: jest.fn(),
                     }
                 })
-                return { Player: MockPlayer }
+                return { Player: MockPlayer, onBeforeCreateStream: jest.fn() }
             })
 
             const { createPlayer } =
@@ -347,7 +347,7 @@ describe('playerFactory', () => {
                         removeAllListeners: jest.fn(),
                     }
                 })
-                return { Player: MockPlayer }
+                return { Player: MockPlayer, onBeforeCreateStream: jest.fn() }
             })
 
             const { createPlayer } =
