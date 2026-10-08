@@ -2,7 +2,8 @@
 """Generate Lucky's Grafana dashboards into observability/grafana/dashboards/.
 
 Run `python3 observability/grafana/build_dashboards.py` after editing; commit the
-generated JSON with this file. Stdlib only.
+generated JSON with this file (the pre-commit prettier pass reformats it, so a
+fresh run shows a whitespace-only diff until committed). Stdlib only.
 
 Datasources are referenced through hidden datasource variables (ds_prometheus,
 ds_loki, ds_postgres, ds_sentry) so the same JSON loads in the homelab Grafana
