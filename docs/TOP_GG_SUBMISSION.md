@@ -106,7 +106,8 @@ accurate once #2687 is deployed; until then it overpromises.
 ### Next long description: lead with the weekly recap
 
 Paste together with the next headline (§2), **only once `/recap` is live in
-production**. Same rules: audio sources never named, self-hosting not promoted.
+production and the 👍 / 👎 now-playing buttons are live (#2687)**. Same rules:
+audio sources never named, self-hosting not promoted.
 
 ```markdown
 **Your server's week in music, every Sunday.**
@@ -289,12 +290,12 @@ Done:
 - [x] `TOPGG_TOKEN` set in production: `topggStatsScheduler` posts the server count
 - [x] Vote webhook live: votes are received since 2026-09-26
 - [x] `YouTube` category removed (§4)
+- [x] Draft a pt-BR description variant (#2472): see §2 and §3
 
 Open:
 
-- [x] Draft a pt-BR description variant (#2472): see §2 and §3
-- [ ] When `/recap` is live in production, paste the next headline and long
-      description (§2, §3) on the top.gg dashboard
+- [ ] When `/recap` is live in production and #2687 is deployed, paste the next
+      headline and long description (§2, §3) on the top.gg dashboard
 - [ ] Re-run the thumbs positioning check 28 days after #2687 deploys
       (`decisions/2026-10-07-pitch-leads-with-weekly-recap.md`)
 - [ ] Revisit imagery under the dashboard's `Appearance` section
