@@ -33,6 +33,35 @@ LAST_GOOD_FILE="${LAST_GOOD_FILE:-${DEPLOY_DIR}/.deploy-last-good-sha}"
 
 log() { echo "$LOG_PREFIX $(date '+%H:%M:%S') $1"; }
 
+# Per-phase timing (observability only). phase_start/phase_end log
+# "phase=<name> seconds=<n>"; names must be shell identifiers. Phases may nest.
+# A phase left open by an early return/exit is reported by phase_flush as
+# "phase=<name> seconds=<n> unfinished" (called on failure paths and in _on_exit).
+# DEPLOY_T0 survives the re-exec so phase=total covers the whole run.
+DEPLOY_T0="${LUCKY_DEPLOY_T0:-$(date +%s)}"
+export LUCKY_DEPLOY_T0="$DEPLOY_T0"
+_PHASES_OPEN=""
+phase_start() {
+    printf -v "_PHASE_T0_$1" '%s' "$(date +%s)"
+    case " $_PHASES_OPEN " in *" $1 "*) ;; *) _PHASES_OPEN="${_PHASES_OPEN:+$_PHASES_OPEN }$1" ;; esac
+}
+phase_end() {
+    local _t0="_PHASE_T0_$1" _p _rest=""
+    log "phase=$1 seconds=$(( $(date +%s) - ${!_t0} ))"
+    for _p in $_PHASES_OPEN; do
+        [[ "$_p" == "$1" ]] || _rest="${_rest:+$_rest }$_p"
+    done
+    _PHASES_OPEN="$_rest"
+}
+phase_flush() {
+    local _p _t0
+    for _p in $_PHASES_OPEN; do
+        _t0="_PHASE_T0_$_p"
+        log "phase=$_p seconds=$(( $(date +%s) - ${!_t0} )) unfinished"
+    done
+    _PHASES_OPEN=""
+}
+
 resolve_cloudflared_config_dir() {
     if [[ -n "${CLOUDFLARED_CONFIG_DIR:-}" ]]; then
         echo "$CLOUDFLARED_CONFIG_DIR"
@@ -448,7 +477,9 @@ run_health_checks() {
     fi
 
     log "Waiting for health checks..."
+    phase_start health_sleep
     sleep 10
+    phase_end health_sleep
 
     log "Service status:"
     docker_compose ps --format "table {{.Name}}\t{{.Status}}"
@@ -463,12 +494,14 @@ run_health_checks() {
     # the optional (render image unavailable) rollback/pinned paths.
     if [[ "${ROLLBACK_SKIP_RENDER:-0}" != "1" ]]; then
         local render_container="${COMPOSE_PROJECT_NAME}-render" render_health="" waited=0
+        phase_start health_render
         while (( waited < 60 )); do
             render_health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$render_container" 2>/dev/null || true)
             [[ "$render_health" == "healthy" ]] && break
             sleep 5
             waited=$((waited + 5))
         done
+        phase_end health_render
         if [[ "$render_health" != "healthy" ]]; then
             print_targeted_logs
             log "HEALTH: render did not become healthy (status='${render_health:-none}')"
@@ -476,6 +509,7 @@ run_health_checks() {
         fi
     fi
 
+    phase_start health_http
     if ! wait_for_http_ready \
         "API health" \
         "http://nginx:8080/api/health" \
@@ -507,9 +541,11 @@ run_health_checks() {
         log "HEALTH: frontend dashboard did not serve the SPA (lucky-frontend down or stale image?)"
         return 1
     fi
+    phase_end health_http
 
     log "Waiting for bot gateway health (start-period: 45s, timeout: 90s)..."
     local bot_deadline bot_health
+    phase_start health_bot
     bot_deadline=$(( SECONDS + 90 ))
     while [[ $SECONDS -lt $bot_deadline ]]; do
         bot_health=$(docker inspect lucky-bot --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
@@ -534,6 +570,7 @@ run_health_checks() {
     if [[ "$bot_health" != "healthy" ]]; then
         log "WARN: bot health status '${bot_health}' after 90s (Discord may be slow — proceeding)"
     fi
+    phase_end health_bot
 
     return 0
 }
@@ -602,6 +639,7 @@ attempt_rollback() {
         return 0
     fi
 
+    phase_flush
     log "ROLLBACK ERROR: last-good ${last_good} is ALSO unhealthy — manual intervention required"
     notify 16711680 "Rollback Failed" "${last_good} also unhealthy — manual intervention required"
     return 1
@@ -644,7 +682,7 @@ if ! acquire_lock; then
     notify 16711680 "Deploy Skipped" "Another deploy is already in progress"
     exit 1
 fi
-_on_exit() { rm -rf "$LOCK_DIR" 2>/dev/null || true; post_deploy_status "$DEPLOY_FINAL_STATE" "$DEPLOY_FINAL_DESC"; }
+_on_exit() { rm -rf "$LOCK_DIR" 2>/dev/null || true; phase_flush; log "phase=total seconds=$(( $(date +%s) - DEPLOY_T0 ))"; post_deploy_status "$DEPLOY_FINAL_STATE" "$DEPLOY_FINAL_DESC"; }
 trap _on_exit EXIT
 
 COMPOSE_WORKDIR="$(resolve_compose_workdir)"
@@ -668,11 +706,13 @@ git config --global --add safe.directory "$DEPLOY_DIR"
 notify 16776960 "Deploy Started" "Pulling latest changes and rebuilding..."
 
 log "Synchronizing checkout with origin/main..."
+phase_start checkout_sync
 if ! sync_checkout_to_origin_main; then
     log "ERROR: CHECKOUT_RECOVERY_FAILED (unable to prepare clean checkout)"
     notify 16711680 "Deploy Failed" "Checkout recovery failed"
     exit 1
 fi
+phase_end checkout_sync
 
 reexec_if_script_changed
 
@@ -701,15 +741,18 @@ if [[ -f /.dockerenv ]] && \
     log "Skipping webhook rebuild (running inside webhook container)"
 else
     log "Rebuilding webhook container (early, before app build)..."
+    phase_start webhook_rebuild
     if docker_compose build --no-cache webhook 2>/dev/null; then
         docker_compose up -d -V --force-recreate --no-deps webhook 2>/dev/null || true
         log "Webhook container rebuilt successfully"
     else
         log "WARN: Webhook rebuild failed (non-fatal, will retry next deploy)"
     fi
+    phase_end webhook_rebuild
 fi
 
 log "Pulling images..."
+phase_start image_pull
 # Render is optional only when the target commit predates the render service
 # (no packages/render/Cargo.toml in it); then it is pulled separately. Every
 # other deploy, pinned or not, keeps render mandatory.
@@ -749,31 +792,41 @@ if [[ "$_render_optional" == "true" ]]; then
     fi
 fi
 
+phase_end image_pull
+
 log "Starting database services..."
+phase_start db_up
 docker_compose up -d postgres redis
+phase_end db_up
 
 log "Waiting for PostgreSQL to accept connections..."
+phase_start pg_wait
 if ! wait_for_postgres_ready "PostgreSQL"; then
     log "ERROR: DATABASE_NOT_READY (postgres failed to become ready)"
     notify 16711680 "Deploy Failed" "PostgreSQL did not become ready before migration timeout"
     exit 1
 fi
+phase_end pg_wait
 
 log "Running database migrations..."
+phase_start migrate_deploy
 if ! docker_compose run --rm --no-deps backend \
     sh -lc "npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma"; then
     log "ERROR: MIGRATION_FAILED (prisma migrate deploy)"
     notify 16711680 "Deploy Failed" "Database migration failed"
     exit 1
 fi
+phase_end migrate_deploy
 
 log "Checking migration status..."
+phase_start migrate_status
 if ! docker_compose run --rm --no-deps backend \
     sh -lc "npx prisma migrate status --config prisma/prisma.config.ts --schema prisma/schema.prisma"; then
     log "ERROR: MIGRATION_FAILED (prisma migrate status)"
     notify 16711680 "Deploy Failed" "Database migration status guard failed"
     exit 1
 fi
+phase_end migrate_status
 
 relation_guard_script=$(
     cat <<'NODE'
@@ -791,12 +844,14 @@ NODE
 )
 
 log "Verifying required database relations..."
+phase_start relation_guard
 if ! docker_compose run --rm --no-deps backend \
     node --input-type=module -e "$relation_guard_script"; then
     log "ERROR: RUNTIME_PRECHECK_FAILED (required relation verification)"
     notify 16711680 "Deploy Failed" "Database relation guard failed"
     exit 1
 fi
+phase_end relation_guard
 
 # Containers this script does not recreate keep whatever network they were
 # created on, so they lose sight of nginx when the compose network changes
@@ -812,8 +867,10 @@ ensure_on_lucky_network() {
 }
 
 log "Rolling out services..."
+phase_start rollout
 # shellcheck disable=SC2086  # intentional word splitting of the service list
 docker_compose up -d --remove-orphans --no-deps $_app_services postgres redis
+phase_end rollout
 
 # The webhook runs this script, so it is never recreated here; nginx proxies
 # /webhook/ to it by service name.
@@ -828,6 +885,7 @@ if ! verify_cloudflared_config "$CLOUDFLARED_CONFIG_DIR"; then
 fi
 
 log "Restarting Cloudflare tunnel..."
+phase_start tunnel_restart
 if docker_compose --profile tunnel up -d cloudflared >/dev/null 2>&1; then
     log "Cloudflare tunnel restarted via compose profile"
 elif docker ps --format '{{.Names}}' | grep -qx "lucky-tunnel"; then
@@ -837,8 +895,14 @@ elif docker ps --format '{{.Names}}' | grep -qx "lucky-tunnel"; then
 else
     log "WARN: Could not restart cloudflared (service unavailable)"
 fi
+phase_end tunnel_restart
 
-if run_health_checks; then
+phase_start health_checks
+_health_rc=0
+run_health_checks || _health_rc=$?
+phase_end health_checks
+[[ "$_health_rc" -eq 0 ]] || phase_flush
+if [[ "$_health_rc" -eq 0 ]]; then
     # Record the rollback target for future failed deploys as the RUNNING image's
     # baked COMMIT_SHA — not git HEAD. git HEAD drifts from the deployed image on
     # commits that don't touch build paths (packages/prisma/Dockerfile/nginx/
