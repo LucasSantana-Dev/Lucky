@@ -22,6 +22,7 @@ import {
     commandsTotal,
     commandDurationSeconds,
     commandEventsDroppedTotal,
+    playStageSeconds,
 } from './prometheus'
 
 describe('prometheus registry', () => {
@@ -119,6 +120,22 @@ describe('prometheus registry', () => {
             /reason="overflow"/,
         )
         expect(text).not.toMatch(/lucky_bot_command\w*\{[^}]*(guild|user)/)
+    })
+
+    it('play stage histogram exposes stage and outcome labels only', async () => {
+        countMock.mockResolvedValue(0)
+        playStageSeconds.observe({ stage: 'ytdlp_url', outcome: 'fail' }, 5.2)
+        playStageSeconds.observe({ stage: 'soundcloud', outcome: 'ok' }, 0.8)
+
+        const text = await renderMetrics()
+        const lines = text
+            .split('\n')
+            .filter((l) => l.startsWith('lucky_bot_play_stage_seconds_bucket{'))
+
+        expect(lines.some((l) => /stage="ytdlp_url"/.test(l))).toBe(true)
+        expect(lines.some((l) => /outcome="fail"/.test(l))).toBe(true)
+        expect(lines.some((l) => /stage="soundcloud"/.test(l))).toBe(true)
+        expect(text).not.toMatch(/lucky_bot_play_stage\w*\{[^}]*(guild|user)/)
     })
 
     it('reports lucky_bot_gateway_connected=0 when no client is stored yet', async () => {

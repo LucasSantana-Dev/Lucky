@@ -144,6 +144,19 @@ export const commandDurationSeconds = new Histogram<'command'>({
     registers: [registry],
 })
 
+/**
+ * Histogram: where /play spends its time, per stage. `stage` is one of
+ * ytdlp_url|ytdlp_search|soundcloud_full|soundcloud_title|soundcloud_core|bridge_total and `outcome` is ok|fail.
+ * Bounded labels only: no guild, user, track or query values.
+ */
+export const playStageSeconds = new Histogram<'stage' | 'outcome'>({
+    name: 'lucky_bot_play_stage_seconds',
+    help: 'Duration in seconds of each /play stream bridge stage (ytdlp_url|ytdlp_search|soundcloud_full|soundcloud_title|soundcloud_core|bridge_total), by outcome (ok|fail).',
+    labelNames: ['stage', 'outcome'],
+    buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 8, 12, 20, 30],
+    registers: [registry],
+})
+
 /** Counter: command events lost before reaching the database (reason: overflow|flush_failure|stopped|internal_error). */
 export const commandEventsDroppedTotal = new Counter<'reason'>({
     name: 'lucky_bot_command_events_dropped_total',

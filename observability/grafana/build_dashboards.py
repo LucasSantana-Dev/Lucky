@@ -415,6 +415,10 @@ def sistema():
     b.add("timeseries", "Backend: requisições por rota", [prom(
         'sum by (route) (rate(lucky_backend_http_requests_total{route!="/metrics"}[$__rate_interval]))', "{{route}}")],
         w=12, h=8, unit="reqps", custom=LINES, options=TS_OPTS)
+    b.add("timeseries", "/play por etapa (p50 e p95)", [
+        prom(f"histogram_quantile({q}, sum by (le, stage) (rate(lucky_bot_play_stage_seconds_bucket[$__rate_interval])))", f"{{{{stage}}}} p{int(q * 100)}")
+        for q in (0.5, 0.95)], w=24, h=8, unit="s", custom=LINES, options=TS_OPTS,
+        desc="Onde o /play gasta tempo: yt-dlp por URL, yt-dlp por busca, SoundCloud (cada tentativa) e o total da ponte. Etapas que falham também contam.")
 
     b.row("Recursos")
     b.add("timeseries", "Memória usada / limite do container", [prom(
