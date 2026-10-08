@@ -40,16 +40,20 @@ describe('requestLogger', () => {
         jest.clearAllMocks()
     })
 
-    test.each(['/health', '/health/live', '/metrics', '/favicon.ico'])(
-        'skips logging for %s',
-        (path) => {
-            const next = jest.fn() as unknown as NextFunction
-            const { res } = makeRes()
-            requestLogger(makeReq(path), res, next)
-            expect(next).toHaveBeenCalledTimes(1)
-            expect(res.on).not.toHaveBeenCalled()
-        },
-    )
+    test.each([
+        '/health',
+        '/health/live',
+        '/api/health',
+        '/api/health/version',
+        '/metrics',
+        '/favicon.ico',
+    ])('skips logging for %s', (path) => {
+        const next = jest.fn() as unknown as NextFunction
+        const { res } = makeRes()
+        requestLogger(makeReq(path), res, next)
+        expect(next).toHaveBeenCalledTimes(1)
+        expect(res.on).not.toHaveBeenCalled()
+    })
 
     test('logs info for 2xx responses', () => {
         const next = jest.fn() as unknown as NextFunction

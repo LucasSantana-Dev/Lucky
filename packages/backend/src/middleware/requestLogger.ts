@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from 'express'
 import { infoLog, warnLog, errorLog } from '@lucky/shared/utils'
 
-const SKIP_PATHS = ['/health', '/metrics', '/favicon.ico']
+// '/api/health' is the container HEALTHCHECK target, probed every 30 s (#2670).
+const SKIP_PATHS = ['/health', '/api/health', '/metrics', '/favicon.ico']
 
 export function requestLogger(
     req: Request,
