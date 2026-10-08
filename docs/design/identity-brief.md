@@ -32,10 +32,10 @@ Exclusions: neon, glow, gradients, sparkles, 3D, glassmorphism, red-and-gold as 
 | Cat cutout                               | `packages/frontend/branding/source/cat.png`              | bba30faf14f4 |
 | Wordmark (potrace of approved lettering) | `packages/frontend/branding/source/wordmark.svg`         | 1a74e15863c1 |
 | Discord avatar                           | `packages/frontend/branding/source/avatar-1024.png`      | dd800be30328 |
-| App icon / favicon                       | `packages/frontend/public/lucky-logo.png`, `favicon.png` | eadfc677735b |
-| Social preview                           | `packages/frontend/public/og-image.png`                  | aa2c96876fe4 |
+| App icon / favicon                       | `packages/frontend/public/lucky-logo.png`, `favicon.png` | 28f73b38363c |
+| Social preview                           | `packages/frontend/public/og-image.png`                  | 557434d8d029 |
 | Bot banner                               | `assets/lucky-bot-banner.png`                            | 7abe108dd94e |
-| ADR (draft, untracked)                   | `decisions/2026-10-07-brand-retro-maneki-edo-purple.md`  |              |
+| ADR (accepted)                           | `decisions/2026-10-07-brand-retro-maneki-edo-purple.md`  | 6fdad5d7075f |
 
 Tokens in the draft ADR: Edo purple `#52387B`, Ink `#211D2E`, Vermilion `#B83A24`,
 Gold `#C9922E`, Cream `#F3E6CB`. Type: custom LUCKY wordmark, Dela Gothic One (eyebrows,

@@ -29,7 +29,7 @@ Surfaces use only these. Contrast is against Cream unless noted.
 | Gold        | `#C9922E` | koban and decoration only; never text (2.2)            |
 | Cream paper | `#F3E6CB` | light background; text on Edo purple (7.7 there)       |
 
-Type: the LUCKY wordmark is `branding/source/wordmark.svg` (never a font). Dela Gothic One for
+Type: the LUCKY wordmark is `packages/frontend/branding/source/wordmark.svg` (never a font). Dela Gothic One for
 eyebrows, numbers, URLs and ラッキー; Manrope 600 for body.
 
 Shapes: square ink frames and full circles (the sun disc); flat fills; one ink stroke weight per
