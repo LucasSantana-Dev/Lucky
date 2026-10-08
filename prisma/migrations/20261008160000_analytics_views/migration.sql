@@ -89,6 +89,13 @@ GROUP BY dia, "guildId", command, kind, outcome, "errorClass";
 -- Daily, 7-day and 30-day distinct active users and guilds (anyone who ran a
 -- command). One row per local day from the first recorded event to today, so
 -- a quiet day reads as 0 instead of repeating the last busy day.
+--
+-- Linear in distinct active days, not days x events: a day of activity covers
+-- the next N days of an N-day window, so each user's (or guild's) active days
+-- form continuous spans per window. One ordered pass (lag/lead) marks where a
+-- span starts (+1) and where it ends (-1, N days after its last active day),
+-- and a running sum of those marks gives the distinct count per day. A days x
+-- events join timed out at ~1M events under grafana_ro's 15s statement_timeout.
 CREATE OR REPLACE VIEW analytics.active_daily AS
 WITH ev AS (
     SELECT
@@ -97,6 +104,30 @@ WITH ev AS (
         c."guildId"
     FROM public.command_events c
 ),
+act AS (
+    SELECT DISTINCT 'u'::text AS tipo, dia, "userId" AS k FROM ev
+    UNION ALL
+    SELECT DISTINCT 'g'::text, dia, "guildId" FROM ev WHERE "guildId" IS NOT NULL
+),
+gaps AS (
+    SELECT
+        tipo, dia,
+        dia - lag(dia) OVER w AS antes,
+        lead(dia) OVER w - dia AS depois
+    FROM act
+    WINDOW w AS (PARTITION BY tipo, k ORDER BY dia)
+),
+deltas AS (
+    SELECT g.tipo, w.n, x.dia, sum(x.d)::int AS d
+    FROM gaps g
+    CROSS JOIN (VALUES (1), (7), (30)) AS w(n)
+    CROSS JOIN LATERAL (
+        SELECT g.dia, 1 AS d WHERE g.antes IS NULL OR g.antes > w.n
+        UNION ALL
+        SELECT g.dia + w.n, -1 WHERE g.depois IS NULL OR g.depois > w.n
+    ) x
+    GROUP BY g.tipo, w.n, x.dia
+),
 days AS (
     SELECT generate_series(
         min(dia),
@@ -104,19 +135,26 @@ days AS (
         interval '1 day'
     )::date AS dia
     FROM ev
+),
+run AS (
+    SELECT g.dia, s.tipo, s.n,
+        sum(coalesce(dl.d, 0)) OVER (PARTITION BY s.tipo, s.n ORDER BY g.dia)::int AS ativos
+    FROM days g
+    CROSS JOIN (VALUES ('u', 1), ('u', 7), ('u', 30), ('g', 1), ('g', 7), ('g', 30))
+        AS s(tipo, n)
+    LEFT JOIN deltas dl ON dl.tipo = s.tipo AND dl.n = s.n AND dl.dia = g.dia
 )
 SELECT
-    d.dia,
-    d.dia::timestamp AT TIME ZONE 'America/Sao_Paulo' AS inicio,
-    count(DISTINCT ev."userId") FILTER (WHERE ev.dia = d.dia)::int AS usuarios_dia,
-    count(DISTINCT ev."userId") FILTER (WHERE ev.dia > d.dia - 7)::int AS usuarios_7d,
-    count(DISTINCT ev."userId")::int AS usuarios_30d,
-    count(DISTINCT ev."guildId") FILTER (WHERE ev.dia = d.dia)::int AS guildas_dia,
-    count(DISTINCT ev."guildId") FILTER (WHERE ev.dia > d.dia - 7)::int AS guildas_7d,
-    count(DISTINCT ev."guildId")::int AS guildas_30d
-FROM days d
-LEFT JOIN ev ON ev.dia > d.dia - 30 AND ev.dia <= d.dia
-GROUP BY d.dia;
+    dia,
+    dia::timestamp AT TIME ZONE 'America/Sao_Paulo' AS inicio,
+    max(ativos) FILTER (WHERE tipo = 'u' AND n = 1) AS usuarios_dia,
+    max(ativos) FILTER (WHERE tipo = 'u' AND n = 7) AS usuarios_7d,
+    max(ativos) FILTER (WHERE tipo = 'u' AND n = 30) AS usuarios_30d,
+    max(ativos) FILTER (WHERE tipo = 'g' AND n = 1) AS guildas_dia,
+    max(ativos) FILTER (WHERE tipo = 'g' AND n = 7) AS guildas_7d,
+    max(ativos) FILTER (WHERE tipo = 'g' AND n = 30) AS guildas_30d
+FROM run
+GROUP BY dia;
 
 -- Activation: for each JOIN, the first command in that guild after it.
 -- `mensuravel` is false for joins before command recording started, whose
