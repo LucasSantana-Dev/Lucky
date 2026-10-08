@@ -61,6 +61,9 @@ services:
             - postgres_data:/var/lib/postgresql/data
         networks:
             - lucky-network
+            # Read-only Grafana access (role grafana_ro, see
+            # observability/postgres/grafana-ro.sql). Only postgres joins it.
+            - lucky-db-ro
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U discordbot -d discordbot"]
             interval: 30s
@@ -417,7 +420,7 @@ services:
             # Grafana is dashboards-only: alert evaluation and notification
             # live in Prometheus + Alertmanager (single source of truth for
             # rules). No SMTP/contact-point env vars needed here anymore.
-            GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/files/lucky-home.json
+            GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/dashboards/files/lucky-inicio.json
         volumes:
             - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
             - ./observability/grafana/dashboards:/etc/grafana/provisioning/dashboards/files:ro
@@ -425,7 +428,7 @@ services:
         networks:
             - lucky-network
             # Shared monitoring network so Grafana can reach the homelab's
-            # Loki instance for the lucky-activation dashboard's Loki
+            # Loki instance for the Loki panels of the lucky dashboards
             # datasource (see observability/grafana/provisioning/datasources/loki.yaml).
             # Same network bot/backend already join for the reverse
             # direction (homelab Prometheus scraping them). See homelab PR #135.
@@ -584,4 +587,9 @@ networks:
     # as `external: true`. See homelab PR #135.
     lucky-monitoring:
         name: lucky-monitoring
+        driver: bridge
+    # Holds only postgres. The homelab Grafana joins it as `external: true`
+    # for its read-only Postgres datasource (observability/postgres/grafana-ro.sql).
+    lucky-db-ro:
+        name: lucky-db-ro
         driver: bridge

@@ -1,0 +1,1222 @@
+{
+    "uid": "lucky-negocio",
+    "title": "Lucky: negócio",
+    "description": "Uso real do Lucky e as metas do music-first. Fonte: Postgres (somente leitura) e eventos do bot no Loki.",
+    "tags": ["lucky", "negocio"],
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 1,
+    "schemaVersion": 39,
+    "time": {
+        "from": "now-30d",
+        "to": "now"
+    },
+    "refresh": "5m",
+    "templating": {
+        "list": [
+            {
+                "name": "ds_prometheus",
+                "type": "datasource",
+                "query": "prometheus",
+                "regex": "/^Prometheus$/",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "ds_loki",
+                "type": "datasource",
+                "query": "loki",
+                "regex": "",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "ds_postgres",
+                "type": "datasource",
+                "query": "grafana-postgresql-datasource",
+                "regex": "",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "ds_sentry",
+                "type": "datasource",
+                "query": "grafana-sentry-datasource",
+                "regex": "",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "excluidas",
+                "type": "constant",
+                "query": "'110373943822540800','333949691962195969','1541452011466268704'",
+                "hide": 2,
+                "description": "Guildas do operador, de listagem e de teste: nunca contam como uso."
+            }
+        ]
+    },
+    "annotations": {
+        "list": []
+    },
+    "links": [
+        {
+            "type": "dashboards",
+            "tags": ["lucky"],
+            "asDropdown": false,
+            "title": "Dashboards do Lucky",
+            "includeVars": false,
+            "keepTime": true,
+            "targetBlank": false,
+            "icon": "external link"
+        }
+    ],
+    "panels": [
+        {
+            "type": "text",
+            "title": "Leia antes",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 24,
+                "h": 3
+            },
+            "options": {
+                "mode": "markdown",
+                "content": "Metas do music-first (decisão até **20/12/2026**): **WAG ≥ 20** por 3 semanas, **≥ 35%** das guildas novas ouvem música na 1ª hora, **≥ 15%** ainda ativas no dia 8. Guildas do operador, de listagem e de teste não contam. `track_history` guarda só 30 dias e no máximo 100 faixas por guilda, então janelas maiores que 30 dias subcontam plays."
+            },
+            "id": 1
+        },
+        {
+            "type": "row",
+            "title": "Metas do music-first",
+            "collapsed": false,
+            "panels": [],
+            "gridPos": {
+                "x": 0,
+                "y": 3,
+                "w": 24,
+                "h": 1
+            },
+            "id": 2
+        },
+        {
+            "type": "stat",
+            "title": "WAG (7 dias)",
+            "description": "Guildas com faixa tocada ou comando nos últimos 7 dias.",
+            "gridPos": {
+                "x": 0,
+                "y": 4,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT count(DISTINCT g) AS \"Guildas ativas\" FROM (SELECT \"guildId\" AS g, \"playedAt\" AS t FROM track_history UNION ALL SELECT \"guildId\", \"occurredAt\" FROM command_events WHERE \"guildId\" IS NOT NULL) a WHERE t >= now() - interval '7 days' AND g NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 10
+                            },
+                            {
+                                "color": "green",
+                                "value": 20
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 3
+        },
+        {
+            "type": "stat",
+            "title": "Ouviram música na 1ª hora",
+            "description": "Guildas que entraram nos últimos 28 dias e tocaram uma faixa na primeira hora. Meta: 35%.",
+            "gridPos": {
+                "x": 4,
+                "y": 4,
+                "w": 5,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days'), c AS (SELECT j.t, EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') AS heard, (EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days') OR EXISTS (SELECT 1 FROM command_events ce WHERE ce.\"guildId\" = j.g AND ce.\"occurredAt\" >= j.t + interval '7 days')) AS d8 FROM joins j WHERE j.g NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')) SELECT round(100.0 * count(*) FILTER (WHERE t <= now() - interval '1 hour' AND heard) / nullif(count(*) FILTER (WHERE t <= now() - interval '1 hour'), 0), 1) AS \"1ª hora (%)\" FROM c",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 25
+                            },
+                            {
+                                "color": "green",
+                                "value": 35
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "noValue": "sem guildas novas"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 4
+        },
+        {
+            "type": "stat",
+            "title": "Ativas no dia 8",
+            "description": "Guildas que entraram entre 8 e 28 dias atrás e ainda tocaram ou usaram comando a partir do dia 8. Meta: 15%.",
+            "gridPos": {
+                "x": 9,
+                "y": 4,
+                "w": 5,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days'), c AS (SELECT j.t, EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') AS heard, (EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days') OR EXISTS (SELECT 1 FROM command_events ce WHERE ce.\"guildId\" = j.g AND ce.\"occurredAt\" >= j.t + interval '7 days')) AS d8 FROM joins j WHERE j.g NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')) SELECT round(100.0 * count(*) FILTER (WHERE t <= now() - interval '8 days' AND d8) / nullif(count(*) FILTER (WHERE t <= now() - interval '8 days'), 0), 1) AS \"Dia 8 (%)\" FROM c",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 10
+                            },
+                            {
+                                "color": "green",
+                                "value": 15
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "noValue": "sem guildas elegíveis"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 5
+        },
+        {
+            "type": "stat",
+            "title": "Servidores com o Lucky",
+            "description": "",
+            "gridPos": {
+                "x": 14,
+                "y": 4,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "max(lucky_bot_guilds_total{state=\"active\"})",
+                    "legendFormat": "",
+                    "instant": true,
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 6
+        },
+        {
+            "type": "stat",
+            "title": "Entraram (período)",
+            "description": "",
+            "gridPos": {
+                "x": 18,
+                "y": 4,
+                "w": 3,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT count(*) AS \"Entradas\" FROM guild_membership_events WHERE kind = 'JOIN' AND $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 7
+        },
+        {
+            "type": "stat",
+            "title": "Saíram (período)",
+            "description": "",
+            "gridPos": {
+                "x": 21,
+                "y": 4,
+                "w": 3,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT count(*) AS \"Saídas\" FROM guild_membership_events WHERE kind = 'LEAVE' AND $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 8
+        },
+        {
+            "type": "timeseries",
+            "title": "WAG por semana (últimas 4 semanas)",
+            "description": "Semana começa na segunda (UTC). A linha tracejada é a meta de 20.",
+            "gridPos": {
+                "x": 0,
+                "y": 8,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT date_trunc('week', t) AS time, count(DISTINCT g) AS \"Guildas ativas\" FROM (SELECT \"guildId\" AS g, \"playedAt\" AS t FROM track_history UNION ALL SELECT \"guildId\", \"occurredAt\" FROM command_events WHERE \"guildId\" IS NOT NULL) a WHERE t >= date_trunc('week', now()) - interval '3 weeks' AND g NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 20
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 80,
+                        "lineWidth": 1,
+                        "stacking": {
+                            "mode": "none"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "dashed"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "id": 9
+        },
+        {
+            "type": "table",
+            "title": "Guildas novas por semana de entrada (28 dias)",
+            "description": "",
+            "gridPos": {
+                "x": 12,
+                "y": 8,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days') SELECT date_trunc('week', j.t)::date AS \"Semana\", count(*) AS \"Entraram\", count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour')) AS \"Tocaram na 1ª hora\", count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g)) AS \"Já tocaram\" FROM joins j WHERE j.g NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1 DESC",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {},
+            "id": 10
+        },
+        {
+            "type": "row",
+            "title": "Uso",
+            "collapsed": false,
+            "panels": [],
+            "gridPos": {
+                "x": 0,
+                "y": 16,
+                "w": 24,
+                "h": 1
+            },
+            "id": 11
+        },
+        {
+            "type": "timeseries",
+            "title": "Faixas tocadas por dia",
+            "description": "",
+            "gridPos": {
+                "x": 0,
+                "y": 17,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT date_trunc('day', \"playedAt\") AS time, count(*) FILTER (WHERE NOT \"isAutoplay\") AS \"Pedidas\", count(*) FILTER (WHERE \"isAutoplay\") AS \"Autoplay\" FROM track_history WHERE $__timeFilter(\"playedAt\") AND \"guildId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 80,
+                        "lineWidth": 1,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "id": 12
+        },
+        {
+            "type": "timeseries",
+            "title": "Guildas tocando por dia",
+            "description": "",
+            "gridPos": {
+                "x": 12,
+                "y": 17,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT date_trunc('day', \"playedAt\") AS time, count(DISTINCT \"guildId\") AS \"Guildas tocando\" FROM track_history WHERE $__timeFilter(\"playedAt\") AND \"guildId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 80,
+                        "lineWidth": 1,
+                        "stacking": {
+                            "mode": "none"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "id": 13
+        },
+        {
+            "type": "table",
+            "title": "Comandos mais usados",
+            "description": "",
+            "gridPos": {
+                "x": 0,
+                "y": 25,
+                "w": 12,
+                "h": 9
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT command AS \"Comando\", count(*) AS \"Usos\", count(DISTINCT \"guildId\") AS \"Guildas\", round(percentile_cont(0.5) WITHIN GROUP (ORDER BY \"latencyMs\")) AS \"Resposta p50 (ms)\" FROM command_events WHERE $__timeFilter(\"occurredAt\") AND coalesce(\"guildId\", '') NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 2 DESC LIMIT 15",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {},
+            "id": 14
+        },
+        {
+            "type": "timeseries",
+            "title": "Entradas e saídas de servidores por dia",
+            "description": "Saídas aparecem abaixo de zero.",
+            "gridPos": {
+                "x": 12,
+                "y": 25,
+                "w": 12,
+                "h": 9
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT date_trunc('day', \"occurredAt\") AS time, count(*) FILTER (WHERE kind = 'JOIN') AS \"Entraram\", -count(*) FILTER (WHERE kind = 'LEAVE') AS \"Saíram\" FROM guild_membership_events WHERE $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 80,
+                        "lineWidth": 1,
+                        "stacking": {
+                            "mode": "none"
+                        }
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Saíram"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "mode": "fixed",
+                                    "fixedColor": "red"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Entraram"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "mode": "fixed",
+                                    "fixedColor": "green"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "id": 15
+        },
+        {
+            "type": "row",
+            "title": "Autoplay e recomendações",
+            "collapsed": false,
+            "panels": [],
+            "gridPos": {
+                "x": 0,
+                "y": 34,
+                "w": 24,
+                "h": 1
+            },
+            "id": 16
+        },
+        {
+            "type": "stat",
+            "title": "Faixas que vieram do autoplay",
+            "description": "Inflado: o autoplay grava uma linha ao enfileirar e outra ao tocar (#2667).",
+            "gridPos": {
+                "x": 0,
+                "y": 35,
+                "w": 6,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT round(100.0 * count(*) FILTER (WHERE \"isAutoplay\") / nullif(count(*), 0), 1) AS \"Autoplay (%)\" FROM track_history WHERE $__timeFilter(\"playedAt\") AND \"guildId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 17
+        },
+        {
+            "type": "stat",
+            "title": "Aceite das recomendações",
+            "description": "Aceitas / (aceitas + rejeitadas). Pendentes ficam fora.",
+            "gridPos": {
+                "x": 6,
+                "y": 35,
+                "w": 6,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT round(100.0 * count(*) FILTER (WHERE \"isAccepted\") / nullif(count(*) FILTER (WHERE \"isAccepted\" OR \"isRejected\"), 0), 1) AS \"Aceite (%)\" FROM recommendations WHERE $__timeFilter(\"createdAt\")",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 60
+                            },
+                            {
+                                "color": "green",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 18
+        },
+        {
+            "type": "bargauge",
+            "title": "Aceite por fonte da recomendação",
+            "description": "",
+            "gridPos": {
+                "x": 12,
+                "y": 35,
+                "w": 12,
+                "h": 7
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT coalesce(source::text, 'sem fonte') AS \"Fonte\", round(100.0 * count(*) FILTER (WHERE \"isAccepted\") / nullif(count(*) FILTER (WHERE \"isAccepted\" OR \"isRejected\"), 0), 1) AS \"Aceite (%)\" FROM recommendations WHERE $__timeFilter(\"createdAt\") GROUP BY 1 ORDER BY count(*) DESC",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 60
+                            },
+                            {
+                                "color": "green",
+                                "value": 80
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "displayMode": "basic",
+                "orientation": "horizontal",
+                "showUnfilled": true,
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": true
+                }
+            },
+            "id": 19
+        },
+        {
+            "type": "row",
+            "title": "Engajamento",
+            "collapsed": false,
+            "panels": [],
+            "gridPos": {
+                "x": 0,
+                "y": 42,
+                "w": 24,
+                "h": 1
+            },
+            "id": 20
+        },
+        {
+            "type": "stat",
+            "title": "Votos no top.gg (30 dias)",
+            "description": "Pessoas cujo último voto foi nos últimos 30 dias (a tabela guarda só o último voto de cada uma).",
+            "gridPos": {
+                "x": 0,
+                "y": 43,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT count(*) AS \"Votantes\" FROM topgg_votes WHERE \"lastVoteAt\" > now() - interval '30 days'",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 21
+        },
+        {
+            "type": "stat",
+            "title": "Cards de recap postados (período)",
+            "description": "Recap semanal: domingo 18:00 UTC.",
+            "gridPos": {
+                "x": 4,
+                "y": 43,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "sum(increase(lucky_bot_recap_card_posted_total[$__range])) or vector(0)",
+                    "legendFormat": "",
+                    "instant": true,
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 22
+        },
+        {
+            "type": "stat",
+            "title": "Onboardings entregues (período)",
+            "description": "Mensagem de boas-vindas que chegou ao servidor novo.",
+            "gridPos": {
+                "x": 8,
+                "y": 43,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "sum(count_over_time({container_name=\"lucky-bot\"} |= `\"msg\":\"onboarding\"` |= `\"delivered\":true` [$__range])) or vector(0)",
+                    "legendFormat": "",
+                    "queryType": "instant",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 23
+        },
+        {
+            "type": "stat",
+            "title": "Logins no painel web (período)",
+            "description": "",
+            "gridPos": {
+                "x": 12,
+                "y": 43,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "sum(count_over_time({container_name=\"lucky-backend\"} |= `\"msg\":\"dashboard_login\"` [$__range])) or vector(0)",
+                    "legendFormat": "",
+                    "queryType": "instant",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 24
+        },
+        {
+            "type": "piechart",
+            "title": "De onde vem o áudio tocado",
+            "description": "Fonte real do stream de cada faixa (YouTube, SoundCloud...).",
+            "gridPos": {
+                "x": 16,
+                "y": 43,
+                "w": 8,
+                "h": 7
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "sum by (fonte) (count_over_time({container_name=\"lucky-bot\"} |= `\"msg\":\"track_stream_source\"` | regexp `\"source\":\"(?P<fonte>[^\"]+)\"` [$__range]))",
+                    "legendFormat": "{{fonte}}",
+                    "queryType": "instant",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "values": ["value", "percent"]
+                },
+                "pieType": "donut",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "values": false
+                }
+            },
+            "id": 25
+        }
+    ]
+}
