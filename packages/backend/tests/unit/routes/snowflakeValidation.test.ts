@@ -17,12 +17,6 @@ jest.mock('../../../src/middleware/guildAccess', () => ({
 }))
 
 jest.mock('@lucky/shared/services', () => ({
-    starboardService: {
-        getConfig: jest.fn().mockResolvedValue(null),
-        upsertConfig: jest.fn().mockResolvedValue({ channelId: '123' }),
-        deleteConfig: jest.fn().mockResolvedValue({}),
-        getTopEntries: jest.fn().mockResolvedValue([]),
-    },
     levelService: {
         getConfig: jest.fn().mockResolvedValue(null),
         upsertConfig: jest.fn().mockResolvedValue({ enabled: false }),
@@ -76,7 +70,6 @@ jest.mock('../../../src/services/SessionService', () => ({
 
 import express from 'express'
 import request from 'supertest'
-import { setupStarboardRoutes } from '../../../src/routes/starboard'
 import { setupLevelsRoutes } from '../../../src/routes/levels'
 import { setupGuildRoutes } from '../../../src/routes/guilds'
 import { setupAutoplayRoutes } from '../../../src/routes/music/autoplayRoutes'
@@ -95,98 +88,6 @@ function createApp(setupRoutes: (app: express.Express) => void) {
 }
 
 describe('Guild ID Snowflake Validation', () => {
-    describe('Starboard Routes', () => {
-        const validGuildId = '123456789012345678'
-        const invalidGuildIds = [
-            'invalid',
-            '123', // too short
-            'not-a-number',
-            'abc123def456ghi789',
-            '123456789012345678901', // 21 digits (too long)
-            'guild-id',
-        ]
-
-        test('GET /api/guilds/:guildId/starboard/config with valid guildId succeeds', async () => {
-            const app = createApp(setupStarboardRoutes)
-            const res = await request(app).get(
-                `/api/guilds/${validGuildId}/starboard/config`,
-            )
-            expect(res.status).not.toBe(400)
-        })
-
-        test.each(invalidGuildIds)(
-            'GET /api/guilds/:guildId/starboard/config rejects invalid guildId: %s',
-            async (invalidGuildId) => {
-                const app = createApp(setupStarboardRoutes)
-                const res = await request(app).get(
-                    `/api/guilds/${invalidGuildId}/starboard/config`,
-                )
-                expect(res.status).toBe(400)
-                expect(res.body).toHaveProperty('error')
-            },
-        )
-
-        test('PATCH /api/guilds/:guildId/starboard/config with valid guildId succeeds', async () => {
-            const app = createApp(setupStarboardRoutes)
-            const res = await request(app)
-                .patch(`/api/guilds/${validGuildId}/starboard/config`)
-                .send({ channelId: validGuildId })
-            expect(res.status).not.toBe(400)
-        })
-
-        test.each(invalidGuildIds)(
-            'PATCH /api/guilds/:guildId/starboard/config rejects invalid guildId: %s',
-            async (invalidGuildId) => {
-                const app = createApp(setupStarboardRoutes)
-                const res = await request(app)
-                    .patch(`/api/guilds/${invalidGuildId}/starboard/config`)
-                    .send({ channelId: validGuildId })
-                expect(res.status).toBe(400)
-                expect(res.body).toHaveProperty('error')
-            },
-        )
-
-        test('DELETE /api/guilds/:guildId/starboard/config with valid guildId succeeds', async () => {
-            const app = createApp(setupStarboardRoutes)
-            const res = await request(app).delete(
-                `/api/guilds/${validGuildId}/starboard/config`,
-            )
-            expect(res.status).not.toBe(400)
-        })
-
-        test.each(invalidGuildIds)(
-            'DELETE /api/guilds/:guildId/starboard/config rejects invalid guildId: %s',
-            async (invalidGuildId) => {
-                const app = createApp(setupStarboardRoutes)
-                const res = await request(app).delete(
-                    `/api/guilds/${invalidGuildId}/starboard/config`,
-                )
-                expect(res.status).toBe(400)
-                expect(res.body).toHaveProperty('error')
-            },
-        )
-
-        test('GET /api/guilds/:guildId/starboard/entries with valid guildId succeeds', async () => {
-            const app = createApp(setupStarboardRoutes)
-            const res = await request(app).get(
-                `/api/guilds/${validGuildId}/starboard/entries`,
-            )
-            expect(res.status).not.toBe(400)
-        })
-
-        test.each(invalidGuildIds)(
-            'GET /api/guilds/:guildId/starboard/entries rejects invalid guildId: %s',
-            async (invalidGuildId) => {
-                const app = createApp(setupStarboardRoutes)
-                const res = await request(app).get(
-                    `/api/guilds/${invalidGuildId}/starboard/entries`,
-                )
-                expect(res.status).toBe(400)
-                expect(res.body).toHaveProperty('error')
-            },
-        )
-    })
-
     describe('Levels Routes', () => {
         const validGuildId = '123456789012345678'
         const validUserId = '987654321098765432'
@@ -372,25 +273,6 @@ describe('Guild ID Snowflake Validation', () => {
                 const app = createApp(setupLevelsRoutes)
                 const res = await request(app).get(
                     `/api/guilds/${validGuildId}/levels/leaderboard?limit=${limit}`,
-                )
-                if (expected === 400) {
-                    expect(res.status).toBe(400)
-                } else {
-                    expect(res.status).not.toBe(400)
-                }
-            },
-        )
-
-        test.each([
-            ['9999', 400],
-            ['0', 400],
-            ['25', 200],
-        ])(
-            'GET starboard/entries with limit=%s returns %s-class',
-            async (limit, expected) => {
-                const app = createApp(setupStarboardRoutes)
-                const res = await request(app).get(
-                    `/api/guilds/${validGuildId}/starboard/entries?limit=${limit}`,
                 )
                 if (expected === 400) {
                     expect(res.status).toBe(400)

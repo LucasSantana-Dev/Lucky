@@ -9,9 +9,6 @@ const channelCleanupServiceMock = {
     disableCleanup: jest.fn(),
     listConfigs: jest.fn(),
 }
-const starboardServiceMock = {
-    getConfig: jest.fn(),
-}
 const interactionReplyMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
@@ -20,7 +17,6 @@ jest.mock('../../../utils/command/commandValidations', () => ({
 
 jest.mock('@lucky/shared/services', () => ({
     channelCleanupService: channelCleanupServiceMock,
-    starboardService: starboardServiceMock,
 }))
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -67,7 +63,6 @@ describe('cleanup command', () => {
 
         requireGuildMock.mockResolvedValue(true)
         channelCleanupServiceMock.listConfigs.mockResolvedValue([])
-        starboardServiceMock.getConfig.mockResolvedValue(null)
         interactionReplyMock.mockResolvedValue(undefined)
 
         cleanupCommand = (await import('./cleanup')).default
@@ -112,22 +107,6 @@ describe('cleanup command', () => {
                     enabled: true,
                 },
             )
-        })
-
-        it('should prevent purge on starboard channel', async () => {
-            starboardServiceMock.getConfig.mockResolvedValue({
-                guildId: 'guild-123',
-                channelId: 'channel-456',
-            })
-
-            await cleanupCommand.execute({
-                interaction: mockInteraction as ChatInputCommandInteraction,
-            })
-
-            expect(interactionReplyMock).toHaveBeenCalled()
-            expect(
-                channelCleanupServiceMock.upsertConfig,
-            ).not.toHaveBeenCalled()
         })
 
         it('should reject a channel with no permissionsFor (invalid type)', async () => {

@@ -10,9 +10,6 @@ vi.mock('@/hooks/usePageMetadata', () => ({ usePageMetadata: vi.fn() }))
 vi.mock('@/components/Config/MusicConfig', () => ({
     default: () => <div>MusicConfig</div>,
 }))
-vi.mock('@/components/Config/CommandsConfig', () => ({
-    default: () => <div>CommandsConfig</div>,
-}))
 vi.mock('@/components/Config/ModerationConfig', () => ({
     default: () => <div>ModerationConfig</div>,
 }))
@@ -49,7 +46,6 @@ describe('ConfigPage', () => {
             </MemoryRouter>,
         )
         expect(screen.getByText('Music Module')).toBeInTheDocument()
-        expect(screen.getByText('Commands')).toBeInTheDocument()
         expect(screen.getByText('Moderation')).toBeInTheDocument()
     })
 
@@ -90,6 +86,6 @@ describe('ConfigPage', () => {
         await user.click(backButton)
 
         expect(screen.getByText('Music Module')).toBeInTheDocument()
-        expect(screen.getByText('Commands')).toBeInTheDocument()
+        expect(screen.getByText('Moderation')).toBeInTheDocument()
     })
 })

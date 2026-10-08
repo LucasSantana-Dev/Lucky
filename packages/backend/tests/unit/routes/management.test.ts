@@ -25,12 +25,6 @@ jest.mock('@lucky/shared/services', () => ({
             settings: { enabled: true },
         }),
     },
-    customCommandService: {
-        listCommands: jest.fn().mockResolvedValue([]),
-        createCommand: jest.fn().mockResolvedValue({ name: 'test' }),
-        updateCommand: jest.fn().mockResolvedValue({ name: 'test' }),
-        deleteCommand: jest.fn().mockResolvedValue({}),
-    },
     embedBuilderService: {
         listTemplates: jest.fn().mockResolvedValue([]),
         createTemplate: jest.fn().mockResolvedValue({ name: 'test' }),
@@ -53,7 +47,6 @@ jest.mock('@lucky/shared/services', () => ({
     },
     serverLogService: {
         logAutoModSettingsChange: jest.fn().mockResolvedValue({}),
-        logCustomCommandChange: jest.fn().mockResolvedValue({}),
         logEmbedTemplateChange: jest.fn().mockResolvedValue({}),
         logAutoMessageChange: jest.fn().mockResolvedValue({}),
         getLogsByType: jest.fn().mockResolvedValue([]),
@@ -103,16 +96,6 @@ describe('Management Routes RBAC', () => {
             )
         })
 
-        test('POST /api/guilds/:guildId/commands returns 403 without manage access', async () => {
-            const app = createApp()
-            const res = await request(app)
-                .post('/api/guilds/guild-123/commands')
-                .send({ name: 'test', response: 'hello' })
-
-            expect(res.status).toBe(403)
-            expect(res.body.error).toBe('Forbidden')
-        })
-
         test('PATCH /api/guilds/:guildId/embeds/:name returns 403 without manage access', async () => {
             const app = createApp()
             const res = await request(app)
@@ -142,7 +125,7 @@ describe('Management Routes RBAC', () => {
         // only check for these paths.
         //
         // cubic review on PR #2449: this scans every route this file
-        // registers (commands, embeds, automessages included), not just
+        // registers (embeds, automessages included), not just
         // /automod and /logs, so a future handler that legitimately needs
         // `settings` would fail here with a misleading name. Scoped title to
         // match the actual file-wide assertion.
@@ -156,16 +139,22 @@ describe('Management Routes RBAC', () => {
             expect(calledModules).not.toContain('overview')
         })
 
-        test('requireGuildModuleAccess is called for command state-changing routes', async () => {
-            const app = createApp()
-            await request(app)
-                .post('/api/guilds/guild-123/commands')
-                .send({ name: 'test', response: 'hello' })
-
-            expect(requireGuildModuleAccess).toHaveBeenCalledWith(
-                'automation',
-                'manage',
+        test('POST /embeds runs the automation manage guard before the handler', async () => {
+            const executed: string[] = []
+            requireGuildModuleAccess.mockImplementation(
+                (module: string, mode?: string) =>
+                    (_req: Request, res: Response, _next: NextFunction) => {
+                        executed.push(`${module}:${mode}`)
+                        res.status(403).json({ error: 'Forbidden' })
+                    },
             )
+            const app = createApp()
+            const res = await request(app)
+                .post('/api/guilds/guild-123/embeds')
+                .send({ name: 'test', title: 'hello' })
+
+            expect(res.status).toBe(403)
+            expect(executed).toEqual(['automation:manage'])
         })
     })
 })

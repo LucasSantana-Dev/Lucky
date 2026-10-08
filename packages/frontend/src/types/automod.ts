@@ -5,13 +5,6 @@ export interface AutoModSettings {
     spamEnabled: boolean
     spamThreshold: number
     spamTimeWindow: number
-    capsEnabled: boolean
-    capsThreshold: number
-    linksEnabled: boolean
-    allowedDomains: string[]
-    invitesEnabled: boolean
-    wordsEnabled: boolean
-    bannedWords: string[]
     exemptRoles: string[]
     exemptChannels: string[]
     createdAt: Date

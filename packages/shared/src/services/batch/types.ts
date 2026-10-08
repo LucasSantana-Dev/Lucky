@@ -4,13 +4,12 @@
 
 /** Represents a scope configuration for filtering messages/users in a batch operation. */
 export interface ScopeConfig {
-    type: 'all' | 'count' | 'user' | 'date_range' | 'contains'
+    type: 'all' | 'count' | 'user' | 'date_range'
     config: {
         count?: number
         userId?: string
         dateRangeStart?: Date | string
         dateRangeEnd?: Date | string
-        searchText?: string
     }
 }
 

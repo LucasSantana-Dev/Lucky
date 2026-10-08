@@ -17,13 +17,6 @@ const autoModService = {
     updateSettings: jest.fn(),
 }
 
-const customCommandService = {
-    getCommand: jest.fn(),
-    createCommand: jest.fn(),
-    updateCommand: jest.fn(),
-    upsertCommand: jest.fn(),
-}
-
 const embedBuilderService = {
     getTemplate: jest.fn(),
     createTemplate: jest.fn(),
@@ -54,7 +47,6 @@ const refreshTwitchSubscriptionsMock = jest.fn()
 jest.mock('@lucky/shared/services', () => ({
     autoMessageService,
     autoModService,
-    customCommandService,
     embedBuilderService,
     guildSettingsService,
     moderationService,
@@ -78,7 +70,6 @@ import {
     formatCriativariaSummary,
     runCriativariaSetup,
     resolveSetupMode,
-    upsertCustomCommand,
     upsertEmbedTemplate,
     CRIATIVARIA_CHANNEL_IDS,
 } from './serversetupCriativaria'
@@ -209,10 +200,6 @@ describe('serversetupCriativaria helpers', () => {
         autoMessageService.updateMessage.mockResolvedValue(undefined)
         autoMessageService.upsertGuildTypeMessage.mockResolvedValue('updated')
         autoModService.updateSettings.mockResolvedValue(undefined)
-        customCommandService.getCommand.mockResolvedValue(null)
-        customCommandService.createCommand.mockResolvedValue(undefined)
-        customCommandService.updateCommand.mockResolvedValue(undefined)
-        customCommandService.upsertCommand.mockResolvedValue('updated')
         embedBuilderService.getTemplate.mockResolvedValue(null)
         embedBuilderService.createTemplate.mockResolvedValue(undefined)
         embedBuilderService.updateTemplate.mockResolvedValue(undefined)
@@ -277,25 +264,6 @@ describe('serversetupCriativaria helpers', () => {
 
         expect(output).toContain('Criativaria setup aplicado')
         expect(output).toContain('Aplicado/Planejado\n- nenhum item')
-    })
-
-    it('upserts custom commands without creating duplicates', async () => {
-        customCommandService.upsertCommand
-            .mockResolvedValueOnce('created')
-            .mockResolvedValueOnce('updated')
-
-        const seed = {
-            name: 'regras',
-            description: 'desc',
-            response: 'resp',
-        } as any
-
-        const first = await upsertCustomCommand('guild-1', seed)
-        const second = await upsertCustomCommand('guild-1', seed)
-
-        expect(first).toBe('created')
-        expect(second).toBe('updated')
-        expect(customCommandService.upsertCommand).toHaveBeenCalledTimes(2)
     })
 
     it('upserts embed templates without creating duplicates', async () => {
@@ -408,11 +376,10 @@ describe('serversetupCriativaria helpers', () => {
         expect(result.applied).toEqual(
             expect.arrayContaining([
                 'Planejado: aplicar configurações de moderação.',
-                'Planejado: aplicar automod balanceado (spam/caps/links/invites/words).',
+                'Planejado: aplicar automod balanceado (spam).',
                 'Planejado: aplicar baseline de configurações de guilda.',
                 'Planejado: configurar auto-mensagens de entrada e saída em PT-BR.',
                 'Planejado: upsert de templates de embed (boas-vindas/regras/suporte).',
-                'Planejado: upsert de custom commands (regras/cargos/links/suporte).',
                 'Planejado: aplicar exclusividade Senior/Pleno/Junior.',
                 'Planejado: seed Twitch para login criativaria no canal de live.',
             ]),
@@ -424,15 +391,13 @@ describe('serversetupCriativaria helpers', () => {
         expect(autoMessageService.upsertGuildTypeMessage).not.toHaveBeenCalled()
         expect(embedBuilderService.createTemplate).not.toHaveBeenCalled()
         expect(embedBuilderService.upsertTemplate).not.toHaveBeenCalled()
-        expect(customCommandService.createCommand).not.toHaveBeenCalled()
-        expect(customCommandService.upsertCommand).not.toHaveBeenCalled()
         expect(roleManagementService.setExclusiveRole).not.toHaveBeenCalled()
         expect(twitchNotificationService.add).not.toHaveBeenCalled()
         expect(modSend).not.toHaveBeenCalled()
         expect(staffSend).not.toHaveBeenCalled()
     })
 
-    it('configures automod with scheme-agnostic phishing patterns', async () => {
+    it('configures automod with spam rules only', async () => {
         const channelMap = createBaseChannelMap({
             modLog: {
                 id: CRIATIVARIA_CHANNEL_IDS.modLog,
@@ -456,12 +421,17 @@ describe('serversetupCriativaria helpers', () => {
         await runCriativariaSetup(guild, 'apply')
 
         const payload = autoModService.updateSettings.mock.calls[0]?.[1]
-        expect(payload?.bannedWords).toContain('discord-gift')
-        expect(
-            payload?.bannedWords.some((word: string) =>
-                word.includes('://discord-gift'),
-            ),
-        ).toBe(false)
+        expect(payload).toMatchObject({ enabled: true, spamEnabled: true })
+        for (const removed of [
+            'capsEnabled',
+            'linksEnabled',
+            'invitesEnabled',
+            'wordsEnabled',
+            'bannedWords',
+            'allowedDomains',
+        ]) {
+            expect(payload).not.toHaveProperty(removed)
+        }
     })
 
     it('captures step failures and continues subsequent setup actions', async () => {
@@ -502,7 +472,6 @@ describe('serversetupCriativaria helpers', () => {
         )
         expect(autoModService.updateSettings).toHaveBeenCalledTimes(1)
         expect(guildSettingsService.setGuildSettings).toHaveBeenCalledTimes(1)
-        expect(customCommandService.upsertCommand).toHaveBeenCalled()
         expect(modSend).toHaveBeenCalledTimes(1)
     })
 

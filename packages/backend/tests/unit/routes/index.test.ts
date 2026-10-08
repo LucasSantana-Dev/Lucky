@@ -19,7 +19,6 @@ const setupRoleGroupsRoutes = jest.fn()
 const setupRbacRoutes = jest.fn()
 const setupGuildAutomationRoutes = jest.fn()
 const setupLevelsRoutes = jest.fn()
-const setupStarboardRoutes = jest.fn()
 const setupMusicRoutes = jest.fn()
 const setupSpotifyRoutes = jest.fn()
 const setupArtistsRoutes = jest.fn()
@@ -108,10 +107,6 @@ jest.mock('../../../src/routes/guildAutomation', () => ({
 
 jest.mock('../../../src/routes/levels', () => ({
     setupLevelsRoutes,
-}))
-
-jest.mock('../../../src/routes/starboard', () => ({
-    setupStarboardRoutes,
 }))
 
 jest.mock('../../../src/routes/music', () => ({
@@ -299,7 +294,6 @@ describe('setupRoutes', () => {
         expect(setupRbacRoutes).toHaveBeenCalledWith(app)
         expect(setupGuildAutomationRoutes).toHaveBeenCalledWith(app)
         expect(setupLevelsRoutes).toHaveBeenCalledWith(app)
-        expect(setupStarboardRoutes).toHaveBeenCalledWith(app)
         expect(setupMusicRoutes).toHaveBeenCalledWith(app)
         expect(setupSpotifyRoutes).toHaveBeenCalledWith(app)
         expect(setupArtistsRoutes).toHaveBeenCalledWith(app)

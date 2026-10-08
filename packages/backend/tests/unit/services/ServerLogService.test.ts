@@ -25,7 +25,6 @@ const mockHelpers = {
     logCaseUpdate: jest.fn<any>(),
     logAutoModTrigger: jest.fn<any>(),
     logAutoModSettingsChange: jest.fn<any>(),
-    logCustomCommandChange: jest.fn<any>(),
     logEmbedTemplateChange: jest.fn<any>(),
     logAutoMessageChange: jest.fn<any>(),
     logSettingsChange: jest.fn<any>(),
@@ -524,50 +523,6 @@ describe('ServerLogService', () => {
                 service,
                 GUILD_A,
                 details,
-                MOD_A,
-            )
-        })
-    })
-
-    describe('logCustomCommandChange', () => {
-        test('should delegate command creation to helper', async () => {
-            mockHelpers.logCustomCommandChange.mockResolvedValue({
-                id: 'log-1',
-            })
-
-            await service.logCustomCommandChange(
-                GUILD_A,
-                'created',
-                { commandName: 'hello' },
-                MOD_A,
-            )
-
-            expect(mockHelpers.logCustomCommandChange).toHaveBeenCalledWith(
-                service,
-                GUILD_A,
-                'created',
-                { commandName: 'hello' },
-                MOD_A,
-            )
-        })
-
-        test('should delegate command deletion to helper', async () => {
-            mockHelpers.logCustomCommandChange.mockResolvedValue({
-                id: 'log-1',
-            })
-
-            await service.logCustomCommandChange(
-                GUILD_A,
-                'deleted',
-                { commandName: 'bye' },
-                MOD_A,
-            )
-
-            expect(mockHelpers.logCustomCommandChange).toHaveBeenCalledWith(
-                service,
-                GUILD_A,
-                'deleted',
-                { commandName: 'bye' },
                 MOD_A,
             )
         })

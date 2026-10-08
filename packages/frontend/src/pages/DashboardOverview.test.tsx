@@ -10,13 +10,11 @@ import {
 } from '@/hooks/useModerationQueries'
 import { useRecentTracks } from '@/hooks/useTrackHistoryQueries'
 import { useLevelLeaderboard } from '@/hooks/useLevelQueries'
-import { useStarboardTop } from '@/hooks/useStarboardQueries'
 
 vi.mock('@/stores/guildStore')
 vi.mock('@/hooks/useModerationQueries')
 vi.mock('@/hooks/useTrackHistoryQueries')
 vi.mock('@/hooks/useLevelQueries')
-vi.mock('@/hooks/useStarboardQueries')
 
 const useReducedMotionMock = vi.hoisted(() => vi.fn(() => false))
 vi.mock('framer-motion', async () => {
@@ -110,21 +108,6 @@ const mockLeaderboard = [
     },
 ]
 
-const mockStarboardEntries = [
-    {
-        id: 's1',
-        guildId: '123',
-        messageId: 'm1',
-        channelId: 'c1',
-        authorId: 'u1',
-        starboardMsgId: 'sm1',
-        starCount: 10,
-        content: 'Test message',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-    },
-]
-
 function mockGuildStoreFn(guild: typeof mockGuild | null) {
     vi.mocked(useGuildStore).mockReturnValue({
         guilds: guild ? [guild] : [],
@@ -141,7 +124,6 @@ function setupQueryHookMocks(
     casesData: any = null,
     tracksData: any = null,
     leaderboardData: any = null,
-    starboardData: any = null,
 ) {
     vi.mocked(useModerationStats).mockReturnValue({
         data: statsData,
@@ -157,10 +139,6 @@ function setupQueryHookMocks(
     } as any)
     vi.mocked(useLevelLeaderboard).mockReturnValue({
         data: leaderboardData,
-        isLoading: false,
-    } as any)
-    vi.mocked(useStarboardTop).mockReturnValue({
-        data: starboardData,
         isLoading: false,
     } as any)
 }
@@ -208,10 +186,6 @@ describe('DashboardOverview', () => {
             data: null,
             isLoading: true,
         } as any)
-        vi.mocked(useStarboardTop).mockReturnValue({
-            data: null,
-            isLoading: true,
-        } as any)
         renderPage()
         const skeletons = document.querySelectorAll('.animate-pulse')
         expect(skeletons.length).toBeGreaterThan(0)
@@ -224,7 +198,6 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getByText('Total Members')).toBeInTheDocument()
@@ -240,7 +213,6 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getByText('150')).toBeInTheDocument()
@@ -253,7 +225,6 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getByText('Total Members')).toBeInTheDocument()
@@ -272,7 +243,6 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getByText('7')).toBeInTheDocument()
@@ -287,7 +257,6 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         const zeros = screen.getAllByText('0')
@@ -301,7 +270,6 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getByText('Dashboard')).toBeInTheDocument()
@@ -315,7 +283,6 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(document.querySelectorAll('h1')).toHaveLength(1)
@@ -328,7 +295,6 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getByText('Recent Cases')).toBeInTheDocument()
@@ -342,7 +308,6 @@ describe('DashboardOverview', () => {
             { cases: [] },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getByText('No moderation cases yet')).toBeInTheDocument()
@@ -355,14 +320,12 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getByText('Quick Actions')).toBeInTheDocument()
         expect(screen.getByText('Moderation Cases')).toBeInTheDocument()
         expect(screen.getByText('Auto-Moderation')).toBeInTheDocument()
         expect(screen.getByText('Server Logs')).toBeInTheDocument()
-        expect(screen.getByText('Custom Commands')).toBeInTheDocument()
     })
 
     test('renders every quick action row with title and description', () => {
@@ -372,17 +335,14 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         const quickActionLabels = [
             ['Moderation Cases', 'Review warnings, mutes, kicks, and bans.'],
             ['Auto-Moderation', 'Tune filters and anti-spam automation.'],
             ['Server Logs', 'Audit events and moderation activity.'],
-            ['Custom Commands', 'Manage scripted server shortcuts.'],
             ['Music Player', 'View queue, playback, and track history.'],
             ['Levels & XP', 'Configure XP, level rewards, and leaderboards.'],
-            ['Starboard', 'Manage community highlights.'],
         ] as const
         for (const [title, description] of quickActionLabels) {
             expect(screen.getByText(title)).toBeInTheDocument()
@@ -397,7 +357,6 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(
@@ -413,7 +372,6 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getByText('Dashboard')).toBeInTheDocument()
@@ -427,7 +385,6 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getByText('TestUser')).toBeInTheDocument()
@@ -449,7 +406,6 @@ describe('DashboardOverview', () => {
             { cases: [bareCase] },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getByText('raw-user-id-1234')).toBeInTheDocument()
@@ -496,7 +452,6 @@ describe('DashboardOverview', () => {
             { cases: casesAcrossRanges },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getAllByText('Just now').length).toBeGreaterThanOrEqual(1)
@@ -513,7 +468,6 @@ describe('DashboardOverview', () => {
             { cases: mockCases },
             mockTracks,
             mockLeaderboard,
-            mockStarboardEntries,
         )
         renderPage()
         expect(screen.getByText('Cases by Type')).toBeInTheDocument()
@@ -527,7 +481,6 @@ describe('DashboardOverview', () => {
                 { cases: mockCases },
                 mockTracks,
                 mockLeaderboard,
-                mockStarboardEntries,
             )
             renderPage()
             expect(screen.getByText('Recent Music')).toBeInTheDocument()
@@ -542,7 +495,6 @@ describe('DashboardOverview', () => {
                 { cases: mockCases },
                 mockTracks,
                 mockLeaderboard,
-                mockStarboardEntries,
             )
             renderPage()
             expect(screen.getByText('Unknown')).toBeInTheDocument()
@@ -555,7 +507,6 @@ describe('DashboardOverview', () => {
                 { cases: mockCases },
                 [],
                 mockLeaderboard,
-                mockStarboardEntries,
             )
             renderPage()
             expect(screen.getByText('No tracks played yet')).toBeInTheDocument()
@@ -568,7 +519,6 @@ describe('DashboardOverview', () => {
                 { cases: mockCases },
                 null,
                 mockLeaderboard,
-                mockStarboardEntries,
             )
             vi.mocked(useRecentTracks).mockReturnValue({
                 data: null,
@@ -588,7 +538,6 @@ describe('DashboardOverview', () => {
                 { cases: mockCases },
                 mockTracks,
                 mockLeaderboard,
-                mockStarboardEntries,
             )
             renderPage()
             expect(screen.queryByText('Recent Music')).not.toBeInTheDocument()
@@ -603,7 +552,6 @@ describe('DashboardOverview', () => {
                 { cases: mockCases },
                 mockTracks,
                 mockLeaderboard,
-                mockStarboardEntries,
             )
             renderPage()
             expect(screen.getByText('Level Leaderboard')).toBeInTheDocument()
@@ -613,41 +561,9 @@ describe('DashboardOverview', () => {
 
         test('renders empty leaderboard state when no members are returned', () => {
             mockGuildStoreFn(mockGuild)
-            setupQueryHookMocks(
-                mockStats,
-                { cases: mockCases },
-                mockTracks,
-                [],
-                mockStarboardEntries,
-            )
+            setupQueryHookMocks(mockStats, { cases: mockCases }, mockTracks, [])
             renderPage()
             expect(screen.getByText('No leaderboard data')).toBeInTheDocument()
-        })
-
-        test('renders starboard highlights when entries are present', () => {
-            mockGuildStoreFn(mockGuild)
-            setupQueryHookMocks(
-                mockStats,
-                { cases: mockCases },
-                mockTracks,
-                mockLeaderboard,
-                mockStarboardEntries,
-            )
-            renderPage()
-            expect(screen.getByText('Starboard Highlights')).toBeInTheDocument()
-        })
-
-        test('renders empty starboard state when no entries are returned', () => {
-            mockGuildStoreFn(mockGuild)
-            setupQueryHookMocks(
-                mockStats,
-                { cases: mockCases },
-                mockTracks,
-                mockLeaderboard,
-                [],
-            )
-            renderPage()
-            expect(screen.getByText('No starred messages')).toBeInTheDocument()
         })
 
         test('renders loading skeletons for leaderboard while loading', () => {
@@ -657,7 +573,6 @@ describe('DashboardOverview', () => {
                 { cases: mockCases },
                 mockTracks,
                 null,
-                mockStarboardEntries,
             )
             vi.mocked(useLevelLeaderboard).mockReturnValue({
                 data: null,
@@ -665,23 +580,6 @@ describe('DashboardOverview', () => {
             } as any)
             renderPage()
             expect(screen.getByText('Level Leaderboard')).toBeInTheDocument()
-        })
-
-        test('renders loading skeletons for starboard while loading', () => {
-            mockGuildStoreFn(mockGuild)
-            setupQueryHookMocks(
-                mockStats,
-                { cases: mockCases },
-                mockTracks,
-                mockLeaderboard,
-                null,
-            )
-            vi.mocked(useStarboardTop).mockReturnValue({
-                data: null,
-                isLoading: true,
-            } as any)
-            renderPage()
-            expect(screen.getByText('Starboard Highlights')).toBeInTheDocument()
         })
 
         test('hides Community section when settings access is not granted', () => {
@@ -694,14 +592,10 @@ describe('DashboardOverview', () => {
                 { cases: mockCases },
                 mockTracks,
                 mockLeaderboard,
-                mockStarboardEntries,
             )
             renderPage()
             expect(
                 screen.queryByText('Level Leaderboard'),
-            ).not.toBeInTheDocument()
-            expect(
-                screen.queryByText('Starboard Highlights'),
             ).not.toBeInTheDocument()
         })
     })

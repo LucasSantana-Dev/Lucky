@@ -3,10 +3,6 @@ import { motion } from 'framer-motion'
 import {
     ShieldAlert,
     MessageSquare,
-    Type,
-    Link2,
-    Mail,
-    Ban,
     Save,
     Plus,
     X,
@@ -345,13 +341,6 @@ const DEFAULT_SETTINGS: AutoModSettings = {
     spamEnabled: false,
     spamThreshold: 5,
     spamTimeWindow: 5,
-    capsEnabled: false,
-    capsThreshold: 70,
-    linksEnabled: false,
-    allowedDomains: [],
-    invitesEnabled: false,
-    wordsEnabled: false,
-    bannedWords: [],
     exemptChannels: [],
     exemptRoles: [],
     createdAt: new Date(),
@@ -426,7 +415,6 @@ function normalizeAutoModSettings(
 
     return {
         ...DEFAULT_SETTINGS,
-        ...settings,
         id: normalizeString(settings?.id, DEFAULT_SETTINGS.id),
         guildId: normalizeString(settings?.guildId, guildId) || guildId,
         enabled: normalizeBoolean(settings?.enabled, DEFAULT_SETTINGS.enabled),
@@ -444,29 +432,6 @@ function normalizeAutoModSettings(
             DEFAULT_SETTINGS.spamTimeWindow,
             { min: 1, max: 60, integer: true },
         ),
-        capsEnabled: normalizeBoolean(
-            settings?.capsEnabled,
-            DEFAULT_SETTINGS.capsEnabled,
-        ),
-        capsThreshold: normalizeNumber(
-            settings?.capsThreshold,
-            DEFAULT_SETTINGS.capsThreshold,
-            { min: 50, max: 100, integer: true },
-        ),
-        linksEnabled: normalizeBoolean(
-            settings?.linksEnabled,
-            DEFAULT_SETTINGS.linksEnabled,
-        ),
-        allowedDomains: normalizeStringArray(settings?.allowedDomains),
-        invitesEnabled: normalizeBoolean(
-            settings?.invitesEnabled,
-            DEFAULT_SETTINGS.invitesEnabled,
-        ),
-        wordsEnabled: normalizeBoolean(
-            settings?.wordsEnabled,
-            DEFAULT_SETTINGS.wordsEnabled,
-        ),
-        bannedWords: normalizeStringArray(settings?.bannedWords),
         exemptChannels: normalizeStringArray(settings?.exemptChannels),
         exemptRoles: normalizeStringArray(settings?.exemptRoles),
         createdAt: normalizeDate(
@@ -792,92 +757,6 @@ export default function AutoModPage() {
                                     }
                                     min={1}
                                     max={60}
-                                />
-                            </div>
-                        </FilterRow>
-                        <FilterRow
-                            title={t('autoMod.capsLockDetection')}
-                            description={t('autoMod.detectExcessiveCaps')}
-                            icon={Type}
-                            enabled={settings.capsEnabled}
-                            onToggle={(v) => update('capsEnabled', v)}
-                        >
-                            <NumberInput
-                                label={t('autoMod.capsThreshold')}
-                                value={settings.capsThreshold}
-                                onChange={(v) => update('capsThreshold', v)}
-                                min={50}
-                                max={100}
-                            />
-                        </FilterRow>
-                        <FilterRow
-                            title={t('autoMod.linkFiltering')}
-                            description={t('autoMod.blockOrRestrictLinks')}
-                            icon={Link2}
-                            enabled={settings.linksEnabled}
-                            onToggle={(v) => update('linksEnabled', v)}
-                        >
-                            <div className='space-y-1.5'>
-                                <Label className='text-xs text-lucky-text-secondary'>
-                                    {t('autoMod.allowedDomains')}
-                                </Label>
-                                <TagList
-                                    items={settings.allowedDomains}
-                                    onAdd={(d) =>
-                                        update('allowedDomains', [
-                                            ...settings.allowedDomains,
-                                            d,
-                                        ])
-                                    }
-                                    onRemove={(d) =>
-                                        update(
-                                            'allowedDomains',
-                                            settings.allowedDomains.filter(
-                                                (x) => x !== d,
-                                            ),
-                                        )
-                                    }
-                                    placeholder={t('autoMod.domainPlaceholder')}
-                                />
-                            </div>
-                        </FilterRow>
-                        <FilterRow
-                            title={t('autoMod.inviteLinkFiltering')}
-                            description={t('autoMod.blockDiscordInvites')}
-                            icon={Mail}
-                            enabled={settings.invitesEnabled}
-                            onToggle={(v) => update('invitesEnabled', v)}
-                        />
-                        <FilterRow
-                            title={t('autoMod.bannedWords')}
-                            description={t('autoMod.filterMessagesWithWords')}
-                            icon={Ban}
-                            enabled={settings.wordsEnabled}
-                            onToggle={(v) => update('wordsEnabled', v)}
-                        >
-                            <div className='space-y-1.5'>
-                                <Label className='text-xs text-lucky-text-secondary'>
-                                    {t('autoMod.bannedWordsLabel')}
-                                </Label>
-                                <TagList
-                                    items={settings.bannedWords}
-                                    onAdd={(w) =>
-                                        update('bannedWords', [
-                                            ...settings.bannedWords,
-                                            w,
-                                        ])
-                                    }
-                                    onRemove={(w) =>
-                                        update(
-                                            'bannedWords',
-                                            settings.bannedWords.filter(
-                                                (x) => x !== w,
-                                            ),
-                                        )
-                                    }
-                                    placeholder={t(
-                                        'autoMod.bannedWordsPlaceholder',
-                                    )}
                                 />
                             </div>
                         </FilterRow>

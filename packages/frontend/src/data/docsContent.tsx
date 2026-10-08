@@ -41,7 +41,6 @@ export const NAV: DocsNavGroup[] = [
         items: [
             { label: 'Music & autoplay', href: '/docs?page=music' },
             { label: 'Moderation', href: '/docs?page=moderation' },
-            { label: 'Custom commands', href: '/docs?page=custom-commands' },
             { label: 'Reaction roles & levels', href: '/docs?page=engagement' },
             { label: 'Web dashboard', href: '/docs?page=dashboard' },
         ],
@@ -86,17 +85,16 @@ export const PAGES: DocsPage[] = [
             <>
                 <p>
                     Lucky is an open-source Discord bot. Music, moderation,
-                    custom commands, automation, and a web dashboard. Free
-                    forever, with no premium tier paywalling the good parts.
+                    automation, and a web dashboard. Free forever, with no
+                    premium tier paywalling the good parts.
                 </p>
                 <h2 id='what-is-lucky'>What is Lucky</h2>
                 <p>
                     Lucky started as a music bot for a friend's server. It now
-                    also handles moderation, custom commands, leveling, reaction
-                    roles, embed building, automation, and starboards. The web
-                    dashboard at the same domain lets you configure everything
-                    without leaving the browser — no <code>/config</code> chat
-                    commands to memorize.
+                    also handles moderation, leveling, reaction roles, embed
+                    building, and automation. The web dashboard at the same
+                    domain lets you configure everything without leaving the
+                    browser — no <code>/config</code> chat commands to memorize.
                 </p>
                 <p>
                     The whole project is a TypeScript monorepo published under
@@ -151,20 +149,16 @@ export const PAGES: DocsPage[] = [
                         scrobbling.
                     </li>
                     <li>
-                        Auto-mod for spam, caps, links, and invites with
-                        per-server rules and per-channel overrides.
-                    </li>
-                    <li>
-                        Custom command builder with variable interpolation, role
-                        gating, and channel scoping.
+                        Auto-mod for spam with per-server rules and per-channel
+                        overrides.
                     </li>
                     <li>
                         Embed builder with live preview, saved templates, and
                         one-click resend.
                     </li>
                     <li>
-                        Reaction roles, role gating, leveling with XP curves,
-                        and starboard with per-channel thresholds.
+                        Reaction roles, role gating, and leveling with XP
+                        curves.
                     </li>
                     <li>
                         Scheduled and triggered automations (welcome messages,
@@ -291,14 +285,6 @@ export const PAGES: DocsPage[] = [
                         <code>/repeat</code> to control playback.
                     </li>
                     <li>
-                        <code>
-                            /customcommand create welcome &quot;Welcome to{' '}
-                            {'{server}'}, {'{user}'}!&quot;
-                        </code>{' '}
-                        — make a custom command. Run <code>/welcome</code> to
-                        test it.
-                    </li>
-                    <li>
                         <code>/help</code> — full command list, scoped to what
                         you have access to.
                     </li>
@@ -312,8 +298,7 @@ export const PAGES: DocsPage[] = [
                     </li>
                     <li>
                         <strong>Wire auto-mod.</strong> Dashboard / Moderation /
-                        Auto-mod. Spam + invite-link rules are the highest-ROI
-                        first picks. Caps and link allow-listing come later.
+                        Auto-mod. Turn on the spam rule first.
                     </li>
                     <li>
                         <strong>Set up RBAC.</strong> Dashboard / Server
@@ -329,10 +314,9 @@ export const PAGES: DocsPage[] = [
                 </ol>
                 <h2 id='next'>Next steps</h2>
                 <p>
-                    Read <a href='/docs?page=music'>Music & autoplay</a>,{' '}
-                    <a href='/docs?page=moderation'>Moderation</a>, and{' '}
-                    <a href='/docs?page=custom-commands'>Custom commands</a> for
-                    the feature deep dives, or jump to{' '}
+                    Read <a href='/docs?page=music'>Music & autoplay</a> and{' '}
+                    <a href='/docs?page=moderation'>Moderation</a> for the
+                    feature deep dives, or jump to{' '}
                     <a href='/docs?page=commands'>Command list</a> for the full
                     reference.
                 </p>
@@ -394,10 +378,10 @@ export const PAGES: DocsPage[] = [
                 </ul>
                 <h2 id='data'>Data stores</h2>
                 <p>
-                    Postgres holds guild settings, custom commands, moderation
-                    cases, levels, embed templates, reaction-role configs, and
-                    the linked-account table. Redis holds anything ephemeral:
-                    web sessions, OAuth state, Spotify tokens, and per-guild
+                    Postgres holds guild settings, moderation cases, levels,
+                    embed templates, reaction-role configs, and the
+                    linked-account table. Redis holds anything ephemeral: web
+                    sessions, OAuth state, Spotify tokens, and per-guild
                     autoplay history.
                 </p>
                 <p>
@@ -463,9 +447,9 @@ export const PAGES: DocsPage[] = [
             <>
                 <p>
                     Self-hosting means you run Lucky on your own hardware. Your
-                    guild data, autoplay history, custom commands, and
-                    moderation log stay on your box. No third-party ToS over
-                    your community, no rate-limited tier.
+                    guild data, autoplay history, and moderation log stay on
+                    your box. No third-party ToS over your community, no
+                    rate-limited tier.
                 </p>
                 <h2 id='requirements'>Requirements</h2>
                 <ul>
@@ -512,9 +496,8 @@ export const PAGES: DocsPage[] = [
                     </li>
                     <li>
                         Under <strong>Bot / Privileged Gateway Intents</strong>,
-                        enable <code>Server Members Intent</code> and{' '}
-                        <code>Message Content Intent</code>. Lucky needs both
-                        for moderation and custom-command triggers.
+                        enable <code>Server Members Intent</code>. Lucky does
+                        not request the Message Content intent.
                     </li>
                     <li>
                         Under <strong>OAuth2 / Redirects</strong>, add{' '}
@@ -647,7 +630,7 @@ docker compose ps`}</code>
                     deployment-wide: tokens, ports, secret keys, integration
                     keys. They require a restart. Dashboard settings are
                     per-guild: feature toggles, music rules, auto-mod
-                    thresholds, custom commands. They're hot-reloaded.
+                    thresholds. They're hot-reloaded.
                 </p>
                 <p>
                     Rule of thumb: if it'd be the same across every server you
@@ -794,7 +777,7 @@ docker compose up -d <service>`}</code>
                 <ul>
                     <li>
                         <strong>Postgres data volume</strong> — the whole guild
-                        config, moderation logs, custom commands.
+                        config, moderation logs.
                     </li>
                     <li>
                         <strong>
@@ -1100,19 +1083,6 @@ docker compose up -d <service>`}</code>
                         cross-channel spam, and join-spam from new accounts.
                     </li>
                     <li>
-                        <strong>Caps.</strong> Flags messages above a
-                        configurable caps ratio (default 70%) with a minimum
-                        length floor.
-                    </li>
-                    <li>
-                        <strong>Links.</strong> Allow-list and block-list
-                        domains. URL shorteners are expanded before checking.
-                    </li>
-                    <li>
-                        <strong>Invites.</strong> Blocks Discord invite links
-                        not on your allow-list.
-                    </li>
-                    <li>
                         <strong>Mentions.</strong> Caps role and user pings per
                         message; punishes mass-ping raids.
                     </li>
@@ -1168,65 +1138,6 @@ docker compose up -d <service>`}</code>
         ),
     },
     {
-        slug: 'custom-commands',
-        title: 'Custom commands',
-        breadcrumb: 'Docs / Custom commands',
-        toc: [
-            { id: 'create-one', label: 'Create one' },
-            { id: 'how-it-triggers', label: 'How it triggers' },
-            { id: 'manage', label: 'Edit, list, delete' },
-            { id: 'scope', label: 'Scope' },
-        ],
-        content: () => (
-            <>
-                <p>
-                    Canned text replies without writing code. Useful for FAQ
-                    answers, rules reminders, and server-specific shortcuts.
-                </p>
-                <h2 id='create-one'>Create one</h2>
-                <pre>
-                    <code>{`/customcommand create name:rules response:"Read the rules in #rules-channel." description:"Points to the rules"`}</code>
-                </pre>
-                <p>
-                    <code>name</code> and <code>response</code> are required;{' '}
-                    <code>description</code> is optional and only shows in{' '}
-                    <code>/customcommand list</code> and{' '}
-                    <code>/customcommand info</code>. Names are lowercased and
-                    must be unique per server. The response is sent exactly as
-                    written: there is no variable substitution, no embed mode,
-                    and no per-command cooldown. The dashboard{' '}
-                    <strong>Commands</strong> page enables or disables built-in
-                    commands; it does not create custom ones.
-                </p>
-                <h2 id='how-it-triggers'>How it triggers</h2>
-                <p>
-                    A custom command is not a slash command. Lucky replies when
-                    a member sends a message whose text is exactly the command
-                    name, or starts with the name followed by a space. For the
-                    example above, sending <code>rules</code> in any channel the
-                    bot can read posts the reply. The{' '}
-                    <strong>Custom commands</strong> feature toggle must be on
-                    for the server.
-                </p>
-                <h2 id='manage'>Edit, list, delete</h2>
-                <pre>
-                    <code>{`/customcommand edit name:rules response:"Rules moved to #welcome."
-/customcommand info name:rules
-/customcommand list
-/customcommand delete name:rules`}</code>
-                </pre>
-                <h2 id='scope'>Scope</h2>
-                <p>
-                    Each command stores optional allowed-role and
-                    allowed-channel lists, and the bot ignores a trigger from
-                    anyone or anywhere outside them. Neither the slash command
-                    nor the dashboard exposes those lists yet, so every command
-                    you create today answers everyone in every channel.
-                </p>
-            </>
-        ),
-    },
-    {
         slug: 'engagement',
         title: 'Reaction roles & levels',
         breadcrumb: 'Docs / Reaction roles & levels',
@@ -1235,7 +1146,6 @@ docker compose up -d <service>`}</code>
             { id: 'self-roles', label: 'Self-role panels' },
             { id: 'levels', label: 'Leveling' },
             { id: 'xp-curve', label: 'XP curve & rewards' },
-            { id: 'starboard', label: 'Starboard' },
         ],
         content: () => (
             <>
@@ -1267,14 +1177,6 @@ docker compose up -d <service>`}</code>
                     thresholds (e.g. <em>Regular</em> at level 10,{' '}
                     <em>Veteran</em> at level 50) so progression is visible
                     without users having to check.
-                </p>
-                <h2 id='starboard'>Starboard</h2>
-                <p>
-                    A starboard mirrors popular messages to a dedicated channel.
-                    Configure the trigger emoji and minimum reaction count under{' '}
-                    <strong>Starboard / Settings</strong>. Per-channel
-                    thresholds let you keep meme channels noisy but require more
-                    stars in serious channels.
                 </p>
             </>
         ),
@@ -1318,10 +1220,6 @@ docker compose up -d <service>`}</code>
                         actions, audit log, cases.
                     </li>
                     <li>
-                        <strong>Custom commands.</strong> Canned text replies
-                        managed with <code>/customcommand</code>.
-                    </li>
-                    <li>
                         <strong>Reaction roles.</strong> Self-assign roles from
                         emoji reactions or button panels.
                     </li>
@@ -1345,9 +1243,9 @@ docker compose up -d <service>`}</code>
                 <h2 id='rbac'>Role-based access</h2>
                 <p>
                     Give different teams different access levels. Server owner
-                    has full control. Mods can adjust moderation and custom
-                    commands without touching music settings. Read-only access
-                    is useful for transparency.
+                    has full control. Mods can adjust moderation without
+                    touching music settings. Read-only access is useful for
+                    transparency.
                 </p>
                 <p>
                     Map under <strong>Server settings / Access control</strong>.
@@ -1569,24 +1467,6 @@ docker compose up -d <service>`}</code>
                     <tbody>
                         <tr>
                             <td>
-                                <code>/customcommand create</code>
-                            </td>
-                            <td>Build a custom command.</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <code>/customcommand edit</code>
-                            </td>
-                            <td>Edit an existing custom command.</td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <code>/customcommand delete</code>
-                            </td>
-                            <td>Delete a custom command.</td>
-                        </tr>
-                        <tr>
-                            <td>
                                 <code>/embed</code>
                             </td>
                             <td>Send a rich embed via the builder.</td>
@@ -1725,12 +1605,11 @@ docker compose up -d <service>`}</code>
                         role it manages.
                     </li>
                     <li>
-                        <strong>Read Message History.</strong> For starboard and
-                        audit features.
+                        <strong>Read Message History.</strong> For audit
+                        features.
                     </li>
                     <li>
-                        <strong>Add Reactions.</strong> For starboard mirroring
-                        and self-role panels.
+                        <strong>Add Reactions.</strong> For self-role panels.
                     </li>
                 </ul>
                 <h2 id='principle'>Principle of least privilege</h2>
@@ -1753,8 +1632,8 @@ docker compose up -d <service>`}</code>
                         <strong>Server owner</strong> — full control.
                     </li>
                     <li>
-                        <strong>Mods</strong> — edit on moderation + custom
-                        commands + audit. View on music.
+                        <strong>Mods</strong> — edit on moderation + audit. View
+                        on music.
                     </li>
                     <li>
                         <strong>DJs</strong> — edit on music + preferred

@@ -302,20 +302,6 @@ describe('api service bootstrap', () => {
         await module.api.modules.updateSettings('guild-1', 'music', {
             volume: 80,
         })
-        await module.api.commands.list('guild-1')
-        await module.api.commands.create('guild-1', {
-            name: 'play',
-            response: 'Now playing!',
-        })
-        await module.api.commands.update('guild-1', 'play', {
-            response: 'Updated!',
-        })
-        await module.api.commands.toggle('guild-1', 'play', false)
-        await module.api.commands.delete('guild-1', 'play')
-        await module.api.commands.getSettings('guild-1', 'play')
-        await module.api.commands.updateSettings('guild-1', 'play', {
-            cooldown: 10,
-        })
         await module.api.features.getGlobalToggles()
         await module.api.features.updateGlobalToggle('music', true)
         await module.api.trackHistory.getHistory('guild-1')
@@ -374,29 +360,6 @@ describe('api service bootstrap', () => {
         expect(apiClient.post).toHaveBeenCalledWith(
             '/guilds/guild-1/modules/music/settings',
             { volume: 80 },
-        )
-        expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/commands')
-        expect(apiClient.post).toHaveBeenCalledWith(
-            '/guilds/guild-1/commands',
-            { name: 'play', response: 'Now playing!' },
-        )
-        expect(apiClient.patch).toHaveBeenCalledWith(
-            '/guilds/guild-1/commands/play',
-            { response: 'Updated!' },
-        )
-        expect(apiClient.patch).toHaveBeenCalledWith(
-            '/guilds/guild-1/commands/play',
-            { enabled: false },
-        )
-        expect(apiClient.delete).toHaveBeenCalledWith(
-            '/guilds/guild-1/commands/play',
-        )
-        expect(apiClient.get).toHaveBeenCalledWith(
-            '/guilds/guild-1/commands/play/settings',
-        )
-        expect(apiClient.post).toHaveBeenCalledWith(
-            '/guilds/guild-1/commands/play/settings',
-            { cooldown: 10 },
         )
         expect(apiClient.get).toHaveBeenCalledWith('/toggles/global')
         expect(apiClient.post).toHaveBeenCalledWith('/toggles/global/music', {

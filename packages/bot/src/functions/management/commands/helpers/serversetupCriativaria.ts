@@ -5,7 +5,6 @@ import { EmbedBuilder, type Guild, type GuildBasedChannel } from 'discord.js'
 import {
     autoMessageService,
     autoModService,
-    customCommandService,
     embedBuilderService,
     guildSettingsService,
     moderationService,
@@ -56,12 +55,6 @@ type EmbedSeed = {
     footer: string
 }
 
-type CustomCommandSeed = {
-    name: string
-    description: string
-    response: string
-}
-
 type AutoMessageUpsertClient = {
     upsertGuildTypeMessage: (
         guildId: string,
@@ -86,24 +79,10 @@ type EmbedTemplateUpsertClient = {
     ) => Promise<'created' | 'updated'>
 }
 
-type CustomCommandUpsertClient = {
-    upsertCommand: (
-        guildId: string,
-        name: string,
-        response: string,
-        options?: {
-            description?: string
-            createdBy?: string
-        },
-    ) => Promise<'created' | 'updated'>
-}
-
 const autoMessageUpsertClient =
     autoMessageService as unknown as AutoMessageUpsertClient
 const embedTemplateUpsertClient =
     embedBuilderService as unknown as EmbedTemplateUpsertClient
-const customCommandUpsertClient =
-    customCommandService as unknown as CustomCommandUpsertClient
 
 export const CRIATIVARIA_CHANNEL_IDS = {
     welcome: '1480261570557640786',
@@ -127,28 +106,6 @@ const CRIATIVARIA_ROLE_IDS = {
     junior: '1458205784134389931',
 } as const
 
-const CRIATIVARIA_ALLOWED_DOMAINS = [
-    'github.com',
-    'youtube.com',
-    'youtu.be',
-    'twitch.tv',
-    'discord.com',
-    'discord.gg',
-    'figma.com',
-    'canva.com',
-    'linkedin.com',
-]
-
-const CRIATIVARIA_BANNED_WORDS = [
-    'free nitro',
-    'steamgift',
-    'discord nitro free',
-    'claim your prize',
-    'discord-gift',
-    'airdrop',
-    'crypto giveaway',
-]
-
 const CRIATIVARIA_EMBEDS: EmbedSeed[] = [
     {
         name: 'boas-vindas',
@@ -170,33 +127,6 @@ const CRIATIVARIA_EMBEDS: EmbedSeed[] = [
         description:
             'Ao pedir ajuda, compartilhe contexto: objetivo, erro, tentativa e stack. Quanto mais claro, mais rápido a comunidade ajuda.',
         footer: 'Criativaria • Ajuda técnica',
-    },
-]
-
-const CRIATIVARIA_COMMANDS: CustomCommandSeed[] = [
-    {
-        name: 'regras',
-        description: 'Resumo rápido das regras da Criativaria.',
-        response:
-            'Leia #✧･ﾟregras✧ com atenção. Respeito, sem spam e colaboração acima de tudo.',
-    },
-    {
-        name: 'cargos',
-        description: 'Guia para escolher seus cargos.',
-        response:
-            'Use #✧･ﾟcargos･ﾟ✧ para selecionar cargos e personalizar sua experiência na comunidade.',
-    },
-    {
-        name: 'links',
-        description: 'Links úteis da comunidade.',
-        response:
-            'Links úteis: GitHub, Twitch e conteúdos oficiais ficam em #✧･ﾟanuncios･ﾟ✧ e #✧･ﾟupdates✧･ﾟ.',
-    },
-    {
-        name: 'suporte',
-        description: 'Como pedir ajuda de forma eficiente.',
-        response:
-            'Para suporte: descreva objetivo, erro, stack e o que já tentou. Isso acelera respostas de qualidade.',
     },
 ]
 
@@ -508,9 +438,7 @@ async function applyAutoMod(
     ]
 
     if (mode === 'dry-run') {
-        result.applied.push(
-            'Planejado: aplicar automod balanceado (spam/caps/links/invites/words).',
-        )
+        result.applied.push('Planejado: aplicar automod balanceado (spam).')
         return
     }
 
@@ -519,13 +447,6 @@ async function applyAutoMod(
         spamEnabled: true,
         spamThreshold: 6,
         spamTimeWindow: 8,
-        capsEnabled: true,
-        capsThreshold: 75,
-        linksEnabled: true,
-        allowedDomains: CRIATIVARIA_ALLOWED_DOMAINS,
-        invitesEnabled: true,
-        wordsEnabled: true,
-        bannedWords: CRIATIVARIA_BANNED_WORDS,
         exemptChannels,
         exemptRoles,
     })
@@ -649,39 +570,6 @@ async function applyEmbedTemplates(
     for (const seed of CRIATIVARIA_EMBEDS) {
         const state = await upsertEmbedTemplate(guild.id, seed, imageUrl)
         result.applied.push(`Template ${seed.name} ${state}.`)
-    }
-}
-
-export async function upsertCustomCommand(
-    guildId: string,
-    seed: CustomCommandSeed,
-): Promise<'created' | 'updated'> {
-    return await customCommandUpsertClient.upsertCommand(
-        guildId,
-        seed.name,
-        seed.response,
-        {
-            description: seed.description,
-            createdBy: 'serversetup:criativaria',
-        },
-    )
-}
-
-async function applyCustomCommands(
-    guild: Guild,
-    mode: SetupMode,
-    result: SetupResult,
-): Promise<void> {
-    if (mode === 'dry-run') {
-        result.applied.push(
-            'Planejado: upsert de custom commands (regras/cargos/links/suporte).',
-        )
-        return
-    }
-
-    for (const seed of CRIATIVARIA_COMMANDS) {
-        const state = await upsertCustomCommand(guild.id, seed)
-        result.applied.push(`Custom command ${seed.name} ${state}.`)
     }
 }
 
@@ -885,9 +773,6 @@ export async function runCriativariaSetup(
     )
     await runStep('Templates de embed', async () =>
         applyEmbedTemplates(guild, imageUrl, mode, result),
-    )
-    await runStep('Custom commands', async () =>
-        applyCustomCommands(guild, mode, result),
     )
     await runStep('Exclusividade de cargos', async () =>
         applyRoleExclusions(guild, roles, mode, result),

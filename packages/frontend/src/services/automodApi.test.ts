@@ -79,32 +79,4 @@ describe('createAutoModApi', () => {
             '/guilds/guild-1/automod/exempt/roles/role-1',
         )
     })
-
-    test('maps words and whitelist endpoints with URI encoding', () => {
-        const api = createAutoModApi(apiClient)
-
-        api.addWord('guild-1', 'bad word')
-        api.removeWord('guild-1', 'bad word/1')
-        api.addWhitelistedLink('guild-1', 'example.com')
-        api.removeWhitelistedLink('guild-1', 'sub.domain/path')
-
-        expect(apiClient.post).toHaveBeenNthCalledWith(
-            1,
-            '/guilds/guild-1/automod/words',
-            { word: 'bad word' },
-        )
-        expect(apiClient.delete).toHaveBeenNthCalledWith(
-            1,
-            '/guilds/guild-1/automod/words/bad%20word%2F1',
-        )
-        expect(apiClient.post).toHaveBeenNthCalledWith(
-            2,
-            '/guilds/guild-1/automod/links/whitelist',
-            { domain: 'example.com' },
-        )
-        expect(apiClient.delete).toHaveBeenNthCalledWith(
-            2,
-            '/guilds/guild-1/automod/links/whitelist/sub.domain%2Fpath',
-        )
-    })
 })

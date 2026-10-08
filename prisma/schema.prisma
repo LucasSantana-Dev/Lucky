@@ -1237,14 +1237,14 @@ model BatchJob {
   guildId   String
   guild     Guild  @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
 
-  jobType     String // channel_move_batch | bulk_ban | bulk_kick | bulk_warn | ...
+  jobType     String // bulk_ban | bulk_kick | bulk_warn | bulk_add_role | bulk_remove_role | purge_batch
   status      String @default("pending") // pending|in_progress|paused|completed|failed|cancelled
   initiatedBy String // Discord user id
 
   // Scope & options (immutable after creation)
   sourceChannelId String?
   targetChannelId String?
-  scope           Json // { type: all|count|user|date_range|contains, config: {...} }
+  scope           Json // { type: all|count|user|date_range, config: {...} }
   options         Json? // { reason?, silent?, deleteMessageSeconds?, ... }
 
   // Progress (mutable)

@@ -1,20 +1,12 @@
 import { useState, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-    Music,
-    MessageSquare,
-    Shield,
-    ArrowLeft,
-    ChevronRight,
-    Loader2,
-} from 'lucide-react'
+import { Music, Shield, ArrowLeft, ChevronRight, Loader2 } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import { usePageMetadata } from '@/hooks/usePageMetadata'
 import { useGuildSelection } from '@/hooks/useGuildSelection'
 import { useTranslation } from 'react-i18next'
 
 const MusicConfig = lazy(() => import('@/components/Config/MusicConfig'))
-const CommandsConfig = lazy(() => import('@/components/Config/CommandsConfig'))
 
 export default function ConfigPage() {
     const { t } = useTranslation()
@@ -32,12 +24,6 @@ export default function ConfigPage() {
             name: t('config.musicModule'),
             description: t('config.configureMusic'),
             icon: Music,
-        },
-        {
-            id: 'commands',
-            name: t('config.commands'),
-            description: t('config.manageCommandPermissions'),
-            icon: MessageSquare,
         },
         {
             id: 'moderation',
@@ -203,9 +189,6 @@ export default function ConfigPage() {
                         >
                             {selectedModule === 'music' && (
                                 <MusicConfig guildId={selectedGuild.id} />
-                            )}
-                            {selectedModule === 'commands' && (
-                                <CommandsConfig guildId={selectedGuild.id} />
                             )}
                         </Suspense>
                     </section>

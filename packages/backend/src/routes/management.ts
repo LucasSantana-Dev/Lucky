@@ -13,7 +13,6 @@ import { managementSchemas as s } from '../schemas/management'
 import {
     AutoModTemplateNotFoundError,
     autoModService,
-    customCommandService,
     featureToggleService,
     serverLogService,
     serializeServerLog,
@@ -21,7 +20,6 @@ import {
 } from '@lucky/shared/services'
 import { setupEmbedRoutes } from './managementEmbeds'
 import { setupAutoMessageRoutes } from './managementAutoMessages'
-import { isUniqueViolation } from '../utils/prismaErrors'
 import { paramToString as p } from '../utils/paramCoerce'
 
 function requireUserId(req: AuthenticatedRequest): string {
@@ -119,119 +117,6 @@ export function setupManagementRoutes(app: Express): void {
                 }
                 throw error
             }
-        }),
-    )
-
-    app.get(
-        '/api/guilds/:guildId/commands',
-        requireAuth,
-        requireGuildModuleAccess('automation', 'view'),
-        validateParams(s.guildIdParam),
-        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const commands = await customCommandService.listCommands(
-                p(req.params.guildId),
-            )
-            res.json({ commands })
-        }),
-    )
-
-    app.post(
-        '/api/guilds/:guildId/commands',
-        requireAuth,
-        requireGuildModuleAccess('automation', 'manage'),
-        writeLimiter,
-        validateParams(s.guildIdParam),
-        validateBody(s.createCommandBody),
-        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const guildId = p(req.params.guildId)
-            const userId = requireUserId(req)
-            const body = s.createCommandBody.parse(req.body)
-            const { name, response, description, commandKind, config } = body
-            let command
-            try {
-                command = await customCommandService.createCommand(
-                    guildId,
-                    name,
-                    response,
-                    {
-                        description,
-                        createdBy: userId,
-                        commandKind,
-                        config,
-                    },
-                )
-            } catch (error) {
-                if (!isUniqueViolation(error)) {
-                    throw error
-                }
-                // P2002 on the (guildId, name) natural key is idempotent
-                // success, not a failure: return the existing command (#1320).
-                // Divergent payloads also land here — edit via PATCH.
-                const existing = await customCommandService.getCommand(
-                    guildId,
-                    name,
-                )
-                if (!existing) {
-                    throw error
-                }
-                res.json(existing)
-                return
-            }
-            await serverLogService.logCustomCommandChange(
-                guildId,
-                'created',
-                { commandName: name },
-                userId,
-            )
-            res.status(201).json(command)
-        }),
-    )
-
-    app.patch(
-        '/api/guilds/:guildId/commands/:name',
-        requireAuth,
-        requireGuildModuleAccess('automation', 'manage'),
-        writeLimiter,
-        validateParams(s.commandNameParam),
-        validateBody(s.updateCommandBody),
-        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const guildId = p(req.params.guildId)
-            const userId = requireUserId(req)
-            const name = p(req.params.name)
-            const body = s.updateCommandBody.parse(req.body)
-            const command = await customCommandService.updateCommand(
-                guildId,
-                name,
-                body,
-            )
-            await serverLogService.logCustomCommandChange(
-                guildId,
-                'updated',
-                { commandName: name, changes: body },
-                userId,
-            )
-            res.json(command)
-        }),
-    )
-
-    app.delete(
-        '/api/guilds/:guildId/commands/:name',
-        requireAuth,
-        requireGuildModuleAccess('automation', 'manage'),
-        writeLimiter,
-        validateParams(s.commandNameParam),
-        asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
-            const guildId = p(req.params.guildId)
-            const userId = requireUserId(req)
-            const name = p(req.params.name)
-            await customCommandService.deleteCommand(guildId, name)
-            await serverLogService.logCustomCommandChange(
-                guildId,
-                'deleted',
-                { commandName: name },
-                userId,
-            )
-            res.json({ success: true })
         }),
     )
 

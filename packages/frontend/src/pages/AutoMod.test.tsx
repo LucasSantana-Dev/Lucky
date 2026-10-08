@@ -33,13 +33,6 @@ const mockSettings: AutoModSettings = {
     spamEnabled: true,
     spamThreshold: 5,
     spamTimeWindow: 5,
-    capsEnabled: false,
-    capsThreshold: 70,
-    linksEnabled: false,
-    allowedDomains: [],
-    invitesEnabled: false,
-    wordsEnabled: true,
-    bannedWords: ['badword'],
     exemptChannels: [],
     exemptRoles: [],
     createdAt: new Date(),
@@ -108,13 +101,15 @@ describe('AutoModPage', () => {
 
         await waitFor(() => {
             expect(screen.getByText('Spam Detection')).toBeInTheDocument()
-            expect(screen.getByText('Caps Lock Detection')).toBeInTheDocument()
-            expect(screen.getByText('Link Filtering')).toBeInTheDocument()
-            expect(
-                screen.getByText('Invite Link Filtering'),
-            ).toBeInTheDocument()
-            expect(screen.getByText('Banned Words')).toBeInTheDocument()
         })
+        for (const removed of [
+            'Caps Lock Detection',
+            'Link Filtering',
+            'Invite Link Filtering',
+            'Banned Words',
+        ]) {
+            expect(screen.queryByText(removed)).not.toBeInTheDocument()
+        }
     })
 
     test('renders header with guild name', async () => {
@@ -216,36 +211,22 @@ describe('AutoModPage', () => {
         expect(new Set(ids).size).toBe(ids.length)
     })
 
-    test('toggles caps filter and hides children', async () => {
-        const user = userEvent.setup()
-        mockGuildStore(mockGuild)
-        vi.mocked(api.automod.getSettings).mockResolvedValue({
-            data: { settings: mockSettings },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('Caps Lock Detection')).toBeInTheDocument()
-        })
-
-        const capsSwitch = screen.getAllByRole('switch')[1]
-
-        expect(capsSwitch).not.toBeChecked()
-
-        await user.click(capsSwitch)
-
-        expect(capsSwitch).toBeChecked()
-        await waitFor(() => {
-            expect(screen.getByText('Caps threshold (%)')).toBeInTheDocument()
-        })
-    })
-
     test('save button calls updateSettings with sanitized settings payload', async () => {
         const user = userEvent.setup()
         mockGuildStore(mockGuild)
         vi.mocked(api.automod.getSettings).mockResolvedValue({
-            data: { settings: mockSettings },
+            data: {
+                settings: {
+                    ...mockSettings,
+                    capsEnabled: true,
+                    capsThreshold: 70,
+                    allowedDomains: ['example.com'],
+                    linksEnabled: true,
+                    invitesEnabled: true,
+                    wordsEnabled: true,
+                    bannedWords: ['badword'],
+                },
+            },
         } as any)
         vi.mocked(api.automod.updateSettings).mockResolvedValue({} as any)
 
@@ -273,8 +254,14 @@ describe('AutoModPage', () => {
 
         expect(payload).toMatchObject({
             spamEnabled: true,
-            wordsEnabled: true,
         })
+        expect(payload).not.toHaveProperty('capsEnabled')
+        expect(payload).not.toHaveProperty('capsThreshold')
+        expect(payload).not.toHaveProperty('allowedDomains')
+        expect(payload).not.toHaveProperty('linksEnabled')
+        expect(payload).not.toHaveProperty('invitesEnabled')
+        expect(payload).not.toHaveProperty('wordsEnabled')
+        expect(payload).not.toHaveProperty('bannedWords')
         expect(payload).not.toHaveProperty('id')
         expect(payload).not.toHaveProperty('guildId')
         expect(payload).not.toHaveProperty('createdAt')
@@ -337,7 +324,7 @@ describe('AutoModPage', () => {
         })
     })
 
-    test('adds a banned word via TagList', async () => {
+    test('adds an exempt channel ID via TagList', async () => {
         const user = userEvent.setup()
         mockGuildStore(mockGuild)
         vi.mocked(api.automod.getSettings).mockResolvedValue({
@@ -346,35 +333,27 @@ describe('AutoModPage', () => {
 
         renderPage()
 
-        await waitFor(() => {
-            expect(screen.getByText('Banned Words')).toBeInTheDocument()
-        })
-
-        const input = screen.getByPlaceholderText('Add a word to ban...')
+        const input = await screen.findByPlaceholderText('Channel ID...')
         const addButton = input.nextElementSibling as HTMLElement
 
-        await user.type(input, 'newbadword')
+        await user.type(input, '111')
         await user.click(addButton)
 
         await waitFor(() => {
-            expect(screen.getByText('newbadword')).toBeInTheDocument()
+            expect(screen.getAllByText('111')).toHaveLength(2)
         })
     })
 
-    test('removes a banned word via TagList', async () => {
+    test('removes an exempt channel ID via TagList', async () => {
         const user = userEvent.setup()
         mockGuildStore(mockGuild)
         vi.mocked(api.automod.getSettings).mockResolvedValue({
-            data: { settings: mockSettings },
+            data: { settings: { ...mockSettings, exemptChannels: ['111'] } },
         } as any)
 
         renderPage()
 
-        await waitFor(() => {
-            expect(screen.getByText('badword')).toBeInTheDocument()
-        })
-
-        const badgeElement = screen.getByText('badword')
+        const badgeElement = (await screen.findAllByText('111'))[0]
         const removeButton = badgeElement.querySelector('button')
 
         expect(removeButton).toBeInTheDocument()
@@ -382,11 +361,11 @@ describe('AutoModPage', () => {
         await user.click(removeButton!)
 
         await waitFor(() => {
-            expect(screen.queryByText('badword')).not.toBeInTheDocument()
+            expect(screen.queryByText('111')).not.toBeInTheDocument()
         })
     })
 
-    test('adds banned word via Enter key', async () => {
+    test('adds an exempt channel ID via Enter key', async () => {
         const user = userEvent.setup()
         mockGuildStore(mockGuild)
         vi.mocked(api.automod.getSettings).mockResolvedValue({
@@ -395,73 +374,31 @@ describe('AutoModPage', () => {
 
         renderPage()
 
-        await waitFor(() => {
-            expect(screen.getByText('Banned Words')).toBeInTheDocument()
-        })
+        const input = await screen.findByPlaceholderText('Channel ID...')
 
-        const input = screen.getByPlaceholderText('Add a word to ban...')
-
-        await user.type(input, 'anotherbadword{Enter}')
+        await user.type(input, '222{Enter}')
 
         await waitFor(() => {
-            expect(screen.getByText('anotherbadword')).toBeInTheDocument()
+            expect(screen.getAllByText('222')).toHaveLength(2)
         })
     })
 
-    test('does not add duplicate banned word', async () => {
+    test('does not add duplicate exempt channel ID', async () => {
         const user = userEvent.setup()
         mockGuildStore(mockGuild)
         vi.mocked(api.automod.getSettings).mockResolvedValue({
-            data: { settings: mockSettings },
+            data: { settings: { ...mockSettings, exemptChannels: ['111'] } },
         } as any)
 
         renderPage()
 
-        await waitFor(() => {
-            expect(screen.getByText('Banned Words')).toBeInTheDocument()
-        })
-
-        const input = screen.getByPlaceholderText('Add a word to ban...')
+        const input = await screen.findByPlaceholderText('Channel ID...')
         const addButton = input.nextElementSibling as HTMLElement
 
-        await user.type(input, 'badword')
+        await user.type(input, '111')
         await user.click(addButton)
 
-        const badges = screen.getAllByText('badword')
-        expect(badges.length).toBe(1)
-    })
-
-    test('adds allowed domain to link filtering', async () => {
-        const user = userEvent.setup()
-        mockGuildStore(mockGuild)
-        vi.mocked(api.automod.getSettings).mockResolvedValue({
-            data: { settings: mockSettings },
-        } as any)
-
-        renderPage()
-
-        await waitFor(() => {
-            expect(screen.getByText('Link Filtering')).toBeInTheDocument()
-        })
-
-        const linkSwitch = screen.getByRole('switch', {
-            name: 'Link Filtering',
-        })
-        await user.click(linkSwitch)
-
-        await waitFor(() => {
-            expect(screen.getByText('Allowed domains')).toBeInTheDocument()
-        })
-
-        const input = screen.getByPlaceholderText('e.g. youtube.com')
-        const addButton = input.nextElementSibling as HTMLElement
-
-        await user.type(input, 'example.com')
-        await user.click(addButton)
-
-        await waitFor(() => {
-            expect(screen.getByText('example.com')).toBeInTheDocument()
-        })
+        expect(screen.getAllByText('111')).toHaveLength(2)
     })
 
     test('updates spam threshold via number input', async () => {
@@ -573,13 +510,6 @@ describe('AutoModPage', () => {
                     spamEnabled: true,
                     spamThreshold: 'bad',
                     spamTimeWindow: '10',
-                    capsEnabled: 'nope',
-                    capsThreshold: '85',
-                    linksEnabled: true,
-                    allowedDomains: ['safe.example', 42],
-                    invitesEnabled: 'nope',
-                    wordsEnabled: true,
-                    bannedWords: ['blocked', 42],
                     exemptChannels: ['123', 456],
                     exemptRoles: ['789', null],
                     createdAt: '2026-01-02T03:04:05.000Z',
@@ -596,16 +526,9 @@ describe('AutoModPage', () => {
 
         const switches = screen.getAllByRole('switch')
         expect(switches[0]).toBeChecked()
-        expect(switches[1]).not.toBeChecked()
-        expect(switches[2]).toBeChecked()
-        expect(switches[3]).not.toBeChecked()
-        expect(switches[4]).toBeChecked()
 
         expect(screen.getByDisplayValue(5)).toBeInTheDocument()
         expect(screen.getByDisplayValue(10)).toBeInTheDocument()
-        expect(screen.getByText('safe.example')).toBeInTheDocument()
-        expect(screen.queryByText('42')).not.toBeInTheDocument()
-        expect(screen.getByText('blocked')).toBeInTheDocument()
         expect(screen.getAllByText('123')).toHaveLength(2)
         expect(screen.getAllByText('789')).toHaveLength(2)
     })
@@ -616,10 +539,8 @@ describe('AutoModPage', () => {
             data: {
                 settings: {
                     ...mockSettings,
-                    capsEnabled: true,
                     spamThreshold: '-1',
                     spamTimeWindow: '999',
-                    capsThreshold: '49',
                 },
             },
         } as any)
@@ -631,7 +552,6 @@ describe('AutoModPage', () => {
         })
 
         expect(screen.getAllByDisplayValue('5')).toHaveLength(2)
-        expect(screen.getByDisplayValue('70')).toBeInTheDocument()
     })
 
     const setTemplateContext = (template: {
@@ -666,7 +586,7 @@ describe('AutoModPage', () => {
             description: 'Safe defaults',
         })
         vi.mocked(api.automod.applyTemplate).mockResolvedValue({
-            data: { settings: { ...mockSettings, linksEnabled: true } },
+            data: { settings: { ...mockSettings, spamThreshold: 8 } },
         } as any)
 
         await clickTemplateApply('Balanced')
