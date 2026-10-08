@@ -113,6 +113,7 @@ function createMockGuild(options: MockGuildOptions = {}) {
         id: '895505900016631839',
         name: 'Criativaria',
         ownerId: 'owner-1',
+        joinedTimestamp: 1_700_000_000_000,
         iconURL: jest.fn(() => null),
         setIcon: jest.fn().mockResolvedValue(undefined),
         setSplash: jest.fn().mockResolvedValue(undefined),
@@ -525,6 +526,13 @@ describe('serversetupCriativaria helpers', () => {
             2,
         )
         expect(guildUpsert).toHaveBeenCalledTimes(1)
+        // A new row counts as joined; an existing row keeps its join date.
+        const upsertArgs = guildUpsert.mock.calls[0][0] as {
+            create: { joinedAt?: Date }
+            update: { joinedAt?: Date }
+        }
+        expect(upsertArgs.create.joinedAt).toEqual(new Date(1_700_000_000_000))
+        expect(upsertArgs.update).not.toHaveProperty('joinedAt')
         expect(twitchNotificationService.add).toHaveBeenCalledWith(
             'guild-db-id',
             CRIATIVARIA_CHANNEL_IDS.twitchLive,
