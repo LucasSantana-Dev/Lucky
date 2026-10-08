@@ -51,6 +51,15 @@ jest.mock('../services/musicRecommendation/feedbackService', () => ({
     },
 }))
 
+const maybePromptMock = jest.fn()
+
+jest.mock('../services/musicRecommendation/autoplayFeedbackPrompt', () => ({
+    captureAutoplayTrack: (track: { title: string } | null) =>
+        track ? { trackKey: `key:${track.title}`, title: track.title } : null,
+    maybePromptAutoplayFeedback: (...args: unknown[]) =>
+        maybePromptMock(...args),
+}))
+
 jest.mock('../i18n/translatorForInteraction', () => ({
     translatorForInteraction:
         async () => (key: string, options?: { title?: string }) =>
@@ -141,7 +150,10 @@ describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
     })
 
     function thumbsInteraction(customId: string) {
-        return { ...createInteraction(customId), user: { id: 'user-1' } }
+        return {
+            ...createInteraction(customId),
+            user: { id: 'user-1', username: 'listener' },
+        }
     }
 
     it.each([
@@ -162,6 +174,7 @@ describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
             expect(setFeedbackMock).toHaveBeenCalledWith(
                 'guild-1',
                 'user-1',
+                'listener',
                 'Song::Artist',
                 feedback,
             )
@@ -257,5 +270,79 @@ describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
                 ephemeral: true,
             }),
         )
+    })
+})
+
+describe('handleMusicButtonInteraction - autoplay feedback prompt', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+    })
+
+    function playingQueue(overrides: Record<string, unknown> = {}) {
+        const queue: Record<string, any> = createQueue({
+            guild: { id: 'guild-1' },
+            currentTrack: { title: 'Autoplay Pick' },
+            node: {
+                isPaused: jest.fn().mockReturnValue(false),
+                pause: jest.fn(),
+                resume: jest.fn(),
+                skip: jest.fn(),
+            },
+            delete: jest.fn(),
+            ...overrides,
+        })
+        return queue
+    }
+
+    it('skip button asks about the track that was skipped, not the next one', async () => {
+        const queue = playingQueue()
+        queue.node.skip.mockImplementation(() => {
+            queue.currentTrack = { title: 'Next Song' }
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP)
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(maybePromptMock).toHaveBeenCalledWith(interaction, {
+            trackKey: 'key:Autoplay Pick',
+            title: 'Autoplay Pick',
+        })
+    })
+
+    it('stop button captures the track before the queue is deleted', async () => {
+        const queue = playingQueue()
+        queue.delete.mockImplementation(() => {
+            queue.currentTrack = null
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.STOP)
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(maybePromptMock).toHaveBeenCalledWith(interaction, {
+            trackKey: 'key:Autoplay Pick',
+            title: 'Autoplay Pick',
+        })
+    })
+
+    it('pause button asks on pause but not on resume', async () => {
+        const queue = playingQueue()
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const pausing = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME)
+
+        await handleMusicButtonInteraction(pausing as never)
+
+        expect(maybePromptMock).toHaveBeenLastCalledWith(pausing, {
+            trackKey: 'key:Autoplay Pick',
+            title: 'Autoplay Pick',
+        })
+
+        queue.node.isPaused.mockReturnValue(true)
+        const resuming = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME)
+
+        await handleMusicButtonInteraction(resuming as never)
+
+        expect(maybePromptMock).toHaveBeenLastCalledWith(resuming, null)
     })
 })

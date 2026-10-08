@@ -49,7 +49,23 @@ jest.mock('../../../services/musicRecommendation/autoplay/replenisher', () => ({
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
+    errorLog: jest.fn(),
 }))
+
+const captureAutoplayTrackMock = jest.fn((track: any) =>
+    track ? { trackKey: `key:${track.title}`, title: track.title } : null,
+)
+const maybePromptAutoplayFeedbackMock = jest.fn()
+
+jest.mock(
+    '../../../services/musicRecommendation/autoplayFeedbackPrompt',
+    () => ({
+        captureAutoplayTrack: (...args: unknown[]) =>
+            captureAutoplayTrackMock(...(args as [any])),
+        maybePromptAutoplayFeedback: (...args: unknown[]) =>
+            maybePromptAutoplayFeedbackMock(...args),
+    }),
+)
 
 function createInteraction(guildId = 'guild-1') {
     return {
@@ -149,5 +165,37 @@ describe('skip command', () => {
         })
 
         expect(clearSessionMoodCacheMock).not.toHaveBeenCalled()
+    })
+
+    it('asks about the autoplay track that was skipped, not the next one', async () => {
+        const queue = createQueue('guild-1')
+        queue.currentTrack = { title: 'Autoplay Pick' }
+        queue.node.skip.mockImplementation(() => {
+            queue.currentTrack = { title: 'Next Song' }
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = createInteraction('guild-1')
+
+        await skipCommand.execute({ interaction, client: {} as any })
+
+        expect(maybePromptAutoplayFeedbackMock).toHaveBeenCalledWith(
+            interaction,
+            { trackKey: 'key:Autoplay Pick', title: 'Autoplay Pick' },
+        )
+    })
+
+    it('does not prompt when the skip fails', async () => {
+        const queue = createQueue('guild-1')
+        queue.node.skip.mockImplementation(() => {
+            throw new Error('boom')
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+
+        expect(maybePromptAutoplayFeedbackMock).not.toHaveBeenCalled()
     })
 })

@@ -41,10 +41,18 @@ export class RecommendationFeedbackService {
         return normalizeTrackKey(title, author)
     }
 
-    /** Stores one vote; resolves false (logged) when the write fails. */
+    /**
+     * Stores one vote; resolves false (logged) when the write fails.
+     *
+     * UserTrackFeedback.discordUserId is a FK to User.discordId, but User rows
+     * only exist for dashboard (OAuth) logins. The vote therefore first
+     * ensures the voter's row (create-only: `update: {}` keeps a dashboard
+     * user's stored name and avatar), in the same transaction as the upsert.
+     */
     async setFeedback(
         guildId: string,
         userId: string,
+        username: string,
         trackKey: string,
         feedback: RecommendationFeedback,
         now = Date.now(),
@@ -54,28 +62,35 @@ export class RecommendationFeedbackService {
             const expiresAt = new Date(now + this.ttlDays * 24 * 60 * 60 * 1000)
             const updatedAt = new Date(now)
 
-            await db.userTrackFeedback.upsert({
-                where: {
-                    discordUserId_guildId_trackKey: {
+            await db.$transaction([
+                db.user.upsert({
+                    where: { discordId: userId },
+                    update: {},
+                    create: { discordId: userId, username },
+                }),
+                db.userTrackFeedback.upsert({
+                    where: {
+                        discordUserId_guildId_trackKey: {
+                            discordUserId: userId,
+                            guildId,
+                            trackKey,
+                        },
+                    },
+                    update: {
+                        feedback,
+                        updatedAt,
+                        expiresAt,
+                    },
+                    create: {
                         discordUserId: userId,
                         guildId,
                         trackKey,
+                        feedback,
+                        updatedAt,
+                        expiresAt,
                     },
-                },
-                update: {
-                    feedback,
-                    updatedAt,
-                    expiresAt,
-                },
-                create: {
-                    discordUserId: userId,
-                    guildId,
-                    trackKey,
-                    feedback,
-                    updatedAt,
-                    expiresAt,
-                },
-            })
+                }),
+            ])
         } catch (error) {
             errorLog({
                 message: 'Failed to store recommendation feedback',

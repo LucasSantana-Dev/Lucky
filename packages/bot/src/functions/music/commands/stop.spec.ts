@@ -48,6 +48,21 @@ jest.mock('../../../services/musicRecommendation/autoplay/replenisher', () => ({
         clearSessionMoodCacheMock(...args),
 }))
 
+const captureAutoplayTrackMock = jest.fn((track: any) =>
+    track ? { trackKey: `key:${track.title}`, title: track.title } : null,
+)
+const maybePromptAutoplayFeedbackMock = jest.fn()
+
+jest.mock(
+    '../../../services/musicRecommendation/autoplayFeedbackPrompt',
+    () => ({
+        captureAutoplayTrack: (...args: unknown[]) =>
+            captureAutoplayTrackMock(...(args as [any])),
+        maybePromptAutoplayFeedback: (...args: unknown[]) =>
+            maybePromptAutoplayFeedbackMock(...args),
+    }),
+)
+
 function createInteraction(guildId = 'guild-1') {
     return { guildId, user: { tag: 'User#0001' } } as any
 }
@@ -181,5 +196,22 @@ describe('stop command', () => {
         })
 
         expect(clearSessionMoodCacheMock).not.toHaveBeenCalled()
+    })
+
+    it('captures the playing track before the queue is deleted and then asks', async () => {
+        const queue = createQueue('guild-1')
+        queue.currentTrack = { title: 'Autoplay Pick' }
+        queue.delete.mockImplementation(() => {
+            queue.currentTrack = null
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = createInteraction('guild-1')
+
+        await stopCommand.execute({ interaction, client: {} as any })
+
+        expect(maybePromptAutoplayFeedbackMock).toHaveBeenCalledWith(
+            interaction,
+            { trackKey: 'key:Autoplay Pick', title: 'Autoplay Pick' },
+        )
     })
 })

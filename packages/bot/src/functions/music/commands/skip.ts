@@ -19,6 +19,10 @@ import { clearSessionMoodCache } from '../../../services/musicRecommendation/aut
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
+import {
+    captureAutoplayTrack,
+    maybePromptAutoplayFeedback,
+} from '../../../services/musicRecommendation/autoplayFeedbackPrompt'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
 async function skipCurrentSong(
@@ -113,9 +117,13 @@ export default new Command({
             return
         }
 
+        // Before the skip: afterwards currentTrack is the next song.
+        const skippedAutoplay = captureAutoplayTrack(queue.currentTrack)
+
         try {
             await skipCurrentSong(queue, interaction.guildId ?? '')
             await sendSkipSuccess(interaction, queue)
+            await maybePromptAutoplayFeedback(interaction, skippedAutoplay)
         } catch (error) {
             await handleSkipError(error, interaction)
         }

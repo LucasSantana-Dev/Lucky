@@ -37,6 +37,21 @@ jest.mock('../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
+const captureAutoplayTrackMock = jest.fn((track: any) =>
+    track ? { trackKey: `key:${track.title}`, title: track.title } : null,
+)
+const maybePromptAutoplayFeedbackMock = jest.fn()
+
+jest.mock(
+    '../../../services/musicRecommendation/autoplayFeedbackPrompt',
+    () => ({
+        captureAutoplayTrack: (...args: unknown[]) =>
+            captureAutoplayTrackMock(...(args as [any])),
+        maybePromptAutoplayFeedback: (...args: unknown[]) =>
+            maybePromptAutoplayFeedbackMock(...args),
+    }),
+)
+
 function createQueue(isPaused = false) {
     return {
         node: {
@@ -180,6 +195,32 @@ describe('pause command', () => {
         expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '⏸️ Paused',
             expect.stringContaining('paused'),
+        )
+    })
+
+    it('asks about the track when pausing', async () => {
+        const queue = createQueue(false)
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = makeInteraction()
+
+        await pauseCommand.execute({ client: {} as any, interaction } as any)
+
+        expect(maybePromptAutoplayFeedbackMock).toHaveBeenCalledWith(
+            interaction,
+            { trackKey: 'key:Test Song', title: 'Test Song' },
+        )
+    })
+
+    it('does not ask when resuming', async () => {
+        const queue = createQueue(true)
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = makeInteraction()
+
+        await pauseCommand.execute({ client: {} as any, interaction } as any)
+
+        expect(maybePromptAutoplayFeedbackMock).toHaveBeenCalledWith(
+            interaction,
+            null,
         )
     })
 })

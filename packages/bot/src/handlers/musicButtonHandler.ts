@@ -25,6 +25,10 @@ import type { CustomClient } from '../types'
 import { buildListPageEmbed } from '../utils/general/responseEmbeds'
 import { levelService } from '@lucky/shared/services'
 import { setReplenishSuppressed } from '../services/musicManagement/replenishSuppressionStore'
+import {
+    captureAutoplayTrack,
+    maybePromptAutoplayFeedback,
+} from '../services/musicRecommendation/autoplayFeedbackPrompt'
 import { recommendationFeedbackService } from '../services/musicRecommendation/feedbackService'
 
 type NonNullQueue = GuildQueue
@@ -170,6 +174,7 @@ async function handleTrackFeedback(
     const saved = await recommendationFeedbackService.setFeedback(
         queue.guild.id,
         interaction.user.id,
+        interaction.user.username,
         trackKey,
         feedback,
     )
@@ -217,7 +222,12 @@ async function handlePauseResume(
     interaction: ButtonInteraction,
     queue: NonNullQueue,
 ): Promise<void> {
-    if (queue.node.isPaused()) {
+    const wasPaused = queue.node.isPaused()
+    // Only a pause asks; resuming means the song was fine.
+    const pausedAutoplay = wasPaused
+        ? null
+        : captureAutoplayTrack(queue.currentTrack)
+    if (wasPaused) {
         queue.node.resume()
     } else {
         queue.node.pause()
@@ -229,14 +239,18 @@ async function handlePauseResume(
             createMusicActionButtons(queue),
         ],
     })
+    await maybePromptAutoplayFeedback(interaction, pausedAutoplay)
 }
 
 async function handleSkip(
     interaction: ButtonInteraction,
     queue: NonNullQueue,
 ): Promise<void> {
+    // Before the skip: afterwards currentTrack is the next song.
+    const skippedAutoplay = captureAutoplayTrack(queue.currentTrack)
     queue.node.skip()
     debugLog({ message: 'Track skipped via button' })
+    await maybePromptAutoplayFeedback(interaction, skippedAutoplay)
 }
 
 async function handleShuffle(
@@ -281,6 +295,8 @@ async function handleStop(
     interaction: ButtonInteraction,
     queue: NonNullQueue,
 ): Promise<void> {
+    // Before queue.delete(): the track is gone afterwards.
+    const stoppedAutoplay = captureAutoplayTrack(queue.currentTrack)
     queue.delete()
     setReplenishSuppressed(queue.guild.id, 30_000)
     await interaction.editReply({
@@ -290,6 +306,7 @@ async function handleStop(
         components: [],
     })
     debugLog({ message: 'Playback stopped via button' })
+    await maybePromptAutoplayFeedback(interaction, stoppedAutoplay)
 }
 
 async function handleClearQueue(
