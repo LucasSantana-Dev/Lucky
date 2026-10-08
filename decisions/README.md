@@ -1,11 +1,11 @@
 # Architecture Decision Records
 
-143 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
+144 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
 ## Accepted (136)
 
-- [2026-10-07 - Brand identity: purple and gold neon, one cat, three wordmarks by use](2026-10-07-brand-purple-gold-wordmark-family.md) - _Accepted (amends the brand palette in `packages/frontend/branding/BRANDING_GUIDE.md`)_
+- [2026-10-07 - Brand identity: retro Japanese print maneki-neko, Edo purple, custom LUCKY lettering](2026-10-07-brand-retro-maneki-edo-purple.md) - _Accepted (supersedes `2026-10-07-brand-purple-gold-wordmark-family.md`)_
 - [2026-10-07 - The pitch leads with the weekly recap; thumbs feedback moves onto the now-playing message](2026-10-07-pitch-leads-with-weekly-recap.md) - _Accepted (amends the pitch of `2026-09-27-music-first-positioning.md`)_
 - [2026-10-01 - Batch merged work into fewer releases; the frontend ships with the release](2026-10-01-batched-releases.md) - _Accepted (supersedes the human ship-checkpoint of `2026-06-16-release-cadence-automate-releases.md`)_
 - [2026-10-01 - Discord blurple is the focus color only; pink is the single brand accent](2026-10-01-blurple-focus-only.md) - _Accepted (supersedes the dual accent of `2026-04-21-redesign-port-target.md`)_
@@ -153,8 +153,9 @@
 - [2026-07-11 - RAG re-read routing for large file reads in agent workflows](2026-07-11-rag-reread-routing.md)
 - [2026-05-24 - CandidateAggregator seam on the Replenisher is deferred](2026-05-24-candidate-aggregator-deferred.md)
 
-## Superseded (3)
+## Superseded (4)
 
+- [2026-10-07 - Brand identity: purple and gold neon, one cat, three wordmarks by use](2026-10-07-brand-purple-gold-wordmark-family.md) - _Superseded by `decisions/2026-10-07-brand-retro-maneki-edo-purple.md`_
 - [2026-06-16 - YouTube extraction reliability: po_token on the existing extractor, gated on a homelab verification test](2026-06-16-youtube-extraction-reliability.md) - _superseded by verification (2026-06-16) — po_token NOT needed; root_
 - [2026-05-23 - Bot Phase 4 test-reduction execution strategy: staged pilot before full parallel](2026-05-23-bot-phase4-execution-strategy.md) - _Superseded by `decisions/2026-05-23-bot-phase4-continuation-strategy.md`_
 - [2026-05-13 - Keep `Dockerfile.frontend` separate (deferred consolidation)](2026-05-13-frontend-dockerfile-keep-separate.md) - _Superseded by [PR #851 — `refactor/dockerfile-frontend-consolidation`](https://github.com/LucasSantana-Dev/Lucky/pull/851)_

@@ -1,7 +1,7 @@
 # Brand identity: purple and gold neon, one cat, three wordmarks by use
 
 - **Date:** 2026-10-07
-- **Status:** Accepted
+- **Status:** Superseded by `decisions/2026-10-07-brand-retro-maneki-edo-purple.md`
 - **Deciders:** Lucas Santana
 - **Scope:** Marketing and identity assets (`assets/`, `packages/frontend/public/og-image.png`,
   `packages/frontend/branding/`). The dashboard UI tokens are out of scope.
