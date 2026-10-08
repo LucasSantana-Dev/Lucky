@@ -4,6 +4,7 @@ import {
     recoverFromStreamExtractionError,
 } from './streamRecovery'
 import { QueryType } from 'discord-player'
+import { closePlayStartWatch, openPlayStartWatch } from './playStartWatch'
 
 const debugLogMock = jest.fn()
 const warnLogMock = jest.fn()
@@ -378,6 +379,95 @@ describe('streamRecovery', () => {
                 )
                 expect(queue.node.skip).toHaveBeenCalled()
             })
+        })
+    })
+
+    describe('with a /play watching the failed track', () => {
+        const failedTrack = {
+            id: 'track-1',
+            url: 'https://example.com/current',
+            title: 'Song A',
+            requestedBy: { id: 'user-1' },
+        }
+        const makeQueue = (tracks: unknown[]) => ({
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            metadata: { requestedBy: { id: 'user-1' } },
+            currentTrack: failedTrack,
+            player: { search: jest.fn().mockResolvedValue({ tracks }) },
+            insertTrack: jest.fn(),
+            node: { skip: jest.fn() },
+        })
+
+        it('reports recovered and sends no channel message when a replacement starts', async () => {
+            const watch = openPlayStartWatch('guild-1', failedTrack as any)
+            const queue = makeQueue([
+                { id: 'alt', url: 'https://example.com/alt' },
+            ])
+
+            await recoverFromStreamExtractionError(
+                queue as any,
+                failedTrack as any,
+            )
+
+            await expect(watch.settled).resolves.toBe('recovered')
+            expect(queue.insertTrack).toHaveBeenCalled()
+            expect(notifyChannelStreamFailedMock).not.toHaveBeenCalled()
+            closePlayStartWatch(watch)
+        })
+
+        it('reports gave_up instead of messaging the channel, so the user sees one message', async () => {
+            const watch = openPlayStartWatch('guild-1', failedTrack as any)
+            const queue = makeQueue([])
+
+            await recoverFromStreamExtractionError(
+                queue as any,
+                failedTrack as any,
+            )
+
+            await expect(watch.settled).resolves.toBe('gave_up')
+            expect(notifyChannelStreamFailedMock).not.toHaveBeenCalled()
+            expect(queue.node.skip).toHaveBeenCalled()
+            closePlayStartWatch(watch)
+        })
+
+        it('still notifies the channel when the watch is for another track', async () => {
+            const watch = openPlayStartWatch('guild-1', {
+                id: 'other',
+                url: 'https://example.com/other',
+            } as any)
+            const queue = makeQueue([])
+
+            await recoverFromStreamExtractionError(
+                queue as any,
+                failedTrack as any,
+            )
+
+            expect(notifyChannelStreamFailedMock).toHaveBeenCalledWith(
+                queue,
+                'Song A',
+            )
+            closePlayStartWatch(watch)
+        })
+
+        it('tells a watching /play when a parser error skips the track', () => {
+            const watch = openPlayStartWatch('guild-1', failedTrack as any)
+            const queue = makeQueue([])
+            analyzeYouTubeErrorMock.mockReturnValue({
+                isParserError: true,
+                isCompositeVideoError: false,
+                isHypePointsError: false,
+                isTypeMismatchError: false,
+            })
+
+            handleYouTubeParserError(
+                queue as any,
+                new Error('parser'),
+                analyzeYouTubeErrorMock() as any,
+            )
+
+            return expect(watch.settled)
+                .resolves.toBe('gave_up')
+                .finally(() => closePlayStartWatch(watch))
         })
     })
 })

@@ -34,6 +34,15 @@ import {
     resolvePlayErrorMessage,
 } from './playErrorMessage'
 import { watchStreamStartFailures } from './streamStartWatcher'
+import {
+    closePlayStartWatch,
+    openPlayStartWatch,
+    waitForPlayStartOutcome,
+    type PlayStartWatch,
+} from '../../../../../handlers/player/playStartWatch'
+
+// Stream recovery searches for up to 10 s before giving up (streamRecovery.ts).
+const RECOVERY_OUTCOME_WAIT_MS = 15_000
 
 type QueuedEmbedInput = {
     searchResult: SearchResult
@@ -203,7 +212,10 @@ export async function executePlayHandler({
 
     // Written by the onSearchResolved callback while play() is still awaiting
     // voice and stream; read by the final reconcile and by the catch below.
-    const early: { reply: EarlyReply | null } = { reply: null }
+    const early: { reply: EarlyReply | null; watch: PlayStartWatch | null } = {
+        reply: null,
+        watch: null,
+    }
 
     try {
         const hadQueueBeforePlay = Boolean(
@@ -269,9 +281,15 @@ export async function executePlayHandler({
         // cold Spotify play). Not awaited: the edit runs while discord-player
         // connects. The now-playing message later overwrites the same message.
         const replyOnceSearched = (searchResult: SearchResult): void => {
-            if (early.reply) return
             const found = searchResult.tracks[0]
             if (!found || (!searchResult.playlist && !found.title)) return
+            if (!searchResult.playlist) {
+                // Lets stream recovery hand its outcome to this command
+                // instead of messaging the channel (see playStartWatch.ts).
+                if (early.watch) early.watch.track = found
+                else early.watch = openPlayStartWatch(guildId, found)
+            }
+            if (early.reply) return
             const queueNow = resolveGuildQueue(client, guildId).queue
             const queuePosition =
                 hadQueueBeforePlay && queueNow ? queueNow.tracks.size + 1 : 0
@@ -336,9 +354,32 @@ export async function executePlayHandler({
         // discord-player does not throw to this caller when every stream
         // source fails: it skips the track and resolves play() as if it had
         // started. Say so instead of leaving "added to queue" on screen.
-        if (!isPlaylist && startWatcher.hasFailed(track)) {
-            await reportStartFailure(interaction, early.reply, track)
-            return
+        const startFailed = !isPlaylist && startWatcher.hasFailed(track)
+        // Only a failed start still needs the hand-off; a track that fails
+        // later must reach the regular channel notification.
+        if (!startFailed && early.watch) closePlayStartWatch(early.watch)
+
+        if (startFailed) {
+            // Recovery may still start a replacement (YouTube search) or give
+            // up. Say "could not start" only if it gave up; it does not
+            // message the channel while this command is watching.
+            const outcome = early.watch
+                ? await waitForPlayStartOutcome(
+                      early.watch,
+                      RECOVERY_OUTCOME_WAIT_MS,
+                  )
+                : 'gave_up'
+            if (outcome === 'gave_up') {
+                await reportStartFailure(interaction, early.reply, track)
+                return
+            }
+            debugLog({
+                message:
+                    outcome === 'recovered'
+                        ? 'Play: stream recovered with a replacement track, keeping the reply'
+                        : 'Play: stream recovery outcome unknown, keeping the reply',
+                data: { guildId, title: track.title },
+            })
         }
 
         if (!isPlaylist && !track.title) {
@@ -467,6 +508,8 @@ export async function executePlayHandler({
                 data: { guildId: interaction.guildId },
             })
         }
+    } finally {
+        if (early.watch) closePlayStartWatch(early.watch)
     }
 }
 

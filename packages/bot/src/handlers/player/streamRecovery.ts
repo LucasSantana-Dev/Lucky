@@ -11,6 +11,7 @@ import type { QueueMetadata } from '../../types/QueueMetadata'
 import { isSameTrack } from './errorClassification'
 import { notifyChannelStreamFailed } from './streamFailureNotifier'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
+import { settlePlayStartWatch } from './playStartWatch'
 
 function describeYouTubeParserErrorType(
     youtubeErrorInfo: ReturnType<typeof analyzeYouTubeError>,
@@ -50,6 +51,9 @@ export function handleYouTubeParserError(
     ) {
         queue.node.skip()
     }
+    // No replacement follows a parser-error skip: a watching /play must not
+    // wait for one.
+    settlePlayStartWatch(queue.guild.id, queue.currentTrack, 'gave_up')
 }
 
 export async function recoverFromStreamExtractionError(
@@ -60,6 +64,20 @@ export async function recoverFromStreamExtractionError(
         message: `Problematic URL: ${currentTrack.url}`,
     })
 
+    // A /play waiting on this track owns the user-facing failure message:
+    // tell it instead of the channel so the user sees exactly one.
+    const giveUp = async (): Promise<void> => {
+        const watched = settlePlayStartWatch(
+            queue.guild.id,
+            currentTrack,
+            'gave_up',
+        )
+        if (!watched) {
+            await notifyChannelStreamFailed(queue, currentTrack.title)
+        }
+        queue.node.skip()
+    }
+
     const requestedByUser: User | undefined =
         currentTrack.requestedBy ??
         (queue.metadata as QueueMetadata | undefined)?.requestedBy ??
@@ -69,8 +87,7 @@ export async function recoverFromStreamExtractionError(
             message: 'Stream failed, skipping — no requestedBy to search with',
             data: { title: currentTrack.title, guildId: queue.guild.id },
         })
-        await notifyChannelStreamFailed(queue, currentTrack.title)
-        queue.node.skip()
+        await giveUp()
         return
     }
 
@@ -79,8 +96,7 @@ export async function recoverFromStreamExtractionError(
             message: 'Stream failed, track has no title — skipping recovery',
             data: { guildId: queue.guild.id },
         })
-        await notifyChannelStreamFailed(queue, currentTrack.title)
-        queue.node.skip()
+        await giveUp()
         return
     }
 
@@ -93,8 +109,7 @@ export async function recoverFromStreamExtractionError(
                 'Stream failed, YouTube recovery disabled (HOSTED_YOUTUBE_ENABLED=false), skipping',
             data: { title: currentTrack.title, guildId: queue.guild.id },
         })
-        await notifyChannelStreamFailed(queue, currentTrack.title)
-        queue.node.skip()
+        await giveUp()
         return
     }
 
@@ -118,8 +133,7 @@ export async function recoverFromStreamExtractionError(
                     'Stream failed, YouTube recovery found nothing — skipping',
                 data: { title: currentTrack.title, guildId: queue.guild.id },
             })
-            await notifyChannelStreamFailed(queue, currentTrack.title)
-            queue.node.skip()
+            await giveUp()
             return
         }
 
@@ -130,6 +144,7 @@ export async function recoverFromStreamExtractionError(
         if (alternativeTrack) {
             queue.insertTrack(alternativeTrack, 0)
             queue.node.skip()
+            settlePlayStartWatch(queue.guild.id, currentTrack, 'recovered')
             providerHealthService.recordSuccess('youtube')
             debugLog({
                 message: 'Successfully recovered from stream extraction error',
@@ -148,8 +163,7 @@ export async function recoverFromStreamExtractionError(
                     : 'Stream failed, all YouTube alternatives already in queue — skipping',
                 data: { title: currentTrack.title, guildId: queue.guild.id },
             })
-            await notifyChannelStreamFailed(queue, currentTrack.title)
-            queue.node.skip()
+            await giveUp()
         }
     } finally {
         if (timeoutHandle !== undefined) {

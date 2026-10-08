@@ -165,6 +165,7 @@ jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
 }))
 
 import playCommand from './index'
+import { settlePlayStartWatch } from '../../../../handlers/player/playStartWatch'
 import { takeCommandOutcome } from '../../../../utils/monitoring/commandOutcome'
 
 function createInteraction(guildId: string | null) {
@@ -991,6 +992,16 @@ describe('play command: early reply and start failure (#2741)', () => {
                     new Error('Could not extract stream'),
                     track,
                 )
+                // Stream recovery searches, finds nothing and gives up later.
+                setTimeout(
+                    () =>
+                        settlePlayStartWatch(
+                            'guild-1',
+                            track as never,
+                            'gave_up',
+                        ),
+                    5,
+                )
                 return { track, searchResult }
             },
         )
@@ -1032,6 +1043,7 @@ describe('play command: early reply and start failure (#2741)', () => {
                     new Error('x'),
                     track,
                 )
+                settlePlayStartWatch('guild-1', track as never, 'gave_up')
                 return { track, searchResult }
             },
         )
@@ -1041,6 +1053,59 @@ describe('play command: early reply and start failure (#2741)', () => {
         expect(interaction.channel.send).toHaveBeenCalledWith({
             embeds: [expect.objectContaining({ type: 'error' })],
         })
+    })
+
+    it('keeps the queued reply when stream recovery starts a replacement', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.channel = { id: 'channel-1', send: jest.fn() }
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                client.player.events.emit(
+                    'playerError',
+                    queueOf('guild-1'),
+                    new Error('Could not extract stream'),
+                    track,
+                )
+                setTimeout(
+                    () =>
+                        settlePlayStartWatch(
+                            'guild-1',
+                            track as never,
+                            'recovered',
+                        ),
+                    5,
+                )
+                return { track, searchResult }
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+
+        // A replacement plays, so no failure message of any kind.
+        expect(interaction.editReply).not.toHaveBeenCalled()
+        expect(interaction.channel.send).not.toHaveBeenCalled()
+        expect(createErrorEmbedMock).not.toHaveBeenCalled()
+        expect(takeCommandOutcome(interaction)).toBeUndefined()
+        expect(recordContributionMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('closes the watch so a later failure of the same track is not swallowed', async () => {
+        const interaction = createInteraction('guild-1')
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                return { track, searchResult }
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+
+        // Recovery for this track later (queue advance) must find no watcher
+        // and keep notifying the channel itself.
+        expect(settlePlayStartWatch('guild-1', track as never, 'gave_up')).toBe(
+            false,
+        )
     })
 
     it('ignores a stream failure that belongs to another guild or track', async () => {
