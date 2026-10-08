@@ -123,8 +123,10 @@ class Board:
         ]
         templating = [{"name": n, "type": "datasource", "query": q, "regex": r, "hide": 2, "refresh": 1,
                        "current": {}, "options": [], "includeAll": False, "multi": False} for n, q, r in ds_vars]
-        templating.append({"name": "excluidas", "type": "constant", "query": EXCLUDED, "hide": 2,
-                           "description": "Guildas do operador, de listagem e de teste: nunca contam como uso."})
+        uses_excl = any("$excluidas" in t.get("rawSql", "") for p in self.panels for t in p.get("targets", []))
+        if uses_excl:
+            templating.append({"name": "excluidas", "type": "constant", "query": EXCLUDED, "hide": 2,
+                               "description": "Guildas do operador, de listagem e de teste: nunca contam como uso."})
         for i, p in enumerate(self.panels, start=1):
             p["id"] = i
         return {
@@ -212,9 +214,11 @@ def negocio():
            desc="Guildas que entraram entre 8 e 28 dias atrás e ainda tocaram ou usaram comando a partir do dia 8. Meta: 15%.")
     b.stat("Servidores com o Lucky", prom('max(lucky_bot_guilds_total{state="active"})', instant=True), w=4)
     b.stat("Entraram (período)", sql(
-        "SELECT count(*) AS \"Entradas\" FROM guild_membership_events WHERE kind = 'JOIN' AND $__timeFilter(\"occurredAt\")"), w=3)
+        f"SELECT count(*) AS \"Entradas\" FROM guild_membership_events WHERE kind = 'JOIN' AND $__timeFilter(\"occurredAt\") "
+        f"AND \"guildDiscordId\" NOT IN {EXCL}"), w=3)
     b.stat("Saíram (período)", sql(
-        "SELECT count(*) AS \"Saídas\" FROM guild_membership_events WHERE kind = 'LEAVE' AND $__timeFilter(\"occurredAt\")"), w=3,
+        f"SELECT count(*) AS \"Saídas\" FROM guild_membership_events WHERE kind = 'LEAVE' AND $__timeFilter(\"occurredAt\") "
+        f"AND \"guildDiscordId\" NOT IN {EXCL}"), w=3,
         th=thresholds((GREEN, 0), (ORANGE, 1)))
     b.add("timeseries", "WAG por semana (últimas 4 semanas)", [sql(
         f"SELECT date_trunc('week', t) AS time, count(DISTINCT g) AS \"Guildas ativas\" FROM {ACTIVITY} a "
@@ -249,7 +253,7 @@ def negocio():
     b.add("timeseries", "Entradas e saídas de servidores por dia", [sql(
         "SELECT date_trunc('day', \"occurredAt\") AS time, count(*) FILTER (WHERE kind = 'JOIN') AS \"Entraram\", "
         "-count(*) FILTER (WHERE kind = 'LEAVE') AS \"Saíram\" FROM guild_membership_events "
-        "WHERE $__timeFilter(\"occurredAt\") GROUP BY 1 ORDER BY 1", "time_series")],
+        f"WHERE $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN {EXCL} GROUP BY 1 ORDER BY 1", "time_series")],
         w=12, h=9, custom={**BARS, "stacking": {"mode": "none"}}, options=TS_OPTS,
         overrides=[{"matcher": {"id": "byName", "options": "Saíram"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": RED}}]},
                    {"matcher": {"id": "byName", "options": "Entraram"}, "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": GREEN}}]}],

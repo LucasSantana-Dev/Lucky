@@ -374,7 +374,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT count(*) AS \"Entradas\" FROM guild_membership_events WHERE kind = 'JOIN' AND $__timeFilter(\"occurredAt\")",
+                    "rawSql": "SELECT count(*) AS \"Entradas\" FROM guild_membership_events WHERE kind = 'JOIN' AND $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -417,7 +417,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT count(*) AS \"Saídas\" FROM guild_membership_events WHERE kind = 'LEAVE' AND $__timeFilter(\"occurredAt\")",
+                    "rawSql": "SELECT count(*) AS \"Saídas\" FROM guild_membership_events WHERE kind = 'LEAVE' AND $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -737,7 +737,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT date_trunc('day', \"occurredAt\") AS time, count(*) FILTER (WHERE kind = 'JOIN') AS \"Entraram\", -count(*) FILTER (WHERE kind = 'LEAVE') AS \"Saíram\" FROM guild_membership_events WHERE $__timeFilter(\"occurredAt\") GROUP BY 1 ORDER BY 1",
+                    "rawSql": "SELECT date_trunc('day', \"occurredAt\") AS time, count(*) FILTER (WHERE kind = 'JOIN') AS \"Entraram\", -count(*) FILTER (WHERE kind = 'LEAVE') AS \"Saíram\" FROM guild_membership_events WHERE $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
                     "format": "time_series",
                     "rawQuery": true,
                     "editorMode": "code",

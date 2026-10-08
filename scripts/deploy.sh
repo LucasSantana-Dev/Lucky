@@ -740,8 +740,6 @@ if [[ "$_render_optional" == "true" ]]; then
 fi
 
 log "Starting database services..."
-# External network shared with the homelab Grafana (docker-compose.yml, lucky-db-ro).
-docker network inspect lucky-db-ro >/dev/null 2>&1 || docker network create lucky-db-ro >/dev/null
 docker_compose up -d postgres redis
 
 log "Waiting for PostgreSQL to accept connections..."

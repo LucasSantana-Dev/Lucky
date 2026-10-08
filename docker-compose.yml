@@ -588,9 +588,8 @@ networks:
     lucky-monitoring:
         name: lucky-monitoring
         driver: bridge
-    # External network holding only postgres, joined by the homelab Grafana
-    # for its read-only Postgres datasource. Created by scripts/deploy.sh
-    # (docker network create) so either side can start first.
+    # Holds only postgres. The homelab Grafana joins it as `external: true`
+    # for its read-only Postgres datasource (observability/postgres/grafana-ro.sql).
     lucky-db-ro:
         name: lucky-db-ro
-        external: true
+        driver: bridge

@@ -132,8 +132,8 @@ and `lucky-sistema`. They reference datasources through hidden datasource
 variables, so the same JSON loads here and in the homelab Grafana (which
 mounts this directory from the host checkout). The Postgres panels need the
 `grafana_ro` role (`observability/postgres/grafana-ro.sql`) and a Postgres
-datasource; this profile does not provision one yet, so those panels stay
-empty here.
+datasource, and the Sentry panels need a Sentry datasource; this profile
+provisions neither yet, so those panels stay empty here.
 
 No panel requires the viewer to read or write PromQL; see
 `docs/observability.md` for the plain-language guide and the alert runbook.
