@@ -46,7 +46,6 @@ jest.mock('@lucky/shared/services', () => ({
         getStats: jest.fn(),
     },
     autoModService: { getSettings: jest.fn() },
-    customCommandService: { getCommand: jest.fn() },
     autoMessageService: { getWelcomeMessage: jest.fn() },
     serverLogService: {
         createLog: jest.fn(),

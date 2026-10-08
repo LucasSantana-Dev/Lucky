@@ -16,7 +16,6 @@ import { setupRoleGroupsRoutes } from './roleGroups'
 import { setupRbacRoutes } from './rbac'
 import { setupGuildAutomationRoutes } from './guildAutomation'
 import { setupLevelsRoutes } from './levels'
-import { setupStarboardRoutes } from './starboard'
 import { setupMusicRoutes } from './music'
 import { setupArtistsRoutes } from './artists'
 import { setupInternalNotifyRoutes } from './internalNotify'
@@ -56,7 +55,6 @@ const guildGuardConfigs: GuildGuardConfig[] = [
     { path: '/api/guilds/:guildId/moderation', module: 'moderation' },
     { path: '/api/guilds/:guildId/automod', module: 'moderation' },
     { path: '/api/guilds/:guildId/logs', module: 'moderation' },
-    { path: '/api/guilds/:guildId/commands', module: 'automation' },
     { path: '/api/guilds/:guildId/automessages', module: 'automation' },
     { path: '/api/guilds/:guildId/embeds', module: 'automation' },
     { path: '/api/guilds/:guildId/reaction-roles', module: 'automation' },
@@ -82,7 +80,6 @@ const guildGuardConfigs: GuildGuardConfig[] = [
         mode: 'manage',
     },
     { path: '/api/guilds/:guildId/levels', module: 'settings' },
-    { path: '/api/guilds/:guildId/starboard', module: 'settings' },
     { path: '/api/guilds/:guildId/recommendations', module: 'settings' },
     { path: '/api/guilds/:guildId/role-groups', module: 'settings' },
     { path: '/api/guilds/:guildId/batch-jobs', module: 'moderation' },
@@ -106,7 +103,6 @@ const routeSetups = [
     setupRbacRoutes,
     setupGuildAutomationRoutes,
     setupLevelsRoutes,
-    setupStarboardRoutes,
     setupMusicRoutes,
     setupArtistsRoutes,
     setupSupportRoutes,

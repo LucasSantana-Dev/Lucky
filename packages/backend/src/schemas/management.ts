@@ -5,31 +5,21 @@ import {
     snowflakeId,
 } from './common'
 
-const commandNameParam = guildIdParam.extend({
-    name: z.string().min(1).max(32),
-})
-
 const autoModTemplateParam = guildIdParam.extend({
     templateId: z.string().regex(/^[a-z0-9-]{2,64}$/i, 'Invalid template ID'),
 })
 
-const autoModSettingsBody = z
-    .object({
-        enabled: z.boolean().optional(),
-        spamEnabled: z.boolean().optional(),
-        spamThreshold: z.number().int().min(1).max(100).optional(),
-        spamTimeWindow: z.number().int().min(1).max(60).optional(),
-        capsEnabled: z.boolean().optional(),
-        capsThreshold: z.number().int().min(1).max(100).optional(),
-        linksEnabled: z.boolean().optional(),
-        allowedDomains: z.array(z.string().max(200)).optional(),
-        invitesEnabled: z.boolean().optional(),
-        wordsEnabled: z.boolean().optional(),
-        bannedWords: z.array(z.string().max(100)).optional(),
-        exemptChannels: z.array(z.string()).optional(),
-        exemptRoles: z.array(z.string()).optional(),
-    })
-    .strict()
+// Not strict: an older dashboard may still send the removed text-filter
+// fields (caps, links, invites, words). Zod strips them so the PATCH keeps
+// working (#2716).
+const autoModSettingsBody = z.object({
+    enabled: z.boolean().optional(),
+    spamEnabled: z.boolean().optional(),
+    spamThreshold: z.number().int().min(1).max(100).optional(),
+    spamTimeWindow: z.number().int().min(1).max(60).optional(),
+    exemptChannels: z.array(z.string()).optional(),
+    exemptRoles: z.array(z.string()).optional(),
+})
 
 const guildAutomationManifestBody = z.unknown()
 
@@ -38,42 +28,6 @@ const guildAutomationRunBody = z
         actualState: z.unknown().optional(),
         allowProtected: z.boolean().optional(),
         completeChecklist: z.boolean().optional(),
-    })
-    .strict()
-
-// Smart-command config, validated per kind (ADR 2026-07-03). Only "job_post"
-// is defined today; "basic" ignores config.
-const jobPostConfig = z
-    .object({
-        targetChannelId: snowflakeId.nullish(),
-        notifyRoleLabel: z.string().max(100).optional(),
-    })
-    // Reject typo'd keys — a mis-typed targetChannelId would silently change
-    // where job posts land (cubic P2).
-    .strict()
-
-const smartTagFields = {
-    commandKind: z.enum(['basic', 'job_post']).optional(),
-    config: jobPostConfig.optional(),
-}
-
-const createCommandBody = z.object({
-    name: z
-        .string()
-        .min(1, 'Name is required')
-        .max(32)
-        .regex(/^[\w-]+$/, 'Name must be alphanumeric with dashes/underscores'),
-    response: z.string().min(1, 'Response is required').max(2000),
-    description: z.string().max(100).optional(),
-    ...smartTagFields,
-})
-
-const updateCommandBody = z
-    .object({
-        response: z.string().min(1).max(2000).optional(),
-        description: z.string().max(100).optional(),
-        enabled: z.boolean().optional(),
-        ...smartTagFields,
     })
     .strict()
 
@@ -230,13 +184,10 @@ const forumThreadSlugParam = guildIdParam.extend({
 
 export const managementSchemas = {
     guildIdParam,
-    commandNameParam,
     autoModTemplateParam,
     autoModSettingsBody,
     guildAutomationManifestBody,
     guildAutomationRunBody,
-    createCommandBody,
-    updateCommandBody,
     logsQuery,
     logsSearchQuery,
     logsSettingsBody,

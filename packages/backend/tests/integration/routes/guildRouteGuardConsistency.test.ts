@@ -91,12 +91,8 @@ jest.mock('@lucky/shared/services', () => ({
         getUserLogs: (...a: any[]) => mockGetUserLogs(...a),
         getStats: (...a: any[]) => mockGetStats(...a),
         logAutoModSettingsChange: jest.fn().mockResolvedValue(undefined),
-        logCustomCommandChange: jest.fn().mockResolvedValue(undefined),
     },
     serializeServerLog: (log: unknown) => log,
-    customCommandService: {
-        listCommands: jest.fn().mockResolvedValue([]),
-    },
     featureToggleService: {
         isEnabled: jest.fn().mockResolvedValue(true),
         setGuildFeatureToggle: jest.fn().mockResolvedValue(undefined),

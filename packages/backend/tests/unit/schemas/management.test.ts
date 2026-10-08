@@ -2,6 +2,33 @@ import { describe, test, expect } from '@jest/globals'
 import { managementSchemas as s } from '../../../src/schemas/management'
 
 describe('Management Schemas', () => {
+    describe('autoModSettingsBody', () => {
+        test('should accept spam settings', () => {
+            const result = s.autoModSettingsBody.safeParse({
+                enabled: true,
+                spamEnabled: true,
+                spamThreshold: 5,
+                spamTimeWindow: 10,
+            })
+            expect(result.success).toBe(true)
+        })
+
+        test('should strip removed text-filter fields sent by an old client', () => {
+            const result = s.autoModSettingsBody.safeParse({
+                spamEnabled: true,
+                capsEnabled: true,
+                capsThreshold: 70,
+                linksEnabled: true,
+                allowedDomains: ['example.com'],
+                invitesEnabled: true,
+                wordsEnabled: true,
+                bannedWords: ['spoiler'],
+            })
+            expect(result.success).toBe(true)
+            expect(result.data).toEqual({ spamEnabled: true })
+        })
+    })
+
     describe('createReactionRoleBody', () => {
         const validPayload = {
             channelId: '222222222222222222',
