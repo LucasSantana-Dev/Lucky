@@ -1,9 +1,7 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js'
 import Command from '../../../models/Command'
-import { batchJobService } from '@lucky/shared/services/batch'
-import type { BatchJobType } from '@lucky/shared/services/batch'
+import { batchJobService, isBatchJobType } from '@lucky/shared/services/batch'
 import { enqueueBatchJob } from '../../../utils/batch/batchQueue'
-import { hasExecutor } from '../../../workers/executorRegistry'
 import { errorLog, infoLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply'
 
@@ -84,7 +82,7 @@ export default new Command({
                 return
             }
 
-            if (!hasExecutor(job.jobType as BatchJobType)) {
+            if (!isBatchJobType(job.jobType)) {
                 await batchJobService.markCancelled(jobId)
                 await interactionReply({
                     interaction,

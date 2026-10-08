@@ -7,17 +7,13 @@ const batchJobServiceMock = {
     markCancelled: jest.fn(),
 }
 const enqueueBatchJobMock = jest.fn()
-const hasExecutorMock = jest.fn()
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
 const interactionReplyMock = jest.fn()
 
 jest.mock('@lucky/shared/services/batch', () => ({
     batchJobService: batchJobServiceMock,
-}))
-
-jest.mock('../../../workers/executorRegistry', () => ({
-    hasExecutor: (...args: any[]) => hasExecutorMock(...args),
+    isBatchJobType: (value: string) => value !== 'channel_move_batch',
 }))
 
 jest.mock('../../../utils/batch/batchQueue', () => ({
@@ -86,7 +82,6 @@ describe('batchResume command', () => {
         batchJobServiceMock.markInProgress.mockResolvedValue(undefined)
         enqueueBatchJobMock.mockResolvedValue(undefined)
         batchJobServiceMock.markCancelled.mockResolvedValue(undefined)
-        hasExecutorMock.mockReturnValue(true)
     })
 
     describe('metadata', () => {
@@ -303,8 +298,7 @@ describe('batchResume command', () => {
             expect(enqueueBatchJobMock).toHaveBeenCalledWith('job-123')
         })
 
-        test('cancels and rejects a job whose type has no executor', async () => {
-            hasExecutorMock.mockReturnValue(false)
+        test('cancels and rejects a legacy job type that is no longer supported', async () => {
             batchJobServiceMock.getById.mockResolvedValue(
                 createMockJob({
                     jobType: 'channel_move_batch',
@@ -323,6 +317,19 @@ describe('batchResume command', () => {
             expect(enqueueBatchJobMock).not.toHaveBeenCalled()
             const reply = interactionReplyMock.mock.calls[0][0] as any
             expect(reply.content.content).toContain('no longer supported')
+        })
+
+        test('resumes a known job type without any executor registered', async () => {
+            batchJobServiceMock.getById.mockResolvedValue(
+                createMockJob({ jobType: 'bulk_kick', status: 'failed' }),
+            )
+
+            const interaction = createInteraction({ userId: 'user-123' })
+
+            await batchResumeCommand.execute({ interaction } as any)
+
+            expect(batchJobServiceMock.markCancelled).not.toHaveBeenCalled()
+            expect(enqueueBatchJobMock).toHaveBeenCalledWith('job-123')
         })
 
         test('allows resuming failed job', async () => {

@@ -14,14 +14,23 @@ export interface ScopeConfig {
     }
 }
 
+/** Runtime list of all supported batch job types. */
+export const BATCH_JOB_TYPES = [
+    'bulk_ban',
+    'bulk_kick',
+    'bulk_warn',
+    'bulk_add_role',
+    'bulk_remove_role',
+    'purge_batch',
+] as const
+
 /** Union of all supported batch job types. */
-export type BatchJobType =
-    | 'bulk_ban'
-    | 'bulk_kick'
-    | 'bulk_warn'
-    | 'bulk_add_role'
-    | 'bulk_remove_role'
-    | 'purge_batch'
+export type BatchJobType = (typeof BATCH_JOB_TYPES)[number]
+
+/** Whether a stored job type string is still a supported batch job type. */
+export function isBatchJobType(value: string): value is BatchJobType {
+    return (BATCH_JOB_TYPES as readonly string[]).includes(value)
+}
 
 /** Union of all valid batch job statuses. */
 export type BatchJobStatus =
