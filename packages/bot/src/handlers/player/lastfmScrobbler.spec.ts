@@ -497,6 +497,25 @@ describe('lastfmScrobbler', () => {
             expect(mockLastFm.scrobble).not.toHaveBeenCalled()
         })
 
+        it('does not scrobble a 30 second track even when played longer than 30 seconds', async () => {
+            mockTrack.durationMS = 30_000
+
+            await scrobbleAfter(31)
+            await scrobbleAfter(60)
+
+            expect(mockLastFm.scrobble).not.toHaveBeenCalled()
+        })
+
+        it('scrobbles a 31 second track once half of it has played', async () => {
+            mockTrack.durationMS = 31_000
+
+            await scrobbleAfter(15)
+            expect(mockLastFm.scrobble).not.toHaveBeenCalled()
+
+            await scrobbleAfter(16)
+            expect(mockLastFm.scrobble).toHaveBeenCalledTimes(1)
+        })
+
         it('with unknown duration requires the 4 minute bound', async () => {
             mockTrack.durationMS = 0
 
@@ -507,7 +526,7 @@ describe('lastfmScrobbler', () => {
             expect(mockLastFm.scrobble).toHaveBeenCalledTimes(1)
         })
 
-        it('scrobbles without any check when playedSeconds is omitted (natural finish)', async () => {
+        it('scrobbles without any check when the play time is unknown (playedSeconds omitted)', async () => {
             mockTrack.durationMS = 20_000
 
             await scrobbleAfter(undefined)

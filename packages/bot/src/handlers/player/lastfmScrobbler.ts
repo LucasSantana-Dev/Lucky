@@ -145,9 +145,11 @@ export function meetsScrobbleRule(
 /**
  * Scrobble the currently-playing (or specified) track to Last.fm.
  * Uses the stored track start timestamp if available, otherwise uses current time.
- * When `playedSeconds` is given (a skip or a stop, where the play was cut
- * short), the scrobble is skipped unless Last.fm's rule holds. Omit it for a
- * natural finish, which satisfies the rule by definition.
+ * When `playedSeconds` is given (finish, skip and stop all pass it), the
+ * scrobble is skipped unless Last.fm's rule holds. A natural finish does not
+ * always satisfy it: a track of 30 seconds or less never does, and discord-
+ * player v7 also routes some manual skips through playerFinish. Omit it only
+ * when the play time is unknown, in which case nothing is judged.
  */
 export async function scrobbleCurrentTrackIfLastFm(
     queue: GuildQueue,

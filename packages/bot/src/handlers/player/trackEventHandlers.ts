@@ -37,6 +37,10 @@ import {
     logAutoplayOutcomeEval,
     setTrackPlayStart,
     takeTrackPlayStart,
+    resetPausedTime,
+    markPaused,
+    markResumed,
+    getPausedMs,
     guildRecentSkipCounts,
     OUTCOME_ACCEPT_PLAY_RATIO,
 } from './autoplayOutcomeTracking'
@@ -86,6 +90,12 @@ export const setupTrackHandlers = ({
     })
     player.events.on('emptyQueue', (queue: GuildQueue) => {
         scheduleIdleDisconnect(queue)
+    })
+    player.events.on('playerPause', (queue: GuildQueue) => {
+        markPaused(queue.guild.id, Date.now())
+    })
+    player.events.on('playerResume', (queue: GuildQueue) => {
+        markResumed(queue.guild.id, Date.now())
     })
     player.events.on('queueDelete', async (queue: GuildQueue) => {
         await handleQueueDelete(queue)
@@ -168,6 +178,7 @@ const handlePlayerStart = async (
     try {
         setTrackPlayStart(track, Date.now())
         recordedBySkip.delete(track)
+        resetPausedTime(queue.guild.id)
         const requestedQuery = (
             track.metadata as { requestedQuery?: string } | null
         )?.requestedQuery
@@ -231,27 +242,32 @@ async function replenishIfAutoplay(
     }
 }
 
-function playedSeconds(startTime: number | undefined): number | undefined {
-    return startTime === undefined
-        ? undefined
-        : Math.round((Date.now() - startTime) / 1000)
+/**
+ * Seconds actually played: wall-clock since playerStart minus the time spent
+ * paused. Read it at handler entry, before any await, so the pause total and
+ * the clock are sampled at the same instant as the start-time claim.
+ */
+function playedSeconds(
+    startTime: number | undefined,
+    guildId: string,
+): number | undefined {
+    if (startTime === undefined) return undefined
+    const now = Date.now()
+    const playedMs = now - startTime - getPausedMs(guildId, now)
+    return Math.max(0, Math.round(playedMs / 1000))
 }
 
 async function scrobbleAndRecord(
     queue: GuildQueue,
     track: Track | undefined,
     playDuration: number | undefined,
-    { cutShort = false }: { cutShort?: boolean } = {},
 ): Promise<void> {
     const trackToRecord = track ?? queue.currentTrack
     if (!trackToRecord) return
-    // A cut-short play (stop, queue delete) has to pass Last.fm's play-time
-    // rule; a natural finish satisfies it by definition.
-    await scrobbleCurrentTrackIfLastFm(
-        queue,
-        trackToRecord,
-        cutShort ? (playDuration ?? 0) : undefined,
-    )
+    // Every ending goes through Last.fm's play-time rule: discord-player v7
+    // routes some manual skips through playerFinish, so a finish is not
+    // proof of a full play. An unknown play time (lost start) is not judged.
+    await scrobbleCurrentTrackIfLastFm(queue, trackToRecord, playDuration)
     await addTrackToHistory(trackToRecord, queue.guild.id, { playDuration })
 }
 
@@ -263,10 +279,11 @@ const handlePlayerFinish = async (
         // Claimed before the awaits below: this event ends one play, and the
         // entry has to be taken while nothing else can interleave with it.
         const startTime = track ? takeTrackPlayStart(track) : undefined
+        const played = playedSeconds(startTime, queue.guild.id)
         const recordedOnSkip = track ? recordedBySkip.delete(track) : false
 
         if (!recordedOnSkip) {
-            await scrobbleAndRecord(queue, track, playedSeconds(startTime))
+            await scrobbleAndRecord(queue, track, played)
         }
 
         if (track) {
@@ -331,14 +348,13 @@ const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
         // Claimed before the awaits below, like the finish and skip paths.
         const startTime = track ? takeTrackPlayStart(track) : undefined
         if (!track || startTime === undefined) return
+        const played = playedSeconds(startTime, queue.guild.id)
 
         debugLog({
             message: 'Queue deleted mid-track, recording the interrupted play',
             data: { guildId: queue.guild.id, title: track.title },
         })
-        await scrobbleAndRecord(queue, track, playedSeconds(startTime), {
-            cutShort: true,
-        })
+        await scrobbleAndRecord(queue, track, played)
     } catch (error) {
         errorLog({ message: 'Error in queueDelete event:', error })
     }
@@ -353,6 +369,7 @@ const handlePlayerSkip = async (
         // Claimed before the awaits below, for the same reason as in
         // handlePlayerFinish.
         const startTime = track ? takeTrackPlayStart(track) : undefined
+        const played = playedSeconds(startTime, queue.guild.id)
 
         infoLog({
             message: 'Track skipped',
@@ -371,14 +388,10 @@ const handlePlayerSkip = async (
                 recordedBySkip.add(track)
                 await addTrackToHistory(track, queue.guild.id, {
                     skipped: true,
-                    playDuration: playedSeconds(startTime),
+                    playDuration: played,
                 })
             }
-            await scrobbleCurrentTrackIfLastFm(
-                queue,
-                track,
-                playedSeconds(startTime) ?? 0,
-            )
+            await scrobbleCurrentTrackIfLastFm(queue, track, played)
         }
 
         if (track) {
