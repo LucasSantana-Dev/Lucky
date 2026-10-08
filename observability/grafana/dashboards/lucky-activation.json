@@ -60,7 +60,7 @@
             "datasource": { "type": "loki", "uid": "loki" },
             "targets": [
                 {
-                    "expr": "sum(count_over_time({container_name=\"lucky-bot\"} | regexp `^(?:\\[[A-Z]+\\] )?(?P<j>\\{.*\\})$` | line_format `{{.j}}` | json | msg=\"onboarding\" | json data_delivered=\"data.delivered\" | data_delivered=\"true\" [$__range])) / clamp_min(sum(count_over_time({container_name=\"lucky-bot\"} | regexp `^(?:\\[[A-Z]+\\] )?(?P<j>\\{.*\\})$` | line_format `{{.j}}` | json | msg=\"onboarding\" [$__range])), 1)",
+                    "expr": "sum(count_over_time({container_name=\"lucky-bot\"} | regexp `^(?:\\[[A-Z]+\\] )?(?P<j>\\{.*\\})$` | line_format `{{.j}}` | json | msg=\"onboarding\" | json data_delivered=\"data.delivered\" | data_delivered=\"true\" [$__range])) / sum(count_over_time({container_name=\"lucky-bot\"} | regexp `^(?:\\[[A-Z]+\\] )?(?P<j>\\{.*\\})$` | line_format `{{.j}}` | json | msg=\"onboarding\" [$__range]))",
                     "refId": "A",
                     "datasource": { "type": "loki", "uid": "loki" },
                     "instant": true
