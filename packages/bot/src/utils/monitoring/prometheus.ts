@@ -146,7 +146,7 @@ export const commandDurationSeconds = new Histogram<'command'>({
 
 /**
  * Histogram: where /play spends its time, per stage. `stage` is one of
- * ytdlp_url|ytdlp_search|soundcloud|bridge_total and `outcome` is ok|fail.
+ * ytdlp_url|ytdlp_search|soundcloud_full|soundcloud_title|soundcloud_core|bridge_total and `outcome` is ok|fail.
  * Bounded labels only: no guild, user, track or query values.
  */
 export const playStageSeconds = new Histogram<'stage' | 'outcome'>({
