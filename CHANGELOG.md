@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.57.0...v2.58.0) (2026-10-08)
+
+
+### Features
+
+* **observability:** business, errors and system grafana dashboards ([#2724](https://github.com/LucasSantana-Dev/Lucky/issues/2724)) ([34e2b31](https://github.com/LucasSantana-Dev/Lucky/commit/34e2b311662a1c2ffb75a0598142fe6859821d7a))
+
+
+### Bug Fixes
+
+* **deps:** bump @sentry/react from 10.73.0 to 11.1.0 ([#2585](https://github.com/LucasSantana-Dev/Lucky/issues/2585)) ([194f824](https://github.com/LucasSantana-Dev/Lucky/commit/194f82438f913b98437005225174cbe4fd60cd56))
+
 ## [2.57.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.56.0...v2.57.0) (2026-10-08)
 
 
