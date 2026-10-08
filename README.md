@@ -63,7 +63,6 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 
 ### 📊 Engagement & Community
 - **Leveling system**: XP-based progression with role rewards
-- **Starboard**: Community-curated highlight board
 - **Last.fm integration**: Scrobble and share your listening activity
 - **Social commands**: Hug, pat, kiss, dance, bonk, wave — interactive fun
 - **Twitch notifications**: Stream alerts for your favorite streamers
