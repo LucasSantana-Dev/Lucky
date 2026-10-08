@@ -309,10 +309,43 @@ function logAllStagesExhausted(
     })
 }
 
+// discord-player runs the extractor chain for one track more than once when a
+// stream cannot be produced: `createGenericStream` hands the track to every
+// extractor (YoutubeExtractor.validate accepts any string, so it reaches
+// `createResilientStream`), and on failure `createFallbackStream` searches
+// YouTube for "title author" and calls `createResilientStream` again with the
+// search hit. Both calls happen inside one `extractors.context.provide(...)`
+// scope, which is the only identity they share. A pass that already failed
+// there is recorded here so the second call fails fast instead of repeating
+// every yt-dlp/SoundCloud attempt (#2740).
+const exhaustedPasses = new WeakSet<object>()
+
+function currentPassKey(ext: unknown): object | null {
+    try {
+        const scope = (
+            ext as { context?: { getContext?: () => unknown } } | undefined
+        )?.context?.getContext?.()
+        return scope !== null && typeof scope === 'object' ? scope : null
+    } catch {
+        return null
+    }
+}
+
 export async function createResilientStream(
     track: BridgeTrack,
-    _ext?: unknown,
+    ext?: unknown,
 ): Promise<Readable> {
+    const passKey = currentPassKey(ext)
+    if (passKey && exhaustedPasses.has(passKey)) {
+        // No stage metrics here: bridge_total must stay one observation per
+        // track, so a fast repeat cannot skew the /play latency percentiles.
+        debugLog({
+            message: 'Bridge: already exhausted for this play, failing fast',
+            data: { title: track.title },
+        })
+        throw new Error(`Bridge exhausted: no stream for "${track.title}"`)
+    }
+
     const startedAt = Date.now()
     try {
         const stream = await resolveResilientStream(track)
@@ -324,6 +357,7 @@ export async function createResilientStream(
         return stream
     } catch (error) {
         const durationMs = observeStage('bridge_total', startedAt, 'fail')
+        if (passKey) exhaustedPasses.add(passKey)
         debugLog({
             message: 'Bridge: failed',
             data: {
@@ -334,6 +368,21 @@ export async function createResilientStream(
         })
         throw error
     }
+}
+
+/**
+ * `onBeforeCreateStream` hook: Spotify has metadata only, so every Spotify
+ * track is resolved by the bridge. Running it from this hook skips
+ * discord-player's own pre-bridge work (SpotifyExtractor.stream ->
+ * requestBridge -> SoundCloudExtractor.bridge does a SoundCloud search and
+ * stream resolve before our bridge ever starts) and its generic/fallback
+ * second pass. Other sources return null and keep the normal extractor chain.
+ */
+export async function streamSpotifyTrackViaBridge(
+    track: Pick<Track, 'source'> & BridgeTrack,
+): Promise<Readable | null> {
+    if (track.source !== 'spotify') return null
+    return createResilientStream(track)
 }
 
 async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {

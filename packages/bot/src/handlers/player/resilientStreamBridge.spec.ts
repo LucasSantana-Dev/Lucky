@@ -80,7 +80,10 @@ jest.mock('./ytdlpBlockBreaker', () => ({
     recordYtDlpSuccess: () => mockRecordYtDlpSuccess(),
 }))
 
-import { createResilientStream } from './resilientStreamBridge'
+import {
+    createResilientStream,
+    streamSpotifyTrackViaBridge,
+} from './resilientStreamBridge'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -611,4 +614,142 @@ describe('yt-dlp block breaker wiring (#2653)', () => {
         expect(mockRecordYtDlpSuccess).toHaveBeenCalled()
         expect(mockRecordYtDlpFailure).not.toHaveBeenCalled()
     })
+})
+
+// ---------------------------------------------------------------------------
+// Once-per-track guarantee (#2740)
+// ---------------------------------------------------------------------------
+
+describe('bridge runs once per track', () => {
+    // discord-player runs generic stream + fallback stream for one track inside
+    // one extractors.context.provide() scope; the extractor exposes it through
+    // `ext.context.getContext()`.
+    const makeExt = (scope: object | null) => ({
+        context: { getContext: () => scope },
+    })
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockCleanTitle.mockReturnValue('Test Track')
+        mockCleanAuthor.mockReturnValue('Test Artist')
+        mockCleanSearchQuery.mockReturnValue('test track test artist')
+        mockExtractSongCore.mockReturnValue(null)
+        mockIsAvailable.mockReturnValue(true)
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt fail'))
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
+    })
+
+    const stageCount = (stage: string) =>
+        mockObserve.mock.calls.filter(
+            (c) => (c[0] as { stage: string }).stage === stage,
+        ).length
+
+    it('fails fast on the second call of an exhausted pass', async () => {
+        const ext = makeExt({ id: 'pass-1' })
+
+        await expect(createResilientStream(makeTrack(), ext)).rejects.toThrow(
+            'Bridge exhausted',
+        )
+        const ytCalls = mockStreamViaYtDlp.mock.calls.length
+        const scCalls = mockStreamViaSoundCloud.mock.calls.length
+        expect(ytCalls).toBeGreaterThan(0)
+
+        await expect(
+            createResilientStream(makeTrack({ title: 'Searched Hit' }), ext),
+        ).rejects.toThrow('Bridge exhausted')
+
+        expect(mockStreamViaYtDlp).toHaveBeenCalledTimes(ytCalls)
+        expect(mockStreamViaSoundCloud).toHaveBeenCalledTimes(scCalls)
+        // One bridge_total observation per track, not per call.
+        expect(stageCount('bridge_total')).toBe(1)
+    })
+
+    it('does not leak the exhausted state into a new play', async () => {
+        await expect(
+            createResilientStream(makeTrack(), makeExt({ id: 'pass-1' })),
+        ).rejects.toThrow('Bridge exhausted')
+
+        mockStreamViaYtDlp.mockResolvedValueOnce(fakeStream)
+        await expect(
+            createResilientStream(makeTrack(), makeExt({ id: 'pass-2' })),
+        ).resolves.toBe(fakeStream)
+    })
+
+    it('does not block a pass that succeeded', async () => {
+        const ext = makeExt({ id: 'pass-ok' })
+        mockStreamViaYtDlp.mockResolvedValueOnce(fakeStream)
+        await createResilientStream(makeTrack(), ext)
+
+        mockStreamViaYtDlp.mockResolvedValueOnce(fakeStream)
+        await expect(createResilientStream(makeTrack(), ext)).resolves.toBe(
+            fakeStream,
+        )
+    })
+
+    it('never guards calls without a pass scope', async () => {
+        for (const ext of [undefined, makeExt(null), {}]) {
+            mockStreamViaYtDlp.mockClear()
+            await expect(
+                createResilientStream(makeTrack(), ext),
+            ).rejects.toThrow('Bridge exhausted')
+            await expect(
+                createResilientStream(makeTrack(), ext),
+            ).rejects.toThrow('Bridge exhausted')
+            expect(mockStreamViaYtDlp).toHaveBeenCalledTimes(2)
+        }
+    })
+})
+
+describe('streamSpotifyTrackViaBridge', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockCleanTitle.mockReturnValue('Test Track')
+        mockCleanAuthor.mockReturnValue('Test Artist')
+        mockCleanSearchQuery.mockReturnValue('test track test artist')
+        mockIsAvailable.mockReturnValue(true)
+    })
+
+    const spotify = () => ({
+        ...makeTrack({ url: 'https://open.spotify.com/track/abc' }),
+        source: 'spotify' as const,
+    })
+
+    it('sends Spotify tracks straight to the bridge', async () => {
+        mockStreamViaYtDlpSearch.mockResolvedValueOnce(fakeStream)
+
+        await expect(streamSpotifyTrackViaBridge(spotify())).resolves.toBe(
+            fakeStream,
+        )
+
+        expect(mockStreamViaYtDlpSearch).toHaveBeenCalledTimes(1)
+        expect(mockObserve).toHaveBeenCalledWith(
+            { stage: 'bridge_total', outcome: 'ok' },
+            expect.any(Number),
+        )
+    })
+
+    it('rejects when the bridge is exhausted so the track is skipped', async () => {
+        mockStreamViaYtDlpSearch.mockRejectedValue(new Error('yt fail'))
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
+
+        await expect(streamSpotifyTrackViaBridge(spotify())).rejects.toThrow(
+            'Bridge exhausted',
+        )
+    })
+
+    it.each(['youtube', 'soundcloud', 'arbitrary'] as const)(
+        'leaves %s tracks to the normal extractor chain',
+        async (source) => {
+            await expect(
+                streamSpotifyTrackViaBridge({
+                    ...makeTrack(),
+                    source,
+                } as never),
+            ).resolves.toBeNull()
+
+            expect(mockStreamViaYtDlp).not.toHaveBeenCalled()
+            expect(mockStreamViaYtDlpSearch).not.toHaveBeenCalled()
+            expect(mockObserve).not.toHaveBeenCalled()
+        },
+    )
 })

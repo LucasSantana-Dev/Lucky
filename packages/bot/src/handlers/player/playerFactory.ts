@@ -1,4 +1,4 @@
-import { Player } from 'discord-player'
+import { Player, onBeforeCreateStream } from 'discord-player'
 import type { BaseExtractor } from 'discord-player'
 import {
     SoundCloudExtractor,
@@ -9,7 +9,10 @@ import {
 import { SpotifyExtractor } from 'discord-player-spotify'
 import type { CustomClient } from '../../types'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
-import { createResilientStream } from './resilientStreamBridge'
+import {
+    createResilientStream,
+    streamSpotifyTrackViaBridge,
+} from './resilientStreamBridge'
 import { refreshSoundCloudClientId } from './soundcloudMatcher'
 import { setExtractorDegraded } from './extractorHealth'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
@@ -21,6 +24,10 @@ type CreatePlayerParams = {
 export const createPlayer = ({ client }: CreatePlayerParams): Player => {
     try {
         infoLog({ message: 'Creating player...' })
+
+        // Global hook, read when a queue is created: Spotify tracks go
+        // straight to the bridge, once (#2740). Must run before any queue.
+        onBeforeCreateStream(streamSpotifyTrackViaBridge)
 
         const player = new Player(client)
         registerExtractors(player)
