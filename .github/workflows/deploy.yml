@@ -213,10 +213,11 @@ jobs:
                   run_id=$(echo "$run_info" | awk '{print $1}')
 
                   # Deploy as soon as the :<sha> images exist in ghcr instead of
-                  # waiting for the whole docker-publish run (Trivy, SARIF, smoke
-                  # tests, cache export still run and alert, but no longer gate).
-                  # The script aborts if the run fails or is cancelled before all
-                  # manifests exist. Lowercase: registry refs must be lowercase.
+                  # waiting for the whole docker-publish run (Trivy, SARIF, yt-dlp
+                  # smoke, cache export still run and alert, but no longer gate).
+                  # The bot "Verify ESM module load" step still gates, and the
+                  # script aborts if the run ends unsuccessfully at any point.
+                  # Lowercase: registry refs must be lowercase.
                   owner_lc="$(printf '%s' "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')"
                   RUN_ID="$run_id" COMMIT_SHA="$commit_sha" REPO="$REPO" \
                     IMAGE_PREFIX="ghcr.io/${owner_lc}/lucky" \
