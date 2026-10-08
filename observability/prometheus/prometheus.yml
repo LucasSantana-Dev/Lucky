@@ -27,6 +27,13 @@ scrape_configs:
     static_configs:
       - targets: ["backend:3000"]
 
+  # lucky-render sidecar (packages/render) serves /metrics on its own HTTP
+  # port 8080. Scraped by Docker service name; the service joins both
+  # `lucky-network` and `lucky-monitoring`, no host port needed.
+  - job_name: lucky-render
+    static_configs:
+      - targets: ["render:8080"]
+
   - job_name: node-exporter
     static_configs:
       - targets: ["node-exporter:9100"]

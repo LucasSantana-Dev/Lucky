@@ -4,6 +4,7 @@ type AsyncMock = jest.MockedFunction<(...args: any[]) => Promise<any>>
 const mockAggregate = jest.fn() as AsyncMock
 const mockCount = jest.fn() as AsyncMock
 const mockGroupBy = jest.fn() as AsyncMock
+const mockFindMany = jest.fn() as AsyncMock
 
 jest.mock('../utils/database/prismaClient', () => ({
     getPrismaClient: () => ({
@@ -11,11 +12,12 @@ jest.mock('../utils/database/prismaClient', () => ({
             aggregate: mockAggregate,
             count: mockCount,
             groupBy: mockGroupBy,
+            findMany: mockFindMany,
         },
     }),
 }))
 
-import { getWeeklyRecap } from './weeklyRecap'
+import { getRecapCardTracks, getWeeklyRecap } from './weeklyRecap'
 
 const GUILD = 'guild-1'
 const FROM = new Date('2026-10-04T18:00:00Z')
@@ -151,5 +153,95 @@ describe('getWeeklyRecap (#2678)', () => {
                 orderBy: [{ _count: { author: 'desc' } }, { author: 'asc' }],
             }),
         )
+    })
+})
+
+describe('getRecapCardTracks (#2693)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+    })
+
+    it('ranks like the embed and takes up to 25 tracks', async () => {
+        mockGroupBy.mockResolvedValue([])
+
+        await getRecapCardTracks(GUILD, FROM, TO)
+
+        expect(mockGroupBy).toHaveBeenCalledWith({
+            by: ['title', 'author'],
+            where: {
+                guildId: GUILD,
+                playedAt: { gte: FROM, lt: TO },
+                skipped: false,
+            },
+            _count: { _all: true },
+            orderBy: [
+                { _count: { title: 'desc' } },
+                { title: 'asc' },
+                { author: 'asc' },
+            ],
+            take: 25,
+        })
+        expect(mockFindMany).not.toHaveBeenCalled()
+    })
+
+    it('attaches the most recent non-null thumbnail with one extra query', async () => {
+        mockGroupBy.mockResolvedValue([
+            { title: 'A', author: 'X', _count: { _all: 4 } },
+            { title: 'B', author: 'Y', _count: { _all: 2 } },
+        ])
+        mockFindMany.mockResolvedValue([
+            {
+                title: 'A',
+                author: 'X',
+                thumbnail: 'https://i.ytimg.com/vi/a/1.jpg',
+            },
+        ])
+
+        const tracks = await getRecapCardTracks(GUILD, FROM, TO)
+
+        expect(tracks).toEqual([
+            {
+                title: 'A',
+                author: 'X',
+                plays: 4,
+                thumbnail: 'https://i.ytimg.com/vi/a/1.jpg',
+            },
+            { title: 'B', author: 'Y', plays: 2, thumbnail: null },
+        ])
+        expect(mockFindMany).toHaveBeenCalledTimes(1)
+        expect(mockFindMany).toHaveBeenCalledWith({
+            where: {
+                guildId: GUILD,
+                playedAt: { gte: FROM, lt: TO },
+                skipped: false,
+                thumbnail: { not: null },
+                OR: [
+                    { title: 'A', author: 'X' },
+                    { title: 'B', author: 'Y' },
+                ],
+            },
+            orderBy: { playedAt: 'desc' },
+            distinct: ['title', 'author'],
+            select: { title: true, author: true, thumbnail: true },
+        })
+    })
+
+    it('does not tell title/author pairs apart by joining them', async () => {
+        mockGroupBy.mockResolvedValue([
+            { title: 'a|b', author: 'c', _count: { _all: 1 } },
+            { title: 'a', author: 'b|c', _count: { _all: 1 } },
+        ])
+        mockFindMany.mockResolvedValue([
+            {
+                title: 'a',
+                author: 'b|c',
+                thumbnail: 'https://i.ytimg.com/vi/z/1.jpg',
+            },
+        ])
+
+        const tracks = await getRecapCardTracks(GUILD, FROM, TO)
+
+        expect(tracks[0].thumbnail).toBeNull()
+        expect(tracks[1].thumbnail).toBe('https://i.ytimg.com/vi/z/1.jpg')
     })
 })

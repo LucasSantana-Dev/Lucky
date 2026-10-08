@@ -1,6 +1,7 @@
 import { getPrismaClient } from '../utils/database/prismaClient'
 
 const TOP_N = 5
+const CARD_TOP_N = 25
 
 /**
  * What a guild listened to over one window. Versioned because it is also the
@@ -86,4 +87,66 @@ export async function getWeeklyRecap(
             plays: a._count._all,
         })),
     }
+}
+
+export interface RecapCardTrack {
+    title: string
+    author: string
+    plays: number
+    /** Most recent thumbnail URL in the window; null for rows written before thumbnails were stored. */
+    thumbnail: string | null
+}
+
+/**
+ * Up to 25 top tracks for the `lucky-render` collage (#2693), ranked exactly
+ * like the embed's list. Thumbnails come from one extra query, not one per
+ * track.
+ */
+export async function getRecapCardTracks(
+    guildId: string,
+    from: Date,
+    to: Date,
+): Promise<RecapCardTrack[]> {
+    const prisma = getPrismaClient()
+    const where = { guildId, playedAt: { gte: from, lt: to } }
+
+    const tracks = await prisma.trackHistory.groupBy({
+        by: ['title', 'author'],
+        where: { ...where, skipped: false },
+        _count: { _all: true },
+        orderBy: [
+            { _count: { title: 'desc' } },
+            { title: 'asc' },
+            { author: 'asc' },
+        ],
+        take: CARD_TOP_N,
+    })
+    if (tracks.length === 0) return []
+
+    const thumbs = await prisma.trackHistory.findMany({
+        where: {
+            ...where,
+            // A play that counts toward the ranking, not a skipped start.
+            skipped: false,
+            thumbnail: { not: null },
+            OR: tracks.map((t) => ({ title: t.title, author: t.author })),
+        },
+        orderBy: { playedAt: 'desc' },
+        distinct: ['title', 'author'],
+        select: { title: true, author: true, thumbnail: true },
+    })
+    // Keyed by a JSON pair: a delimiter join would let "a|b"+"c" collide
+    // with "a"+"b|c".
+    const key = (title: string, author: string) =>
+        JSON.stringify([title, author])
+    const byTrack = new Map(
+        thumbs.map((r) => [key(r.title, r.author), r.thumbnail]),
+    )
+
+    return tracks.map((t) => ({
+        title: t.title,
+        author: t.author,
+        plays: t._count._all,
+        thumbnail: byTrack.get(key(t.title, t.author)) ?? null,
+    }))
 }

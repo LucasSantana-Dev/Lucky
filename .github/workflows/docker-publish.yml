@@ -19,8 +19,12 @@ on:
             - 'CHANGELOG.md'
             - '.github/workflows/docker-publish.yml'
 
+# Ordinary main pushes share one group and cancel each other (only the newest
+# images matter). A release-please merge gets a group of its own: the release
+# deploy waits for the `:<release sha>` images, so a merge landing right after
+# the release must not cancel that build (#2705, v2.53.0 deploy aborted).
 concurrency:
-    group: ${{ github.workflow }}-${{ github.ref }}
+    group: "${{ github.workflow }}-${{ github.ref }}-${{ startsWith(github.event.head_commit.message, 'chore: release ') && github.sha || 'latest' }}"
     cancel-in-progress: true
 
 env:
@@ -56,6 +60,13 @@ jobs:
                     - service: nginx
                       dockerfile: Dockerfile.nginx
                       target: ''
+                    # Own build context (not repo root): the root .dockerignore
+                    # drops Dockerfile* and tests/, so the crate builds from
+                    # packages/render. No build target; single final stage.
+                    - service: render
+                      dockerfile: packages/render/Dockerfile
+                      target: ''
+                      context: packages/render
 
         steps:
             - name: Checkout
@@ -86,14 +97,17 @@ jobs:
               uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
               with:
                   images: ${{ env.IMAGE_PREFIX }}-${{ matrix.service }}
+                  # A release build runs outside the cancel group (see
+                  # concurrency) and can finish after a newer main build, so it
+                  # skips `latest`; deploys pull the `:<sha>` tag.
                   tags: |
                       type=sha,prefix=
-                      type=raw,value=latest
+                      type=raw,value=latest,enable=${{ !startsWith(github.event.head_commit.message, 'chore: release ') }}
 
             - name: Build and push
               uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
               with:
-                  context: .
+                  context: ${{ matrix.context || '.' }}
                   file: ${{ matrix.dockerfile }}
                   target: ${{ matrix.target || '' }}
                   push: true

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.54.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.53.0...v2.54.0) (2026-10-07)
+
+
+### Features
+
+* **bot:** recap card counter, render scrape and alerts ([#2704](https://github.com/LucasSantana-Dev/Lucky/issues/2704)) ([09fda46](https://github.com/LucasSantana-Dev/Lucky/commit/09fda463eb2255711149e47edc7677aa07d8f5d0))
+
+
+### Bug Fixes
+
+* **ci:** keep the release image build out of the cancel-in-progress group ([#2706](https://github.com/LucasSantana-Dev/Lucky/issues/2706)) ([2012ee4](https://github.com/LucasSantana-Dev/Lucky/commit/2012ee4aeef07e068a274419b7c661d4b3713452))
+
+## [2.53.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.52.0...v2.53.0) (2026-10-07)
+
+
+### Features
+
+* **bot:** post the weekly recap as a lucky-render image card ([#2703](https://github.com/LucasSantana-Dev/Lucky/issues/2703)) ([20bbe95](https://github.com/LucasSantana-Dev/Lucky/commit/20bbe95315b38e1959555ca0aa5c5e04129de959))
+* **render:** lucky-render rust sidecar for the weekly recap card ([#2699](https://github.com/LucasSantana-Dev/Lucky/issues/2699)) ([50241c7](https://github.com/LucasSantana-Dev/Lucky/commit/50241c73555e4cbed5c8ec1a3d99467b05f5cdab))
+
+
+### Bug Fixes
+
+* **shared:** record the thumbnail in track history ([#2701](https://github.com/LucasSantana-Dev/Lucky/issues/2701)) ([98677ba](https://github.com/LucasSantana-Dev/Lucky/commit/98677baecc3e1bbfa6b98e164c0bac21f4797502))
+
 ## [2.52.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.51.3...v2.52.0) (2026-10-07)
 
 

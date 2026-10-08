@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1440" font-family="Manrope, Noto Sans SC, Noto Sans Arabic, Noto Sans Hebrew, Noto Emoji, Noto Sans">
+<defs>
+<radialGradient id="aura" cx="0.18" cy="0.5" r="0.6"><stop offset="0" stop-color="#B84DF0" stop-opacity="0.28"/><stop offset="1" stop-color="#190428" stop-opacity="0"/></radialGradient>
+<linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1"><stop offset="0.5" stop-color="#190428" stop-opacity="0"/><stop offset="1" stop-color="#190428" stop-opacity="0.92"/></linearGradient>
+<linearGradient id="empty" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6E1A9E"/><stop offset="1" stop-color="#190428"/></linearGradient>
+<filter id="glow" x="-15%" y="-40%" width="130%" height="180%">
+<feGaussianBlur in="SourceAlpha" stdDeviation="12" result="b1"/><feFlood flood-color="#B84DF0"/><feComposite in2="b1" operator="in" result="g1"/>
+<feGaussianBlur in="SourceAlpha" stdDeviation="4" result="b2"/><feFlood flood-color="#CF7CF6"/><feComposite in2="b2" operator="in" result="g2"/>
+<feMerge><feMergeNode in="g1"/><feMergeNode in="g2"/><feMergeNode in="SourceGraphic"/></feMerge>
+</filter>
+</defs>
+<rect width="100%" height="100%" fill="#190428"/>
+<rect width="1200" height="240" fill="url(#aura)"/>
+<text x="52" y="64" font-family="Bungee" font-size="18" letter-spacing="2" fill="#F6C85F">WEEKLY RECAP</text>
+<text x="40" y="152" font-family="Neonderthaw" font-size="104" fill="#FFF5FF" filter="url(#glow)">Lucky</text>
+<text x="52" y="222" font-size="20" font-weight="600" fill="#E3A6FA">⁨2026-10-04 → 2026-10-11⁩</text>
+<text x="540" y="150" font-family="Bungee, Manrope" font-size="44" fill="#FFF5FF">⁨62⁩</text><text x="540" y="182" font-family="Bungee, Manrope" font-size="13" letter-spacing="1" fill="#CF7CF6">⁨PLAYS · 9 SKIPPED⁩</text>
+<text x="770" y="150" font-family="Bungee, Manrope" font-size="44" fill="#FFF5FF">⁨5H 15M⁩</text><text x="770" y="182" font-family="Bungee, Manrope" font-size="13" letter-spacing="1" fill="#CF7CF6">⁨LISTENED⁩</text>
+<text x="990" y="150" font-family="Bungee, Manrope" font-size="44" fill="#FFF5FF">⁨60%⁩</text><text x="990" y="182" font-family="Bungee, Manrope" font-size="13" letter-spacing="1" fill="#CF7CF6">⁨AUTOPLAY⁩</text>
+<image x="0" y="240" width="600" height="600" preserveAspectRatio="xMidYMid slice" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGPY4fsBK2IYWhIA4ph9QRrlge0AAAAASUVORK5CYII="/>
+<rect x="0" y="240" width="600" height="600" fill="url(#scrim)"/>
+<rect x="10" y="250" width="85" height="85" rx="42" fill="#190428" fill-opacity="0.72"/><text x="52" y="309" font-family="Bungee" font-size="50" text-anchor="middle" fill="#F6C85F">1</text>
+<text x="14" y="783" font-size="42" font-weight="700" fill="#FFF5FF">⁨Track 1⁩</text>
+<text x="14" y="826" font-size="35" font-weight="600" fill="#E3A6FA">⁨Artist 1⁩</text><text x="586" y="826" font-size="35" font-weight="700" text-anchor="end" fill="#F6C85F">×12</text>
+<rect x="600" y="240" width="600" height="600" fill="url(#empty)"/><text x="900" y="600" font-family="Noto Emoji" font-size="150" text-anchor="middle" fill="#CF7CF6" fill-opacity="0.6">🎵</text>
+<rect x="600" y="240" width="600" height="600" fill="url(#scrim)"/>
+<rect x="610" y="250" width="85" height="85" rx="42" fill="#190428" fill-opacity="0.72"/><text x="652" y="309" font-family="Bungee" font-size="50" text-anchor="middle" fill="#F6C85F">2</text>
+<text x="614" y="783" font-size="42" font-weight="700" fill="#FFF5FF">⁨Track 2⁩</text>
+<text x="614" y="826" font-size="35" font-weight="600" fill="#E3A6FA">⁨Artist 2⁩</text><text x="1186" y="826" font-size="35" font-weight="700" text-anchor="end" fill="#F6C85F">×11</text>
+<rect x="0" y="840" width="600" height="600" fill="url(#empty)"/><text x="300" y="1200" font-family="Noto Emoji" font-size="150" text-anchor="middle" fill="#CF7CF6" fill-opacity="0.6">🎵</text>
+<rect x="0" y="840" width="600" height="600" fill="url(#scrim)"/>
+<rect x="10" y="850" width="85" height="85" rx="42" fill="#190428" fill-opacity="0.72"/><text x="52" y="909" font-family="Bungee" font-size="50" text-anchor="middle" fill="#F6C85F">3</text>
+<text x="14" y="1383" font-size="42" font-weight="700" fill="#FFF5FF">⁨Track 3⁩</text>
+<text x="14" y="1426" font-size="35" font-weight="600" fill="#E3A6FA">⁨Artist 3⁩</text><text x="586" y="1426" font-size="35" font-weight="700" text-anchor="end" fill="#F6C85F">×10</text>
+<image x="600" y="840" width="600" height="600" preserveAspectRatio="xMidYMid slice" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGM4X/MNK2IYWhIAU1CQQZUKojEAAAAASUVORK5CYII="/>
+<rect x="600" y="840" width="600" height="600" fill="url(#scrim)"/>
+<rect x="610" y="850" width="85" height="85" rx="42" fill="#190428" fill-opacity="0.72"/><text x="652" y="909" font-family="Bungee" font-size="50" text-anchor="middle" fill="#F6C85F">4</text>
+<text x="614" y="1383" font-size="42" font-weight="700" fill="#FFF5FF">⁨Track 4⁩</text>
+<text x="614" y="1426" font-size="35" font-weight="600" fill="#E3A6FA">⁨Artist 4⁩</text><text x="1186" y="1426" font-size="35" font-weight="700" text-anchor="end" fill="#F6C85F">×9</text>
+</svg>

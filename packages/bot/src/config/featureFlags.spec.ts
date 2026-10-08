@@ -15,6 +15,8 @@ jest.mock('@lucky/shared/utils', () => ({
 
 import {
     isHostedYoutubeEnabled,
+    isRecapRenderEnabled,
+    __resetRecapRenderWarnStateForTests,
     __resetHostedYoutubeWarnStateForTests,
 } from './featureFlags'
 
@@ -67,4 +69,49 @@ describe('isHostedYoutubeEnabled', () => {
             }),
         )
     })
+})
+
+describe('isRecapRenderEnabled (#2693)', () => {
+    const original = process.env.RECAP_RENDER_ENABLED
+
+    beforeEach(() => {
+        warnLogMock.mockClear()
+        __resetRecapRenderWarnStateForTests()
+    })
+
+    afterEach(() => {
+        if (original === undefined) delete process.env.RECAP_RENDER_ENABLED
+        else process.env.RECAP_RENDER_ENABLED = original
+    })
+
+    it('is on when unset, without a warning', () => {
+        delete process.env.RECAP_RENDER_ENABLED
+        expect(isRecapRenderEnabled()).toBe(true)
+        expect(warnLogMock).not.toHaveBeenCalled()
+    })
+
+    it.each(['false', '0', ' FALSE ', 'False'])('is off for %j', (value) => {
+        process.env.RECAP_RENDER_ENABLED = value
+        expect(isRecapRenderEnabled()).toBe(false)
+        expect(warnLogMock).not.toHaveBeenCalled()
+    })
+
+    it.each(['true', '1', ' TRUE '])('is on for recognized %j', (value) => {
+        process.env.RECAP_RENDER_ENABLED = value
+        expect(isRecapRenderEnabled()).toBe(true)
+        expect(warnLogMock).not.toHaveBeenCalled()
+    })
+
+    it.each(['flase', 'yes', ''])(
+        'treats unrecognized %j as enabled and warns once',
+        (value) => {
+            process.env.RECAP_RENDER_ENABLED = value
+            expect(isRecapRenderEnabled()).toBe(true)
+            expect(isRecapRenderEnabled()).toBe(true)
+            expect(warnLogMock).toHaveBeenCalledTimes(1)
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({ data: { value } }),
+            )
+        },
+    )
 })
