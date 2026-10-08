@@ -13,10 +13,13 @@ LOG_PREFIX="[deploy]"
 LOCK_DIR="/tmp/lucky-deploy.lock"
 LOCK_PID_FILE="$LOCK_DIR/pid"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-lucky}"
-SCRIPT_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# A re-exec'd copy runs from a temp file, so it gets the real scripts dir passed in.
+SCRIPT_DIR="${LUCKY_DEPLOY_SCRIPT_DIR:-$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 # Checksum of this script as launched. cksum is POSIX and ships in busybox
 # (the webhook image is alpine), unlike a guaranteed sha256sum.
 SELF_HASH="$(cksum <"${BASH_SOURCE[0]}" 2>/dev/null || true)"
+# The re-exec'd temp copy is already open in bash; unlink it so nothing leaks.
+[[ -n "${LUCKY_DEPLOY_TMP_SCRIPT:-}" ]] && rm -f "$LUCKY_DEPLOY_TMP_SCRIPT"
 
 export COMPOSE_PROJECT_NAME
 GITHUB_DEPLOY_STATUS_TOKEN="${GITHUB_DEPLOY_STATUS_TOKEN:-}"
@@ -367,6 +370,12 @@ acquire_lock() {
         return 0
     fi
 
+    # Re-exec keeps the PID, so a lock held by our own PID after the handoff
+    # is ours, never contention.
+    if [[ "${LUCKY_DEPLOY_REEXEC:-}" == "1" && "$(cat "$LOCK_PID_FILE" 2>/dev/null || true)" == "$$" ]]; then
+        return 0
+    fi
+
     local existing_pid=""
     if [[ -f "$LOCK_PID_FILE" ]]; then
         existing_pid=$(cat "$LOCK_PID_FILE" 2>/dev/null || true)
@@ -386,7 +395,7 @@ acquire_lock() {
 # executing the old copy from its open fd while compose files and service lists
 # come from the new checkout. If the synced script differs, re-exec it once.
 reexec_if_script_changed() {
-    local synced="$DEPLOY_DIR/scripts/deploy.sh" synced_hash
+    local synced="$DEPLOY_DIR/scripts/deploy.sh" synced_hash tmp_script
     [[ "${LUCKY_DEPLOY_REEXEC:-}" == "1" ]] && return 0
     [[ -z "$SELF_HASH" ]] && return 0
     if [[ ! -r "$synced" ]]; then
@@ -396,13 +405,22 @@ reexec_if_script_changed() {
     synced_hash="$(cksum <"$synced" 2>/dev/null || true)"
     [[ -z "$synced_hash" || "$synced_hash" == "$SELF_HASH" ]] && return 0
 
+    # Run a private copy so a later checkout change cannot swap the file under bash.
+    tmp_script="$(mktemp 2>/dev/null || true)"
+    if [[ -z "$tmp_script" ]] || ! cp "$synced" "$tmp_script" 2>/dev/null \
+        || [[ "$(cksum <"$tmp_script" 2>/dev/null || true)" != "$synced_hash" ]]; then
+        [[ -n "$tmp_script" ]] && rm -f "$tmp_script"
+        log "WARN: could not stage a verified copy of $synced; continuing with the running script"
+        return 0
+    fi
+
     log "Synced deploy.sh differs from the running copy; re-executing the synced script"
-    # The new process takes the lock and posts its own statuses, so drop ours
-    # first: no EXIT trap means no spurious failure status from this process.
+    # exec keeps this PID, so the lock stays held across the handoff and the new
+    # process recognises it in acquire_lock. Clearing the EXIT trap stops the old
+    # image from posting a failure status; the new one posts its own.
     trap - EXIT
-    rm -rf "$LOCK_DIR" 2>/dev/null || true
-    export LUCKY_DEPLOY_REEXEC=1
-    exec bash "$synced" "${ORIGINAL_ARGS[@]}"
+    export LUCKY_DEPLOY_REEXEC=1 LUCKY_DEPLOY_SCRIPT_DIR="${synced%/*}" LUCKY_DEPLOY_TMP_SCRIPT="$tmp_script"
+    exec bash "$tmp_script" "${ORIGINAL_ARGS[@]}"
 }
 
 post_deploy_status() {
