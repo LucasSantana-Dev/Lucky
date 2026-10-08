@@ -682,7 +682,7 @@ reexec_if_script_changed
 # containers are skipped.
 for prom in prometheus lucky-prometheus; do
     if docker kill -s HUP "$prom" >/dev/null 2>&1; then
-        log "Reloaded $prom so it picks up the synced alert rules"
+        log "Sent reload signal to $prom (a rule file it rejects keeps the old rules; check its logs)"
     fi
 done
 
