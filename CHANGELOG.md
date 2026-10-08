@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.56.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.55.0...v2.56.0) (2026-10-08)
+
+
+### Features
+
+* **bot:** drop the message content intent and dependent features ([#2717](https://github.com/LucasSantana-Dev/Lucky/issues/2717)) ([ba9b32d](https://github.com/LucasSantana-Dev/Lucky/commit/ba9b32d53293160ac3be4903a54c4bbb50046069))
+
 ## [2.55.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.54.0...v2.55.0) (2026-10-08)
 
 
