@@ -153,7 +153,7 @@ describe('createResilientStream', () => {
             await createResilientStream(makeTrack({ url: 'https://y/fb' }))
             expect(stageCalls()).toEqual([
                 { stage: 'ytdlp_url', outcome: 'fail' },
-                { stage: 'soundcloud', outcome: 'ok' },
+                { stage: 'soundcloud_full', outcome: 'ok' },
                 { stage: 'bridge_total', outcome: 'ok' },
             ])
         })
@@ -170,6 +170,7 @@ describe('createResilientStream', () => {
         })
 
         it('observes failures for every stage when all stages exhaust', async () => {
+            mockExtractSongCore.mockReturnValue('Core')
             mockStreamViaYtDlp.mockRejectedValue(new Error('yt fail'))
             mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
             await expect(
@@ -181,27 +182,39 @@ describe('createResilientStream', () => {
                 stage: 'bridge_total',
                 outcome: 'fail',
             })
-            expect(
-                calls.filter(
-                    (c) => c.stage === 'soundcloud' && c.outcome === 'fail',
-                ).length,
-            ).toBeGreaterThanOrEqual(2)
+            expect(calls.map((x) => x.stage)).toEqual([
+                'ytdlp_url',
+                'soundcloud_full',
+                'soundcloud_title',
+                'soundcloud_core',
+                'bridge_total',
+            ])
+            expect(calls.every((x) => x.outcome === 'fail')).toBe(true)
         })
 
-        it('adds durationMs and an incrementing pass to the bridge logs', async () => {
+        it('adds durationMs to the exhausted warning after the core failure', async () => {
+            mockExtractSongCore.mockReturnValue('Core')
+            mockStreamViaYtDlp.mockRejectedValue(new Error('yt fail'))
+            mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
+            await expect(
+                createResilientStream(makeTrack({ url: 'https://y/core' })),
+            ).rejects.toThrow('Bridge exhausted')
+            const exhausted = mockWarnLog.mock.calls
+                .map((c) => c[0] as { message: string; data: any })
+                .find((w) => w.message === 'Bridge: all stages exhausted')
+            expect(exhausted?.data.durationMs).toBeGreaterThanOrEqual(0)
+            expect(typeof exhausted?.data.durationMs).toBe('number')
+        })
+
+        it('adds durationMs to the bridge success log', async () => {
             mockStreamViaYtDlp.mockResolvedValue(fakeStream)
-            const track = makeTrack({ url: 'https://y/pass' })
-            await createResilientStream(track)
-            await createResilientStream(track)
-            const infoData = mockInfoLog.mock.calls.map(
-                (c) =>
-                    (c[0] as { data: { pass: number; durationMs: number } })
-                        .data,
+            await createResilientStream(makeTrack({ url: 'https://y/dur' }))
+            const data = mockInfoLog.mock.calls.map(
+                (c) => (c[0] as { data: { durationMs: number } }).data,
             )
-            expect(infoData.map((d) => d.pass)).toEqual([1, 2])
-            for (const d of infoData) {
-                expect(d.durationMs).toBeGreaterThanOrEqual(0)
-            }
+            expect(data).toHaveLength(1)
+            expect(data[0].durationMs).toBeGreaterThanOrEqual(0)
+            expect(data[0]).not.toHaveProperty('pass')
         })
 
         it('does not break the bridge when the histogram throws', async () => {
