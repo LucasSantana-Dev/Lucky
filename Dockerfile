@@ -107,12 +107,12 @@ WORKDIR /app
 
 COPY --from=manifests /m/ ./
 
-# No BuildKit cache mount: ephemeral CI runners never persist it, and the layer
-# cache above is what saves the install. Drop the npm cache so it is not
-# exported into the layer.
-RUN YOUTUBE_DL_SKIP_DOWNLOAD=1 \
-    npm ci --legacy-peer-deps --no-audit --no-fund && \
-    rm -rf /root/.npm
+# Constant-id cache mount (not keyed by version or lockfile hash, so release
+# commits are unaffected): shares downloaded tarballs between the two npm ci
+# stages within one build. A cache mount is not part of the layer.
+RUN --mount=type=cache,id=npm,target=/root/.npm,sharing=locked \
+    YOUTUBE_DL_SKIP_DOWNLOAD=1 \
+    npm ci --legacy-peer-deps --no-audit --no-fund
 
 # Checkpoint right after npm ci, before any source COPY or per-workspace
 # build runs: every workspace's node_modules is fully installed and final
@@ -218,9 +218,9 @@ COPY --from=manifests /m/ ./
 # it's a one-time cost per build, not per target — but fully decouples this
 # lineage from installed-deps: no more cross-stage read of a stage still
 # being written to elsewhere.
-RUN YOUTUBE_DL_SKIP_DOWNLOAD=1 \
-    npm ci --legacy-peer-deps --no-audit --no-fund && \
-    rm -rf /root/.npm
+RUN --mount=type=cache,id=npm,target=/root/.npm,sharing=locked \
+    YOUTUBE_DL_SKIP_DOWNLOAD=1 \
+    npm ci --legacy-peer-deps --no-audit --no-fund
 
 FROM deps-production-base AS deps-production-bot
 RUN npm prune --omit=dev --legacy-peer-deps

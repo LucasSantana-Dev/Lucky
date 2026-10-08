@@ -35,7 +35,7 @@ The trigger for the audit was external-contributor PRs exposing how much of the 
 ## Consequences
 
 - **Positive:** fewer runner-minutes per PR (three folded workflows' setup overhead gone, one frontend build gone, double lint gone); no weekly red noise from renovate-health; deploy logic testable locally (`scripts/deploy/*.sh` run under bash/shellcheck/mock servers); single source for the docker build invocation.
-- **Negative:** more indirection in `deploy.yml` (logic lives in scripts; reviewers must read two places); the composite action's `hashFiles('package-lock.json')` evaluation inside a composite `with:` block is a watch item (if `NPM_CACHE_KEY` arrives empty, hoist it to job env).
+- **Negative:** more indirection in `deploy.yml` (logic lives in scripts; reviewers must read two places); the composite action's `hashFiles('package-lock.json')` evaluation inside a composite `with:` block is a watch item (if `NPM_CACHE_KEY` arrives empty, hoist it to job env). Update 2026-10-08: `NPM_CACHE_KEY` was removed, so this watch item no longer applies.
 - **Gate safety:** all required check contexts (Quality Gates, Security, SonarCloud Scan, `madge / packages/bot`, Build — Docker images, Migrations apply on Postgres 18) are preserved by construction; no ruleset change was needed.
 
 ## Revisit when
