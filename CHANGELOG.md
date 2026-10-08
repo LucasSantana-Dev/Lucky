@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.1...v2.58.2) (2026-10-08)
+
+
+### Bug Fixes
+
+* **observability:** loki top lists and sentry total in grafana ([#2733](https://github.com/LucasSantana-Dev/Lucky/issues/2733)) ([62405fa](https://github.com/LucasSantana-Dev/Lucky/commit/62405fa849dfcf5c583cf9e93384e9b4a1e5b639))
+* **observability:** recap alert rules loadable by the homelab ([#2732](https://github.com/LucasSantana-Dev/Lucky/issues/2732)) ([f941e93](https://github.com/LucasSantana-Dev/Lucky/commit/f941e93b6810394c042896e0b845ef0ffa5a6b02))
+
 ## [2.58.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.0...v2.58.1) (2026-10-08)
 
 
