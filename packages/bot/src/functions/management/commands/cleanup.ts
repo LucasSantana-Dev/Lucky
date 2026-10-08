@@ -13,7 +13,7 @@ import {
     createErrorEmbed,
     createSuccessEmbed,
 } from '../../../utils/general/embeds'
-import { channelCleanupService, starboardService } from '@lucky/shared/services'
+import { channelCleanupService } from '@lucky/shared/services'
 import { errorLog, captureException } from '@lucky/shared/utils'
 import { requireGuild } from '../../../utils/command/commandValidations'
 import { assertDefined } from '@lucky/shared/utils/guards'
@@ -113,13 +113,12 @@ export default new Command({
 
 /**
  * Resolve the target channel and run the shared cleanup-config guards (exists,
- * text-based, bot has ManageMessages, not the starboard). Replies with the
+ * text-based, bot has ManageMessages). Replies with the
  * matching error and returns null on any failure; returns the channel on
  * success.
  */
 async function resolveValidatedCleanupChannel(
     interaction: ChatInputCommandInteraction,
-    guildId: string,
 ): Promise<GuildChannel | null> {
     const channel = interaction.options.getChannel(
         'channel',
@@ -162,23 +161,6 @@ async function resolveValidatedCleanupChannel(
         return null
     }
 
-    // Check if channel is the starboard
-    const starboardConfig = await starboardService.getConfig(guildId)
-    if (starboardConfig && starboardConfig.channelId === channel.id) {
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [
-                    createErrorEmbed(
-                        'Cannot Configure',
-                        'Cannot set cleanup for the starboard channel.',
-                    ),
-                ],
-            },
-        })
-        return null
-    }
-
     return channel
 }
 
@@ -187,7 +169,7 @@ async function handleSetInterval(
     guildId: string,
 ) {
     const minutes = interaction.options.getInteger('minutos', true)
-    const channel = await resolveValidatedCleanupChannel(interaction, guildId)
+    const channel = await resolveValidatedCleanupChannel(interaction)
     if (!channel) return
 
     try {
