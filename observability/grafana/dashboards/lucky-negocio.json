@@ -1213,7 +1213,7 @@
                 "pieType": "donut",
                 "reduceOptions": {
                     "calcs": ["lastNotNull"],
-                    "values": false
+                    "values": true
                 }
             },
             "id": 25
