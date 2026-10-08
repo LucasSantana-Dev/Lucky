@@ -1,0 +1,1402 @@
+{
+    "uid": "lucky-business",
+    "title": "Lucky: negócio",
+    "description": "Crescimento, uso, ativação e retenção do Lucky (Postgres, views analytics).",
+    "editable": false,
+    "schemaVersion": 39,
+    "version": 1,
+    "timezone": "browser",
+    "weekStart": "monday",
+    "time": {
+        "from": "now-30d",
+        "to": "now"
+    },
+    "refresh": "5m",
+    "tags": ["lucky"],
+    "links": [
+        {
+            "asDropdown": false,
+            "icon": "external link",
+            "includeVars": false,
+            "keepTime": true,
+            "tags": ["lucky"],
+            "targetBlank": false,
+            "title": "Dashboards do Lucky",
+            "type": "dashboards"
+        }
+    ],
+    "templating": {
+        "list": [
+            {
+                "type": "query",
+                "name": "guild",
+                "label": "Servidor",
+                "datasource": {
+                    "type": "grafana-postgresql-datasource",
+                    "uid": "lucky-analytics"
+                },
+                "query": "SELECT nome AS __text, guild_id AS __value FROM analytics.guilds ORDER BY ativo DESC, nome",
+                "refresh": 2,
+                "sort": 1,
+                "includeAll": true,
+                "multi": false,
+                "current": {
+                    "selected": true,
+                    "text": "Todos",
+                    "value": "$__all"
+                },
+                "options": [],
+                "hide": 0,
+                "allValue": "__all"
+            }
+        ]
+    },
+    "panels": [
+        {
+            "type": "text",
+            "title": "Como ler este painel",
+            "options": {
+                "mode": "markdown",
+                "content": "Números de **crescimento e uso** do Lucky, lidos direto do banco (tabelas de eventos do bot). O filtro **Servidor** no topo restringe os painéis de uso a um servidor; o período (canto superior direito) vale para tudo que diz \"no período\".\n\n* **Usuário/servidor ativo** = rodou pelo menos um comando do Lucky.\n* Os dias são contados no horário de Brasília.\n* Antes de 02/10/2026 o bot não registrava comandos: uso, ativação e erros só existem a partir daí (veja \"Desde quando há dados\" no fim da página)."
+            },
+            "id": 1,
+            "gridPos": {
+                "h": 5,
+                "w": 24,
+                "x": 0,
+                "y": 0
+            }
+        },
+        {
+            "id": 2,
+            "type": "row",
+            "title": "Visão geral",
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 5
+            },
+            "panels": []
+        },
+        {
+            "type": "stat",
+            "title": "Servidores com o Lucky agora",
+            "description": "Servidores em que o bot está hoje (entrou e não saiu). Normal: estável ou subindo. Atenção: queda de vários servidores no mesmo dia (veja \"Saídas\").",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT count(*) AS servidores FROM analytics.guilds WHERE ativo"
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "blue",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "id": 3,
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 0,
+                "y": 6
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Entradas no período",
+            "description": "Quantas vezes o Lucky foi adicionado a um servidor no período escolhido.",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT coalesce(sum(entradas), 0) AS entradas FROM analytics.guild_membership_daily WHERE $__timeFilter(inicio)"
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "id": 4,
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 6,
+                "y": 6
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Saídas no período",
+            "description": "Quantas vezes o Lucky foi removido de um servidor no período. Normal: bem menos que as entradas. Atenção: saídas maiores que entradas = encolhendo.",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT coalesce(sum(saidas), 0) AS saidas FROM analytics.guild_membership_daily WHERE $__timeFilter(inicio)"
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "id": 5,
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 12,
+                "y": 6
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Saldo no período",
+            "description": "Entradas menos saídas no período. Positivo = crescendo; negativo = perdendo servidores.",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT coalesce(sum(entradas) - sum(saidas), 0) AS saldo FROM analytics.guild_membership_daily WHERE $__timeFilter(inicio)"
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 0
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "id": 6,
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 18,
+                "y": 6
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Usuários ativos",
+            "description": "Pessoas diferentes que usaram algum comando: hoje, nos últimos 7 dias e nos últimos 30 dias (dias no horário de Brasília). Não depende do filtro de período.",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT usuarios_dia AS \"Hoje\", usuarios_7d AS \"7 dias\", usuarios_30d AS \"30 dias\" FROM analytics.active_daily ORDER BY dia DESC LIMIT 1"
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "value_and_name",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "blue",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "id": 7,
+            "gridPos": {
+                "h": 5,
+                "w": 8,
+                "x": 0,
+                "y": 11
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Servidores ativos",
+            "description": "Servidores diferentes em que alguém usou algum comando: hoje, 7 e 30 dias. Compare com \"Servidores com o Lucky agora\": a diferença são servidores que têm o bot mas não usam.",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT guildas_dia AS \"Hoje\", guildas_7d AS \"7 dias\", guildas_30d AS \"30 dias\" FROM analytics.active_daily ORDER BY dia DESC LIMIT 1"
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "value_and_name",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "blue",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "id": 8,
+            "gridPos": {
+                "h": 5,
+                "w": 8,
+                "x": 8,
+                "y": 11
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Votos no top.gg",
+            "description": "Pessoas diferentes que votaram no Lucky no top.gg nas últimas 24h, 7 e 30 dias. Votos sobem o bot no ranking do top.gg.",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT votaram_24h AS \"24 horas\", votaram_7d AS \"7 dias\", votaram_30d AS \"30 dias\" FROM analytics.topgg_votes_summary"
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "value_and_name",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "blue",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "id": 9,
+            "gridPos": {
+                "h": 5,
+                "w": 8,
+                "x": 16,
+                "y": 11
+            }
+        },
+        {
+            "id": 10,
+            "type": "row",
+            "title": "Crescimento",
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 16
+            },
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Entradas e saídas de servidor por dia",
+            "description": "Barras verdes = servidores que adicionaram o Lucky; vermelhas = que removeram. Atenção: um pico de saídas logo após um deploy.",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "time_series",
+                    "rawSql": "SELECT inicio AS time, entradas AS \"Entradas\", saidas AS \"Saídas\" FROM analytics.guild_membership_daily WHERE $__timeFilter(inicio) ORDER BY 1"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0,
+                    "decimals": 0
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Entradas"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "mode": "fixed",
+                                    "fixedColor": "green"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Saídas"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "mode": "fixed",
+                                    "fixedColor": "red"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "id": 11,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 17
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Servidores com o Lucky ao longo do tempo",
+            "description": "Total de servidores com o bot, medido a cada 30 s (guarda 30 dias). Normal: linha estável ou subindo.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "max(lucky_bot_guilds_total{state=\"active\"})",
+                    "legendFormat": "Servidores"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 15,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    }
+                },
+                "overrides": []
+            },
+            "id": 12,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 17
+            }
+        },
+        {
+            "id": 13,
+            "type": "row",
+            "title": "Uso",
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 25
+            },
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Usuários ativos por dia",
+            "description": "Linha \"Hoje\" = pessoas que usaram comando naquele dia; \"7 dias\" e \"30 dias\" = janelas móveis terminando naquele dia. Normal: 30 dias mais alto e mais estável que o diário.",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "time_series",
+                    "rawSql": "SELECT inicio AS time, usuarios_dia AS \"No dia\", usuarios_7d AS \"7 dias\", usuarios_30d AS \"30 dias\" FROM analytics.active_daily WHERE $__timeFilter(inicio) ORDER BY 1"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 15,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0,
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "id": 14,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 26
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Comandos por dia",
+            "description": "Total de comandos executados por dia (com o filtro de servidor). Uma queda brusca para zero com o bot no ar indica problema no registro de eventos (veja o painel de erros).",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "time_series",
+                    "rawSql": "SELECT inicio AS time, sum(execucoes) AS \"Comandos\" FROM analytics.commands_daily WHERE $__timeFilter(inicio) AND ('${guild:raw}' = '__all' OR guild_id = '${guild:raw}') GROUP BY 1 ORDER BY 1"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0,
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "id": 15,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 26
+            }
+        },
+        {
+            "type": "bargauge",
+            "title": "Comandos mais usados no período",
+            "description": "Os 15 comandos mais executados no período (com o filtro de servidor).",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT comando, sum(execucoes) AS execucoes FROM analytics.commands_daily WHERE $__timeFilter(inicio) AND ('${guild:raw}' = '__all' OR guild_id = '${guild:raw}') GROUP BY 1 ORDER BY 2 DESC LIMIT 15"
+                }
+            ],
+            "options": {
+                "orientation": "horizontal",
+                "displayMode": "basic",
+                "showUnfilled": true,
+                "valueMode": "color",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": true
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "min": 0,
+                    "noValue": "sem dados no período",
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "blue",
+                                "value": null
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "id": 16,
+            "gridPos": {
+                "h": 10,
+                "w": 12,
+                "x": 0,
+                "y": 34
+            }
+        },
+        {
+            "type": "table",
+            "title": "Servidores que mais usam o Lucky",
+            "description": "Servidores ordenados por comandos executados no período. \"Usuários\" = pessoas diferentes por dia, somadas (aproximado).",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT coalesce(g.nome, c.guild_id) AS \"Servidor\", sum(c.execucoes) AS \"Comandos\", count(DISTINCT c.dia) AS \"Dias com uso\", to_char(max(c.dia), 'DD/MM/YYYY') AS \"Último uso\" FROM analytics.commands_daily c LEFT JOIN analytics.guilds g ON g.guild_id = c.guild_id WHERE $__timeFilter(c.inicio) AND c.guild_id IS NOT NULL GROUP BY 1 ORDER BY 2 DESC LIMIT 20"
+                }
+            ],
+            "options": {
+                "showHeader": true,
+                "cellHeight": "sm",
+                "footer": {
+                    "show": false
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "—"
+                },
+                "overrides": []
+            },
+            "id": 17,
+            "gridPos": {
+                "h": 10,
+                "w": 12,
+                "x": 12,
+                "y": 34
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Músicas tocadas por dia",
+            "description": "Faixas que começaram a tocar por dia (com o filtro de servidor). É o uso principal do bot: queda forte com o bot no ar costuma ser problema de reprodução (veja \"Falhas do yt-dlp\" no painel de erros).",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "time_series",
+                    "rawSql": "SELECT inicio AS time, sum(musicas) AS \"Músicas\", sum(puladas) AS \"Puladas\" FROM analytics.music_daily WHERE $__timeFilter(inicio) AND ('${guild:raw}' = '__all' OR guild_id = '${guild:raw}') GROUP BY 1 ORDER BY 1"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0,
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "id": 18,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 44
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Horas de música no período",
+            "description": "Tempo total tocado no período (com o filtro de servidor).",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT coalesce(sum(segundos_ouvidos), 0) AS tempo FROM analytics.music_daily WHERE $__timeFilter(inicio) AND ('${guild:raw}' = '__all' OR guild_id = '${guild:raw}')"
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "blue",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "id": 19,
+            "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 12,
+                "y": 44
+            }
+        },
+        {
+            "type": "piechart",
+            "title": "De onde vêm as músicas",
+            "description": "Origem das faixas tocadas no período (YouTube, Spotify, etc).",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT fonte, sum(musicas) AS musicas FROM analytics.music_daily WHERE $__timeFilter(inicio) AND ('${guild:raw}' = '__all' OR guild_id = '${guild:raw}') GROUP BY 1 ORDER BY 2 DESC"
+                }
+            ],
+            "options": {
+                "pieType": "donut",
+                "legend": {
+                    "displayMode": "table",
+                    "placement": "right",
+                    "values": ["value", "percent"],
+                    "showLegend": true
+                },
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": true
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "sem dados no período"
+                },
+                "overrides": []
+            },
+            "id": 20,
+            "gridPos": {
+                "h": 8,
+                "w": 6,
+                "x": 18,
+                "y": 44
+            }
+        },
+        {
+            "id": 21,
+            "type": "row",
+            "title": "Ativação e retenção",
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 52
+            },
+            "panels": []
+        },
+        {
+            "type": "stat",
+            "title": "Servidores que usaram o bot na 1ª semana",
+            "description": "Dos servidores que adicionaram o Lucky no período (e já tiveram 7 dias para testar), quantos % rodaram pelo menos um comando em até 7 dias. Normal: acima de 50%. Atenção: abaixo de 30% = gente adiciona e não usa.",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT round(100.0 * count(*) FILTER (WHERE ativou_7d) / nullif(count(*), 0), 1) AS ativacao FROM analytics.guild_activation WHERE mensuravel AND $__timeFilter(entrou_em) AND (ativou_7d OR entrou_em <= now() - interval '7 days')"
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "noValue": "sem entradas mensuráveis",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 30
+                            },
+                            {
+                                "color": "green",
+                                "value": 50
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "id": 22,
+            "gridPos": {
+                "h": 6,
+                "w": 6,
+                "x": 0,
+                "y": 53
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Tempo até o primeiro comando (mediana)",
+            "description": "Metade dos servidores novos usou o primeiro comando em até este tempo depois de adicionar o bot. Quanto menor, melhor o onboarding.",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY horas_ate_ativar) * 3600 AS mediana FROM analytics.guild_activation WHERE mensuravel AND ativou_7d AND $__timeFilter(entrou_em)"
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "noValue": "sem entradas mensuráveis",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "blue",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "id": 23,
+            "gridPos": {
+                "h": 6,
+                "w": 6,
+                "x": 6,
+                "y": 53
+            }
+        },
+        {
+            "type": "table",
+            "title": "Retenção por semana de entrada",
+            "description": "Para cada semana, dos servidores que adicionaram o Lucky, quantos % ainda estavam com o bot 1, 7 e 30 dias depois. Vazio = a semana ainda não tem idade para medir (não é zero).",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT to_char(semana, 'DD/MM/YYYY') AS \"Semana\", entraram AS \"Entraram\", round(100.0 * ficaram_d1 / entraram, 0) AS \"Ficaram 1 dia\", round(100.0 * ficaram_d7 / entraram, 0) AS \"Ficaram 7 dias\", round(100.0 * ficaram_d30 / entraram, 0) AS \"Ficaram 30 dias\" FROM analytics.guild_retention_weekly WHERE inicio >= $__timeFrom()::timestamptz - interval '7 days' ORDER BY inicio DESC"
+                }
+            ],
+            "options": {
+                "showHeader": true,
+                "cellHeight": "sm",
+                "footer": {
+                    "show": false
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "—"
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "Ficaram.*"
+                        },
+                        "properties": [
+                            {
+                                "id": "unit",
+                                "value": "percent"
+                            },
+                            {
+                                "id": "noValue",
+                                "value": "ainda não"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "id": 24,
+            "gridPos": {
+                "h": 6,
+                "w": 12,
+                "x": 12,
+                "y": 53
+            }
+        },
+        {
+            "type": "table",
+            "title": "Servidores que entraram no período",
+            "description": "Cada vez que o Lucky foi adicionado, e quando o servidor rodou o primeiro comando. \"Usou na 1ª semana\" vazio = entrou antes do registro de comandos.",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT nome AS \"Servidor\", entrou_em AS \"Entrou em\", primeiro_comando_em AS \"Primeiro comando\", CASE WHEN NOT mensuravel THEN NULL WHEN ativou_7d THEN 'sim' WHEN entrou_em > now() - interval '7 days' THEN 'aguardando' ELSE 'não' END AS \"Usou na 1ª semana\" FROM analytics.guild_activation WHERE $__timeFilter(entrou_em) ORDER BY entrou_em DESC LIMIT 50"
+                }
+            ],
+            "options": {
+                "showHeader": true,
+                "cellHeight": "sm",
+                "footer": {
+                    "show": false
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "—"
+                },
+                "overrides": []
+            },
+            "id": 25,
+            "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 59
+            }
+        },
+        {
+            "id": 26,
+            "type": "row",
+            "title": "Desde quando há dados",
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 67
+            },
+            "panels": []
+        },
+        {
+            "type": "table",
+            "title": "Desde quando há dados",
+            "description": "Primeiro e último registro de cada fonte. Antes da data \"Desde\" os painéis mostram vazio porque o dado não existia, não porque o uso foi zero.",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT fonte AS \"Fonte\", date_trunc('second', desde) AS \"Desde\", date_trunc('second', ultimo) AS \"Último registro\" FROM analytics.data_coverage"
+                }
+            ],
+            "options": {
+                "showHeader": true,
+                "cellHeight": "sm",
+                "footer": {
+                    "show": false
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "—"
+                },
+                "overrides": []
+            },
+            "id": 27,
+            "gridPos": {
+                "h": 6,
+                "w": 12,
+                "x": 0,
+                "y": 68
+            }
+        },
+        {
+            "type": "text",
+            "title": "O que ainda não está aqui",
+            "options": {
+                "mode": "markdown",
+                "content": "* **Funil de convites** (de onde veio quem adicionou o bot): depende de registrar os cliques do `/invite` (fase P4 da ADR de observabilidade).\n* **Histórico completo de votos**: hoje o banco guarda só o último voto de cada pessoa, então dá para contar quem votou em 24h/7d/30d, mas não o gráfico de votos por dia (também P4).\n* **Assinaturas pagas**: ainda não existem em produção."
+            },
+            "id": 28,
+            "gridPos": {
+                "h": 6,
+                "w": 12,
+                "x": 12,
+                "y": 68
+            }
+        }
+    ]
+}

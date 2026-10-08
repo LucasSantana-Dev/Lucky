@@ -1,0 +1,1090 @@
+{
+    "uid": "lucky-metrics",
+    "title": "Lucky: métricas",
+    "description": "Desempenho do Lucky: ritmo e tempo de resposta dos comandos, API, render e processos.",
+    "editable": false,
+    "schemaVersion": 39,
+    "version": 1,
+    "timezone": "browser",
+    "weekStart": "monday",
+    "time": {
+        "from": "now-6h",
+        "to": "now"
+    },
+    "refresh": "30s",
+    "tags": ["lucky"],
+    "links": [
+        {
+            "asDropdown": false,
+            "icon": "external link",
+            "includeVars": false,
+            "keepTime": true,
+            "tags": ["lucky"],
+            "targetBlank": false,
+            "title": "Dashboards do Lucky",
+            "type": "dashboards"
+        }
+    ],
+    "templating": {
+        "list": [
+            {
+                "type": "query",
+                "name": "comando",
+                "label": "Comando",
+                "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                },
+                "query": {
+                    "query": "label_values(lucky_bot_commands_total, command)",
+                    "refId": "PrometheusVariableQueryEditor-VariableQuery",
+                    "qryType": 1
+                },
+                "refresh": 2,
+                "sort": 1,
+                "includeAll": true,
+                "multi": false,
+                "current": {
+                    "selected": true,
+                    "text": "Todos",
+                    "value": "$__all"
+                },
+                "options": [],
+                "hide": 0,
+                "allValue": ".*"
+            },
+            {
+                "type": "query",
+                "name": "rota",
+                "label": "Rota da API",
+                "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                },
+                "query": {
+                    "query": "label_values(lucky_backend_http_requests_total, route)",
+                    "refId": "PrometheusVariableQueryEditor-VariableQuery",
+                    "qryType": 1
+                },
+                "refresh": 2,
+                "sort": 1,
+                "includeAll": true,
+                "multi": false,
+                "current": {
+                    "selected": true,
+                    "text": "Todos",
+                    "value": "$__all"
+                },
+                "options": [],
+                "hide": 0,
+                "allValue": ".*"
+            }
+        ]
+    },
+    "panels": [
+        {
+            "type": "stat",
+            "title": "Comandos por minuto agora",
+            "description": "Média de comandos por minuto nos últimos 5 minutos.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum(rate(lucky_bot_commands_total{command=~\"$comando\"}[5m])) * 60 or vector(0)",
+                    "instant": true,
+                    "range": false
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "blue",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "decimals": 1
+                },
+                "overrides": []
+            },
+            "id": 1,
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 0,
+                "y": 0
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Tempo dos comandos (p95) agora",
+            "description": "95% dos comandos dos últimos 5 minutos responderam em até este tempo. Normal: abaixo de 2 s. Atenção: acima de 5 s (o Discord mostra \"pensando\").",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "histogram_quantile(0.95, sum by (le) (rate(lucky_bot_command_duration_seconds_bucket{command=~\"$comando\"}[5m])))",
+                    "instant": true,
+                    "range": false
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "noValue": "sem comandos",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 2
+                            },
+                            {
+                                "color": "red",
+                                "value": 5
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "decimals": 2
+                },
+                "overrides": []
+            },
+            "id": 2,
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 6,
+                "y": 0
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Tempo da API (p95) agora",
+            "description": "95% das requisições ao backend nos últimos 5 minutos responderam em até este tempo. Normal: abaixo de 0,5 s. Atenção: acima de 1 s.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "histogram_quantile(0.95, sum by (le) (rate(lucky_backend_http_request_duration_seconds_bucket[5m])))",
+                    "instant": true,
+                    "range": false
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "noValue": "sem requisições",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 0.5
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "decimals": 2
+                },
+                "overrides": []
+            },
+            "id": 3,
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 12,
+                "y": 0
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Conexão com o Discord",
+            "description": "Se o bot está conectado ao Discord agora. Desconectado com o bot ligado = processo travado: reinicie o serviço \"bot\".",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "lucky_bot_gateway_connected",
+                    "instant": true,
+                    "range": false
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "sem dados",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "DESCONECTADO",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "CONECTADO",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "overrides": []
+            },
+            "id": 4,
+            "gridPos": {
+                "h": 5,
+                "w": 6,
+                "x": 18,
+                "y": 0
+            }
+        },
+        {
+            "id": 5,
+            "type": "row",
+            "title": "Comandos do bot",
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 5
+            },
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Comandos por minuto (10 mais usados)",
+            "description": "Ritmo de uso por comando. Serve para ver horários de pico e qual comando puxa o uso.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "topk(10, sum by (command) (rate(lucky_bot_commands_total{command=~\"$comando\"}[$__rate_interval]))) * 60",
+                    "legendFormat": "{{command}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 15,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": []
+            },
+            "id": 6,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 6
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Tempo de resposta dos comandos",
+            "description": "Mediana (p50), p95 e p99 do tempo de resposta. p99 alto com p50 normal = alguns comandos lentos (ex.: busca de música); tudo alto = bot sobrecarregado.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "histogram_quantile(0.5, sum by (le) (rate(lucky_bot_command_duration_seconds_bucket{command=~\"$comando\"}[$__rate_interval])))",
+                    "legendFormat": "p50"
+                },
+                {
+                    "refId": "B",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "histogram_quantile(0.95, sum by (le) (rate(lucky_bot_command_duration_seconds_bucket{command=~\"$comando\"}[$__rate_interval])))",
+                    "legendFormat": "p95"
+                },
+                {
+                    "refId": "C",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "histogram_quantile(0.99, sum by (le) (rate(lucky_bot_command_duration_seconds_bucket{command=~\"$comando\"}[$__rate_interval])))",
+                    "legendFormat": "p99"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 15,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "line"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 2
+                            },
+                            {
+                                "color": "red",
+                                "value": 5
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "id": 7,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 6
+            }
+        },
+        {
+            "type": "bargauge",
+            "title": "Comandos mais lentos (p95 no período)",
+            "description": "Tempo p95 de cada comando no período, do mais lento para o mais rápido.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sort_desc(histogram_quantile(0.95, sum by (le, command) (rate(lucky_bot_command_duration_seconds_bucket{command=~\"$comando\"}[$__range]))))",
+                    "legendFormat": "{{command}}",
+                    "instant": true,
+                    "range": false
+                }
+            ],
+            "options": {
+                "orientation": "horizontal",
+                "displayMode": "basic",
+                "showUnfilled": true,
+                "valueMode": "color",
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": true
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "min": 0,
+                    "noValue": "sem dados no período",
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 2
+                            },
+                            {
+                                "color": "red",
+                                "value": 5
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "id": 8,
+            "gridPos": {
+                "h": 10,
+                "w": 24,
+                "x": 0,
+                "y": 14
+            }
+        },
+        {
+            "id": 9,
+            "type": "row",
+            "title": "Site e API (backend)",
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 24
+            },
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Requisições por segundo, por rota",
+            "description": "Quanto cada endereço da API é chamado.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum by (route) (rate(lucky_backend_http_requests_total{route=~\"$rota\"}[$__rate_interval]))",
+                    "legendFormat": "{{route}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "reqps",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 15,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": []
+            },
+            "id": 10,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 25
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Tempo de resposta p95, por rota",
+            "description": "95% das requisições de cada rota responderam em até este tempo. Atenção: rota acima de 1 s por vários minutos.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "histogram_quantile(0.95, sum by (le, route) (rate(lucky_backend_http_request_duration_seconds_bucket{route=~\"$rota\"}[$__rate_interval])))",
+                    "legendFormat": "{{route}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 15,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "line"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "id": 11,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 25
+            }
+        },
+        {
+            "id": 12,
+            "type": "row",
+            "title": "Serviço de render (card semanal)",
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 33
+            },
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Pedidos ao render por minuto",
+            "description": "Pedidos de desenho do card semanal, por resultado. Concentra-se no horário em que os resumos semanais são postados.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum by (outcome) (rate(lucky_render_requests_total[$__rate_interval])) * 60",
+                    "legendFormat": "{{outcome}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 15,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": []
+            },
+            "id": 13,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 34
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Tempo para desenhar o card",
+            "description": "Mediana e p95 do tempo de render. Atenção: p95 subindo perto do timeout do bot faz o resumo cair para texto.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "histogram_quantile(0.5, sum by (le) (rate(lucky_render_duration_seconds_bucket[$__rate_interval])))",
+                    "legendFormat": "p50"
+                },
+                {
+                    "refId": "B",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "histogram_quantile(0.95, sum by (le) (rate(lucky_render_duration_seconds_bucket[$__rate_interval])))",
+                    "legendFormat": "p95"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 15,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": []
+            },
+            "id": 14,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 34
+            }
+        },
+        {
+            "id": 15,
+            "type": "row",
+            "title": "Processos Node (bot e backend)",
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 42
+            },
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Atraso do event loop (p99)",
+            "description": "Quanto o processo demora para atender uma tarefa nova. Normal: poucos ms. Atenção: acima de 100 ms = processo engasgado (comandos e música atrasam).",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "nodejs_eventloop_lag_p99_seconds{job=~\"lucky-bot|lucky-backend\"}",
+                    "legendFormat": "{{job}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 15,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        },
+                        "thresholdsStyle": {
+                            "mode": "line"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0,
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 0.1
+                            }
+                        ]
+                    }
+                },
+                "overrides": []
+            },
+            "id": 16,
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 0,
+                "y": 43
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Uso de CPU",
+            "description": "Fração de um núcleo de CPU usada por cada processo (1 = um núcleo inteiro).",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "rate(process_cpu_seconds_total{job=~\"lucky-bot|lucky-backend\"}[$__rate_interval])",
+                    "legendFormat": "{{job}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 15,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": []
+            },
+            "id": 17,
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 8,
+                "y": 43
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Memória JavaScript (heap) usada",
+            "description": "Memória ocupada pelo JavaScript de cada processo. Subindo sem parar por horas = vazamento de memória (o alerta LuckyBotHeapHigh avisa antes de estourar).",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "nodejs_heap_size_used_bytes{job=~\"lucky-bot|lucky-backend\"}",
+                    "legendFormat": "{{job}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "bytes",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 15,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "none",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": []
+            },
+            "id": 18,
+            "gridPos": {
+                "h": 8,
+                "w": 8,
+                "x": 16,
+                "y": 43
+            }
+        }
+    ]
+}

@@ -1,0 +1,25 @@
+apiVersion: 1
+
+# Business and product dashboards read Lucky's own Postgres through the
+# read-only `grafana_ro` role, which can only SELECT the `analytics` views
+# (prisma/migrations/20261008160000_analytics_views). It never reaches tokens,
+# sessions, message content or payment payloads. The login password is set by
+# the one-shot `grafana-db-role` Compose service from GRAFANA_DB_PASSWORD.
+datasources:
+  - name: Lucky Postgres (analytics)
+    uid: lucky-analytics
+    type: grafana-postgresql-datasource
+    access: proxy
+    url: postgres:5432
+    user: grafana_ro
+    editable: false
+    jsonData:
+      database: discordbot
+      sslmode: disable
+      postgresVersion: 1800
+      timescaledb: false
+      maxOpenConns: 2
+      maxIdleConns: 1
+      connMaxLifetime: 14400
+    secureJsonData:
+      password: $GRAFANA_DB_PASSWORD

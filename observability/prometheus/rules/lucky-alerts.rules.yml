@@ -88,6 +88,24 @@ groups:
             The bot metrics endpoint (:9091) has been unreachable for 5 minutes.
             Cross-check the bot's Docker HEALTHCHECK (/healthz) and the heartbeat.
 
+  - name: lucky-command-events
+    rules:
+      - alert: LuckyCommandEventsDropped
+        # A single blip stays inside one 15m window and never lasts the
+        # 30m `for:`; only drops that keep happening fire.
+        expr: sum(increase(lucky_bot_command_events_dropped_total[15m])) > 0
+        for: 30m
+        labels:
+          severity: warning
+          service: lucky-bot
+        annotations:
+          summary: "Command events are being dropped before reaching Postgres"
+          description: >-
+            lucky_bot_command_events_dropped_total has kept rising for at least
+            30 minutes, so the business dashboard undercounts usage for this window. Check
+            the `reason` label (overflow, flush_failure, stopped, internal_error,
+            stop_timeout) and Postgres health; commands themselves keep working.
+
   - name: lucky-recap-render
     rules:
       - alert: LuckyRecapCardAllFellBack

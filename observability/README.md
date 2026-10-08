@@ -13,7 +13,8 @@ docker compose --profile observability up -d
 ```
 
 This starts `prometheus`, `alertmanager` (plus the one-shot
-`alertmanager-config` renderer), `grafana`, `node-exporter`, and `cadvisor` in
+`alertmanager-config` renderer), `grafana` (plus the one-shot
+`grafana-db-role`), `node-exporter`, and `cadvisor` in
 addition to whatever other profile(s)/services you already run. None of them
 bind a host port.
 
@@ -59,6 +60,7 @@ real secrets) are documented in `.env.example` at the repo root.
 | --- | --- | --- |
 | `GRAFANA_ADMIN_USER` | grafana | Initial admin username (`GF_SECURITY_ADMIN_USER`). |
 | `GRAFANA_ADMIN_PASSWORD` | grafana | Initial admin password (`GF_SECURITY_ADMIN_PASSWORD`). |
+| `GRAFANA_DB_PASSWORD` | grafana-db-role, grafana | Login password for the read-only `grafana_ro` Postgres role behind the business dashboards. |
 | `ALERT_EMAIL_TO` | alertmanager-config (templated into alertmanager.yml) | Where non-Watchdog alerts land. |
 | `WATCHDOG_PING_URL` | alertmanager, via a Compose secret (`watchdog_ping_url`) | Off-box healthchecks.io (or similar) ping URL. The Watchdog alert (always firing) hits this every minute; losing the ping is the alarm. |
 | `SMTP_HOST` | alertmanager-config (templated) | SMTP server host, combined with `SMTP_PORT` into `smtp_smarthost`. |
@@ -124,22 +126,43 @@ so no rule expression changes were needed.
 
 ## Dashboards (for a non-technical operator)
 
-Two dashboards, both tagged `lucky` and cross-linked at the top nav:
+All tagged `lucky`, cross-linked at the top nav, pt-BR titles and per-panel
+descriptions (normal vs worrying). Filters are dashboard variables, so no
+panel needs a query typed. Mounted at `/etc/grafana/dashboards` (not nested
+under the read-only provisioning mount: Docker cannot create a mountpoint
+inside a read-only bind, and Grafana would fail to start).
 
-- **`lucky-home.json` ("Lucky: comece aqui")**: set as the Grafana org home
-  dashboard via `GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH`. A "Pergunta →
-  Onde olhar" table in pt-BR plus stat panels (bot up, backend up, 5xx rate
-  now, disk free %, active-alerts count from `count(ALERTS{alertstate=
-  "firing", alertname!="Watchdog"})`).
-- **`lucky-health.json` ("Lucky: saúde do sistema")**: every panel has a
-  pt-BR `description` naming what's normal vs. worrying, using the same
-  thresholds as the alert rules, plus panels the original starter dashboard
-  didn't have: gateway-connected, per-container memory-vs-limit (needs
-  cAdvisor), container uptime-since-last-start (a practical stand-in for
-  "restart count", see friction #6 below), and guild totals/joins/leaves.
+- **`lucky-home.json` ("Lucky: comece aqui")**: the org home dashboard via
+  `GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH`. "Pergunta → Onde olhar" table
+  plus current stats (bot/backend up, active alerts, failed commands, 5xx,
+  disk, guilds, active users, tracks played).
+- **`lucky-business.json` ("Lucky: negócio")**: Postgres `analytics` views
+  only. Guild count and join/leave balance, DAU/WAU/MAU (users and guilds),
+  top commands and guilds, music played, top.gg voters, activation (first
+  command within 7 days of a join) and D1/D7/D30 membership retention by join
+  week. Guild dropdown.
+- **`lucky-errors.json` ("Lucky: erros")**: failed commands by command and
+  error class, 5xx by route, yt-dlp failures, recap card fallbacks, render
+  outcomes, dropped command events, and Loki error/warn logs with level,
+  free-text and correlationId filters. Links to Sentry for stack traces.
+- **`lucky-metrics.json` ("Lucky: métricas")**: command rate and latency
+  (p50/p95/p99, slowest commands), backend rate and p95 per route, render
+  rate and duration, Node event-loop lag, CPU and heap.
+- **`lucky-health.json` ("Lucky: saúde do sistema")** and
+  **`lucky-activation.json` ("Lucky: ativação e uso")**: unchanged.
 
-No panel requires the viewer to read or write PromQL; see
-`docs/observability.md` for the plain-language guide and the alert runbook.
+### Business data: `analytics` schema and `grafana_ro`
+
+`prisma/migrations/20261008160000_analytics_views` creates the `analytics`
+schema of aggregate views (no user ids, tokens, message content or payment
+payloads; days bucketed in America/Sao_Paulo) and the `grafana_ro` role
+(`NOLOGIN`, `USAGE` on `analytics`, `SELECT` on its views, nothing in
+`public`, `statement_timeout` 15s, 5 connections). The one-shot
+`grafana-db-role` service sets the role's login password from
+`GRAFANA_DB_PASSWORD` on every `up`; with the variable unset it does nothing
+and only the business panels show a datasource error. The datasource is
+`provisioning/datasources/postgres.yaml`. A new view needs its own `GRANT
+SELECT ... TO grafana_ro` in the migration that adds it.
 
 ## Friction log (P2a gate)
 

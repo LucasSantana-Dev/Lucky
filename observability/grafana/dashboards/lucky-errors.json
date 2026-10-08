@@ -1,0 +1,1035 @@
+{
+    "uid": "lucky-errors",
+    "title": "Lucky: erros",
+    "description": "Onde e por que o Lucky está falhando: comandos, API, música, card semanal e logs.",
+    "editable": false,
+    "schemaVersion": 39,
+    "version": 1,
+    "timezone": "browser",
+    "weekStart": "monday",
+    "time": {
+        "from": "now-24h",
+        "to": "now"
+    },
+    "refresh": "1m",
+    "tags": ["lucky"],
+    "links": [
+        {
+            "asDropdown": false,
+            "icon": "external link",
+            "includeVars": false,
+            "keepTime": true,
+            "tags": ["lucky"],
+            "targetBlank": false,
+            "title": "Dashboards do Lucky",
+            "type": "dashboards"
+        }
+    ],
+    "templating": {
+        "list": [
+            {
+                "type": "query",
+                "name": "comando",
+                "label": "Comando",
+                "datasource": {
+                    "type": "prometheus",
+                    "uid": "prometheus"
+                },
+                "query": {
+                    "query": "label_values(lucky_bot_commands_total, command)",
+                    "refId": "PrometheusVariableQueryEditor-VariableQuery",
+                    "qryType": 1
+                },
+                "refresh": 2,
+                "sort": 1,
+                "includeAll": true,
+                "multi": false,
+                "current": {
+                    "selected": true,
+                    "text": "Todos",
+                    "value": "$__all"
+                },
+                "options": [],
+                "hide": 0,
+                "allValue": ".*"
+            },
+            {
+                "type": "custom",
+                "name": "nivel",
+                "label": "Nível",
+                "query": "ERROR,WARN",
+                "includeAll": true,
+                "multi": true,
+                "allValue": "ERROR|WARN",
+                "current": {
+                    "selected": true,
+                    "text": ["Todos"],
+                    "value": ["$__all"]
+                },
+                "options": [],
+                "hide": 0
+            },
+            {
+                "type": "textbox",
+                "name": "busca",
+                "label": "Busca",
+                "description": "Texto livre procurado na linha de log (sem diferenciar maiúsculas).",
+                "query": "",
+                "current": {
+                    "text": "",
+                    "value": ""
+                },
+                "hide": 0
+            },
+            {
+                "type": "textbox",
+                "name": "correlationId",
+                "label": "Correlation ID",
+                "description": "Código de correlação de uma requisição ou comando.",
+                "query": "",
+                "current": {
+                    "text": "",
+                    "value": ""
+                },
+                "hide": 0
+            }
+        ]
+    },
+    "panels": [
+        {
+            "type": "stat",
+            "title": "Comandos que falharam",
+            "description": "Comandos que terminaram em erro do bot (não conta erro do usuário, como argumento inválido) no período. Normal: perto de zero.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum(increase(lucky_bot_commands_total{outcome=\"error\",command=~\"$comando\"}[$__range])) or vector(0)",
+                    "instant": true,
+                    "range": false
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 1
+                            },
+                            {
+                                "color": "red",
+                                "value": 20
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "id": 1,
+            "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 0,
+                "y": 0
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Taxa de falha dos comandos",
+            "description": "% dos comandos que falharam no período. Normal: abaixo de 1%. Atenção: acima de 5%.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum(increase(lucky_bot_commands_total{outcome=\"error\",command=~\"$comando\"}[$__range])) / clamp_min(sum(increase(lucky_bot_commands_total{command=~\"$comando\"}[$__range])), 1) or vector(0)",
+                    "instant": true,
+                    "range": false
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percentunit",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 0.01
+                            },
+                            {
+                                "color": "red",
+                                "value": 0.05
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "decimals": 1
+                },
+                "overrides": []
+            },
+            "id": 2,
+            "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 5,
+                "y": 0
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Erros 5xx do site/API",
+            "description": "Respostas de erro do servidor do backend (dashboard e API) no período. Normal: zero ou quase.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum(increase(lucky_backend_http_server_errors_total[$__range])) or vector(0)",
+                    "instant": true,
+                    "range": false
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 1
+                            },
+                            {
+                                "color": "red",
+                                "value": 50
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "id": 3,
+            "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 10,
+                "y": 0
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Registros de comando perdidos",
+            "description": "Eventos de comando que não chegaram ao banco (fila cheia ou banco fora). Normal: zero. Qualquer valor = os números do painel de negócio estão subcontados nesse período.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum(increase(lucky_bot_command_events_dropped_total[$__range])) or vector(0)",
+                    "instant": true,
+                    "range": false
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "id": 4,
+            "gridPos": {
+                "h": 5,
+                "w": 5,
+                "x": 15,
+                "y": 0
+            }
+        },
+        {
+            "type": "stat",
+            "title": "Fontes de música com problema",
+            "description": "Quantos extratores de música estão marcados como com defeito agora. Normal: 0. Acima de 0 = alguma fonte (ex.: YouTube) pode não tocar.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum(lucky_music_extractor_degraded) or vector(0)",
+                    "instant": true,
+                    "range": false
+                }
+            ],
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto",
+                "justifyMode": "center",
+                "orientation": "auto"
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "noValue": "0",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "id": 5,
+            "gridPos": {
+                "h": 5,
+                "w": 4,
+                "x": 20,
+                "y": 0
+            }
+        },
+        {
+            "id": 6,
+            "type": "row",
+            "title": "Comandos",
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 5
+            },
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Falhas por comando",
+            "description": "Quantos comandos falharam, por comando, ao longo do tempo. Uma linha que aparece de repente depois de um deploy aponta o comando quebrado.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum by (command) (increase(lucky_bot_commands_total{outcome=\"error\",command=~\"$comando\"}[$__rate_interval])) > 0",
+                    "legendFormat": "{{command}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": []
+            },
+            "id": 7,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 6
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Resultado dos comandos",
+            "description": "Todos os comandos por resultado: ok, erro do usuário (uso errado), negado (sem permissão) e falha do bot. Normal: quase tudo \"ok\".",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum by (outcome) (increase(lucky_bot_commands_total{command=~\"$comando\"}[$__rate_interval]))",
+                    "legendFormat": "{{outcome}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "ok"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "ok"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "user_error"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "erro do usuário"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "denied"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "negado"
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "error"
+                        },
+                        "properties": [
+                            {
+                                "id": "displayName",
+                                "value": "falha do bot"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "id": 8,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 6
+            }
+        },
+        {
+            "type": "table",
+            "title": "Tipos de falha mais comuns",
+            "description": "Falhas de comando agrupadas pelo tipo do erro, no período. Comece pelo topo: o mesmo tipo repetido em vários comandos costuma ser uma causa só (ex.: banco ou Discord fora).",
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "lucky-analytics"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "lucky-analytics"
+                    },
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "format": "table",
+                    "rawSql": "SELECT coalesce(classe_erro, 'desconhecido') AS \"Tipo de erro\", comando AS \"Comando\", sum(execucoes) AS \"Falhas\", to_char(max(dia), 'DD/MM/YYYY') AS \"Último dia\" FROM analytics.commands_daily WHERE resultado = 'error' AND $__timeFilter(inicio) AND ('${comando:raw}' = '.*' OR comando = '${comando:raw}') GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 25"
+                }
+            ],
+            "options": {
+                "showHeader": true,
+                "cellHeight": "sm",
+                "footer": {
+                    "show": false
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "—"
+                },
+                "overrides": []
+            },
+            "id": 9,
+            "gridPos": {
+                "h": 8,
+                "w": 24,
+                "x": 0,
+                "y": 14
+            }
+        },
+        {
+            "id": 10,
+            "type": "row",
+            "title": "Site/API, música e card semanal",
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 22
+            },
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Erros 5xx por rota",
+            "description": "Erros do servidor por endereço da API. A rota com mais erros é por onde começar a investigar.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum by (method, route) (increase(lucky_backend_http_server_errors_total[$__rate_interval])) > 0",
+                    "legendFormat": "{{method}} {{route}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": []
+            },
+            "id": 11,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 23
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Falhas do yt-dlp por tipo",
+            "description": "Falhas ao baixar o áudio. \"forbidden\" = YouTube bloqueou (403); \"timeout\" = demorou demais; \"empty\" = veio vazio. Atenção: \"forbidden\" contínuo significa que o YouTube está bloqueando o servidor.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum by (type) (increase(lucky_bot_extraction_failures_total[$__rate_interval]))",
+                    "legendFormat": "{{type}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": []
+            },
+            "id": 12,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 23
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Card do resumo semanal: imagem ou texto",
+            "description": "Resumos semanais postados como imagem (normal) e os que caíram para texto, por motivo. Atenção: todos caindo para texto = o serviço de render está com problema.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum(increase(lucky_bot_recap_card_posted_total[$__rate_interval]))",
+                    "legendFormat": "postado como imagem"
+                },
+                {
+                    "refId": "B",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum by (reason) (increase(lucky_bot_render_fallback_total[$__rate_interval]))",
+                    "legendFormat": "texto: {{reason}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": []
+            },
+            "id": 13,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 31
+            }
+        },
+        {
+            "type": "timeseries",
+            "title": "Serviço de render: resultado",
+            "description": "Pedidos ao serviço que desenha o card, por resultado. \"busy\"/\"abandoned\" de vez em quando é normal; \"error\" constante não.",
+            "datasource": {
+                "type": "prometheus",
+                "uid": "prometheus"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "prometheus"
+                    },
+                    "expr": "sum by (outcome) (increase(lucky_render_requests_total[$__rate_interval]))",
+                    "legendFormat": "{{outcome}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": []
+            },
+            "id": 14,
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 31
+            }
+        },
+        {
+            "id": 15,
+            "type": "row",
+            "title": "Logs de erro e aviso",
+            "collapsed": false,
+            "gridPos": {
+                "h": 1,
+                "w": 24,
+                "x": 0,
+                "y": 39
+            },
+            "panels": []
+        },
+        {
+            "type": "timeseries",
+            "title": "Quantidade de erros e avisos nos logs",
+            "description": "Linhas de log de erro (ERROR) e aviso (WARN) do bot e do backend. Um pico marca a hora em que algo deu errado; use os logs abaixo para ver o quê.",
+            "datasource": {
+                "type": "loki",
+                "uid": "loki"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "loki"
+                    },
+                    "expr": "sum by (nivel) (count_over_time({container_name=~\"lucky-bot|lucky-backend\"} | regexp `^\\[(?P<nivel>[A-Z]+)\\] (?P<body>\\{.*\\})$` | nivel=~\"$nivel\" [$__auto]))",
+                    "queryType": "range",
+                    "legendFormat": "{{nivel}}"
+                }
+            ],
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "short",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 60,
+                        "lineWidth": 2,
+                        "showPoints": "never",
+                        "spanNulls": true,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    },
+                    "color": {
+                        "mode": "palette-classic"
+                    },
+                    "min": 0
+                },
+                "overrides": []
+            },
+            "id": 16,
+            "gridPos": {
+                "h": 7,
+                "w": 24,
+                "x": 0,
+                "y": 40
+            }
+        },
+        {
+            "type": "logs",
+            "title": "Logs de erro e aviso",
+            "description": "Linhas de log já filtradas pelos campos no topo: Nível, Busca (texto livre) e Correlation ID (cole o código que aparece numa mensagem de erro ou num relato de suporte).",
+            "datasource": {
+                "type": "loki",
+                "uid": "loki"
+            },
+            "targets": [
+                {
+                    "refId": "A",
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "loki"
+                    },
+                    "expr": "{container_name=~\"lucky-bot|lucky-backend\"} | regexp `^\\[(?P<nivel>[A-Z]+)\\] (?P<body>\\{.*\\})$` | nivel=~\"$nivel\" | line_format `{{.body}}` |~ `(?i)${busca:regex}` | json | correlationId=~`${correlationId:regex}.*`",
+                    "queryType": "range"
+                }
+            ],
+            "options": {
+                "showTime": true,
+                "wrapLogMessage": true,
+                "sortOrder": "Descending",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false,
+                "dedupStrategy": "none"
+            },
+            "id": 17,
+            "gridPos": {
+                "h": 14,
+                "w": 24,
+                "x": 0,
+                "y": 47
+            }
+        },
+        {
+            "type": "text",
+            "title": "Erros com detalhe técnico",
+            "options": {
+                "mode": "markdown",
+                "content": "Cada erro do bot e do backend também vai para o **Sentry**, com o stack trace completo e quantas pessoas foram afetadas: [abrir problemas não resolvidos no Sentry](https://lucas-santana-gm.sentry.io/issues/?query=is%3Aunresolved)."
+            },
+            "id": 18,
+            "gridPos": {
+                "h": 3,
+                "w": 24,
+                "x": 0,
+                "y": 61
+            }
+        }
+    ]
+}

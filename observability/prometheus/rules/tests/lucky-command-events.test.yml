@@ -1,0 +1,42 @@
+# promtool unit tests for the lucky-command-events group.
+# Run: promtool test rules observability/prometheus/rules/tests/lucky-command-events.test.yml
+# Kept in tests/ so the /etc/prometheus/rules/*.yml glob never loads it.
+rule_files:
+  - ../lucky-alerts.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: sustained drops fire
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_command_events_dropped_total{reason="flush_failure"}'
+        values: '0+0x5 1+1x60'
+    alert_rule_test:
+      - eval_time: 50m
+        alertname: LuckyCommandEventsDropped
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: lucky-bot
+            exp_annotations:
+              summary: "Command events are being dropped before reaching Postgres"
+              description: >-
+                lucky_bot_command_events_dropped_total has kept rising for at least
+                30 minutes, so the business dashboard undercounts usage for this
+                window. Check the `reason` label (overflow, flush_failure, stopped,
+                internal_error, stop_timeout) and Postgres health; commands
+                themselves keep working.
+
+  - name: a single blip does not fire
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_command_events_dropped_total{reason="overflow"}'
+        values: '0+0x5 3+0x60'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: LuckyCommandEventsDropped
+        exp_alerts: []
+      - eval_time: 50m
+        alertname: LuckyCommandEventsDropped
+        exp_alerts: []
