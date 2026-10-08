@@ -12,8 +12,6 @@ import {
     Settings,
     Shield,
     ShieldAlert,
-    Star,
-    Terminal,
     ToggleLeft,
     Trophy,
     Tv,
@@ -127,12 +125,6 @@ export const navSections: NavSection[] = [
         titleKey: 'sidebar.sections.automation',
         items: [
             {
-                path: '/commands',
-                labelKey: 'sidebar.nav.customCommands',
-                icon: Terminal,
-                module: 'automation',
-            },
-            {
                 path: '/automessages',
                 labelKey: 'sidebar.nav.autoMessages',
                 icon: MessageSquare,
@@ -178,12 +170,6 @@ export const navSections: NavSection[] = [
                 path: '/levels',
                 labelKey: 'sidebar.nav.levelSystem',
                 icon: Trophy,
-                module: 'settings',
-            },
-            {
-                path: '/starboard',
-                labelKey: 'sidebar.nav.starboard',
-                icon: Star,
                 module: 'settings',
             },
         ],

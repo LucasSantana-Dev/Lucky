@@ -18,16 +18,6 @@ export interface Module {
     hasSettings: boolean
 }
 
-export interface Command {
-    id: string
-    name: string
-    description: string | null
-    response: string | null
-    enabled: boolean
-    useCount: number
-    commandKind: string
-}
-
 export interface EmbedField {
     id: string
     name: string

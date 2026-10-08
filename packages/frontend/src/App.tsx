@@ -46,13 +46,11 @@ const AutoModPage = lazy(() => import('./pages/AutoMod'))
 const ServerLogsPage = lazy(() => import('./pages/ServerLogs'))
 const MusicPage = lazy(() => import('./pages/Music'))
 const ServerSettingsPage = lazy(() => import('./pages/ServerSettings'))
-const CustomCommandsPage = lazy(() => import('./pages/CustomCommands'))
 const AutoMessagesPage = lazy(() => import('./pages/AutoMessages'))
 const EmbedBuilderPage = lazy(() => import('./pages/EmbedBuilder'))
 const ReactionRolesPage = lazy(() => import('./pages/ReactionRoles'))
 const GuildAutomationPage = lazy(() => import('./pages/GuildAutomation'))
 const LevelsPage = lazy(() => import('./pages/Levels'))
-const StarboardPage = lazy(() => import('./pages/Starboard'))
 const TrackHistoryPage = lazy(() => import('./pages/TrackHistory'))
 const LyricsPage = lazy(() => import('./pages/Lyrics'))
 const PreferredArtistsPage = lazy(() => import('./pages/PreferredArtists'))
@@ -156,7 +154,6 @@ const AUTHENTICATED_PATHS = [
     '/moderation',
     '/automod',
     '/logs',
-    '/commands',
     '/automessages',
     '/embed-builder',
     '/reaction-roles',
@@ -164,7 +161,6 @@ const AUTHENTICATED_PATHS = [
     '/roles',
     '/guild-automation',
     '/levels',
-    '/starboard',
     '/music',
     '/music/history',
     '/lyrics',
@@ -210,10 +206,6 @@ function AuthenticatedRoutes() {
                 element={guardedRoute('moderation', <ServerLogsPage />)}
             />
             <Route
-                path='/commands'
-                element={guardedRoute('automation', <CustomCommandsPage />)}
-            />
-            <Route
                 path='/automessages'
                 element={guardedRoute('automation', <AutoMessagesPage />)}
             />
@@ -244,10 +236,6 @@ function AuthenticatedRoutes() {
             <Route
                 path='/levels'
                 element={guardedRoute('settings', <LevelsPage />)}
-            />
-            <Route
-                path='/starboard'
-                element={guardedRoute('settings', <StarboardPage />)}
             />
             <Route
                 path='/music'

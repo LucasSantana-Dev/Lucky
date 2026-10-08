@@ -50,23 +50,5 @@ export function createAutoModApi(apiClient: AutoModApiClient) {
             apiClient.delete<{ success: boolean }>(
                 `/guilds/${guildId}/automod/exempt/roles/${roleId}`,
             ),
-        addWord: (guildId: string, word: string) =>
-            apiClient.post<{ success: boolean }>(
-                `/guilds/${guildId}/automod/words`,
-                { word },
-            ),
-        removeWord: (guildId: string, word: string) =>
-            apiClient.delete<{ success: boolean }>(
-                `/guilds/${guildId}/automod/words/${encodeURIComponent(word)}`,
-            ),
-        addWhitelistedLink: (guildId: string, domain: string) =>
-            apiClient.post<{ success: boolean }>(
-                `/guilds/${guildId}/automod/links/whitelist`,
-                { domain },
-            ),
-        removeWhitelistedLink: (guildId: string, domain: string) =>
-            apiClient.delete<{ success: boolean }>(
-                `/guilds/${guildId}/automod/links/whitelist/${encodeURIComponent(domain)}`,
-            ),
     }
 }

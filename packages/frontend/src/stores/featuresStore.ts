@@ -95,7 +95,6 @@ const createDefaultToggles = (): FeatureToggleState => {
         'ROLE_MANAGEMENT',
         'MODERATION',
         'AUTOMOD',
-        'CUSTOM_COMMANDS',
         'AUTO_MESSAGES',
         'SERVER_LOGS',
         'WEBAPP',

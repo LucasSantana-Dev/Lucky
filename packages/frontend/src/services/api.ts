@@ -4,7 +4,6 @@ import type {
     User,
     Guild,
     Module,
-    Command,
     ServerSettings,
     ServerListing,
     Feature,
@@ -26,7 +25,6 @@ import { createEmbedsApi } from './embedsApi'
 import { createReactionRolesApi } from './reactionRolesApi'
 import { createAutomationApi } from './automationApi'
 import { createLevelsApi } from './levelsApi'
-import { createStarboardApi } from './starboardApi'
 import { createArtistsApi } from './artistsApi'
 import { createSupportApi } from './supportApi'
 import { inferApiBase } from './apiBase'
@@ -35,18 +33,6 @@ import { createRoleGroupsApi } from './roleGroupsApi'
 import { createBatchJobsApi } from './batchJobsApi'
 import { createForumApi } from './forumApi'
 import { createRecommendationsApi } from './recommendationsApi'
-
-export interface CreateCommandInput {
-    name: string
-    response: string
-    description?: string
-}
-
-export interface UpdateCommandInput {
-    response?: string
-    description?: string
-    enabled?: boolean
-}
 
 export interface VoteStatus {
     hasVoted: boolean
@@ -289,42 +275,6 @@ export const api = {
             ),
     },
 
-    commands: {
-        list: (guildId: string) =>
-            apiClient.get<{ commands: Command[] }>(
-                `/guilds/${guildId}/commands`,
-            ),
-        create: (guildId: string, input: CreateCommandInput) =>
-            apiClient.post<Command>(`/guilds/${guildId}/commands`, input),
-        update: (guildId: string, name: string, input: UpdateCommandInput) =>
-            apiClient.patch<Command>(
-                `/guilds/${guildId}/commands/${encodeURIComponent(name)}`,
-                input,
-            ),
-        toggle: (guildId: string, name: string, enabled: boolean) =>
-            apiClient.patch<Command>(
-                `/guilds/${guildId}/commands/${encodeURIComponent(name)}`,
-                { enabled },
-            ),
-        delete: (guildId: string, name: string) =>
-            apiClient.delete<{ success: boolean }>(
-                `/guilds/${guildId}/commands/${encodeURIComponent(name)}`,
-            ),
-        getSettings: (guildId: string, commandId: string) =>
-            apiClient.get<{ settings: Record<string, unknown> }>(
-                `/guilds/${guildId}/commands/${commandId}/settings`,
-            ),
-        updateSettings: (
-            guildId: string,
-            commandId: string,
-            settings: Record<string, unknown>,
-        ) =>
-            apiClient.post<{ success: boolean }>(
-                `/guilds/${guildId}/commands/${commandId}/settings`,
-                settings,
-            ),
-    },
-
     features: {
         list: async () => {
             const response = await apiClient.get<{
@@ -495,7 +445,6 @@ export const api = {
     roleGroups: createRoleGroupsApi(apiClient),
     automation: createAutomationApi(apiClient),
     levels: createLevelsApi(apiClient),
-    starboard: createStarboardApi(apiClient),
     music: createMusicApi(apiClient),
     moderation: createModerationApi(apiClient),
     automod: createAutoModApi(apiClient),

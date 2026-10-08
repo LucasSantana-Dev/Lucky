@@ -296,16 +296,15 @@ the corrected two-level system.
 ## Round 6 (two-level heading system, replacing Round 5's flat type-h2 pass)
 
 Round 5's "one style for every section title" fix was wrong: it made panel
-titles nested inside cards ("Level Leaderboard", "Starboard Highlights",
-"Recent Cases") the same size as standalone section headings ("Community")
+titles nested inside cards ("Level Leaderboard", "Recent Cases") the same size as standalone section headings ("Community")
 sitting above them, so the page read as one flat wall of large headings.
 
 **The two levels, now documented so they don't drift apart again:**
 
-| Level           | Where it appears                                                                   | Class        | Case                           | Example                                                                                                  |
-| --------------- | ---------------------------------------------------------------------------------- | ------------ | ------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| Section heading | Standalone, outside any card                                                       | `type-h2`    | Sentence case                  | "Community", "Cases by Type", "Quick Actions"                                                            |
-| Panel title     | The header row inside a card, paired with a muted `type-body-sm` subtitle below it | `type-title` | Sentence case, never uppercase | "Recent Music", "Recent Cases", "Level Leaderboard", "Starboard Highlights", "Top Tracks", "Top Artists" |
+| Level           | Where it appears                                                                   | Class        | Case                           | Example                                                                          |
+| --------------- | ---------------------------------------------------------------------------------- | ------------ | ------------------------------ | -------------------------------------------------------------------------------- |
+| Section heading | Standalone, outside any card                                                       | `type-h2`    | Sentence case                  | "Community", "Cases by Type", "Quick Actions"                                    |
+| Panel title     | The header row inside a card, paired with a muted `type-body-sm` subtitle below it | `type-title` | Sentence case, never uppercase | "Recent Music", "Recent Cases", "Level Leaderboard", "Top Tracks", "Top Artists" |
 
 Uppercase stays only on `type-meta` eyebrows and stat labels (e.g.
 "TRACKS PLAYED", "RECENT TRACKS") -- never on a `type-title` panel title.

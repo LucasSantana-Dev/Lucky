@@ -12,7 +12,6 @@ import {
     ScrollText,
     Shield,
     ShieldAlert,
-    Star,
     TrendingUp,
     Users,
 } from 'lucide-react'
@@ -31,7 +30,6 @@ import {
 } from '@/hooks/useModerationQueries'
 import { useRecentTracks } from '@/hooks/useTrackHistoryQueries'
 import { useLevelLeaderboard } from '@/hooks/useLevelQueries'
-import { useStarboardTop } from '@/hooks/useStarboardQueries'
 import type { ModerationCase, ModuleKey } from '@/types'
 
 const ACTION_COLORS: Record<string, string> = {
@@ -193,8 +191,6 @@ export default function DashboardOverview() {
         useRecentTracks(selectedGuild?.id, 5)
     const { data: leaderboardData, isLoading: leaderboardLoading } =
         useLevelLeaderboard(selectedGuild?.id, 5)
-    const { data: starboardData, isLoading: starboardLoading } =
-        useStarboardTop(selectedGuild?.id, 3)
 
     const recentCases = casesData?.cases ?? []
     const loading = statsLoading || casesLoading
@@ -236,15 +232,6 @@ export default function DashboardOverview() {
                 module: 'moderation',
             },
             {
-                title: t('dashboardOverview.customCommands'),
-                description: t(
-                    'dashboardOverview.manageScriptedServerShortcuts',
-                ),
-                icon: <MessageSquare className='h-4 w-4' />,
-                href: '/commands',
-                module: 'automation',
-            },
-            {
                 title: t('dashboardOverview.musicPlayer'),
                 description: t(
                     'dashboardOverview.viewQueuePlaybackTrackHistory',
@@ -260,13 +247,6 @@ export default function DashboardOverview() {
                 ),
                 icon: <TrendingUp className='h-4 w-4' />,
                 href: '/levels',
-                module: 'settings',
-            },
-            {
-                title: t('dashboardOverview.starboard'),
-                description: t('dashboardOverview.manageCommunityHighlights'),
-                icon: <Star className='h-4 w-4' />,
-                href: '/starboard',
                 module: 'settings',
             },
         ],
@@ -710,75 +690,6 @@ export default function DashboardOverview() {
                                         <p className='type-body-sm text-lucky-text-secondary'>
                                             {t(
                                                 'dashboardOverview.noLeaderboardData',
-                                            )}
-                                        </p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className='surface-panel overflow-hidden border border-lucky-border'>
-                            <div className='border-b border-lucky-border px-4 py-3'>
-                                <h3 className='type-title text-lucky-text-primary'>
-                                    {t('dashboardOverview.starboardHighlights')}
-                                </h3>
-                                <p className='type-body-sm text-lucky-text-tertiary'>
-                                    {t('dashboardOverview.topStarredMessages')}
-                                </p>
-                            </div>
-
-                            <div className='divide-y divide-lucky-border/50'>
-                                {starboardLoading ? (
-                                    Array.from({ length: 3 }).map(
-                                        (_, index) => (
-                                            <div
-                                                key={index}
-                                                className='grid grid-cols-2 gap-2 px-4 py-3'
-                                            >
-                                                <Skeleton className='h-4 w-20' />
-                                                <Skeleton className='h-4 w-12 justify-self-end' />
-                                            </div>
-                                        ),
-                                    )
-                                ) : starboardData &&
-                                  starboardData.length > 0 ? (
-                                    starboardData.map((entry, index) => (
-                                        <motion.div
-                                            key={entry.id}
-                                            initial={
-                                                prefersReducedMotion
-                                                    ? false
-                                                    : { opacity: 0, x: -8 }
-                                            }
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{
-                                                duration: 0.2,
-                                                delay: prefersReducedMotion
-                                                    ? 0
-                                                    : index * 0.05,
-                                            }}
-                                            className='grid grid-cols-2 items-center gap-2 px-4 py-3 transition-colors hover:bg-lucky-bg-tertiary/50'
-                                        >
-                                            <p className='type-body-sm truncate text-lucky-text-primary'>
-                                                {entry.content
-                                                    ? entry.content.substring(
-                                                          0,
-                                                          30,
-                                                      ) + '...'
-                                                    : 'Message'}
-                                            </p>
-                                            <div className='flex items-center justify-end gap-1 text-xs text-lucky-text-tertiary'>
-                                                <Star className='h-3 w-3' />
-                                                {entry.starCount}
-                                            </div>
-                                        </motion.div>
-                                    ))
-                                ) : (
-                                    <div className='px-4 py-8 text-center'>
-                                        <Star className='mx-auto mb-2 h-8 w-8 text-lucky-text-tertiary' />
-                                        <p className='type-body-sm text-lucky-text-secondary'>
-                                            {t(
-                                                'dashboardOverview.noStarredMessages',
                                             )}
                                         </p>
                                     </div>
