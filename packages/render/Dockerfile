@@ -24,6 +24,8 @@ RUN mkdir -p src/bin \
  && cargo build --release --locked --target "$(uname -m)-unknown-linux-musl" --bin lucky-render \
  && rm -rf src
 COPY src ./src
+# Brand icon and wordmark paths compiled in with include_bytes!/include_str!.
+COPY assets ./assets
 RUN touch src/lib.rs src/main.rs \
  && cargo build --release --locked --target "$(uname -m)-unknown-linux-musl" --bin lucky-render \
  && cp "target/$(uname -m)-unknown-linux-musl/release/lucky-render" /lucky-render
