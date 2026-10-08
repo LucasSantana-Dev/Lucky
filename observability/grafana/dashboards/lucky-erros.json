@@ -300,7 +300,7 @@
                     "statsFields": ["sum(quantity)"],
                     "statsGroupBy": [],
                     "statsOutcome": ["accepted"],
-                    "statsInterval": "1d",
+                    "statsInterval": "1h",
                     "refId": "A"
                 }
             ],
@@ -598,7 +598,7 @@
             "id": 8
         },
         {
-            "type": "bargauge",
+            "type": "table",
             "title": "Mensagens de erro mais frequentes",
             "description": "",
             "gridPos": {
@@ -618,7 +618,7 @@
                         "uid": "${ds_loki}"
                     },
                     "expr": "topk(15, sum by (container_name, msg) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]` | regexp `\"msg\":\"(?P<msg>[^\"]{0,120}?)(?: [0-9]+ms)?\"` [$__range])))",
-                    "legendFormat": "{{container_name}}: {{msg}}",
+                    "legendFormat": "",
                     "queryType": "instant",
                     "refId": "A"
                 }
@@ -639,27 +639,81 @@
                     },
                     "noValue": "Nenhum erro no período"
                 },
-                "overrides": []
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Vezes"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 110
+                            },
+                            {
+                                "id": "custom.cellOptions",
+                                "value": {
+                                    "type": "color-text"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Serviço"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 130
+                            }
+                        ]
+                    }
+                ]
             },
             "options": {
-                "displayMode": "basic",
-                "orientation": "horizontal",
-                "valueMode": "text",
-                "namePlacement": "top",
-                "showUnfilled": false,
-                "sizing": "manual",
-                "minVizHeight": 16,
-                "maxVizHeight": 22,
-                "reduceOptions": {
-                    "calcs": ["lastNotNull"],
-                    "fields": "",
-                    "values": false
+                "showHeader": true,
+                "cellHeight": "sm",
+                "footer": {
+                    "show": false
                 }
             },
+            "transformations": [
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "Time": true
+                        },
+                        "renameByName": {
+                            "container_name": "Serviço",
+                            "msg": "Mensagem",
+                            "Value #A": "Vezes"
+                        },
+                        "indexByName": {
+                            "container_name": 0,
+                            "msg": 1,
+                            "Value #A": 2
+                        }
+                    }
+                },
+                {
+                    "id": "sortBy",
+                    "options": {
+                        "sort": [
+                            {
+                                "field": "Vezes",
+                                "desc": true
+                            }
+                        ]
+                    }
+                }
+            ],
             "id": 9
         },
         {
-            "type": "bargauge",
+            "type": "table",
             "title": "Avisos mais frequentes",
             "description": "Volume alto e repetido costuma ser ruído a corrigir na origem.",
             "gridPos": {
@@ -679,7 +733,7 @@
                         "uid": "${ds_loki}"
                     },
                     "expr": "topk(15, sum by (container_name, msg) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[WARN\\]` | regexp `\"msg\":\"(?P<msg>[^\"]{0,120}?)(?: [0-9]+ms)?\"` [$__range])))",
-                    "legendFormat": "{{container_name}}: {{msg}}",
+                    "legendFormat": "",
                     "queryType": "instant",
                     "refId": "A"
                 }
@@ -700,23 +754,77 @@
                     },
                     "noValue": "Nenhum aviso no período"
                 },
-                "overrides": []
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Vezes"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 110
+                            },
+                            {
+                                "id": "custom.cellOptions",
+                                "value": {
+                                    "type": "color-text"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "matcher": {
+                            "id": "byName",
+                            "options": "Serviço"
+                        },
+                        "properties": [
+                            {
+                                "id": "custom.width",
+                                "value": 130
+                            }
+                        ]
+                    }
+                ]
             },
             "options": {
-                "displayMode": "basic",
-                "orientation": "horizontal",
-                "valueMode": "text",
-                "namePlacement": "top",
-                "showUnfilled": false,
-                "sizing": "manual",
-                "minVizHeight": 16,
-                "maxVizHeight": 22,
-                "reduceOptions": {
-                    "calcs": ["lastNotNull"],
-                    "fields": "",
-                    "values": false
+                "showHeader": true,
+                "cellHeight": "sm",
+                "footer": {
+                    "show": false
                 }
             },
+            "transformations": [
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "Time": true
+                        },
+                        "renameByName": {
+                            "container_name": "Serviço",
+                            "msg": "Mensagem",
+                            "Value #A": "Vezes"
+                        },
+                        "indexByName": {
+                            "container_name": 0,
+                            "msg": 1,
+                            "Value #A": 2
+                        }
+                    }
+                },
+                {
+                    "id": "sortBy",
+                    "options": {
+                        "sort": [
+                            {
+                                "field": "Vezes",
+                                "desc": true
+                            }
+                        ]
+                    }
+                }
+            ],
             "id": 10
         },
         {

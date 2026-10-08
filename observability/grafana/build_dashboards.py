@@ -142,10 +142,23 @@ class Board:
         }
 
 
-# One horizontal bar per message, longest first, the label on top of the bar.
-TOP_BARS = {"displayMode": "basic", "orientation": "horizontal", "valueMode": "text", "namePlacement": "top",
-            "showUnfilled": False, "sizing": "manual", "minVizHeight": 16, "maxVizHeight": 22,
-            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}}
+# Grafana's Loki frontend joins the series of an instant metric query into one
+# table frame (labels as columns, "Value #A"), so bargauge/stat with values=False
+# show only the last row. Top lists are tables; per-row panels set values=True.
+def top_table(title, expr, no_value, color, desc=""):
+    return dict(ptype="table", title=title, targets=[loki(expr, instant=True)], w=12, h=10, desc=desc,
+                no_value=no_value, th=thresholds((color, 0)),
+                options={"showHeader": True, "cellHeight": "sm", "footer": {"show": False}},
+                transformations=[
+                    {"id": "organize", "options": {"excludeByName": {"Time": True},
+                                                   "renameByName": {"container_name": "Serviço", "msg": "Mensagem", "Value #A": "Vezes"},
+                                                   "indexByName": {"container_name": 0, "msg": 1, "Value #A": 2}}},
+                    {"id": "sortBy", "options": {"sort": [{"field": "Vezes", "desc": True}]}}],
+                overrides=[{"matcher": {"id": "byName", "options": "Vezes"},
+                            "properties": [{"id": "custom.width", "value": 110}, {"id": "custom.cellOptions", "value": {"type": "color-text"}}]},
+                           {"matcher": {"id": "byName", "options": "Serviço"}, "properties": [{"id": "custom.width", "value": 130}]}])
+
+
 UP_MAP = [{"type": "value", "options": {"0": {"text": "FORA", "color": RED}, "1": {"text": "OK", "color": GREEN}}}]
 BARS = {"drawStyle": "bars", "fillOpacity": 80, "lineWidth": 1, "stacking": {"mode": "normal", "group": "A"}}
 LINES = {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never"}
@@ -298,7 +311,7 @@ def negocio():
         'sum by (fonte) (count_over_time({container_name="lucky-bot"} |= `"msg":"track_stream_source"` '
         '| regexp `"source":"(?P<fonte>[^"]+)"` [$__range]))', "{{fonte}}", instant=True)],
         w=8, h=7, options={"legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]},
-                           "pieType": "donut", "reduceOptions": {"calcs": ["lastNotNull"], "values": False}},
+                           "pieType": "donut", "reduceOptions": {"calcs": ["lastNotNull"], "values": True}},
         desc="Fonte real do stream de cada faixa (YouTube, SoundCloud...).")
     return b
 
@@ -319,7 +332,7 @@ def erros():
            decimals=0, th=thresholds((GREEN, 0), (ORANGE, 1), (RED, 20)), w=4)
     b.add("stat", "Eventos no Sentry", [{"datasource": SEN, "queryType": "statsV2", "projectIds": [SENTRY_PROJECT_ID],
            "environments": [], "statsCategory": ["error"], "statsFields": ["sum(quantity)"], "statsGroupBy": [],
-           "statsOutcome": ["accepted"], "statsInterval": "1d"}], w=4, h=4,
+           "statsOutcome": ["accepted"], "statsInterval": "1h"}], w=4, h=4,
           th=thresholds((GREEN, 0), (ORANGE, 1), (RED, 100)),
           options={"reduceOptions": {"calcs": ["sum"], "fields": "", "values": False}, "colorMode": "background", "graphMode": "none"},
           desc="Erros aceitos pelo Sentry no período (projeto lucky).")
@@ -337,15 +350,14 @@ def erros():
            "environments": [], "statsCategory": ["error"], "statsFields": ["sum(quantity)"], "statsGroupBy": [],
            "statsOutcome": ["accepted"], "statsInterval": "1d"}], w=8, h=8, custom={**BARS, "stacking": {"mode": "none"}}, options=TS_OPTS)
 
-    b.add("bargauge", "Mensagens de erro mais frequentes", [loki(
-        f"topk(15, sum by (container_name, msg) (count_over_time({{{APP}}} {ERR_LINE} {MSG} [$__range])))",
-        "{{container_name}}: {{msg}}", instant=True)],
-        w=12, h=10, no_value="Nenhum erro no período", options=TOP_BARS, th=thresholds((RED, 0)))
-    b.add("bargauge", "Avisos mais frequentes", [loki(
-        f"topk(15, sum by (container_name, msg) (count_over_time({{{APP}}} {WARN_LINE} {MSG} [$__range])))",
-        "{{container_name}}: {{msg}}", instant=True)],
-        w=12, h=10, no_value="Nenhum aviso no período", options=TOP_BARS, th=thresholds((ORANGE, 0)),
-        desc="Volume alto e repetido costuma ser ruído a corrigir na origem.")
+    t = top_table("Mensagens de erro mais frequentes",
+                  f"topk(15, sum by (container_name, msg) (count_over_time({{{APP}}} {ERR_LINE} {MSG} [$__range])))",
+                  "Nenhum erro no período", RED)
+    b.add(t.pop("ptype"), t.pop("title"), t.pop("targets"), **t)
+    t = top_table("Avisos mais frequentes",
+                  f"topk(15, sum by (container_name, msg) (count_over_time({{{APP}}} {WARN_LINE} {MSG} [$__range])))",
+                  "Nenhum aviso no período", ORANGE, desc="Volume alto e repetido costuma ser ruído a corrigir na origem.")
+    b.add(t.pop("ptype"), t.pop("title"), t.pop("targets"), **t)
     b.add("table", "Comandos que não deram certo", [sql(
         "SELECT command AS \"Comando\", outcome AS \"Resultado\", coalesce(\"errorClass\", '') AS \"Erro\", count(*) AS \"Vezes\", "
         "max(\"occurredAt\") AS \"Última vez\" FROM command_events WHERE outcome <> 'ok' AND $__timeFilter(\"occurredAt\") "
