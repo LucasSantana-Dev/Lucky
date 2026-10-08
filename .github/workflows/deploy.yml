@@ -33,6 +33,7 @@ jobs:
         permissions:
             actions: read
             contents: read
+            packages: read
         if: |
             github.event_name == 'workflow_dispatch' ||
             github.event_name == 'release'
@@ -114,6 +115,18 @@ jobs:
                   echo "==> Deploy SHA resolved: $deploy_sha (event=$EVENT_NAME)"
                   printf 'sha=%s\n' "$deploy_sha" >> "$GITHUB_OUTPUT"
 
+            # Lets the image wait read ghcr manifests. Best effort: if the
+            # login or the token's package access fails, the wait falls back to
+            # the whole docker-publish run (see wait-docker-images.sh).
+            - name: Log in to ghcr.io
+              if: ${{ inputs.rollback_sha == '' }}
+              continue-on-error: true
+              uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+              with:
+                  registry: ghcr.io
+                  username: ${{ github.actor }}
+                  password: ${{ secrets.GITHUB_TOKEN }}
+
             - id: docker_wait
               name: Wait for Docker images
               env:
@@ -121,6 +134,8 @@ jobs:
                   GH_PAGER: cat
                   ROLLBACK_SHA: ${{ inputs.rollback_sha }}
                   RESOLVED_SHA: ${{ steps.resolve_sha.outputs.sha }}
+                  REPO: ${{ github.repository }}
+                  REPO_OWNER: ${{ github.repository_owner }}
               run: |
                   set -euo pipefail
                   # Rollback deploys an already-published prior image; its build
@@ -131,8 +146,6 @@ jobs:
                     exit 0
                   fi
                   commit_sha="$RESOLVED_SHA"
-                  max_wait=1800
-                  interval=15
 
                   echo "==> Checking if docker-publish is running for ${commit_sha}..."
 
@@ -198,56 +211,17 @@ jobs:
                   fi
 
                   run_id=$(echo "$run_info" | awk '{print $1}')
-                  status=$(echo "$run_info" | awk '{print $2}')
-                  conclusion=$(echo "$run_info" | awk '{print $3}')
 
-                  if [ "$status" = "completed" ]; then
-                    if [ "$conclusion" = "success" ]; then
-                      echo "==> Docker images already built successfully."
-                      echo "docker_rebuilt=true" >> "$GITHUB_OUTPUT"
-                      exit 0
-                    else
-                      echo "::error::docker-publish failed (conclusion=$conclusion) — aborting deploy"
-                      exit 1
-                    fi
-                  fi
-
-                  echo "==> Docker build in progress (run $run_id), polling until terminal state (max wait: ${max_wait}s)..."
-
-                  deadline=$(($(date +%s) + max_wait))
-
-                  while true; do
-                    sleep $interval
-
-                    now=$(date +%s)
-                    elapsed=$((now - deadline + max_wait))
-
-                    run_info=$(gh run view "$run_id" \
-                      --repo "${{ github.repository }}" \
-                      --json status,conclusion \
-                      --jq '"\(.status) \(.conclusion)"')
-
-                    status=$(echo "$run_info" | awk '{print $1}')
-                    conclusion=$(echo "$run_info" | awk '{print $2}')
-
-                    echo "  Docker build: $status (${elapsed}s elapsed)"
-
-                    if [ "$status" = "completed" ]; then
-                      if [ "$conclusion" = "success" ]; then
-                        echo "==> Docker images ready!"
-                        echo "docker_rebuilt=true" >> "$GITHUB_OUTPUT"
-                        exit 0
-                      else
-                        echo "::error::docker-publish failed (conclusion=$conclusion) — aborting deploy"
-                        exit 1
-                      fi
-                    fi
-
-                    if [ "$(date +%s)" -ge $deadline ]; then
-                      echo "::error::Timed out waiting for Docker images after ${max_wait}s"
-                      exit 1
-                    fi
-                  done
+                  # Deploy as soon as the :<sha> images exist in ghcr instead of
+                  # waiting for the whole docker-publish run (Trivy, SARIF, smoke
+                  # tests, cache export still run and alert, but no longer gate).
+                  # The script aborts if the run fails or is cancelled before all
+                  # manifests exist. Lowercase: registry refs must be lowercase.
+                  owner_lc="$(printf '%s' "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')"
+                  RUN_ID="$run_id" COMMIT_SHA="$commit_sha" REPO="$REPO" \
+                    IMAGE_PREFIX="ghcr.io/${owner_lc}/lucky" \
+                    bash scripts/deploy/wait-docker-images.sh
+                  echo "docker_rebuilt=true" >> "$GITHUB_OUTPUT"
 
             - name: Sentry release — create
               if: ${{ env.SENTRY_AUTH_TOKEN != '' }}
