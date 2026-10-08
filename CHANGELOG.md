@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.0...v2.58.1) (2026-10-08)
+
+
+### Bug Fixes
+
+* **observability:** dashboard panels empty in the live grafana ([#2730](https://github.com/LucasSantana-Dev/Lucky/issues/2730)) ([a7cb2b6](https://github.com/LucasSantana-Dev/Lucky/commit/a7cb2b63492c69826fb54b4b336d8dd558ea7b79))
+* **observability:** grafana dashboards mount and joined-only guild gauge ([#2728](https://github.com/LucasSantana-Dev/Lucky/issues/2728)) ([7265031](https://github.com/LucasSantana-Dev/Lucky/commit/7265031139883f2f077305b62bfcd5faff30e234))
+
 ## [2.58.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.57.0...v2.58.0) (2026-10-08)
 
 
