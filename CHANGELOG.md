@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.55.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.54.0...v2.55.0) (2026-10-08)
+
+
+### Features
+
+* **brand:** retro maneki identity in edo purple with a custom wordmark ([#2711](https://github.com/LucasSantana-Dev/Lucky/issues/2711)) ([9156458](https://github.com/LucasSantana-Dev/Lucky/commit/915645861ac9b37010b38da078cf9286d2e0bf66))
+* **render:** redraw the recap card in the retro maneki brand ([#2713](https://github.com/LucasSantana-Dev/Lucky/issues/2713)) ([a6c64a6](https://github.com/LucasSantana-Dev/Lucky/commit/a6c64a6d3086fa54192ac0fd909fe09b449454b2))
+
+
+### Bug Fixes
+
+* **bot:** listen on the client ready event discord.js v15 keeps ([#2676](https://github.com/LucasSantana-Dev/Lucky/issues/2676)) ([3a744ca](https://github.com/LucasSantana-Dev/Lucky/commit/3a744cac9305baa3bcf65ff3c5d09b1d66d8bb2d))
+* **bot:** stop yt-dlp 403s slowing /play (cookies only on sign-in) ([#2663](https://github.com/LucasSantana-Dev/Lucky/issues/2663)) ([56b471b](https://github.com/LucasSantana-Dev/Lucky/commit/56b471b4a341decb5e7d2c3d7ee25b496f637810))
+* **deploy:** re-exec deploy.sh after checkout sync when the script changed ([#2709](https://github.com/LucasSantana-Dev/Lucky/issues/2709)) ([c381eb9](https://github.com/LucasSantana-Dev/Lucky/commit/c381eb947be2fe88815323b4feb0f0ce92d3e24c))
+* **docker:** probe the backend health route instead of an admin route ([#2677](https://github.com/LucasSantana-Dev/Lucky/issues/2677)) ([ff51168](https://github.com/LucasSantana-Dev/Lucky/commit/ff511687e9f016cae81b2dceaa3c01f2da0a8b2b))
+
 ## [2.54.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.53.0...v2.54.0) (2026-10-07)
 
 
