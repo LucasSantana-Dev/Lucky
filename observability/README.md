@@ -124,19 +124,16 @@ so no rule expression changes were needed.
 
 ## Dashboards (for a non-technical operator)
 
-Two dashboards, both tagged `lucky` and cross-linked at the top nav:
-
-- **`lucky-home.json` ("Lucky: comece aqui")**: set as the Grafana org home
-  dashboard via `GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH`. A "Pergunta →
-  Onde olhar" table in pt-BR plus stat panels (bot up, backend up, 5xx rate
-  now, disk free %, active-alerts count from `count(ALERTS{alertstate=
-  "firing", alertname!="Watchdog"})`).
-- **`lucky-health.json` ("Lucky: saúde do sistema")**: every panel has a
-  pt-BR `description` naming what's normal vs. worrying, using the same
-  thresholds as the alert rules, plus panels the original starter dashboard
-  didn't have: gateway-connected, per-container memory-vs-limit (needs
-  cAdvisor), container uptime-since-last-start (a practical stand-in for
-  "restart count", see friction #6 below), and guild totals/joins/leaves.
+Four dashboards, all tagged `lucky` and cross-linked at the top nav, generated
+by `observability/grafana/build_dashboards.py` (edit the script, rerun it,
+commit both): `lucky-inicio` ("Lucky: comece aqui", the org home dashboard via
+`GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH`), `lucky-negocio`, `lucky-erros`
+and `lucky-sistema`. They reference datasources through hidden datasource
+variables, so the same JSON loads here and in the homelab Grafana (which
+mounts this directory from the host checkout). The Postgres panels need the
+`grafana_ro` role (`observability/postgres/grafana-ro.sql`) and a Postgres
+datasource; this profile does not provision one yet, so those panels stay
+empty here.
 
 No panel requires the viewer to read or write PromQL; see
 `docs/observability.md` for the plain-language guide and the alert runbook.

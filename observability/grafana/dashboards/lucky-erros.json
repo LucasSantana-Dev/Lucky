@@ -1,0 +1,977 @@
+{
+    "uid": "lucky-erros",
+    "title": "Lucky: erros",
+    "description": "O que deu errado, onde e quantas vezes. Logs do bot/backend/render (Loki), comandos (Postgres), HTTP (Prometheus) e Sentry.",
+    "tags": ["lucky", "erros"],
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 1,
+    "schemaVersion": 39,
+    "time": {
+        "from": "now-7d",
+        "to": "now"
+    },
+    "refresh": "5m",
+    "templating": {
+        "list": [
+            {
+                "name": "ds_prometheus",
+                "type": "datasource",
+                "query": "prometheus",
+                "regex": "/^Prometheus$/",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "ds_loki",
+                "type": "datasource",
+                "query": "loki",
+                "regex": "",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "ds_postgres",
+                "type": "datasource",
+                "query": "grafana-postgresql-datasource",
+                "regex": "",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "ds_sentry",
+                "type": "datasource",
+                "query": "grafana-sentry-datasource",
+                "regex": "",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "excluidas",
+                "type": "constant",
+                "query": "'110373943822540800','333949691962195969','1541452011466268704'",
+                "hide": 2,
+                "description": "Guildas do operador, de listagem e de teste: nunca contam como uso."
+            }
+        ]
+    },
+    "annotations": {
+        "list": []
+    },
+    "links": [
+        {
+            "type": "dashboards",
+            "tags": ["lucky"],
+            "asDropdown": false,
+            "title": "Dashboards do Lucky",
+            "includeVars": false,
+            "keepTime": true,
+            "targetBlank": false,
+            "icon": "external link"
+        }
+    ],
+    "panels": [
+        {
+            "type": "stat",
+            "title": "Erros nos logs",
+            "description": "Linhas [ERROR]/[FATAL] do bot, backend e render no período.",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "sum(count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]` [$__range])) or vector(0)",
+                    "legendFormat": "",
+                    "queryType": "instant",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 1
+                            },
+                            {
+                                "color": "red",
+                                "value": 20
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 1
+        },
+        {
+            "type": "stat",
+            "title": "Comandos com erro",
+            "description": "Comandos que terminaram em erro. Otimista: comando que trata o erro e responde sozinho conta como ok.",
+            "gridPos": {
+                "x": 4,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT round(100.0 * count(*) FILTER (WHERE outcome = 'error') / nullif(count(*), 0), 1) AS \"Erro (%)\" FROM command_events WHERE $__timeFilter(\"occurredAt\")",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 2
+                            },
+                            {
+                                "color": "red",
+                                "value": 5
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 2
+        },
+        {
+            "type": "stat",
+            "title": "Respostas 5xx do backend",
+            "description": "",
+            "gridPos": {
+                "x": 8,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "sum(increase(lucky_backend_http_server_errors_total[$__range])) or vector(0)",
+                    "legendFormat": "",
+                    "instant": true,
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 1
+                            },
+                            {
+                                "color": "red",
+                                "value": 20
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 3
+        },
+        {
+            "type": "stat",
+            "title": "Eventos no Sentry",
+            "description": "Erros aceitos pelo Sentry no período (projeto lucky).",
+            "gridPos": {
+                "x": 12,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-sentry-datasource",
+                "uid": "${ds_sentry}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-sentry-datasource",
+                        "uid": "${ds_sentry}"
+                    },
+                    "queryType": "statsV2",
+                    "projectIds": ["4509260792070144"],
+                    "environments": [],
+                    "statsCategory": ["error"],
+                    "statsFields": ["sum(quantity)"],
+                    "statsGroupBy": [],
+                    "statsOutcome": ["accepted"],
+                    "statsInterval": "1d",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 1
+                            },
+                            {
+                                "color": "red",
+                                "value": 100
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["sum"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none"
+            },
+            "id": 4
+        },
+        {
+            "type": "stat",
+            "title": "Cards do recap em fallback",
+            "description": "Vezes que o card do recap não foi desenhado e o bot mandou só texto.",
+            "gridPos": {
+                "x": 16,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "sum(increase(lucky_bot_render_fallback_total[$__range])) or vector(0)",
+                    "legendFormat": "",
+                    "instant": true,
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 5
+        },
+        {
+            "type": "stat",
+            "title": "Alertas disparando",
+            "description": "",
+            "gridPos": {
+                "x": 20,
+                "y": 0,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "count(ALERTS{alertstate=\"firing\", alertname=~\"Lucky.*|HighMemoryUsage|CriticalMemoryUsage|HostMemoryHigh\"}) or vector(0)",
+                    "legendFormat": "",
+                    "instant": true,
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 6
+        },
+        {
+            "type": "timeseries",
+            "title": "Erros e avisos nos logs por serviço",
+            "description": "",
+            "gridPos": {
+                "x": 0,
+                "y": 4,
+                "w": 16,
+                "h": 8
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "sum by (container_name) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]` [$__auto]))",
+                    "legendFormat": "erro {{container_name}}",
+                    "queryType": "range",
+                    "refId": "A"
+                },
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "sum by (container_name) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[WARN\\]` [$__auto]))",
+                    "legendFormat": "aviso {{container_name}}",
+                    "queryType": "range",
+                    "refId": "B"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 80,
+                        "lineWidth": 1,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    }
+                },
+                "overrides": [
+                    {
+                        "matcher": {
+                            "id": "byRegexp",
+                            "options": "^erro.*"
+                        },
+                        "properties": [
+                            {
+                                "id": "color",
+                                "value": {
+                                    "mode": "fixed",
+                                    "fixedColor": "red"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "id": 7
+        },
+        {
+            "type": "timeseries",
+            "title": "Eventos no Sentry por dia",
+            "description": "",
+            "gridPos": {
+                "x": 16,
+                "y": 4,
+                "w": 8,
+                "h": 8
+            },
+            "datasource": {
+                "type": "grafana-sentry-datasource",
+                "uid": "${ds_sentry}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-sentry-datasource",
+                        "uid": "${ds_sentry}"
+                    },
+                    "queryType": "statsV2",
+                    "projectIds": ["4509260792070144"],
+                    "environments": [],
+                    "statsCategory": ["error"],
+                    "statsFields": ["sum(quantity)"],
+                    "statsGroupBy": [],
+                    "statsOutcome": ["accepted"],
+                    "statsInterval": "1d",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 80,
+                        "lineWidth": 1,
+                        "stacking": {
+                            "mode": "none"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "id": 8
+        },
+        {
+            "type": "table",
+            "title": "Mensagens de erro mais frequentes",
+            "description": "",
+            "gridPos": {
+                "x": 0,
+                "y": 12,
+                "w": 12,
+                "h": 9
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "topk(20, sum by (container_name, msg) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]` | regexp `\"msg\":\"(?P<msg>[^\"]{0,120}?)(?: [0-9]+ms)?\"` [$__range])))",
+                    "legendFormat": "",
+                    "queryType": "instant",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "Nenhum erro no período"
+                },
+                "overrides": []
+            },
+            "options": {},
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {
+                        "mode": "columns"
+                    }
+                },
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "Time": true
+                        },
+                        "renameByName": {
+                            "container_name": "Serviço",
+                            "msg": "Mensagem",
+                            "Value": "Vezes"
+                        }
+                    }
+                },
+                {
+                    "id": "sortBy",
+                    "options": {
+                        "sort": [
+                            {
+                                "field": "Vezes",
+                                "desc": true
+                            }
+                        ]
+                    }
+                }
+            ],
+            "id": 9
+        },
+        {
+            "type": "table",
+            "title": "Avisos mais frequentes",
+            "description": "Volume alto e repetido costuma ser ruído a corrigir na origem.",
+            "gridPos": {
+                "x": 12,
+                "y": 12,
+                "w": 12,
+                "h": 9
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "topk(20, sum by (container_name, msg) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[WARN\\]` | regexp `\"msg\":\"(?P<msg>[^\"]{0,120}?)(?: [0-9]+ms)?\"` [$__range])))",
+                    "legendFormat": "",
+                    "queryType": "instant",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "Nenhum aviso no período"
+                },
+                "overrides": []
+            },
+            "options": {},
+            "transformations": [
+                {
+                    "id": "labelsToFields",
+                    "options": {
+                        "mode": "columns"
+                    }
+                },
+                {
+                    "id": "organize",
+                    "options": {
+                        "excludeByName": {
+                            "Time": true
+                        },
+                        "renameByName": {
+                            "container_name": "Serviço",
+                            "msg": "Mensagem",
+                            "Value": "Vezes"
+                        }
+                    }
+                },
+                {
+                    "id": "sortBy",
+                    "options": {
+                        "sort": [
+                            {
+                                "field": "Vezes",
+                                "desc": true
+                            }
+                        ]
+                    }
+                }
+            ],
+            "id": 10
+        },
+        {
+            "type": "table",
+            "title": "Comandos que não deram certo",
+            "description": "user_error = uso errado; denied = sem permissão; error = falha do bot.",
+            "gridPos": {
+                "x": 0,
+                "y": 21,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT command AS \"Comando\", outcome AS \"Resultado\", coalesce(\"errorClass\", '') AS \"Erro\", count(*) AS \"Vezes\", max(\"occurredAt\") AS \"Última vez\" FROM command_events WHERE outcome <> 'ok' AND $__timeFilter(\"occurredAt\") GROUP BY 1, 2, 3 ORDER BY 4 DESC LIMIT 20",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "Nenhum comando com erro no período"
+                },
+                "overrides": []
+            },
+            "options": {},
+            "id": 11
+        },
+        {
+            "type": "table",
+            "title": "Issues abertas no Sentry",
+            "description": "",
+            "gridPos": {
+                "x": 12,
+                "y": 21,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "grafana-sentry-datasource",
+                "uid": "${ds_sentry}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-sentry-datasource",
+                        "uid": "${ds_sentry}"
+                    },
+                    "queryType": "issues",
+                    "projectIds": ["4509260792070144"],
+                    "environments": [],
+                    "issuesQuery": "is:unresolved",
+                    "issuesSort": "freq",
+                    "issuesLimit": 20,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "Nenhuma issue aberta no período"
+                },
+                "overrides": []
+            },
+            "options": {},
+            "transformations": [
+                {
+                    "id": "organize",
+                    "options": {
+                        "indexByName": {
+                            "Title": 0,
+                            "Count": 1,
+                            "Last Seen": 2,
+                            "Status": 3
+                        }
+                    }
+                }
+            ],
+            "id": 12
+        },
+        {
+            "type": "timeseries",
+            "title": "Respostas 5xx do backend por rota",
+            "description": "",
+            "gridPos": {
+                "x": 0,
+                "y": 29,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "sum by (route) (increase(lucky_backend_http_server_errors_total[$__rate_interval]))",
+                    "legendFormat": "{{route}}",
+                    "instant": false,
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "0",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 80,
+                        "lineWidth": 1,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "id": 13
+        },
+        {
+            "type": "state-timeline",
+            "title": "Extratores de música degradados",
+            "description": "YouTube/Spotify fora ou limitados.",
+            "gridPos": {
+                "x": 12,
+                "y": 29,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "max by (extractor) (lucky_music_extractor_degraded)",
+                    "legendFormat": "{{extractor}}",
+                    "instant": false,
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "ok",
+                                    "color": "green"
+                                },
+                                "1": {
+                                    "text": "degradado",
+                                    "color": "red"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "overrides": []
+            },
+            "options": {
+                "showValue": "never",
+                "legend": {
+                    "showLegend": false
+                }
+            },
+            "id": 14
+        },
+        {
+            "type": "logs",
+            "title": "Linhas de erro (mais recentes primeiro)",
+            "description": "",
+            "gridPos": {
+                "x": 0,
+                "y": 37,
+                "w": 24,
+                "h": 10
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "{container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]`",
+                    "legendFormat": "",
+                    "queryType": "range",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {
+                "showTime": true,
+                "wrapLogMessage": true,
+                "sortOrder": "Descending",
+                "enableLogDetails": true
+            },
+            "id": 15
+        }
+    ]
+}

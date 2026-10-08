@@ -1,0 +1,788 @@
+{
+    "uid": "lucky-inicio",
+    "title": "Lucky: comece aqui",
+    "description": "Resumo de uma tela: o Lucky está no ar, está sendo usado e está com erro?",
+    "tags": ["lucky", "inicio"],
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 1,
+    "schemaVersion": 39,
+    "time": {
+        "from": "now-24h",
+        "to": "now"
+    },
+    "refresh": "5m",
+    "templating": {
+        "list": [
+            {
+                "name": "ds_prometheus",
+                "type": "datasource",
+                "query": "prometheus",
+                "regex": "/^Prometheus$/",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "ds_loki",
+                "type": "datasource",
+                "query": "loki",
+                "regex": "",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "ds_postgres",
+                "type": "datasource",
+                "query": "grafana-postgresql-datasource",
+                "regex": "",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "ds_sentry",
+                "type": "datasource",
+                "query": "grafana-sentry-datasource",
+                "regex": "",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "excluidas",
+                "type": "constant",
+                "query": "'110373943822540800','333949691962195969','1541452011466268704'",
+                "hide": 2,
+                "description": "Guildas do operador, de listagem e de teste: nunca contam como uso."
+            }
+        ]
+    },
+    "annotations": {
+        "list": []
+    },
+    "links": [
+        {
+            "type": "dashboards",
+            "tags": ["lucky"],
+            "asDropdown": false,
+            "title": "Dashboards do Lucky",
+            "includeVars": false,
+            "keepTime": true,
+            "targetBlank": false,
+            "icon": "external link"
+        }
+    ],
+    "panels": [
+        {
+            "type": "text",
+            "title": "Como usar",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 24,
+                "h": 5
+            },
+            "options": {
+                "mode": "markdown",
+                "content": "**Tudo verde = nada a fazer.** Cada número abre o dashboard que explica.\n\n- **[Lucky: negócio](/d/lucky-negocio)**: quem usa, quanto usa, metas do music-first (WAG, 1ª hora, dia 8), autoplay, votos.\n- **[Lucky: erros](/d/lucky-erros)**: erros nos logs, comandos que falharam, 5xx, Sentry, alertas.\n- **[Lucky: sistema](/d/lucky-sistema)**: serviços no ar, memória, CPU, latência, disco.\n\nGuildas do operador, de listagem e de teste ficam fora das contas de uso."
+            },
+            "id": 1
+        },
+        {
+            "type": "stat",
+            "title": "Bot",
+            "description": "",
+            "gridPos": {
+                "x": 0,
+                "y": 5,
+                "w": 3,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "max(up{job=\"lucky-bot\"})",
+                    "legendFormat": "",
+                    "instant": true,
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "FORA",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "OK",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 2
+        },
+        {
+            "type": "stat",
+            "title": "Discord conectado",
+            "description": "",
+            "gridPos": {
+                "x": 3,
+                "y": 5,
+                "w": 3,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "max(lucky_bot_gateway_connected)",
+                    "legendFormat": "",
+                    "instant": true,
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "FORA",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "OK",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 3
+        },
+        {
+            "type": "stat",
+            "title": "Backend",
+            "description": "",
+            "gridPos": {
+                "x": 6,
+                "y": 5,
+                "w": 3,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "max(up{job=\"lucky-backend\"})",
+                    "legendFormat": "",
+                    "instant": true,
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "FORA",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "OK",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 4
+        },
+        {
+            "type": "stat",
+            "title": "Render (cards)",
+            "description": "Sidecar que desenha o card do recap semanal.",
+            "gridPos": {
+                "x": 9,
+                "y": 5,
+                "w": 3,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "max(up{job=\"lucky-render\"})",
+                    "legendFormat": "",
+                    "instant": true,
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "green",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "FORA",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "OK",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 5
+        },
+        {
+            "type": "stat",
+            "title": "Alertas disparando",
+            "description": "Alertas do Lucky ativos agora no Prometheus.",
+            "gridPos": {
+                "x": 12,
+                "y": 5,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "count(ALERTS{alertstate=\"firing\", alertname=~\"Lucky.*|HighMemoryUsage|CriticalMemoryUsage|HostMemoryHigh\"}) or vector(0)",
+                    "legendFormat": "",
+                    "instant": true,
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 1
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 6
+        },
+        {
+            "type": "stat",
+            "title": "Erros nos logs (período)",
+            "description": "Linhas [ERROR]/[FATAL] do bot, backend e render no período selecionado.",
+            "gridPos": {
+                "x": 16,
+                "y": 5,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "sum(count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]` [$__range])) or vector(0)",
+                    "legendFormat": "",
+                    "queryType": "instant",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 1
+                            },
+                            {
+                                "color": "red",
+                                "value": 20
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 7
+        },
+        {
+            "type": "stat",
+            "title": "Servidores com o Lucky",
+            "description": "",
+            "gridPos": {
+                "x": 20,
+                "y": 5,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "max(lucky_bot_guilds_total{state=\"active\"})",
+                    "legendFormat": "",
+                    "instant": true,
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 8
+        },
+        {
+            "type": "stat",
+            "title": "WAG (7 dias)",
+            "description": "Guildas com música tocada ou comando nos últimos 7 dias. Meta music-first: 20 por 3 semanas seguidas.",
+            "gridPos": {
+                "x": 0,
+                "y": 9,
+                "w": 5,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT count(DISTINCT g) AS \"Guildas ativas\" FROM (SELECT \"guildId\" AS g, \"playedAt\" AS t FROM track_history UNION ALL SELECT \"guildId\", \"occurredAt\" FROM command_events WHERE \"guildId\" IS NOT NULL) a WHERE t >= now() - interval '7 days' AND g NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 10
+                            },
+                            {
+                                "color": "green",
+                                "value": 20
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 9
+        },
+        {
+            "type": "stat",
+            "title": "Faixas tocadas (período)",
+            "description": "",
+            "gridPos": {
+                "x": 5,
+                "y": 9,
+                "w": 5,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT count(*) AS \"Faixas\" FROM track_history WHERE $__timeFilter(\"playedAt\") AND \"guildId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 10
+        },
+        {
+            "type": "stat",
+            "title": "Comandos (período)",
+            "description": "",
+            "gridPos": {
+                "x": 10,
+                "y": 9,
+                "w": 5,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT count(*) AS \"Comandos\" FROM command_events WHERE $__timeFilter(\"occurredAt\") AND coalesce(\"guildId\", '') NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 11
+        },
+        {
+            "type": "stat",
+            "title": "Memória do host",
+            "description": "",
+            "gridPos": {
+                "x": 15,
+                "y": 9,
+                "w": 5,
+                "h": 4
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "100 * (1 - avg(node_memory_MemAvailable_bytes) / avg(node_memory_MemTotal_bytes))",
+                    "legendFormat": "",
+                    "instant": true,
+                    "range": false,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 80
+                            },
+                            {
+                                "color": "red",
+                                "value": 90
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 12
+        }
+    ]
+}
