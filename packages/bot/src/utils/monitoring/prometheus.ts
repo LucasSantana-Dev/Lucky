@@ -103,6 +103,18 @@ export const renderFallbackTotal = new Counter<'reason'>({
     labelNames: ['reason'],
     registers: [registry],
 })
+// Export every reason at 0 from boot: a series born at 1 has no increase(), so
+// LuckyRecapCardAllFellBack would miss the first fallback after each deploy.
+for (const reason of [
+    'disabled',
+    'no_attach_permission',
+    'timeout',
+    'http_error',
+    'bad_response',
+    'network',
+]) {
+    renderFallbackTotal.labels(reason).inc(0)
+}
 
 /** Counter: weekly recaps posted as the lucky-render image card (#2694). */
 export const recapCardPostedTotal = new Counter({

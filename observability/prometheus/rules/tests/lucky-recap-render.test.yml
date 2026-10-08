@@ -2,7 +2,7 @@
 # Run: promtool test rules observability/prometheus/rules/tests/lucky-recap-render.test.yml
 # Kept in tests/ so the /etc/prometheus/rules/*.yml glob never loads it.
 rule_files:
-  - ../lucky-alerts.rules.yml
+  - ../recap-render.rules.yml
 
 evaluation_interval: 1m
 
@@ -51,3 +51,27 @@ tests:
       - eval_time: 60m
         alertname: LuckyRecapCardAllFellBack
         exp_alerts: []
+
+  - name: render scrape down for 10m fires
+    interval: 1m
+    input_series:
+      - series: 'up{job="lucky-render", instance="lucky-render:8080"}'
+        values: '1+0x5 0+0x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LuckyRenderScrapeDown
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: LuckyRenderScrapeDown
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: lucky-render
+              job: lucky-render
+              instance: lucky-render:8080
+            exp_annotations:
+              summary: "Prometheus cannot scrape the lucky-render /metrics"
+              description: >-
+                The lucky-render sidecar metrics endpoint (:8080) has been
+                unreachable for 10 minutes. Cross-check its Docker healthcheck;
+                recaps fall back to the text embed while it is down.
