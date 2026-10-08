@@ -12,7 +12,9 @@ Run: python3 packages/frontend/branding/source/cat_cutout.py   (needs Pillow >= 
 """
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
+
+import palette
 
 HERE = Path(__file__).resolve().parent
 PUBLIC = HERE.parents[1] / "public"
@@ -26,9 +28,7 @@ EYE_CENTRE = (484, 391)
 EYE_RADII = (15, 18)
 FACE = (244, 227, 194, 255)
 
-PURPLE = (82, 56, 123, 255)  # Edo purple #52387B
-CREAM = (243, 230, 203, 255)  # paper #F3E6CB
-INK = (33, 29, 46, 255)  # #211D2E
+PURPLE, CREAM, INK = (palette.rgb(c) for c in (palette.PURPLE, palette.CREAM, palette.INK))
 
 
 def open_eye(im: Image.Image) -> Image.Image:
@@ -96,7 +96,8 @@ def icon(cat: Image.Image, size: int = 256) -> Image.Image:
     # The head sits left of the body's centre (the raised paw is on the right).
     layer.alpha_composite(c, ((size - c.width) // 2 + int(c.width * 0.07), int(size * 0.13)))
     mask = disc(size, size - max(4, size // 24) * 2, (0, 0, 0, 255)).getchannel("A")
-    canvas.paste(layer, (0, 0), Image.composite(layer.getchannel("A"), Image.new("L", (size, size)), mask))
+    layer.putalpha(ImageChops.multiply(layer.getchannel("A"), mask))
+    canvas.alpha_composite(layer)
     return canvas
 
 

@@ -16,12 +16,14 @@ from urllib.parse import quote
 
 from PIL import Image
 
+import palette
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[3]
 CAT = (HERE / "cat.png").as_uri()
 WORDMARK = (HERE / "wordmark.svg").read_text(encoding="utf-8")
 
-CREAM, PURPLE, INK, VERMILION = "#F3E6CB", "#52387B", "#211D2E", "#B83A24"
+CREAM, PURPLE, INK, VERMILION = palette.CREAM, palette.PURPLE, palette.INK, palette.VERMILION
 TAG = "The Discord music bot that learns your server’s taste and keeps the call playing."
 FONTS = "https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Manrope:wght@600&display=block"
 
@@ -54,7 +56,7 @@ def mark(cx: float, cy: float, box: float) -> str:
     return f'''
 <div style="position:absolute;left:{cx-box/2}px;top:{top}px;width:{box}px;height:{box}px;box-sizing:border-box;border:{stroke}px solid {INK}"></div>
 <div style="position:absolute;left:{cx-d/2}px;top:{cy-d/2-box*0.06}px;width:{d}px;height:{d}px;border-radius:50%;background:{PURPLE}"></div>
-<img src="{CAT}" style="position:absolute;left:{cx-cat_w/2+box*0.03}px;top:{top+box-cat_h-box*0.03}px;height:{cat_h}px">'''
+<img src="{CAT}" style="position:absolute;left:{cx-cat_w/2+box*0.03}px;top:{top+box-stroke-cat_h}px;height:{cat_h}px">'''
 
 
 def hero(w: int, h: int) -> str:
