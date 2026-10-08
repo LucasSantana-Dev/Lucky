@@ -72,10 +72,9 @@ pub enum RenderError {
 }
 
 /// Families the card needs; a missing one silently falls back to a wrong face.
-const REQUIRED_FAMILIES: [&str; 8] = [
+const REQUIRED_FAMILIES: [&str; 7] = [
     "Manrope",
-    "Bungee",
-    "Neonderthaw",
+    "Dela Gothic One",
     "Noto Sans SC",
     "Noto Sans Arabic",
     "Noto Sans Hebrew",
@@ -235,16 +234,34 @@ pub fn escape(text: &str) -> String {
     out
 }
 
-// Brand type (packages/frontend/branding/BRANDING_GUIDE.md): Neonderthaw for
-// the signature, Bungee for eyebrows and numbers, Manrope for running text.
-// Noto covers the scripts the brand fonts lack.
+// Brand type (DESIGN.md): the LUCKY wordmark is vector paths, never a font;
+// Dela Gothic One for eyebrows, numbers, katakana and the URL; Manrope for
+// running text. Noto covers the scripts the brand fonts lack.
 const FALLBACK: &str = "Noto Sans SC, Noto Sans Arabic, Noto Sans Hebrew, Noto Emoji, Noto Sans";
-const NIGHT: &str = "#190428";
-const V300: &str = "#E3A6FA";
-const V400: &str = "#CF7CF6";
-const GOLD: &str = "#F6C85F";
-const NEON_WHITE: &str = "#FFF5FF";
-const HEADER: usize = 240;
+const PURPLE: &str = "#52387B";
+const INK: &str = "#211D2E";
+const VERMILION: &str = "#B83A24";
+const GOLD: &str = "#C9922E";
+const CREAM: &str = "#F3E6CB";
+/// The one stroke weight of the card.
+const LINE: usize = 4;
+const MARGIN: usize = 40;
+const HEADER: usize = 256;
+/// LUCKY wordmark paths (branding/source/wordmark.svg, 2180x540 viewBox).
+const WORDMARK: &str = include_str!("../assets/wordmark-paths.frag");
+/// App icon (cat head in an Edo purple disc), pre-downscaled to 160 px.
+const ICON_PNG: &[u8] = include_bytes!("../assets/lucky-icon-160.png");
+
+fn icon_data_url() -> &'static str {
+    use base64::Engine;
+    static URL: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+        format!(
+            "data:image/png;base64,{}",
+            base64::engine::general_purpose::STANDARD.encode(ICON_PNG)
+        )
+    });
+    &URL
+}
 
 /// Rounded share of autoplay plays; u64 so no u32 input can overflow.
 fn autoplay_percent(autoplay: u32, plays: u32) -> u64 {
@@ -253,9 +270,9 @@ fn autoplay_percent(autoplay: u32, plays: u32) -> u64 {
         .unwrap_or(0)
 }
 
-/// Tapmusic-style collage: brand header with the week's numbers, then the
-/// top tracks' covers in the largest full square grid the week fills (5x5
-/// down to one tile).
+/// Tapmusic-style collage: retro print header with the week's numbers, then
+/// the top tracks' covers in the largest full square grid the week fills (5x5
+/// down to one tile), each in a single ink frame.
 pub fn build_svg(r: &RecapPayload) -> String {
     build_svg_counted(r).0
 }
@@ -267,26 +284,19 @@ pub fn build_svg_counted(r: &RecapPayload) -> (String, usize) {
     let minutes = (r.listened_seconds % 3600) / 60;
     let autoplay = autoplay_percent(r.autoplay_plays, r.plays);
     let w = WIDTH as usize;
+    let right = w - MARGIN;
+    let icon = icon_data_url();
 
     let mut s = format!(
         r##"<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" font-family="Manrope, {FALLBACK}">
-<defs>
-<radialGradient id="aura" cx="0.18" cy="0.5" r="0.6"><stop offset="0" stop-color="#B84DF0" stop-opacity="0.28"/><stop offset="1" stop-color="{NIGHT}" stop-opacity="0"/></radialGradient>
-<linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1"><stop offset="0.5" stop-color="{NIGHT}" stop-opacity="0"/><stop offset="1" stop-color="{NIGHT}" stop-opacity="0.92"/></linearGradient>
-<linearGradient id="empty" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6E1A9E"/><stop offset="1" stop-color="{NIGHT}"/></linearGradient>
-<filter id="glow" x="-15%" y="-40%" width="130%" height="180%">
-<feGaussianBlur in="SourceAlpha" stdDeviation="12" result="b1"/><feFlood flood-color="#B84DF0"/><feComposite in2="b1" operator="in" result="g1"/>
-<feGaussianBlur in="SourceAlpha" stdDeviation="4" result="b2"/><feFlood flood-color="{V400}"/><feComposite in2="b2" operator="in" result="g2"/>
-<feMerge><feMergeNode in="g1"/><feMergeNode in="g2"/><feMergeNode in="SourceGraphic"/></feMerge>
-</filter>
-</defs>
-<rect width="100%" height="100%" fill="{NIGHT}"/>
-<rect width="{w}" height="{HEADER}" fill="url(#aura)"/>
-<text x="52" y="64" font-family="Bungee" font-size="18" letter-spacing="2" fill="{GOLD}">WEEKLY RECAP</text>
-<text x="40" y="152" font-family="Neonderthaw" font-size="104" fill="{NEON_WHITE}" filter="url(#glow)">Lucky</text>
-<text x="52" y="222" font-size="20" font-weight="600" fill="{V300}">{}</text>
+<rect width="100%" height="100%" fill="{CREAM}"/>
+<image x="{MARGIN}" y="30" width="150" height="150" href="{icon}"/>
+<text x="224" y="52" font-family="Dela Gothic One" font-size="20" letter-spacing="2" fill="{VERMILION}">WEEKLY RECAP</text>
+<text x="{right}" y="52" font-size="22" font-weight="600" text-anchor="end" fill="{INK}">{}</text>
+<g transform="translate(224,70) scale(0.13)">{WORDMARK}</g>
+<text x="{right}" y="140" font-family="Dela Gothic One" font-size="44" text-anchor="end" fill="{PURPLE}">ラッキー</text>
 "##,
-        slot(&format!("{} → {}", date(&r.from), date(&r.to)), 40)
+        slot(&format!("{} → {}", date(&r.from), date(&r.to)), 40),
     );
 
     let stats = [
@@ -294,25 +304,35 @@ pub fn build_svg_counted(r: &RecapPayload) -> (String, usize) {
         (format!("{hours}H {minutes}M"), "LISTENED".to_string()),
         (format!("{autoplay}%"), "AUTOPLAY".to_string()),
     ];
-    for ((value, label), x) in stats.iter().zip([540, 770, 990]) {
+    for ((value, label), x) in stats.iter().zip([224, 520, 850]) {
         s.push_str(&format!(
-            r##"<text x="{x}" y="150" font-family="Bungee, Manrope" font-size="44" fill="{NEON_WHITE}">{}</text><text x="{x}" y="182" font-family="Bungee, Manrope" font-size="13" letter-spacing="1" fill="{V400}">{}</text>
+            r##"<text x="{x}" y="190" font-family="Dela Gothic One" font-size="38" fill="{INK}">{}</text><text x="{x}" y="216" font-size="15" font-weight="600" letter-spacing="1" fill="{INK}">{}</text>
 "##,
             slot(value, 10),
-            slot(label, 20)
+            slot(label, 24)
         ));
     }
+    s.push_str(&format!(
+        r##"<rect x="{MARGIN}" y="{}" width="{}" height="{LINE}" fill="{INK}"/>
+"##,
+        HEADER - 18 - LINE / 2,
+        w - 2 * MARGIN
+    ));
 
     let n = r.top_tracks.len().min(MAX_TRACKS);
     let side = (1..=5).rev().find(|k| n >= k * k).unwrap_or(1);
-    let tile = w / side;
-    let (rank_px, title_px, author_px) = (tile / 12, tile / 14, tile / 17);
-    let avail = (tile - 28) as f32;
+    let tile = (w - 2 * MARGIN) / side;
+    let gx = (w - tile * side) / 2;
+    let (title_px, author_px) = ((tile / 11).min(52), (tile / 15).min(34));
+    let rank_r = (tile / 9).min(56);
+    let pad = (tile / 40).max(8);
+    let band = pad * 3 + title_px + author_px;
+    let avail = (tile - 2 * pad) as f32;
     let title_w = (avail / (title_px as f32 * 0.6)) as usize;
     // The play count sits right-aligned on the author line; keep room for it.
-    let author_w = ((avail - author_px as f32 * 2.6) / (author_px as f32 * 0.56)) as usize;
+    let author_w = ((avail - author_px as f32 * 3.0) / (author_px as f32 * 0.56)) as usize;
     for (i, t) in r.top_tracks.iter().take(side * side).enumerate() {
-        let x = (i % side) * tile;
+        let x = gx + (i % side) * tile;
         let y = HEADER + (i / side) * tile;
         let cover = t.cover.as_deref().and_then(|c| {
             let url = cover::data_url(c);
@@ -324,30 +344,42 @@ pub fn build_svg_counted(r: &RecapPayload) -> (String, usize) {
                 r#"<image x="{x}" y="{y}" width="{tile}" height="{tile}" preserveAspectRatio="xMidYMid slice" href="{url}"/>"#
             )),
             None => s.push_str(&format!(
-                r##"<rect x="{x}" y="{y}" width="{tile}" height="{tile}" fill="url(#empty)"/><text x="{}" y="{}" font-family="Noto Emoji" font-size="{}" text-anchor="middle" fill="{V400}" fill-opacity="0.6">🎵</text>"##,
+                r##"<rect x="{x}" y="{y}" width="{tile}" height="{tile}" fill="{CREAM}"/><circle class="sun" cx="{}" cy="{}" r="{}" fill="{PURPLE}"/>"##,
                 x + tile / 2,
-                y + tile / 2 + tile / 10,
-                tile / 4
+                y + (tile - band) / 2,
+                tile / 5
             )),
         }
-        let (x10, y10) = (x + 10, y + 10);
-        let pill_h = rank_px * 17 / 10;
-        let pill_w = if i + 1 >= 10 { pill_h * 3 / 2 } else { pill_h };
-        let pill_r = pill_h / 2;
+        let band_y = y + tile - band;
+        let rank = i + 1;
+        let rank_px = if rank >= 10 {
+            rank_r * 4 / 5
+        } else {
+            rank_r * 11 / 10
+        };
+        let (cx, cy) = (x + pad + rank_r, y + pad + rank_r);
         s.push_str(&format!(
             r##"
-<rect x="{x}" y="{y}" width="{tile}" height="{tile}" fill="url(#scrim)"/>
-<rect x="{x10}" y="{y10}" width="{pill_w}" height="{pill_h}" rx="{pill_r}" fill="{NIGHT}" fill-opacity="0.72"/><text x="{}" y="{}" font-family="Bungee" font-size="{rank_px}" text-anchor="middle" fill="{GOLD}">{}</text>
-<text x="{}" y="{}" font-size="{title_px}" font-weight="700" fill="{NEON_WHITE}">{}</text>
-<text x="{}" y="{}" font-size="{author_px}" font-weight="600" fill="{V300}">{}</text><text x="{}" y="{}" font-size="{author_px}" font-weight="700" text-anchor="end" fill="{GOLD}">×{}</text>
+<rect x="{x}" y="{band_y}" width="{tile}" height="{band}" fill="{CREAM}"/><rect x="{x}" y="{band_y}" width="{tile}" height="{LINE}" fill="{INK}"/>
+<circle cx="{cx}" cy="{cy}" r="{rank_r}" fill="{PURPLE}" stroke="{INK}" stroke-width="{LINE}"/><text x="{cx}" y="{}" font-family="Dela Gothic One" font-size="{rank_px}" text-anchor="middle" fill="{CREAM}">{rank}</text>
+<text x="{}" y="{}" font-size="{title_px}" font-weight="600" fill="{INK}">{}</text>
+<text x="{}" y="{}" font-size="{author_px}" font-weight="600" fill="{INK}">{}</text><text x="{}" y="{}" font-size="{author_px}" font-weight="600" text-anchor="end" fill="{INK}">×{}</text>
+<rect x="{x}" y="{y}" width="{tile}" height="{tile}" fill="none" stroke="{INK}" stroke-width="{LINE}"/>
 "##,
-            x + 10 + pill_w / 2, y + 10 + pill_h / 2 + rank_px * 7 / 20, i + 1,
-            x + 14, y + tile - 14 - author_px - 8, slot(&t.title, title_w),
-            x + 14, y + tile - 14, slot(&t.author, author_w),
-            x + tile - 14, y + tile - 14, t.plays,
+            cy + rank_px * 35 / 100,
+            x + pad, band_y + pad + title_px - title_px / 8, slot(&t.title, title_w),
+            x + pad, band_y + 2 * pad + title_px + author_px - author_px / 5, slot(&t.author, author_w),
+            x + tile - pad, band_y + 2 * pad + title_px + author_px - author_px / 5, t.plays,
         ));
     }
-    s.push_str("</svg>");
+    let foot_y = HEADER + tile * side + (HEIGHT as usize - HEADER - tile * side) / 2;
+    s.push_str(&format!(
+        r##"<circle cx="{}" cy="{}" r="9" fill="{GOLD}" stroke="{INK}" stroke-width="{LINE}"/><text x="{}" y="{}" font-family="Dela Gothic One" font-size="28" text-anchor="middle" fill="{PURPLE}">lucky.lucassantana.tech</text><circle cx="{}" cy="{}" r="9" fill="{GOLD}" stroke="{INK}" stroke-width="{LINE}"/>
+</svg>"##,
+        w / 2 - 270, foot_y,
+        w / 2, foot_y + 10,
+        w / 2 + 270, foot_y,
+    ));
     (s, dropped)
 }
 
@@ -388,7 +420,7 @@ mod tests {
         std::fs::copy(fonts.join("Manrope.ttf"), dir.join("Manrope.ttf")).unwrap();
         let err = font_db(&dir).unwrap_err();
         assert!(
-            err.contains("Bungee") && err.contains("Noto Emoji"),
+            err.contains("Dela Gothic One") && err.contains("Noto Emoji"),
             "{err}"
         );
         assert!(font_db(&fonts).is_ok());
@@ -480,8 +512,9 @@ mod tests {
         let (svg, dropped) = build_svg_counted(&r);
         assert_eq!(dropped, 1);
         assert!(svg.contains("data:image/png;base64,"));
-        assert_eq!(svg.matches("<image ").count(), 1);
-        assert_eq!(svg.matches("fill=\"url(#empty)\"").count(), 3);
+        // The brand icon plus the one valid cover.
+        assert_eq!(svg.matches("<image ").count(), 2);
+        assert_eq!(svg.matches("class=\"sun\"").count(), 3);
     }
 
     #[test]
