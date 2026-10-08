@@ -33,7 +33,7 @@ describe('prometheus registry', () => {
 
     it('exposes lucky_bot_guilds_total with active and left labels on scrape', async () => {
         countMock.mockImplementation(async (args) => {
-            const arg = args as { where?: { leftAt?: null | { not: null } } }
+            const arg = args as { where?: { leftAt?: null } }
             if (arg?.where?.leftAt === null) return 42
             return 3
         })
@@ -48,6 +48,19 @@ describe('prometheus registry', () => {
             /lucky_bot_guilds_total\{[^}]*state="left"[^}]*\}\s+3/,
         )
         expect(text).toMatch(/service="lucky-bot"/)
+    })
+
+    it('counts only guilds the bot actually joined', async () => {
+        countMock.mockResolvedValue(0)
+
+        await renderMetrics()
+
+        expect(countMock).toHaveBeenCalledTimes(2)
+        for (const [args] of countMock.mock.calls) {
+            expect(args).toMatchObject({
+                where: { joinedAt: { not: null } },
+            })
+        }
     })
 
     it('logs but does not throw when Prisma fails', async () => {
