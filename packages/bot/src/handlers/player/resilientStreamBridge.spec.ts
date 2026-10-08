@@ -664,6 +664,63 @@ describe('bridge runs once per track', () => {
         expect(stageCount('bridge_total')).toBe(1)
     })
 
+    it('lets the fallback hit with a different URL try yt-dlp once', async () => {
+        const ext = makeExt({ id: 'pass-rescue' })
+        await expect(
+            createResilientStream(
+                makeTrack({ url: 'https://youtube.com/watch?v=blocked' }),
+                ext,
+            ),
+        ).rejects.toThrow('Bridge exhausted')
+        mockObserve.mockClear()
+        mockStreamViaYtDlp.mockClear()
+        mockStreamViaYtDlpSearch.mockClear()
+        mockStreamViaSoundCloud.mockClear()
+
+        mockStreamViaYtDlp.mockResolvedValueOnce(fakeStream)
+        await expect(
+            createResilientStream(
+                makeTrack({ url: 'https://youtube.com/watch?v=other' }),
+                ext,
+            ),
+        ).resolves.toBe(fakeStream)
+
+        expect(mockStreamViaYtDlp).toHaveBeenCalledWith(
+            'https://youtube.com/watch?v=other',
+        )
+        expect(mockStreamViaYtDlpSearch).not.toHaveBeenCalled()
+        expect(mockStreamViaSoundCloud).not.toHaveBeenCalled()
+        expect(
+            mockObserve.mock.calls.map(
+                (c) => (c[0] as { stage: string }).stage,
+            ),
+        ).toEqual(['ytdlp_url'])
+    })
+
+    it('fails fast when the different-URL attempt also fails', async () => {
+        const ext = makeExt({ id: 'pass-rescue-fail' })
+        await expect(
+            createResilientStream(
+                makeTrack({ url: 'https://youtube.com/watch?v=a' }),
+                ext,
+            ),
+        ).rejects.toThrow('Bridge exhausted')
+        mockStreamViaYtDlp.mockClear()
+        mockStreamViaSoundCloud.mockClear()
+        mockObserve.mockClear()
+
+        await expect(
+            createResilientStream(
+                makeTrack({ url: 'https://youtube.com/watch?v=b' }),
+                ext,
+            ),
+        ).rejects.toThrow('Bridge exhausted')
+
+        expect(mockStreamViaYtDlp).toHaveBeenCalledTimes(1)
+        expect(mockStreamViaSoundCloud).not.toHaveBeenCalled()
+        expect(stageCount('bridge_total')).toBe(0)
+    })
+
     it('does not leak the exhausted state into a new play', async () => {
         await expect(
             createResilientStream(makeTrack(), makeExt({ id: 'pass-1' })),

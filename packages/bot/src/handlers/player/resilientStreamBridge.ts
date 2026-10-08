@@ -316,9 +316,11 @@ function logAllStagesExhausted(
 // YouTube for "title author" and calls `createResilientStream` again with the
 // search hit. Both calls happen inside one `extractors.context.provide(...)`
 // scope, which is the only identity they share. A pass that already failed
-// there is recorded here so the second call fails fast instead of repeating
-// every yt-dlp/SoundCloud attempt (#2740).
-const exhaustedPasses = new WeakSet<object>()
+// there is recorded here (with the URL that failed) so the second call does
+// not repeat every yt-dlp/SoundCloud attempt (#2740). The fallback hit is a
+// different upload, which can succeed where the original was geo-blocked or
+// private, so a different URL still gets one direct yt-dlp attempt.
+const exhaustedPasses = new WeakMap<object, string | null>()
 
 function currentPassKey(ext: unknown): object | null {
     try {
@@ -337,13 +339,7 @@ export async function createResilientStream(
 ): Promise<Readable> {
     const passKey = currentPassKey(ext)
     if (passKey && exhaustedPasses.has(passKey)) {
-        // No stage metrics here: bridge_total must stay one observation per
-        // track, so a fast repeat cannot skew the /play latency percentiles.
-        debugLog({
-            message: 'Bridge: already exhausted for this play, failing fast',
-            data: { title: track.title },
-        })
-        throw new Error(`Bridge exhausted: no stream for "${track.title}"`)
+        return retryExhaustedPass(track, exhaustedPasses.get(passKey) ?? null)
     }
 
     const startedAt = Date.now()
@@ -357,7 +353,7 @@ export async function createResilientStream(
         return stream
     } catch (error) {
         const durationMs = observeStage('bridge_total', startedAt, 'fail')
-        if (passKey) exhaustedPasses.add(passKey)
+        if (passKey) exhaustedPasses.set(passKey, track.url ?? null)
         debugLog({
             message: 'Bridge: failed',
             data: {
@@ -368,6 +364,31 @@ export async function createResilientStream(
         })
         throw error
     }
+}
+
+// Second call inside an exhausted pass. No bridge_total observation here: it
+// must stay one per track so the /play latency percentiles are not skewed.
+// Only a different, non-Spotify URL gets a single yt-dlp URL attempt (the
+// stage observation of that attempt is fine); no search, no SoundCloud.
+async function retryExhaustedPass(
+    track: BridgeTrack,
+    failedUrl: string | null,
+): Promise<Readable> {
+    const url = track.url
+    const canRescue =
+        Boolean(url) &&
+        url !== failedUrl &&
+        !isHost(url as string, 'open.spotify.com') &&
+        !isYtDlpBlocked()
+    if (canRescue) {
+        const stream = await attemptYtDlpUrl(track, cleanTitle(track.title))
+        if (stream) return stream
+    }
+    debugLog({
+        message: 'Bridge: already exhausted for this play, failing fast',
+        data: { title: track.title, rescueTried: canRescue },
+    })
+    throw new Error(`Bridge exhausted: no stream for "${track.title}"`)
 }
 
 /**
