@@ -44,7 +44,7 @@ mindmap
         1882 POSTGRES_PASSWORD gotcha
         1784 top.gg ad campaign
     Future features
-      Context-menu pack — quote, user card, report, bookmark, starboard
+      Context-menu pack — quote, user card, report, bookmark
       Welcome and Leave editor
       Giveaways dashboard page
       Integration feeds spine — RSS, YouTube, Twitch clips
@@ -93,54 +93,54 @@ timeline
 
 ### Features
 
-| # | Title | Labels |
-|---|-------|--------|
+| #                                                              | Title                                                                                   | Labels                       |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------- |
 | [#1777](https://github.com/LucasSantana-Dev/Lucky/issues/1777) | mod-log/server-log parity with Dyno (event coverage + per-event routing + ignore lists) | cat:feature, ready-for-agent |
-| [#1765](https://github.com/LucasSantana-Dev/Lucky/issues/1765) | generalize bulk actions into a /bulk-* command family | ready-for-agent |
-| [#1813](https://github.com/LucasSantana-Dev/Lucky/issues/1813) | TTL delete mode (v2) — deferred from #1687 | ready-for-agent |
-| [#1792](https://github.com/LucasSantana-Dev/Lucky/issues/1792) | channel cleanup: track/disable configs after repeated purge failures | ready-for-human |
+| [#1765](https://github.com/LucasSantana-Dev/Lucky/issues/1765) | generalize bulk actions into a /bulk-* command family                                   | ready-for-agent              |
+| [#1813](https://github.com/LucasSantana-Dev/Lucky/issues/1813) | TTL delete mode (v2) — deferred from #1687                                              | ready-for-agent              |
+| [#1792](https://github.com/LucasSantana-Dev/Lucky/issues/1792) | channel cleanup: track/disable configs after repeated purge failures                    | ready-for-human              |
 
 ### CI / Ops
 
-| # | Title | Labels |
-|---|-------|--------|
-| [#1785](https://github.com/LucasSantana-Dev/Lucky/issues/1785) | blue/green zero-downtime deploys — true B/G for web tier, fast-rollover for the bot | ready-for-agent |
-| [#1800](https://github.com/LucasSantana-Dev/Lucky/issues/1800) | blue/green web tier Phase 1b — cold-start wiring + live staging validation | ready-for-agent |
-| [#1651](https://github.com/LucasSantana-Dev/Lucky/issues/1651) | LuckyBotDown fired 4.5h, alertmanager never dispatched — silent alert black hole | ready-for-human |
-| [#1481](https://github.com/LucasSantana-Dev/Lucky/issues/1481) | Renovate not running since Dependabot→Renovate migration — dep automation dark since 2026-05-27 | ready-for-human |
-| [#1935](https://github.com/LucasSantana-Dev/Lucky/issues/1935) | report explicit rollout/rollback result from the homelab deploy webhook | ready-for-human, cat:ci |
-| [#1934](https://github.com/LucasSantana-Dev/Lucky/issues/1934) | apply calibrated memory alert rules to the live homelab prometheus | ready-for-human, cat:ci |
-| [#1933](https://github.com/LucasSantana-Dev/Lucky/issues/1933) | dismiss the 39 stale Trivy secret findings from the vendored yt-dlp scan | ready-for-agent, cat:ci |
-| [#1538](https://github.com/LucasSantana-Dev/Lucky/issues/1538) | repo carries two lockfiles (package-lock + pnpm-lock) that drift independently | ready-for-human |
+| #                                                              | Title                                                                                           | Labels                  |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------- |
+| [#1785](https://github.com/LucasSantana-Dev/Lucky/issues/1785) | blue/green zero-downtime deploys — true B/G for web tier, fast-rollover for the bot             | ready-for-agent         |
+| [#1800](https://github.com/LucasSantana-Dev/Lucky/issues/1800) | blue/green web tier Phase 1b — cold-start wiring + live staging validation                      | ready-for-agent         |
+| [#1651](https://github.com/LucasSantana-Dev/Lucky/issues/1651) | LuckyBotDown fired 4.5h, alertmanager never dispatched — silent alert black hole                | ready-for-human         |
+| [#1481](https://github.com/LucasSantana-Dev/Lucky/issues/1481) | Renovate not running since Dependabot→Renovate migration — dep automation dark since 2026-05-27 | ready-for-human         |
+| [#1935](https://github.com/LucasSantana-Dev/Lucky/issues/1935) | report explicit rollout/rollback result from the homelab deploy webhook                         | ready-for-human, cat:ci |
+| [#1934](https://github.com/LucasSantana-Dev/Lucky/issues/1934) | apply calibrated memory alert rules to the live homelab prometheus                              | ready-for-human, cat:ci |
+| [#1933](https://github.com/LucasSantana-Dev/Lucky/issues/1933) | dismiss the 39 stale Trivy secret findings from the vendored yt-dlp scan                        | ready-for-agent, cat:ci |
+| [#1538](https://github.com/LucasSantana-Dev/Lucky/issues/1538) | repo carries two lockfiles (package-lock + pnpm-lock) that drift independently                  | ready-for-human         |
 
 ### Security
 
-| # | Title | Labels |
-|---|-------|--------|
+| #                                                              | Title                                                                                     | Labels                        |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------- |
 | [#1480](https://github.com/LucasSantana-Dev/Lucky/issues/1480) | deploy posture — orphaned high-priv secrets + unscoped secrets + no Production env policy | cat:security, ready-for-human |
-| [#1880](https://github.com/LucasSantana-Dev/Lucky/issues/1880) | @discordjs/opus pulls an unfixable node-pre-gyp chain | dependencies, cat:security |
-| [#1878](https://github.com/LucasSantana-Dev/Lucky/issues/1878) | migrate to react-router v8 to clear GHSA-qwww-vcr4-c8h2 | dependencies, cat:security |
-| [#1879](https://github.com/LucasSantana-Dev/Lucky/issues/1879) | modernise dev test toolchain to clear brace-expansion advisory chain | dependencies, cat:tech-debt |
-| [#1914](https://github.com/LucasSantana-Dev/Lucky/issues/1914) | CSP is defined in three places and has drifted | infra, cat:tech-debt |
-| [#1714](https://github.com/LucasSantana-Dev/Lucky/issues/1714) | session cookie sameSite=none in production may be stricter than needed | ready-for-agent |
+| [#1880](https://github.com/LucasSantana-Dev/Lucky/issues/1880) | @discordjs/opus pulls an unfixable node-pre-gyp chain                                     | dependencies, cat:security    |
+| [#1878](https://github.com/LucasSantana-Dev/Lucky/issues/1878) | migrate to react-router v8 to clear GHSA-qwww-vcr4-c8h2                                   | dependencies, cat:security    |
+| [#1879](https://github.com/LucasSantana-Dev/Lucky/issues/1879) | modernise dev test toolchain to clear brace-expansion advisory chain                      | dependencies, cat:tech-debt   |
+| [#1914](https://github.com/LucasSantana-Dev/Lucky/issues/1914) | CSP is defined in three places and has drifted                                            | infra, cat:tech-debt          |
+| [#1714](https://github.com/LucasSantana-Dev/Lucky/issues/1714) | session cookie sameSite=none in production may be stricter than needed                    | ready-for-agent               |
 
 ### Bot / tech debt / docs
 
-| # | Title | Labels |
-|---|-------|--------|
-| [#1929](https://github.com/LucasSantana-Dev/Lucky/issues/1929) | observability: bot reports healthy while music is completely broken | bot, music, needs-triage |
-| [#1919](https://github.com/LucasSantana-Dev/Lucky/issues/1919) | message.delete() swallows permission errors as if they were 404s | bot, moderation, cat:bug |
-| [#1634](https://github.com/LucasSantana-Dev/Lucky/issues/1634) | test runner fragmentation — Jest vs Vitest across monorepo packages | cat:tech-debt |
-| [#1705](https://github.com/LucasSantana-Dev/Lucky/issues/1705) | TypeScript 7 migration blocked: ts-jest has no TS7-compatible release | needs-info |
-| [#1924](https://github.com/LucasSantana-Dev/Lucky/issues/1924) | record which layer serves which host (three serving layers, undocumented) | infra, cat:docs |
-| [#1882](https://github.com/LucasSantana-Dev/Lucky/issues/1882) | changing POSTGRES_PASSWORD in .env after first boot silently does nothing | cat:tech-debt, cat:docs |
-| [#1784](https://github.com/LucasSantana-Dev/Lucky/issues/1784) | launch $10 Top.gg ad campaign once listing passes verification (blocked ~1-2wk) | ready-for-human |
+| #                                                              | Title                                                                           | Labels                   |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------ |
+| [#1929](https://github.com/LucasSantana-Dev/Lucky/issues/1929) | observability: bot reports healthy while music is completely broken             | bot, music, needs-triage |
+| [#1919](https://github.com/LucasSantana-Dev/Lucky/issues/1919) | message.delete() swallows permission errors as if they were 404s                | bot, moderation, cat:bug |
+| [#1634](https://github.com/LucasSantana-Dev/Lucky/issues/1634) | test runner fragmentation — Jest vs Vitest across monorepo packages             | cat:tech-debt            |
+| [#1705](https://github.com/LucasSantana-Dev/Lucky/issues/1705) | TypeScript 7 migration blocked: ts-jest has no TS7-compatible release           | needs-info               |
+| [#1924](https://github.com/LucasSantana-Dev/Lucky/issues/1924) | record which layer serves which host (three serving layers, undocumented)       | infra, cat:docs          |
+| [#1882](https://github.com/LucasSantana-Dev/Lucky/issues/1882) | changing POSTGRES_PASSWORD in .env after first boot silently does nothing       | cat:tech-debt, cat:docs  |
+| [#1784](https://github.com/LucasSantana-Dev/Lucky/issues/1784) | launch $10 Top.gg ad campaign once listing passes verification (blocked ~1-2wk) | ready-for-human          |
 
 ## Future features
 
 Verified unshipped against the codebase on 2026-08-03.
 
-- **Context-menu pack** — Quote-as-embed, User card (mod history + level), Report message→mod case, Bookmark (new table), Pin-to-starboard. Wave 1: Quote → User card → Report. Source: `.claude/plans/2026-06-23-bot-flows-backlog-design.md`, tiering in `decisions/2026-06-21-context-menu-adoption-strategy.md`.
+- **Context-menu pack** — Quote-as-embed, User card (mod history + level), Report message→mod case, Bookmark (new table). Wave 1: Quote → User card → Report. Source: `.claude/plans/2026-06-23-bot-flows-backlog-design.md`, tiering in `decisions/2026-06-21-context-menu-adoption-strategy.md`.
 - **Welcome/Leave dedicated editor** — `WelcomeLeaveEditor.tsx` with embed/plaintext toggle, token picker, live preview. Called "cheapest high-value win in the whole backlog." Source: `.claude/plans/2026-06-23-bot-flows-backlog-design.md`.
 - **Giveaways dashboard page** — bot side (models + scheduler) shipped; dashboard CRUD + `managementGiveaways` routes never landed. Source: same design doc.
 - **Integration feeds spine** — `FeedSubscription` model, generic poller/embed/control services; RSS first → YouTube (WebSub) → Twitch clips (Helix); `IntegrationFeeds.tsx`. ~5 weeks, highest growth value. Source: same design doc.
