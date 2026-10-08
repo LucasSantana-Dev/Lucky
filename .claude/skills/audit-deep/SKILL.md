@@ -82,7 +82,7 @@ capability; findings then proceed with confidence=high.
 
 Audits do not know history. Memory does. Before drafting fixes:
 
-- For each HIGH/MEDIUM finding, run `recall`
+- For each CRITICAL/HIGH/MEDIUM finding, run `recall`
   on the flagged file, image tag, config key, or symbol.
 - If recall surfaces any past decision about that exact item (exception,
   intentional pattern, "do not change X" memory), tag the finding `NEEDS_REVIEW`
