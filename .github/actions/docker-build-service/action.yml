@@ -37,13 +37,13 @@ inputs:
 runs:
     using: composite
     steps:
-        # ubuntu-latest ships ~30GB of preinstalled toolchains (dotnet, GHC,
-        # Android SDK, Swift) this build never uses. BuildKit's own GC can
-        # race a long multi-stage build under disk pressure and evict a
-        # layer/blob a later step still needs — "failed to calculate
-        # checksum of ref ...: not found" on a stage that just built
-        # successfully. Free the unused toolchains before building so
-        # BuildKit's GC has no reason to run mid-build.
+        # Not a disk-space fix. This step used to also `rm -rf` the preinstalled
+        # toolchains (dotnet, GHC, Android SDK, Swift, CodeQL) on the theory
+        # that disk pressure made BuildKit's GC evict a layer a later step
+        # still needed (#2003). That theory was disproved: the checksum error
+        # reproduced with ample disk and was a solver-level race, fixed by
+        # max-parallelism=1 below (#2018, Dockerfile header). The removal cost
+        # about 64 s per docker-build job and left the disk at 25% used.
         #
         # `docker buildx prune` runs first because a retry's leftover
         # builder from the first (failed) attempt is a docker-container
@@ -51,11 +51,10 @@ runs:
         # prune` operates on the classic docker engine and does not
         # reclaim that isolated state (setup-buildx-action only removes
         # the builder in its job-end post step, not between retries).
-        - name: Free disk space
+        - name: Reset Docker state
           shell: bash
           run: |
               docker buildx prune -af || true
-              sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/share/swift /opt/hostedtoolcache/CodeQL || true
               docker system prune -af --volumes || true
               df -h /
         # Serialize BuildKit's own stage scheduling (issue #2015 follow-up).
