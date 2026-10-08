@@ -13,7 +13,16 @@ const interactionReplyMock = jest.fn()
 
 jest.mock('@lucky/shared/services/batch', () => ({
     batchJobService: batchJobServiceMock,
-    isBatchJobType: (value: string) => value !== 'channel_move_batch',
+    // Mirrors BATCH_JOB_TYPES so any unlisted legacy type is rejected.
+    isBatchJobType: (value: string) =>
+        [
+            'bulk_ban',
+            'bulk_kick',
+            'bulk_warn',
+            'bulk_add_role',
+            'bulk_remove_role',
+            'purge_batch',
+        ].includes(value),
 }))
 
 jest.mock('../../../utils/batch/batchQueue', () => ({
@@ -37,6 +46,7 @@ function createMockJob(overrides: Record<string, unknown> = {}) {
         guildId: 'guild-123',
         initiatedBy: 'user-123',
         status: 'paused',
+        jobType: 'bulk_kick',
         ...overrides,
     }
 }
