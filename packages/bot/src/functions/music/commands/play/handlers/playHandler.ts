@@ -1,8 +1,13 @@
-import type { GuildMember } from 'discord.js'
-import type { PlayerNodeInitializationResult } from 'discord-player'
+import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
+import type {
+    PlayerNodeInitializationResult,
+    SearchResult,
+    Track,
+} from 'discord-player'
 import type { CommandExecuteParams } from '../../../../../types/CommandData'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
+import { markCommandOutcome } from '../../../../../utils/monitoring/commandOutcome'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { createErrorEmbed } from '../../../../../utils/general/embeds'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
@@ -24,7 +29,115 @@ import {
     emitPlayResolutionTelemetry,
 } from './resolveProvider'
 import { runPostPlayBackgroundOps } from './postPlayBackgroundOps'
-import { resolvePlayErrorMessage } from './playErrorMessage'
+import {
+    classifyPlayFailure,
+    resolvePlayErrorMessage,
+} from './playErrorMessage'
+import { watchStreamStartFailures } from './streamStartWatcher'
+import {
+    closePlayStartWatch,
+    openPlayStartWatch,
+    waitForPlayStartOutcome,
+    type PlayStartWatch,
+} from '../../../../../handlers/player/playStartWatch'
+
+// Stream recovery searches for up to 10 s before giving up (streamRecovery.ts).
+const RECOVERY_OUTCOME_WAIT_MS = 15_000
+
+type QueuedEmbedInput = {
+    searchResult: SearchResult
+    track: Track
+    interaction: ChatInputCommandInteraction
+    queuePosition: number
+}
+
+function buildQueuedEmbed({
+    searchResult,
+    track,
+    interaction,
+    queuePosition,
+}: QueuedEmbedInput) {
+    return searchResult.playlist
+        ? buildPlayResponseEmbed({
+              kind: 'playlistQueued',
+              track,
+              requestedBy: interaction.user,
+              playlist: {
+                  title: searchResult.playlist.title,
+                  trackCount: searchResult.tracks.length,
+                  url: searchResult.playlist.url,
+              },
+          })
+        : buildPlayResponseEmbed({
+              kind: 'addedToQueue',
+              track,
+              requestedBy: interaction.user,
+              queuePosition,
+          })
+}
+
+/** The reply sent as soon as the search resolved, before audio starts. */
+type EarlyReply = {
+    track: Track
+    queuePosition: number
+    sent: Promise<void>
+}
+
+function isSameResolvedTrack(a: Track, b: Track): boolean {
+    return a === b || (Boolean(b.id) && a.id === b.id)
+}
+
+/**
+ * Edits the original (deferred) reply in place. `interactionReply` cannot be
+ * used for a second write: once the first edit landed `interaction.replied`
+ * is true and it would post a follow-up message instead of editing.
+ * Returns false when the edit failed (expired token, deleted message).
+ */
+async function editOriginalReply(
+    interaction: ChatInputCommandInteraction,
+    embed: unknown,
+): Promise<boolean> {
+    try {
+        await interaction.editReply({ embeds: [embed as never] })
+        return true
+    } catch (error) {
+        debugLog({
+            message: 'Could not edit the original /play reply',
+            data: { guildId: interaction.guildId, error: String(error) },
+        })
+        return false
+    }
+}
+
+/**
+ * Replaces the "added to queue" reply with an error. If the interaction can no
+ * longer be edited (token expired after 15 minutes, message deleted), sends it
+ * to the channel instead so the user is not left with a stale success.
+ */
+async function replaceReplyWithError(
+    interaction: ChatInputCommandInteraction,
+    embed: unknown,
+): Promise<void> {
+    if (await editOriginalReply(interaction, embed)) return
+    const channel = interaction.channel
+    try {
+        if (channel && 'send' in channel) {
+            await channel.send({ embeds: [embed as never] })
+            return
+        }
+    } catch (error) {
+        warnLog({
+            message: 'Failed to send play failure follow-up to channel',
+            error,
+            data: { guildId: interaction.guildId },
+        })
+        return
+    }
+    warnLog({
+        message: 'No way to report play failure to the user',
+        data: { guildId: interaction.guildId },
+    })
+}
 
 export async function executePlayHandler({
     client,
@@ -46,6 +159,7 @@ export async function executePlayHandler({
         return
     }
 
+    const commandStartedAt = Date.now()
     const member = interaction.member as GuildMember
     const voiceChannel = assertDefined(
         member.voice.channel,
@@ -94,6 +208,13 @@ export async function executePlayHandler({
             },
         })
         return
+    }
+
+    // Written by the onSearchResolved callback while play() is still awaiting
+    // voice and stream; read by the final reconcile and by the catch below.
+    const early: { reply: EarlyReply | null; watch: PlayStartWatch | null } = {
+        reply: null,
+        watch: null,
     }
 
     try {
@@ -152,6 +273,46 @@ export async function executePlayHandler({
             searchEngine,
         }
 
+        const guildId = interaction.guildId
+        const startWatcher = watchStreamStartFailures(client.player, guildId)
+
+        // Answers as soon as the search found something, so the user is not
+        // waiting out the voice connect and the stream bridge (about 6 s on a
+        // cold Spotify play). Not awaited: the edit runs while discord-player
+        // connects. The now-playing message later overwrites the same message.
+        const replyOnceSearched = (searchResult: SearchResult): void => {
+            const found = searchResult.tracks[0]
+            if (!found || (!searchResult.playlist && !found.title)) return
+            if (!searchResult.playlist) {
+                // Lets stream recovery hand its outcome to this command
+                // instead of messaging the channel (see playStartWatch.ts).
+                if (early.watch) early.watch.track = found
+                else early.watch = openPlayStartWatch(guildId, found)
+            }
+            if (early.reply) return
+            const queueNow = resolveGuildQueue(client, guildId).queue
+            const queuePosition =
+                hadQueueBeforePlay && queueNow ? queueNow.tracks.size + 1 : 0
+            const embed = buildQueuedEmbed({
+                searchResult,
+                track: found,
+                interaction,
+                queuePosition,
+            })
+            early.reply = {
+                track: found,
+                queuePosition,
+                sent: interactionReply({
+                    interaction,
+                    content: { embeds: [embed] },
+                }).catch(() => undefined),
+            }
+            debugLog({
+                message: 'Play: early reply sent after search',
+                data: { guildId, replyAfterMs: Date.now() - commandStartedAt },
+            })
+        }
+
         let result: PlayerNodeInitializationResult<unknown>
         let resolutionTelemetry
         const resolutionStartedAt = Date.now()
@@ -163,6 +324,7 @@ export async function executePlayHandler({
                 provider ?? 'default',
                 searchEngine,
                 playOptions,
+                replyOnceSearched,
             )
             result = resolution.result
             resolutionTelemetry = resolution.telemetry
@@ -181,11 +343,45 @@ export async function executePlayHandler({
                 // Telemetry failure must not break play error handling
             }
             throw error
+        } finally {
+            startWatcher.dispose()
         }
 
         const track = result.track
 
         const isPlaylist = !!result.searchResult.playlist
+
+        // discord-player does not throw to this caller when every stream
+        // source fails: it skips the track and resolves play() as if it had
+        // started. Say so instead of leaving "added to queue" on screen.
+        const startFailed = !isPlaylist && startWatcher.hasFailed(track)
+        // Only a failed start still needs the hand-off; a track that fails
+        // later must reach the regular channel notification.
+        if (!startFailed && early.watch) closePlayStartWatch(early.watch)
+
+        if (startFailed) {
+            // Recovery may still start a replacement (YouTube search) or give
+            // up. Say "could not start" only if it gave up; it does not
+            // message the channel while this command is watching.
+            const outcome = early.watch
+                ? await waitForPlayStartOutcome(
+                      early.watch,
+                      RECOVERY_OUTCOME_WAIT_MS,
+                  )
+                : 'gave_up'
+            if (outcome === 'gave_up') {
+                await reportStartFailure(interaction, early.reply, track)
+                return
+            }
+            debugLog({
+                message:
+                    outcome === 'recovered'
+                        ? 'Play: stream recovered with a replacement track, keeping the reply'
+                        : 'Play: stream recovery outcome unknown, keeping the reply',
+                data: { guildId, title: track.title },
+            })
+        }
+
         if (!isPlaylist && !track.title) {
             throw new Error('YouTube: track metadata unavailable')
         }
@@ -206,23 +402,12 @@ export async function executePlayHandler({
                     : queuedTracks.length
                 : 0
 
-        const embed = result.searchResult.playlist
-            ? buildPlayResponseEmbed({
-                  kind: 'playlistQueued',
-                  track,
-                  requestedBy: interaction.user,
-                  playlist: {
-                      title: result.searchResult.playlist.title,
-                      trackCount: result.searchResult.tracks.length,
-                      url: result.searchResult.playlist.url,
-                  },
-              })
-            : buildPlayResponseEmbed({
-                  kind: 'addedToQueue',
-                  track,
-                  requestedBy: interaction.user,
-                  queuePosition,
-              })
+        const embed = buildQueuedEmbed({
+            searchResult: result.searchResult,
+            track,
+            interaction,
+            queuePosition,
+        })
 
         try {
             collaborativePlaylistService.recordContribution(
@@ -237,10 +422,23 @@ export async function executePlayHandler({
             })
         }
 
-        await interactionReply({
-            interaction,
-            content: { embeds: [embed] },
-        })
+        if (!early.reply) {
+            await interactionReply({
+                interaction,
+                content: { embeds: [embed] },
+            })
+        } else {
+            // The early embed was built before the track was added, so its
+            // position is an estimate (and a fallback arm may have resolved a
+            // different track). Correct it only when it differs.
+            await early.reply.sent
+            if (
+                !isSameResolvedTrack(early.reply.track, track) ||
+                early.reply.queuePosition !== queuePosition
+            ) {
+                await editOriginalReply(interaction, embed)
+            }
+        }
 
         // Fire-and-forget: each op is isolated inside runPostPlayBackgroundOps so a
         // single failure never silently skips the others (#1085).
@@ -280,17 +478,26 @@ export async function executePlayHandler({
             error,
             data: { query, guildId: interaction.guildId },
         })
+        markCommandOutcome(interaction, classifyPlayFailure(error))
+
+        const errorEmbed = createErrorEmbed(
+            'Play Error',
+            resolvePlayErrorMessage(error, query),
+        )
+
+        if (early.reply) {
+            // The user already has a success reply: replace it, do not stack
+            // an ephemeral follow-up under it.
+            await early.reply.sent
+            await replaceReplyWithError(interaction, errorEmbed)
+            return
+        }
 
         try {
             await interactionReply({
                 interaction,
                 content: {
-                    embeds: [
-                        createErrorEmbed(
-                            'Play Error',
-                            resolvePlayErrorMessage(error, query),
-                        ),
-                    ],
+                    embeds: [errorEmbed],
                     ephemeral: true,
                 },
             })
@@ -301,5 +508,32 @@ export async function executePlayHandler({
                 data: { guildId: interaction.guildId },
             })
         }
+    } finally {
+        if (early.watch) closePlayStartWatch(early.watch)
     }
+}
+
+async function reportStartFailure(
+    interaction: ChatInputCommandInteraction,
+    earlyReply: EarlyReply | null,
+    track: Track,
+): Promise<void> {
+    warnLog({
+        message: 'Play: track could not be started, replying with failure',
+        data: { guildId: interaction.guildId, title: track.title },
+    })
+    markCommandOutcome(interaction, {
+        outcome: 'error',
+        errorClass: 'StreamStartFailed',
+    })
+    const embed = createErrorEmbed(
+        'Play Error',
+        `Could not start **${track.title || 'this track'}**: no audio source responded. It may be unavailable in your region. Try another version of the song.`,
+    )
+    if (earlyReply) {
+        await earlyReply.sent
+        await replaceReplyWithError(interaction, embed)
+        return
+    }
+    await interactionReply({ interaction, content: { embeds: [embed] } })
 }

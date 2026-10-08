@@ -44,3 +44,27 @@ export function classifyOutcome(input: {
             return { outcome: 'error', errorClass: 'UnknownStopReason' }
     }
 }
+
+const markedOutcomes = new WeakMap<object, ClassifiedOutcome>()
+
+/**
+ * Lets a handler that already replied to the user (and so does not throw)
+ * report a non-ok outcome for the single event the dispatcher records. /play
+ * uses it when the stream fails to start after the reply was sent: the
+ * handler returns normally, which would otherwise be recorded as ok. Keyed by
+ * interaction so it needs no cleanup and cannot leak across commands.
+ */
+export function markCommandOutcome(
+    interaction: object,
+    outcome: ClassifiedOutcome,
+): void {
+    markedOutcomes.set(interaction, outcome)
+}
+
+export function takeCommandOutcome(
+    interaction: object,
+): ClassifiedOutcome | undefined {
+    const marked = markedOutcomes.get(interaction)
+    markedOutcomes.delete(interaction)
+    return marked
+}

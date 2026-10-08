@@ -55,6 +55,7 @@ import { interactionReply } from '../utils/general/interactionReply'
 import { monitorCommandExecution } from '../utils/monitoring'
 import { recordCommandEvent } from '../utils/monitoring/recordCommandEvent'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
+import { markCommandOutcome } from '../utils/monitoring/commandOutcome'
 
 function createMockCommand(overrides?: Partial<Command>): Command {
     return {
@@ -461,6 +462,49 @@ describe('commandsHandler', () => {
                 errorClass: 'RangeError',
             })
             expect(interactionReply).toHaveBeenCalled()
+        })
+
+        it('records the outcome a handler marked when it replied without throwing', async () => {
+            const interaction = createMockInteraction()
+            const command = createMockCommand()
+            ;(command.execute as jest.Mock).mockImplementation(async () => {
+                markCommandOutcome(interaction, {
+                    outcome: 'error',
+                    errorClass: 'StreamStartFailed',
+                })
+            })
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({ interaction, client })
+
+            expect(recorded()).toHaveLength(1)
+            expect(recorded()[0]).toMatchObject({
+                outcome: 'error',
+                errorClass: 'StreamStartFailed',
+            })
+        })
+
+        it('lets a thrown error win over a marked outcome', async () => {
+            const interaction = createMockInteraction()
+            const command = createMockCommand()
+            ;(command.execute as jest.Mock).mockImplementation(async () => {
+                markCommandOutcome(interaction, {
+                    outcome: 'user_error',
+                    errorClass: 'NoResultError',
+                })
+                throw new RangeError('bad')
+            })
+            const client = createMockClient()
+            client.commands.set('test', command)
+
+            await executeCommand({ interaction, client })
+
+            expect(recorded()).toHaveLength(1)
+            expect(recorded()[0]).toMatchObject({
+                outcome: 'error',
+                errorClass: 'RangeError',
+            })
         })
 
         it('records one context event', async () => {

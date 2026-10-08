@@ -7,7 +7,10 @@ jest.mock('../../../../../handlers/player/extractorHealth', () => ({
         isExtractorDegradedMock(...args),
 }))
 
-import { resolvePlayErrorMessage } from './playErrorMessage'
+import {
+    classifyPlayFailure,
+    resolvePlayErrorMessage,
+} from './playErrorMessage'
 
 describe('resolvePlayErrorMessage', () => {
     beforeEach(() => {
@@ -89,5 +92,24 @@ describe('resolvePlayErrorMessage', () => {
         expect(() =>
             resolvePlayErrorMessage('plain string error'),
         ).not.toThrow()
+    })
+})
+
+describe('classifyPlayFailure', () => {
+    it('counts a search with no results as a user error', () => {
+        const error = new Error('No results found for "zzz" (Extractor: N/A)')
+        error.name = 'NoResultError'
+
+        expect(classifyPlayFailure(error)).toEqual({
+            outcome: 'user_error',
+            errorClass: 'Error',
+        })
+    })
+
+    it('counts any other failure as an error with its class', () => {
+        expect(classifyPlayFailure(new TypeError('boom'))).toEqual({
+            outcome: 'error',
+            errorClass: 'TypeError',
+        })
     })
 })

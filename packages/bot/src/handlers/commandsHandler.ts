@@ -21,6 +21,8 @@ import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSaniti
 import { recordCommandEvent } from '../utils/monitoring/recordCommandEvent'
 import {
     classifyOutcome,
+    takeCommandOutcome,
+    type ClassifiedOutcome,
     type CommandKind,
     type CommandStopReason,
 } from '../utils/monitoring/commandOutcome'
@@ -221,9 +223,10 @@ const recordHandled = (
     startedAt: number,
     known: boolean,
     signal: HandledSignal,
+    marked?: ClassifiedOutcome,
 ): void => {
     try {
-        const { outcome, errorClass } = classifyOutcome(signal)
+        const { outcome, errorClass } = marked ?? classifyOutcome(signal)
         recordCommandEvent({
             interaction,
             kind,
@@ -293,7 +296,18 @@ const dispatchAndRecord = async ({
         signal = { error }
         await replyExecutionError(error, interaction, failureTag)
     }
-    recordHandled(interaction, kind, startedAt, known, signal)
+    // A handler that replied without throwing may have marked a non-ok
+    // outcome. A thrown error or a gate stop already says more, so it wins.
+    const marked = takeCommandOutcome(interaction)
+    const hasSignal = 'error' in signal || signal.reason !== undefined
+    recordHandled(
+        interaction,
+        kind,
+        startedAt,
+        known,
+        signal,
+        hasSignal ? undefined : marked,
+    )
 }
 
 export const executeCommand = async ({

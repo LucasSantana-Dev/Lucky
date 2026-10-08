@@ -11,6 +11,7 @@ import {
     logHandlerFailure,
 } from './errorClassification'
 import { notifyChannelStreamFailed } from './streamFailureNotifier'
+import { settlePlayStartWatch } from './playStartWatch'
 import {
     handleYouTubeParserError,
     recoverFromStreamExtractionError,
@@ -181,7 +182,14 @@ export async function handlePlayerError(
                     recoveryError,
                 )
                 const failedTrack = queue.currentTrack
-                if (failedTrack) {
+                if (
+                    failedTrack &&
+                    !settlePlayStartWatch(
+                        queue.guild.id,
+                        failedTrack,
+                        'gave_up',
+                    )
+                ) {
                     await notifyChannelStreamFailed(queue, failedTrack.title)
                 }
                 queue.node.skip()

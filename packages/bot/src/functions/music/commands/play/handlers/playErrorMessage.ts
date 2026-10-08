@@ -1,5 +1,9 @@
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { isExtractorDegraded } from '../../../../../handlers/player/extractorHealth'
+import {
+    classifyOutcome,
+    type ClassifiedOutcome,
+} from '../../../../../utils/monitoring/commandOutcome'
 import { detectQueryType } from '../queryDetector'
 
 // "No results found" is misleading when it's actually a degraded extractor
@@ -31,4 +35,16 @@ export function resolvePlayErrorMessage(
         return 'Music sources are currently unreachable. Please try again in a few minutes.'
     }
     return createUserFriendlyError(error)
+}
+
+/**
+ * Outcome recorded in command_events for a /play that failed after the
+ * handler replied: "nothing found" is the user's query (user_error), anything
+ * else is the bot's (error).
+ */
+export function classifyPlayFailure(error: unknown): ClassifiedOutcome {
+    const classified = classifyOutcome({ error })
+    const isNoResults =
+        error instanceof Error && /no results found/i.test(error.message)
+    return isNoResults ? { ...classified, outcome: 'user_error' } : classified
 }

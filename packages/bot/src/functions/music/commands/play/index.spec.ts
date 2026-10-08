@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { EventEmitter } from 'node:events'
 
 // Transitively pulled in via playHandler -> skipCircuitBreaker; real module loads
 // prismaClient (import.meta). Factory-mock to keep this suite loadable.
@@ -164,6 +165,8 @@ jest.mock('@lucky/shared/utils/general/errorSanitizer', () => ({
 }))
 
 import playCommand from './index'
+import { settlePlayStartWatch } from '../../../../handlers/player/playStartWatch'
+import { takeCommandOutcome } from '../../../../utils/monitoring/commandOutcome'
 
 function createInteraction(guildId: string | null) {
     return {
@@ -202,6 +205,7 @@ function createClient(
     return {
         player: {
             play: jest.fn(playImpl),
+            events: new EventEmitter(),
             nodes: {
                 get: jest.fn(() => queue),
             },
@@ -899,5 +903,303 @@ describe('play command', () => {
         expect(vcMemberIds).toContain('user-1')
         expect(vcMemberIds).toContain('user-2')
         expect(vcMemberIds).not.toContain('bot-1')
+    })
+})
+
+describe('play command: early reply and start failure (#2741)', () => {
+    const track = {
+        id: 'track-1',
+        title: 'Song A',
+        author: 'Artist A',
+        url: 'https://example.com/a',
+        metadata: null,
+        setMetadata: jest.fn(),
+    }
+    const searchResult = {
+        playlist: null,
+        tracks: [track],
+        hasPlaylist: () => false,
+        isEmpty: () => false,
+    }
+    const queueOf = (guildId: string) => ({ guild: { id: guildId } })
+    const afterSearchOf = (opts: unknown) =>
+        (opts as { afterSearch: (r: unknown) => Promise<unknown> }).afterSearch
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        requireVoiceChannelMock.mockResolvedValue(true)
+        requireDJRoleMock.mockResolvedValue(true)
+        blendAutoplayTracksMock.mockResolvedValue(undefined)
+        canAddTracksMock.mockReturnValue({ allowed: true, limit: 3 })
+        getGuildSettingsMock.mockResolvedValue(null)
+        resolveGuildQueueMock.mockReturnValue({ queue: null })
+        interactionReplyMock.mockResolvedValue(undefined)
+        buildPlayResponseEmbedMock.mockReturnValue({ title: 'embed' })
+    })
+
+    it('replies right after the search, before play() resolves', async () => {
+        const interaction = createInteraction('guild-1')
+        let releasePlay!: () => void
+        const playGate = new Promise<void>((resolve) => {
+            releasePlay = resolve
+        })
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                await playGate
+                return { track, searchResult }
+            },
+        )
+
+        const pending = playCommand.execute({ client, interaction } as any)
+        await flushPromises()
+
+        // Voice connect and the stream bridge are still pending here.
+        expect(interactionReplyMock).toHaveBeenCalledTimes(1)
+        expect(buildPlayResponseEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: 'addedToQueue', track }),
+        )
+        expect(recordContributionMock).not.toHaveBeenCalled()
+
+        releasePlay()
+        await pending
+
+        // Success path unchanged: still exactly one reply, no correction edit.
+        expect(interactionReplyMock).toHaveBeenCalledTimes(1)
+        expect(interaction.editReply).not.toHaveBeenCalled()
+        expect(recordContributionMock).toHaveBeenCalledTimes(1)
+        expect(takeCommandOutcome(interaction)).toBeUndefined()
+        expect(client.player.events.listenerCount('playerSkip')).toBe(0)
+        expect(client.player.events.listenerCount('playerError')).toBe(0)
+    })
+
+    it('edits the reply to an error when every stream source failed', async () => {
+        const interaction = createInteraction('guild-1')
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                // What discord-player's throw_fn does: events, no throw.
+                client.player.events.emit(
+                    'playerSkip',
+                    queueOf('guild-1'),
+                    track,
+                    'ERR_NO_STREAM',
+                    'Could not extract stream',
+                )
+                client.player.events.emit(
+                    'playerError',
+                    queueOf('guild-1'),
+                    new Error('Could not extract stream'),
+                    track,
+                )
+                // Stream recovery searches, finds nothing and gives up later.
+                setTimeout(
+                    () =>
+                        settlePlayStartWatch(
+                            'guild-1',
+                            track as never,
+                            'gave_up',
+                        ),
+                    5,
+                )
+                return { track, searchResult }
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
+            'Play Error',
+            expect.stringContaining('Could not start **Song A**'),
+        )
+        expect(interaction.editReply).toHaveBeenCalledTimes(1)
+        expect(interaction.editReply).toHaveBeenCalledWith({
+            embeds: [expect.objectContaining({ type: 'error' })],
+        })
+        // The early "added" reply went through interactionReply once; the
+        // failure is an edit, not a stacked follow-up.
+        expect(interactionReplyMock).toHaveBeenCalledTimes(1)
+        expect(recordContributionMock).not.toHaveBeenCalled()
+        expect(takeCommandOutcome(interaction)).toEqual({
+            outcome: 'error',
+            errorClass: 'StreamStartFailed',
+        })
+        expect(client.player.events.listenerCount('playerSkip')).toBe(0)
+        expect(client.player.events.listenerCount('playerError')).toBe(0)
+    })
+
+    it('sends the failure to the channel when the reply can no longer be edited', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.editReply.mockRejectedValue(
+            Object.assign(new Error('Invalid Webhook Token'), { code: 50027 }),
+        )
+        interaction.channel = { id: 'channel-1', send: jest.fn() }
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                client.player.events.emit(
+                    'playerError',
+                    queueOf('guild-1'),
+                    new Error('x'),
+                    track,
+                )
+                settlePlayStartWatch('guild-1', track as never, 'gave_up')
+                return { track, searchResult }
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+
+        expect(interaction.channel.send).toHaveBeenCalledWith({
+            embeds: [expect.objectContaining({ type: 'error' })],
+        })
+    })
+
+    it('keeps the queued reply when stream recovery starts a replacement', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.channel = { id: 'channel-1', send: jest.fn() }
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                client.player.events.emit(
+                    'playerError',
+                    queueOf('guild-1'),
+                    new Error('Could not extract stream'),
+                    track,
+                )
+                setTimeout(
+                    () =>
+                        settlePlayStartWatch(
+                            'guild-1',
+                            track as never,
+                            'recovered',
+                        ),
+                    5,
+                )
+                return { track, searchResult }
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+
+        // A replacement plays, so no failure message of any kind.
+        expect(interaction.editReply).not.toHaveBeenCalled()
+        expect(interaction.channel.send).not.toHaveBeenCalled()
+        expect(createErrorEmbedMock).not.toHaveBeenCalled()
+        expect(takeCommandOutcome(interaction)).toBeUndefined()
+        expect(recordContributionMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('closes the watch so a later failure of the same track is not swallowed', async () => {
+        const interaction = createInteraction('guild-1')
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                return { track, searchResult }
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+
+        // Recovery for this track later (queue advance) must find no watcher
+        // and keep notifying the channel itself.
+        expect(settlePlayStartWatch('guild-1', track as never, 'gave_up')).toBe(
+            false,
+        )
+    })
+
+    it('ignores a stream failure that belongs to another guild or track', async () => {
+        const interaction = createInteraction('guild-1')
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                client.player.events.emit(
+                    'playerError',
+                    queueOf('guild-2'),
+                    new Error('x'),
+                    track,
+                )
+                client.player.events.emit(
+                    'playerError',
+                    queueOf('guild-1'),
+                    new Error('x'),
+                    { ...track, id: 'other-track' },
+                )
+                return { track, searchResult }
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+
+        expect(interaction.editReply).not.toHaveBeenCalled()
+        expect(takeCommandOutcome(interaction)).toBeUndefined()
+        expect(recordContributionMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('replaces the early reply with an error when play() rejects after it', async () => {
+        const interaction = createInteraction('guild-1')
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                throw new Error('Voice connection timed out')
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+
+        expect(interaction.editReply).toHaveBeenCalledWith({
+            embeds: [expect.objectContaining({ type: 'error' })],
+        })
+        // Not a second (ephemeral) reply on top of the early one.
+        expect(interactionReplyMock).toHaveBeenCalledTimes(1)
+        expect(takeCommandOutcome(interaction)).toMatchObject({
+            outcome: 'error',
+            errorClass: 'Error',
+        })
+        expect(client.player.events.listenerCount('playerError')).toBe(0)
+    })
+
+    it('records a search with no results as a user error', async () => {
+        const interaction = createInteraction('guild-1')
+
+        await playCommand.execute({
+            client: createClient(async () => {
+                throw new Error('No results found for "zzz"')
+            }),
+            interaction,
+        } as any)
+
+        expect(takeCommandOutcome(interaction)).toMatchObject({
+            outcome: 'user_error',
+        })
+    })
+
+    it('corrects the early queue position once the track is really queued', async () => {
+        const interaction = createInteraction('guild-1')
+        // Estimate at search time: size 1 + 1 = #2. After play() the track is
+        // first in the queue, so the real position is #1.
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                repeatMode: 0,
+                tracks: { size: 1, toArray: () => [track] },
+            },
+        })
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                return { track, searchResult }
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+        await flushPromises()
+
+        expect(buildPlayResponseEmbedMock).toHaveBeenCalledWith(
+            expect.objectContaining({ queuePosition: 2 }),
+        )
+        expect(buildPlayResponseEmbedMock).toHaveBeenLastCalledWith(
+            expect.objectContaining({ queuePosition: 1 }),
+        )
+        expect(interaction.editReply).toHaveBeenCalledTimes(1)
     })
 })

@@ -1,5 +1,9 @@
 import { describe, expect, it } from '@jest/globals'
-import { classifyOutcome } from './commandOutcome'
+import {
+    classifyOutcome,
+    markCommandOutcome,
+    takeCommandOutcome,
+} from './commandOutcome'
 
 class CustomFailure extends Error {}
 
@@ -60,5 +64,26 @@ describe('classifyOutcome', () => {
         expect(classifyOutcome({ reason: 'weird' as never }).outcome).toBe(
             'error',
         )
+    })
+})
+
+describe('markCommandOutcome / takeCommandOutcome', () => {
+    it('hands the marked outcome to the dispatcher exactly once', () => {
+        const interaction = {}
+        markCommandOutcome(interaction, {
+            outcome: 'error',
+            errorClass: 'StreamStartFailed',
+        })
+
+        expect(takeCommandOutcome(interaction)).toEqual({
+            outcome: 'error',
+            errorClass: 'StreamStartFailed',
+        })
+        expect(takeCommandOutcome(interaction)).toBeUndefined()
+    })
+
+    it('does not leak a mark to another interaction', () => {
+        markCommandOutcome({}, { outcome: 'error' })
+        expect(takeCommandOutcome({})).toBeUndefined()
     })
 })
