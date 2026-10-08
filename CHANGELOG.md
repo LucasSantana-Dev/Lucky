@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.5](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.4...v2.58.5) (2026-10-08)
+
+
+### Bug Fixes
+
+* **bot:** track feedback for every user, ask after skipping autoplay ([#2769](https://github.com/LucasSantana-Dev/Lucky/issues/2769)) ([68503ff](https://github.com/LucasSantana-Dev/Lucky/commit/68503ff9f3018d15251bdd0f5c233e8489252dd0))
+
+
+### Performance Improvements
+
+* **docker:** keep npm layers cached across release commits ([#2767](https://github.com/LucasSantana-Dev/Lucky/issues/2767)) ([7c649c8](https://github.com/LucasSantana-Dev/Lucky/commit/7c649c839a59e1f7bc052008bc5747facd059718))
+
 ## [2.58.4](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.3...v2.58.4) (2026-10-08)
 
 
