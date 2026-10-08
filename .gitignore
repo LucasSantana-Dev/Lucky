@@ -13,10 +13,12 @@ packages/*/pnpm-lock.yaml
 *.env
 
 # AI / IDE tooling (local-only)
-.claude/
+.claude/*
 # dep-sweep policy (sensitive/always_hold lists) is repo-level config — committed.
 # release cadence docs live in docs/RELEASE_CADENCE.md. All other .claude/ state is local.
 !.claude/dep-sweep-config.json
+# Project skills, so cloud sessions get them too (see .claude/skills/README.md).
+!.claude/skills/
 .serena/
 .windsurf/
 .data/
