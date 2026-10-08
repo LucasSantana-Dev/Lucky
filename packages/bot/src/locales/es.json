@@ -99,6 +99,14 @@
             "disliked": "👎 Anotado. El autoplay evita canciones como **{{title}}** cuando tú pides música.",
             "noTrack": "No hay ninguna canción para valorar ahora.",
             "failed": "No se pudo guardar ahora. Inténtalo de nuevo en un momento."
+        },
+        "autoplayFeedback": {
+            "prompt": "Esa canción vino del autoplay. ¿Te encajó?",
+            "liked": "👍 Gracias. El autoplay busca canciones como **{{title}}** cuando tú pides música.",
+            "disliked": "👎 Gracias. El autoplay evita canciones como **{{title}}** cuando tú pides música.",
+            "notForYou": "Esta pregunta es para quien usó el comando.",
+            "expired": "Esta pregunta caducó. Valora la siguiente canción con los botones 👍 y 👎 del mensaje de reproducción.",
+            "failed": "No se pudo guardar ahora. Inténtalo de nuevo en un momento."
         }
     }
 }

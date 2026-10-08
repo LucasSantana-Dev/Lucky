@@ -124,6 +124,30 @@ export const recapCardPostedTotal = new Counter({
 })
 
 /**
+ * Counter: "did that autoplay song fit you?" prompts sent after a user skipped,
+ * stopped or paused an autoplay track. Unlabelled: guild and user ids stay out
+ * of labels.
+ */
+export const autoplayFeedbackPromptsTotal = new Counter({
+    name: 'lucky_bot_autoplay_feedback_prompts_total',
+    help: 'Count of autoplay feedback prompts sent after a skip, stop or pause of an autoplay track.',
+    registers: [registry],
+})
+autoplayFeedbackPromptsTotal.inc(0)
+
+/** Counter: answers to those prompts, labelled like|dislike. */
+export const autoplayFeedbackAnswersTotal = new Counter<'feedback'>({
+    name: 'lucky_bot_autoplay_feedback_answers_total',
+    help: 'Count of stored answers to the autoplay feedback prompt, labelled by feedback (like|dislike).',
+    labelNames: ['feedback'],
+    registers: [registry],
+})
+// Zero from boot so the first answer after each deploy has an increase().
+for (const feedback of ['like', 'dislike']) {
+    autoplayFeedbackAnswersTotal.labels(feedback).inc(0)
+}
+
+/**
  * Counter: handled slash/context interactions (#2391). Cardinality is bounded:
  * `command` is a registered command name or "unknown", never raw user input.
  * Guild and user ids stay in command_events rows, not labels.

@@ -8,6 +8,10 @@ import {
     requireQueue,
     requireDJRoleInGuild,
 } from '../../../utils/command/commandValidations'
+import {
+    captureAutoplayTrack,
+    maybePromptAutoplayFeedback,
+} from '../../../services/musicRecommendation/autoplayFeedbackPrompt'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { createSuccessEmbed } from '../../../utils/general/embeds'
 import { musicWatchdogService } from '../../../services/musicManagement/watchdog'
@@ -25,6 +29,9 @@ export default new Command({
 
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
+
+        // Before queue.delete(): the track is gone afterwards.
+        const stoppedAutoplay = captureAutoplayTrack(queue?.currentTrack)
 
         if (queue) {
             musicWatchdogService.markIntentionalStop(queue.guild.id)
@@ -46,5 +53,6 @@ export default new Command({
                 ],
             },
         })
+        await maybePromptAutoplayFeedback(interaction, stoppedAutoplay)
     },
 })

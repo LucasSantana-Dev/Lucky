@@ -6,6 +6,10 @@ import {
     requireQueue,
     requireVoiceChannel,
 } from '../../../utils/command/commandValidations'
+import {
+    captureAutoplayTrack,
+    maybePromptAutoplayFeedback,
+} from '../../../services/musicRecommendation/autoplayFeedbackPrompt'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { createSuccessEmbed } from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
@@ -31,6 +35,10 @@ export default new Command({
         }
 
         const currentTrack = queue?.currentTrack
+        // Only a pause asks; resuming means the song was fine.
+        const pausedAutoplay = isPaused
+            ? null
+            : captureAutoplayTrack(currentTrack)
         const action = isPaused ? '▶️ Resumed' : '⏸️ Paused'
 
         if (!currentTrack) {
@@ -45,6 +53,7 @@ export default new Command({
                     ],
                 },
             })
+            await maybePromptAutoplayFeedback(interaction, pausedAutoplay)
             return
         }
 
@@ -57,5 +66,6 @@ export default new Command({
             interaction,
             content: { embeds: [trackEmbed] },
         })
+        await maybePromptAutoplayFeedback(interaction, pausedAutoplay)
     },
 })

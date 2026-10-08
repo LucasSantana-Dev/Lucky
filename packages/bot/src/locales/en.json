@@ -100,6 +100,14 @@
             "disliked": "👎 Noted. Autoplay steers away from **{{title}}** on the songs you queue.",
             "noTrack": "There's no track to rate right now.",
             "failed": "Could not save that right now. Try again in a moment."
+        },
+        "autoplayFeedback": {
+            "prompt": "That song came from autoplay. Did it fit you?",
+            "liked": "👍 Thanks. Autoplay leans toward songs like **{{title}}** on the songs you queue.",
+            "disliked": "👎 Thanks. Autoplay steers away from **{{title}}** on the songs you queue.",
+            "notForYou": "This question is for the person who used the command.",
+            "expired": "This question expired. Rate the next song with the 👍 and 👎 buttons on the now-playing message.",
+            "failed": "Could not save that right now. Try again in a moment."
         }
     }
 }

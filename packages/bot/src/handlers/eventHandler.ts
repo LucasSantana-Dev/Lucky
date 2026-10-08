@@ -32,6 +32,10 @@ import { handleReactionEvents } from './reactionHandler'
 import { scheduledEventNotificationService } from '../services/ScheduledEventNotificationService'
 import { handleMusicButtonInteraction } from './musicButtonHandler'
 import {
+    AUTOPLAY_FEEDBACK_BUTTON_PREFIX,
+    handleAutoplayFeedbackButton,
+} from '../services/musicRecommendation/autoplayFeedbackPrompt'
+import {
     createOnboardingStationRow,
     handleOnboardingStationButton,
     ONBOARDING_STATION_BUTTON_PREFIX,
@@ -376,6 +380,9 @@ function buttonFamily(id: string): string | null {
     ) {
         return 'music_button'
     }
+    if (id.startsWith(AUTOPLAY_FEEDBACK_BUTTON_PREFIX)) {
+        return 'autoplay_feedback_button'
+    }
     if (id.startsWith(ONBOARDING_STATION_BUTTON_PREFIX)) {
         return 'onboarding_station_button'
     }
@@ -463,6 +470,12 @@ async function routeButtonInteraction(
         id.startsWith(LEADERBOARD_BUTTON_PREFIX)
     ) {
         await handleMusicButtonInteraction(interaction)
+        return
+    }
+    // Answer to the "did that autoplay song fit you?" prompt. Not a music_
+    // button: it must work after /stop, with no queue and no voice channel.
+    if (id.startsWith(AUTOPLAY_FEEDBACK_BUTTON_PREFIX)) {
+        await handleAutoplayFeedbackButton(interaction)
         return
     }
     if (id.startsWith(ONBOARDING_STATION_BUTTON_PREFIX)) {
