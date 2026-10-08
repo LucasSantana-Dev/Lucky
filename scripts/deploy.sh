@@ -676,12 +676,15 @@ fi
 
 reexec_if_script_changed
 
-# The homelab Prometheus loads observability/prometheus/rules/recap-*.rules.yml
-# from this checkout (homelab#476) and rereads rule files only on reload.
-# Best-effort: hosts without that container just skip it.
-if docker kill -s HUP prometheus >/dev/null 2>&1; then
-    log "Reloaded homelab Prometheus so it picks up the synced alert rules"
-fi
+# Both Prometheus containers read alert rules from this checkout and reread
+# them only on reload: the homelab one (recap-*.rules.yml, homelab#476) and
+# lucky-prometheus from the observability profile. Best-effort: absent
+# containers are skipped.
+for prom in prometheus lucky-prometheus; do
+    if docker kill -s HUP "$prom" >/dev/null 2>&1; then
+        log "Reloaded $prom so it picks up the synced alert rules"
+    fi
+done
 
 DEPLOYED_SHA="${DEPLOY_SHA:-$(git -C "$DEPLOY_DIR" rev-parse HEAD 2>/dev/null || true)}"
 post_deploy_status "pending" "Deploy in progress"
