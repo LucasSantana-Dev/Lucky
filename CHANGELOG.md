@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.2...v2.58.3) (2026-10-08)
+
+
+### Performance Improvements
+
+* **bot:** measure /play time per stage before optimizing ([#2735](https://github.com/LucasSantana-Dev/Lucky/issues/2735)) ([f78cd88](https://github.com/LucasSantana-Dev/Lucky/commit/f78cd88d2733d76ce117824968f6eef5a4a31029))
+
 ## [2.58.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.1...v2.58.2) (2026-10-08)
 
 
