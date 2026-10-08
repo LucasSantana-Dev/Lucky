@@ -16,6 +16,11 @@ const mockCaptureMessage = jest.fn()
 const mockStreamViaYtDlp = jest.fn()
 const mockStreamViaYtDlpSearch = jest.fn()
 const mockStampFallbackStage = jest.fn()
+const mockObserve = jest.fn()
+
+jest.mock('../../utils/monitoring/prometheus', () => ({
+    playStageSeconds: { observe: (...args: unknown[]) => mockObserve(...args) },
+}))
 
 jest.mock('./soundcloudMatcher', () => ({
     streamViaSoundCloud: (...args: unknown[]) =>
@@ -121,6 +126,94 @@ describe('createResilientStream', () => {
         mockCleanSearchQuery.mockReturnValue('test track test artist')
         mockExtractSongCore.mockReturnValue(null)
         mockIsAvailable.mockReturnValue(true)
+    })
+
+    describe('play stage telemetry', () => {
+        const stageCalls = () =>
+            mockObserve.mock.calls.map(
+                (c) => c[0] as { stage: string; outcome: string },
+            )
+
+        it('observes ytdlp_url ok and bridge_total ok on success', async () => {
+            mockStreamViaYtDlp.mockResolvedValue(fakeStream)
+            await createResilientStream(makeTrack({ url: 'https://y/ok' }))
+            expect(stageCalls()).toEqual([
+                { stage: 'ytdlp_url', outcome: 'ok' },
+                { stage: 'bridge_total', outcome: 'ok' },
+            ])
+            for (const call of mockObserve.mock.calls) {
+                expect(typeof call[1]).toBe('number')
+                expect(call[1]).toBeGreaterThanOrEqual(0)
+            }
+        })
+
+        it('observes ytdlp_url fail then soundcloud ok', async () => {
+            mockStreamViaYtDlp.mockRejectedValue(new Error('boom'))
+            mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+            await createResilientStream(makeTrack({ url: 'https://y/fb' }))
+            expect(stageCalls()).toEqual([
+                { stage: 'ytdlp_url', outcome: 'fail' },
+                { stage: 'soundcloud', outcome: 'ok' },
+                { stage: 'bridge_total', outcome: 'ok' },
+            ])
+        })
+
+        it('observes ytdlp_search for Spotify tracks', async () => {
+            mockStreamViaYtDlpSearch.mockResolvedValue(fakeStream)
+            await createResilientStream(
+                makeTrack({ url: 'https://open.spotify.com/track/1' }),
+            )
+            expect(stageCalls()).toEqual([
+                { stage: 'ytdlp_search', outcome: 'ok' },
+                { stage: 'bridge_total', outcome: 'ok' },
+            ])
+        })
+
+        it('observes failures for every stage when all stages exhaust', async () => {
+            mockStreamViaYtDlp.mockRejectedValue(new Error('yt fail'))
+            mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
+            await expect(
+                createResilientStream(makeTrack({ url: 'https://y/dead' })),
+            ).rejects.toThrow('Bridge exhausted')
+            const calls = stageCalls()
+            expect(calls[0]).toEqual({ stage: 'ytdlp_url', outcome: 'fail' })
+            expect(calls.at(-1)).toEqual({
+                stage: 'bridge_total',
+                outcome: 'fail',
+            })
+            expect(
+                calls.filter(
+                    (c) => c.stage === 'soundcloud' && c.outcome === 'fail',
+                ).length,
+            ).toBeGreaterThanOrEqual(2)
+        })
+
+        it('adds durationMs and an incrementing pass to the bridge logs', async () => {
+            mockStreamViaYtDlp.mockResolvedValue(fakeStream)
+            const track = makeTrack({ url: 'https://y/pass' })
+            await createResilientStream(track)
+            await createResilientStream(track)
+            const infoData = mockInfoLog.mock.calls.map(
+                (c) =>
+                    (c[0] as { data: { pass: number; durationMs: number } })
+                        .data,
+            )
+            expect(infoData.map((d) => d.pass)).toEqual([1, 2])
+            for (const d of infoData) {
+                expect(d.durationMs).toBeGreaterThanOrEqual(0)
+            }
+        })
+
+        it('does not break the bridge when the histogram throws', async () => {
+            mockObserve.mockImplementation(() => {
+                throw new Error('metrics down')
+            })
+            mockStreamViaYtDlp.mockResolvedValue(fakeStream)
+            await expect(
+                createResilientStream(makeTrack({ url: 'https://y/safe' })),
+            ).resolves.toBe(fakeStream)
+            mockObserve.mockReset()
+        })
     })
 
     it('falls back to SoundCloud when yt-dlp fails', async () => {

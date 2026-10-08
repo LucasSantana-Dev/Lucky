@@ -16,6 +16,7 @@ import {
     scrubUrls,
 } from '../../utils/monitoring/sentry'
 import { isHost } from '../../utils/general/urlHost'
+import { playStageSeconds } from '../../utils/monitoring/prometheus'
 import { streamViaYtDlp, streamViaYtDlpSearch } from './ytdlpProcess'
 import {
     isYtDlpBlocked,
@@ -32,12 +33,49 @@ type BridgeTrack = Pick<
     'title' | 'author' | 'duration' | 'url' | 'metadata' | 'setMetadata'
 >
 
+type BridgeStage = 'ytdlp_url' | 'ytdlp_search' | 'soundcloud' | 'bridge_total'
+
+// How many times the bridge ran for the same track in this process. A second
+// pass means discord-player's fallback loop re-entered the bridge. Bounded
+// LRU so a long-lived process never grows it without limit.
+const BRIDGE_PASS_CACHE_MAX = 500
+const bridgePassByTrack = new Map<string, number>()
+
+function nextBridgePass(track: BridgeTrack): number {
+    const key = track.url || `${track.author}::${track.title}`
+    const pass = (bridgePassByTrack.get(key) ?? 0) + 1
+    bridgePassByTrack.delete(key)
+    bridgePassByTrack.set(key, pass)
+    if (bridgePassByTrack.size > BRIDGE_PASS_CACHE_MAX) {
+        const oldest = bridgePassByTrack.keys().next().value
+        if (oldest !== undefined) bridgePassByTrack.delete(oldest)
+    }
+    return pass
+}
+
+function observeStage(
+    stage: BridgeStage,
+    startedAt: number,
+    outcome: 'ok' | 'fail',
+): number {
+    const durationMs = Date.now() - startedAt
+    try {
+        playStageSeconds.observe({ stage, outcome }, durationMs / 1000)
+    } catch {
+        // Telemetry must never break stream resolution
+    }
+    return durationMs
+}
+
 async function attemptYtDlpUrl(
     track: BridgeTrack,
     cleanedTitle: string,
+    pass: number,
 ): Promise<Readable | null> {
+    const startedAt = Date.now()
     try {
         const stream = await streamViaYtDlp(track.url as string)
+        const durationMs = observeStage('ytdlp_url', startedAt, 'ok')
         recordYtDlpSuccess()
         addBreadcrumb(
             'YouTube stream resolved via yt-dlp',
@@ -46,10 +84,16 @@ async function attemptYtDlpUrl(
         )
         infoLog({
             message: 'Bridge: streamed via yt-dlp',
-            data: { url: track.url, title: cleanedTitle || track.title },
+            data: {
+                url: track.url,
+                title: cleanedTitle || track.title,
+                durationMs,
+                pass,
+            },
         })
         return stream
     } catch (ytdlpError) {
+        const durationMs = observeStage('ytdlp_url', startedAt, 'fail')
         recordYtDlpFailure(ytdlpError)
         addBreadcrumb(
             'YouTube extraction failed via yt-dlp URL',
@@ -72,6 +116,8 @@ async function attemptYtDlpUrl(
                 error: (ytdlpError as Error).message,
                 url: track.url,
                 cleanedTitle,
+                durationMs,
+                pass,
             },
         })
         return null
@@ -81,10 +127,13 @@ async function attemptYtDlpUrl(
 async function attemptYtDlpSearch(
     cleanedTitle: string,
     cleanedAuthor: string,
+    pass: number,
 ): Promise<Readable | null> {
     const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
+    const startedAt = Date.now()
     try {
         const stream = await streamViaYtDlpSearch(ytQuery)
+        const durationMs = observeStage('ytdlp_search', startedAt, 'ok')
         recordYtDlpSuccess()
         addBreadcrumb(
             'YouTube search stream resolved for Spotify source',
@@ -94,10 +143,16 @@ async function attemptYtDlpSearch(
         infoLog({
             message:
                 'Bridge: streamed via yt-dlp YouTube search (Spotify source)',
-            data: { query: ytQuery, title: cleanedTitle },
+            data: {
+                query: ytQuery,
+                title: cleanedTitle,
+                durationMs,
+                pass,
+            },
         })
         return stream
     } catch (ytSearchError) {
+        const durationMs = observeStage('ytdlp_search', startedAt, 'fail')
         recordYtDlpFailure(ytSearchError)
         addBreadcrumb(
             'YouTube extraction failed via search',
@@ -121,6 +176,8 @@ async function attemptYtDlpSearch(
                 error: (ytSearchError as Error).message,
                 query: ytQuery,
                 cleanedTitle,
+                durationMs,
+                pass,
             },
         })
         return null
@@ -133,15 +190,28 @@ async function attemptSoundCloud(
     stageLabel: StreamBridgeFallbackStage,
     failureMessage: string,
     cleanedTitle: string,
+    pass: number,
 ): Promise<Readable | null> {
+    const startedAt = Date.now()
     try {
         const stream = await streamViaSoundCloud(query, track.duration)
+        const durationMs = observeStage('soundcloud', startedAt, 'ok')
         stampFallbackStage(track, stageLabel)
+        infoLog({
+            message: 'Bridge: streamed via SoundCloud',
+            data: { stage: stageLabel, cleanedTitle, durationMs, pass },
+        })
         return stream
     } catch (error) {
+        const durationMs = observeStage('soundcloud', startedAt, 'fail')
         warnLog({
             message: failureMessage,
-            data: { error: (error as Error).message, cleanedTitle },
+            data: {
+                error: (error as Error).message,
+                cleanedTitle,
+                durationMs,
+                pass,
+            },
         })
         return null
     }
@@ -170,6 +240,7 @@ async function attemptCoreStageOrLogExhausted(
     cleanedTitle: string,
     cleanedAuthor: string,
     youtubeStage: string | undefined,
+    pass: number,
 ): Promise<Readable | null> {
     const coreTitle = computeCoreTitleCandidate(cleanedTitle, cleanedAuthor)
     const alreadyTriedQueries = new Set([
@@ -186,11 +257,18 @@ async function attemptCoreStageOrLogExhausted(
         return null
     }
 
+    const startedAt = Date.now()
     try {
         const stream = await streamViaSoundCloud(coreTitle, track.duration)
+        const durationMs = observeStage('soundcloud', startedAt, 'ok')
         stampFallbackStage(track, 'soundcloud-core')
+        infoLog({
+            message: 'Bridge: streamed via SoundCloud',
+            data: { stage: 'soundcloud-core', cleanedTitle, durationMs, pass },
+        })
         return stream
     } catch (coreError) {
+        observeStage('soundcloud', startedAt, 'fail')
         logAllStagesExhausted(
             track,
             cleanedTitle,
@@ -235,6 +313,35 @@ export async function createResilientStream(
     track: BridgeTrack,
     _ext?: unknown,
 ): Promise<Readable> {
+    const startedAt = Date.now()
+    const pass = nextBridgePass(track)
+    try {
+        const stream = await resolveResilientStream(track, pass)
+        const durationMs = observeStage('bridge_total', startedAt, 'ok')
+        debugLog({
+            message: 'Bridge: resolved',
+            data: { title: track.title, durationMs, pass },
+        })
+        return stream
+    } catch (error) {
+        const durationMs = observeStage('bridge_total', startedAt, 'fail')
+        debugLog({
+            message: 'Bridge: failed',
+            data: {
+                title: track.title,
+                error: (error as Error).message,
+                durationMs,
+                pass,
+            },
+        })
+        throw error
+    }
+}
+
+async function resolveResilientStream(
+    track: BridgeTrack,
+    pass: number,
+): Promise<Readable> {
     const cleanedTitle = cleanTitle(track.title)
     const cleanedAuthor = cleanAuthor(track.author)
     const isSpotifyUrl = track.url
@@ -268,13 +375,17 @@ export async function createResilientStream(
     }
 
     if (!ytDlpBlocked && track.url && !isSpotifyUrl) {
-        const stream = await attemptYtDlpUrl(track, cleanedTitle)
+        const stream = await attemptYtDlpUrl(track, cleanedTitle, pass)
         if (stream) return stream
         youtubeStage = 'yt-dlp-url'
     }
 
     if (!ytDlpBlocked && isSpotifyUrl) {
-        const stream = await attemptYtDlpSearch(cleanedTitle, cleanedAuthor)
+        const stream = await attemptYtDlpSearch(
+            cleanedTitle,
+            cleanedAuthor,
+            pass,
+        )
         if (stream) return stream
         youtubeStage = 'yt-dlp-search'
     }
@@ -312,6 +423,7 @@ export async function createResilientStream(
         'soundcloud-full',
         'Bridge: SoundCloud primary search failed, retrying with title only',
         cleanedTitle,
+        pass,
     )
     if (fullSearchStream) return fullSearchStream
 
@@ -321,6 +433,7 @@ export async function createResilientStream(
         'soundcloud-title',
         'Bridge: title-only SoundCloud failed, retrying without parentheticals',
         cleanedTitle,
+        pass,
     )
     if (titleOnlyStream) return titleOnlyStream
 
@@ -329,6 +442,7 @@ export async function createResilientStream(
         cleanedTitle,
         cleanedAuthor,
         youtubeStage,
+        pass,
     )
     if (coreStream) return coreStream
 

@@ -764,17 +764,80 @@
             "id": 11
         },
         {
+            "type": "timeseries",
+            "title": "/play por etapa (p50 e p95)",
+            "description": "Onde o /play gasta tempo: yt-dlp por URL, yt-dlp por busca, SoundCloud (cada tentativa) e o total da ponte. Etapas que falham também contam.",
+            "gridPos": {
+                "x": 0,
+                "y": 21,
+                "w": 24,
+                "h": 8
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "histogram_quantile(0.5, sum by (le, stage) (rate(lucky_bot_play_stage_seconds_bucket[$__rate_interval])))",
+                    "legendFormat": "{{stage}} p50",
+                    "instant": false,
+                    "range": true,
+                    "refId": "A"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(lucky_bot_play_stage_seconds_bucket[$__rate_interval])))",
+                    "legendFormat": "{{stage}} p95",
+                    "instant": false,
+                    "range": true,
+                    "refId": "B"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "lineWidth": 2,
+                        "showPoints": "never"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "id": 12
+        },
+        {
             "type": "row",
             "title": "Recursos",
             "collapsed": false,
             "panels": [],
             "gridPos": {
                 "x": 0,
-                "y": 21,
+                "y": 29,
                 "w": 24,
                 "h": 1
             },
-            "id": 12
+            "id": 13
         },
         {
             "type": "timeseries",
@@ -782,7 +845,7 @@
             "description": "Acima de 90% o container corre risco de OOM.",
             "gridPos": {
                 "x": 0,
-                "y": 22,
+                "y": 30,
                 "w": 12,
                 "h": 8
             },
@@ -849,7 +912,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 13
+            "id": 14
         },
         {
             "type": "timeseries",
@@ -857,7 +920,7 @@
             "description": "1 = um núcleo inteiro.",
             "gridPos": {
                 "x": 12,
-                "y": 22,
+                "y": 30,
                 "w": 12,
                 "h": 8
             },
@@ -901,7 +964,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 14
+            "id": 15
         },
         {
             "type": "timeseries",
@@ -909,7 +972,7 @@
             "description": "Acima de 100 ms o bot começa a responder devagar.",
             "gridPos": {
                 "x": 0,
-                "y": 30,
+                "y": 38,
                 "w": 8,
                 "h": 8
             },
@@ -953,7 +1016,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 15
+            "id": 16
         },
         {
             "type": "timeseries",
@@ -961,7 +1024,7 @@
             "description": "",
             "gridPos": {
                 "x": 8,
-                "y": 30,
+                "y": 38,
                 "w": 8,
                 "h": 8
             },
@@ -1005,7 +1068,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 16
+            "id": 17
         },
         {
             "type": "timeseries",
@@ -1013,7 +1076,7 @@
             "description": "",
             "gridPos": {
                 "x": 16,
-                "y": 30,
+                "y": 38,
                 "w": 8,
                 "h": 8
             },
@@ -1080,7 +1143,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 17
+            "id": 18
         },
         {
             "type": "row",
@@ -1089,11 +1152,11 @@
             "panels": [],
             "gridPos": {
                 "x": 0,
-                "y": 38,
+                "y": 46,
                 "w": 24,
                 "h": 1
             },
-            "id": 18
+            "id": 19
         },
         {
             "type": "state-timeline",
@@ -1101,7 +1164,7 @@
             "description": "Faixa vermelha = o Prometheus não conseguiu coletar métricas daquele serviço.",
             "gridPos": {
                 "x": 0,
-                "y": 39,
+                "y": 47,
                 "w": 24,
                 "h": 6
             },
@@ -1148,7 +1211,7 @@
                     "showLegend": false
                 }
             },
-            "id": 19
+            "id": 20
         }
     ]
 }

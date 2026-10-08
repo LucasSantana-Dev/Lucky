@@ -154,6 +154,7 @@ export async function executePlayHandler({
 
         let result: PlayerNodeInitializationResult<unknown>
         let resolutionTelemetry
+        const resolutionStartedAt = Date.now()
         try {
             const resolution = await resolveQueryWithFallbacks(
                 client.player,
@@ -170,7 +171,7 @@ export async function executePlayHandler({
             // Emit failure telemetry
             resolutionTelemetry = {
                 resolvedVia: 'failed' as const,
-                latencyMs: 0,
+                latencyMs: Date.now() - resolutionStartedAt,
                 requestedProvider: provider ?? 'default',
                 errorClass: (error as Error).constructor.name,
             }

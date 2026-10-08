@@ -105,6 +105,11 @@ jest.mock('@lucky/shared/utils', () => ({
     warnLog: (payload: unknown) => warnLogMock(payload),
 }))
 
+const addBreadcrumbMock = jest.fn()
+jest.mock('@lucky/shared/utils/monitoring', () => ({
+    addBreadcrumb: (...args: unknown[]) => addBreadcrumbMock(...args),
+}))
+
 jest.mock('@lucky/shared/services', () => ({
     guildSettingsService: {
         getGuildSettings: (guildId: string) => getGuildSettingsMock(guildId),
@@ -573,6 +578,32 @@ describe('play command', () => {
             'Play Error',
             expect.any(String),
         )
+    })
+
+    it('reports real elapsed latency on the failed resolution breadcrumb', async () => {
+        const interaction = createInteraction('guild-1')
+        let now = 1_000_000
+        const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now)
+
+        try {
+            await playCommand.execute({
+                client: createClient(async () => {
+                    now += 4_200
+                    throw new Error('Search failed')
+                }),
+                interaction,
+            } as any)
+        } finally {
+            nowSpy.mockRestore()
+        }
+
+        const failed = addBreadcrumbMock.mock.calls.find(
+            (c) => c[0] === 'play_provider_resolution: failed',
+        )
+        expect(failed).toBeDefined()
+        const data = failed?.[3] as { latencyMs: number }
+        expect(data.latencyMs).toBeGreaterThan(0)
+        expect(data.latencyMs).toBeGreaterThanOrEqual(4_200)
     })
 
     it('ignores unknown interaction errors thrown during deferReply', async () => {
