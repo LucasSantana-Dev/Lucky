@@ -18,10 +18,34 @@ permissions:
     contents: read
 
 jobs:
+    # Release-please PRs touch package.json/package-lock.json (version lines
+    # only), which trips the paths filter above. Skip the 4 minute run when the
+    # diff is a pure version bump (content check, not branch name; errors fail
+    # open to running e2e). Not a required check, so a skipped e2e blocks nothing.
+    release-only:
+        name: Detect release-only diff
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        outputs:
+            skip: ${{ steps.detect.outputs.skip }}
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+              with:
+                  fetch-depth: 0
+                  persist-credentials: false
+            - name: Detect release-only diff
+              id: detect
+              run: |
+                  BASE_SHA=$(git merge-base "${{ github.event.pull_request.base.sha }}" HEAD) || BASE_SHA=""
+                  skip=$(bash scripts/ci/release-only.sh "$BASE_SHA" HEAD) || skip=false
+                  echo "skip=$skip" >> "$GITHUB_OUTPUT"
+
     e2e:
         name: Playwright — frontend
         runs-on: ubuntu-latest
         timeout-minutes: 20
+        needs: release-only
+        if: needs.release-only.outputs.skip != 'true'
         env:
             # This job runs a bare `npm ci` (needs the frontend build), so unlike
             # ci.yml/madge it can't use --ignore-scripts. Without this,

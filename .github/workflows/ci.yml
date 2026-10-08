@@ -435,6 +435,20 @@ jobs:
                       code=true
                   fi
 
+                  # Release-please PRs change only the version fields in root
+                  # package.json/package-lock.json plus CHANGELOG.md and the
+                  # manifest. Judged by content (scripts/ci/release-only.sh),
+                  # never by branch name: a dependency change inside a release
+                  # PR returns false and runs everything. Errors fail open to
+                  # the full suite. Required checks still report: skipped jobs
+                  # count as passing and docker-build-check short-circuits on
+                  # services=[].
+                  release_only=false
+                  if [ "$EVENT" = "pull_request" ]; then
+                      release_only=$(bash scripts/ci/release-only.sh "$BASE_SHA" HEAD) || release_only=false
+                      if [ "$release_only" = "true" ]; then code=false; fi
+                  fi
+
                   # Per-service Docker relevance, derived by hand from the
                   # Dockerfile COPY lines (build-shared/build-bot/build-backend/
                   # build-frontend/production-* stages):
@@ -465,7 +479,9 @@ jobs:
                   # merge_group matrix is now selective).
                   if [ "$EVENT" = "pull_request" ] || [ "$EVENT" = "merge_group" ]; then
                       bot=false; backend=false; frontend=false; nginx=false; render=false
-                      if echo "$CHANGED" | grep -qE '^(\.github/workflows/ci\.yml$|\.github/actions/docker-build-service/|\.dockerignore$)'; then
+                      if [ "$release_only" = "true" ]; then
+                          : # version-bump-only release PR: nothing to rebuild
+                      elif echo "$CHANGED" | grep -qE '^(\.github/workflows/ci\.yml$|\.github/actions/docker-build-service/|\.dockerignore$)'; then
                           bot=true; backend=true; frontend=true; nginx=true; render=true
                       else
                           if echo "$CHANGED" | grep -qE '^(packages/shared/|prisma/|package.*\.json$|Dockerfile$)'; then
