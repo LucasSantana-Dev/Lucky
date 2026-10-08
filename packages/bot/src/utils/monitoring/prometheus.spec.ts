@@ -129,4 +129,25 @@ describe('prometheus registry', () => {
 
         expect(text).toMatch(/lucky_bot_gateway_connected(\{[^}]*\})?\s+0/)
     })
+
+    it('exports every recap fallback reason at 0 before any fallback', async () => {
+        countMock.mockResolvedValue(0)
+
+        const text = await renderMetrics()
+
+        for (const reason of [
+            'disabled',
+            'no_attach_permission',
+            'timeout',
+            'http_error',
+            'bad_response',
+            'network',
+        ]) {
+            expect(text).toMatch(
+                new RegExp(
+                    `lucky_bot_render_fallback_total\\{[^}]*reason="${reason}"[^}]*\\}\\s+0`,
+                ),
+            )
+        }
+    })
 })

@@ -8,8 +8,6 @@
 # Metrics referenced (already exported today):
 #   - lucky_backend_http_server_errors_total  (backend, counter, 5xx only)
 #   - lucky_backend_http_requests_total        (backend, counter)
-#   - lucky_bot_render_fallback_total{reason}  (bot, counter, recap card fallbacks)
-#   - lucky_bot_recap_card_posted_total        (bot, counter, recap cards posted)
 #   - up{job=...}                              (Prometheus scrape liveness)
 #
 # These are STARTER symptom alerts. Per ADR 2026-05-30, the availability SLO and a
@@ -87,39 +85,6 @@ groups:
           description: >-
             The bot metrics endpoint (:9091) has been unreachable for 5 minutes.
             Cross-check the bot's Docker HEALTHCHECK (/healthz) and the heartbeat.
-
-  - name: lucky-recap-render
-    rules:
-      - alert: LuckyRecapCardAllFellBack
-        expr: |
-          sum(increase(lucky_bot_render_fallback_total{reason!="disabled"}[12h])) > 0
-            unless sum(increase(lucky_bot_recap_card_posted_total[12h])) > 0
-        labels:
-          severity: warning
-          service: lucky-render
-        annotations:
-          summary: "Every weekly recap in the last 12h posted as text, no image card"
-          description: >-
-            Recaps fell back to the text embed and none was posted as the image
-            card in the last 12 hours. Check lucky-render health and the
-            `reason` label on lucky_bot_render_fallback_total (timeout,
-            http_error, bad_response, network, no_attach_permission). The
-            `disabled` reason (RECAP_RENDER_ENABLED kill switch) is excluded on
-            purpose. `unless` keeps this firing when the card series was never
-            incremented.
-
-      - alert: LuckyRenderScrapeDown
-        expr: up{job="lucky-render"} == 0
-        for: 10m
-        labels:
-          severity: warning
-          service: lucky-render
-        annotations:
-          summary: "Prometheus cannot scrape the lucky-render /metrics"
-          description: >-
-            The lucky-render sidecar metrics endpoint (:8080) has been
-            unreachable for 10 minutes. Cross-check its Docker healthcheck;
-            recaps fall back to the text embed while it is down.
 
   - name: lucky-resource-pressure
     rules:

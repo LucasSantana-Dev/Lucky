@@ -1,0 +1,42 @@
+# Weekly recap card alerts (#2693, #2694).
+#
+# Its own file because the homelab Prometheus, which is the one running in
+# production, loads exactly this file from the Lucky checkout (#2723). The
+# homelab keeps its own copies of the liveness, error and memory rules in
+# config/prometheus/alerts.yml, so loading lucky-alerts.rules.yml there would
+# page twice for one outage. Rules added here must not duplicate those.
+# Lucky's own Prometheus picks this file up through the rules/*.yml glob.
+
+groups:
+  - name: lucky-recap-render
+    rules:
+      - alert: LuckyRecapCardAllFellBack
+        expr: |
+          sum(increase(lucky_bot_render_fallback_total{reason!="disabled"}[12h])) > 0
+            unless sum(increase(lucky_bot_recap_card_posted_total[12h])) > 0
+        labels:
+          severity: warning
+          service: lucky-render
+        annotations:
+          summary: "Every weekly recap in the last 12h posted as text, no image card"
+          description: >-
+            Recaps fell back to the text embed and none was posted as the image
+            card in the last 12 hours. Check lucky-render health and the
+            `reason` label on lucky_bot_render_fallback_total (timeout,
+            http_error, bad_response, network, no_attach_permission). The
+            `disabled` reason (RECAP_RENDER_ENABLED kill switch) is excluded on
+            purpose. `unless` keeps this firing when the card series was never
+            incremented.
+
+      - alert: LuckyRenderScrapeDown
+        expr: up{job="lucky-render"} == 0
+        for: 10m
+        labels:
+          severity: warning
+          service: lucky-render
+        annotations:
+          summary: "Prometheus cannot scrape the lucky-render /metrics"
+          description: >-
+            The lucky-render sidecar metrics endpoint (:8080) has been
+            unreachable for 10 minutes. Cross-check its Docker healthcheck;
+            recaps fall back to the text embed while it is down.

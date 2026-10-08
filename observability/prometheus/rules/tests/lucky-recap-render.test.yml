@@ -2,7 +2,7 @@
 # Run: promtool test rules observability/prometheus/rules/tests/lucky-recap-render.test.yml
 # Kept in tests/ so the /etc/prometheus/rules/*.yml glob never loads it.
 rule_files:
-  - ../lucky-alerts.rules.yml
+  - ../recap-render.rules.yml
 
 evaluation_interval: 1m
 
