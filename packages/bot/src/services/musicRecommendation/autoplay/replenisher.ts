@@ -506,9 +506,9 @@ export async function fetchFeedbackAndHistoryData(
             : new Map<string, number>()
     const autoplayMode = guildSettings?.autoplayMode ?? 'similar'
     if (persistentHistory.length === 0) {
-        warnLog({
+        debugLog({
             message:
-                'Autoplay: persistent history empty — Redis may be unavailable',
+                'Autoplay: no play history yet for this guild (first session or history window empty)',
             data: { guildId: queue.guild.id },
         })
     }

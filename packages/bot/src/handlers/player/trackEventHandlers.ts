@@ -87,6 +87,9 @@ export const setupTrackHandlers = ({
     player.events.on('emptyQueue', (queue: GuildQueue) => {
         scheduleIdleDisconnect(queue)
     })
+    player.events.on('queueDelete', async (queue: GuildQueue) => {
+        await handleQueueDelete(queue)
+    })
 }
 
 function handleAutoplayCounter(
@@ -297,6 +300,38 @@ const handlePlayerFinish = async (
         )
     } catch (error) {
         errorLog({ message: 'Error in playerFinish event:', error })
+    }
+}
+
+/**
+ * Records the play that a queue deletion cut short.
+ *
+ * GuildQueue.emit() returns early once the queue is deleted, so the
+ * playerFinish that /stop, /leave, a voice disconnect, the empty-channel leave
+ * and the idle disconnect would otherwise cause is swallowed, and the track
+ * was never written to track_history. delete() emits queueDelete itself,
+ * synchronously and before anything is torn down, so currentTrack is still
+ * the interrupted track here.
+ *
+ * The play-start entry is what keeps this exclusive with the other paths:
+ * playerFinish and playerSkip each consume exactly one entry per play, so a
+ * track that already finished or was skipped has none left and is ignored, as
+ * is a stream that never started (no playerStart, no entry).
+ */
+const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
+    try {
+        const track = queue.currentTrack ?? undefined
+        // Claimed before the awaits below, like the finish and skip paths.
+        const startTime = track ? takeTrackPlayStart(track) : undefined
+        if (!track || startTime === undefined) return
+
+        debugLog({
+            message: 'Queue deleted mid-track, recording the interrupted play',
+            data: { guildId: queue.guild.id, title: track.title },
+        })
+        await scrobbleAndRecord(queue, track, playedSeconds(startTime))
+    } catch (error) {
+        errorLog({ message: 'Error in queueDelete event:', error })
     }
 }
 
