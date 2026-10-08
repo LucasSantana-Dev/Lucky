@@ -139,16 +139,22 @@ describe('Management Routes RBAC', () => {
             expect(calledModules).not.toContain('overview')
         })
 
-        test('requireGuildModuleAccess is called for embed state-changing routes', async () => {
+        test('POST /embeds runs the automation manage guard before the handler', async () => {
+            const executed: string[] = []
+            requireGuildModuleAccess.mockImplementation(
+                (module: string, mode?: string) =>
+                    (_req: Request, res: Response, _next: NextFunction) => {
+                        executed.push(`${module}:${mode}`)
+                        res.status(403).json({ error: 'Forbidden' })
+                    },
+            )
             const app = createApp()
-            await request(app)
+            const res = await request(app)
                 .post('/api/guilds/guild-123/embeds')
                 .send({ name: 'test', title: 'hello' })
 
-            expect(requireGuildModuleAccess).toHaveBeenCalledWith(
-                'automation',
-                'manage',
-            )
+            expect(res.status).toBe(403)
+            expect(executed).toEqual(['automation:manage'])
         })
     })
 })

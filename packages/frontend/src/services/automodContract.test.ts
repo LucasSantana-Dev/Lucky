@@ -45,6 +45,14 @@ describe('AutoMod frontend calls satisfy the real backend contract', () => {
 
         const [path, body] = apiClient.patch.mock.calls[0]
         expect(path).toBe('/guilds/guild-1/automod/settings')
+        expect(body).toEqual({
+            enabled: true,
+            spamEnabled: true,
+            spamThreshold: 5,
+            spamTimeWindow: 10,
+            exemptChannels: ['123456789012345678'],
+            exemptRoles: ['223456789012345678'],
+        })
         expect(
             managementSchemas.autoModSettingsBody.safeParse(body).success,
         ).toBe(true)

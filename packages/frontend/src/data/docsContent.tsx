@@ -1243,9 +1243,9 @@ docker compose up -d <service>`}</code>
                 <h2 id='rbac'>Role-based access</h2>
                 <p>
                     Give different teams different access levels. Server owner
-                    has full control. Mods can adjust moderation and custom
-                    commands without touching music settings. Read-only access
-                    is useful for transparency.
+                    has full control. Mods can adjust moderation without
+                    touching music settings. Read-only access is useful for
+                    transparency.
                 </p>
                 <p>
                     Map under <strong>Server settings / Access control</strong>.
@@ -1632,8 +1632,8 @@ docker compose up -d <service>`}</code>
                         <strong>Server owner</strong> — full control.
                     </li>
                     <li>
-                        <strong>Mods</strong> — edit on moderation + custom
-                        commands + audit. View on music.
+                        <strong>Mods</strong> — edit on moderation + audit. View
+                        on music.
                     </li>
                     <li>
                         <strong>DJs</strong> — edit on music + preferred

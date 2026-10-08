@@ -104,7 +104,7 @@ from round 1. Fixes, all still redesign-preserve (no tokens/routes changed):
    `DocsShell`) wrongly listed 6 pages as headingless. `Docs.tsx`,
    `PrivacyPolicy.tsx`, and `TermsOfService.tsx` render through `DocsShell`,
    which already provides its own `<h1>` — those 3 were never broken. Only
-   `Levels.tsx`, `RoleGroups.tsx`, and `Starboard.tsx` genuinely had no
+   `Levels.tsx`, `RoleGroups.tsx`, and `Starboard.tsx` (since removed, #2716) genuinely had no
    heading of their own after this fix. See Round 3.
 2. **Card-in-card + repeated "Queue" label.** `Music.tsx` had its own
    `<h2>Queue</h2>` wrapper around `<QueueList>`, which renders its own
@@ -153,7 +153,7 @@ stopped rendering one. Re-audit found the list was wrong: `Docs.tsx`,
 `PrivacyPolicy.tsx`, and `TermsOfService.tsx` all render through
 `DocsShell`, which has its own `<h1 className='text-3xl font-bold ...'>` —
 those 3 never lost a heading. Only `Levels.tsx`, `RoleGroups.tsx`, and
-`Starboard.tsx` genuinely had no heading source at all. This is a regression
+`Starboard.tsx` (since removed, #2716) genuinely had no heading source at all. This is a regression
 this branch introduced (Round 2's Layout.tsx change removed the only H1
 those 3 pages had), so it's fixed on this branch, not filed separately.
 
@@ -172,13 +172,13 @@ add there.
   hook alongside the existing `useTranslation('roleGroups')`, built one
   `SectionHeader` element, reused across all 4 branches (no-guild, loading,
   empty-groups, main list).
-- `Starboard.tsx`: same pattern as `RoleGroups.tsx` (added `tCommon`, one
+- `Starboard.tsx` (since removed, #2716): same pattern as `RoleGroups.tsx` (added `tCommon`, one
   shared `SectionHeader`, reused across no-guild, loading, and main branches).
 
 Extended the single-H1 regression guard: `Music.test.tsx` already asserted
 `querySelectorAll('h1')` has length 1 for the Music page (from Round 2).
 Added the same assertion to every render-branch test in `Levels.test.tsx`,
-`RoleGroups.test.tsx`, and `Starboard.test.tsx` (no-guild / loading / main,
+`RoleGroups.test.tsx`, and `Starboard.test.tsx` (since removed, #2716; no-guild / loading / main,
 matching each page's actual branches), so a future change that removes or
 duplicates a page's `SectionHeader` fails a unit test immediately, without
 needing a full-route Playwright harness.
@@ -206,7 +206,7 @@ route, dependency, or palette value.
    state on this page.
 2. **`TrackHistory.tsx` / `Lyrics.tsx` header cohesion.** Both pages
    predated the `SectionHeader` convention Round 3 applied to
-   Levels/RoleGroups/Starboard and used a plain icon+`<h1>` header with no
+   Levels/RoleGroups/Starboard (since removed, #2716) and used a plain icon+`<h1>` header with no
    eyebrow or description -- visibly inconsistent with their own Media-nav
    siblings (`PreferredArtists.tsx`, `LastFm.tsx`), which already use
    `SectionHeader`. Converted both to `SectionHeader`, eyebrow
@@ -310,7 +310,7 @@ Uppercase stays only on `type-meta` eyebrows and stat labels (e.g.
 "TRACKS PLAYED", "RECENT TRACKS") -- never on a `type-title` panel title.
 
 Applied to `DashboardOverview.tsx` (`Recent Music`, `Recent Cases`,
-`Level Leaderboard`, `Starboard Highlights` demoted from `type-h2` back to
+`Level Leaderboard`, `Starboard Highlights` (since removed, #2716) demoted from `type-h2` back to
 `type-title`; `Quick Actions`, `Community`, `Cases by Type` stay `type-h2`)
 and `TrackHistory.tsx` (`RankingCard`'s `<h3>` title -- "Top Tracks" /
 "Top Artists" -- dropped `uppercase tracking-wide`, now plain `type-title`

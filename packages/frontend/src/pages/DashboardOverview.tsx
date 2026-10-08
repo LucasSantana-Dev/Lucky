@@ -628,7 +628,7 @@ export default function DashboardOverview() {
                     <h2 className='type-h2 text-lucky-text-primary'>
                         {t('dashboardOverview.community')}
                     </h2>
-                    <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
+                    <div className='grid grid-cols-1 gap-4'>
                         <div className='surface-panel overflow-hidden border border-lucky-border'>
                             <div className='border-b border-lucky-border px-4 py-3'>
                                 <h3 className='type-title text-lucky-text-primary'>

@@ -219,6 +219,8 @@ describe('AutoModPage', () => {
                 settings: {
                     ...mockSettings,
                     capsEnabled: true,
+                    capsThreshold: 70,
+                    allowedDomains: ['example.com'],
                     linksEnabled: true,
                     invitesEnabled: true,
                     wordsEnabled: true,
@@ -254,6 +256,8 @@ describe('AutoModPage', () => {
             spamEnabled: true,
         })
         expect(payload).not.toHaveProperty('capsEnabled')
+        expect(payload).not.toHaveProperty('capsThreshold')
+        expect(payload).not.toHaveProperty('allowedDomains')
         expect(payload).not.toHaveProperty('linksEnabled')
         expect(payload).not.toHaveProperty('invitesEnabled')
         expect(payload).not.toHaveProperty('wordsEnabled')
