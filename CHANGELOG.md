@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.4](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.3...v2.58.4) (2026-10-08)
+
+
+### Performance Improvements
+
+* **bot:** run the stream bridge once per track, spotify straight to it ([#2761](https://github.com/LucasSantana-Dev/Lucky/issues/2761)) ([3b6a895](https://github.com/LucasSantana-Dev/Lucky/commit/3b6a895f4a29b11ee7ad9c3817eabfc90309b5d7))
+* **ci:** stop deleting preinstalled toolchains before docker builds ([#2762](https://github.com/LucasSantana-Dev/Lucky/issues/2762)) ([3542081](https://github.com/LucasSantana-Dev/Lucky/commit/35420817b8402b3d8e337b91b8926cf4c481c158))
+
 ## [2.58.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.2...v2.58.3) (2026-10-08)
 
 
