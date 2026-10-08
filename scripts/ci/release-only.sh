@@ -9,12 +9,19 @@
 # True only when ALL hold:
 #   1. every changed file is in {package.json, package-lock.json,
 #      CHANGELOG.md, .release-please-manifest.json}
-#   2. root package.json is identical between BASE and HEAD once `.version`
+#   2. BOTH package.json and package-lock.json are in the changed set. A
+#      CHANGELOG-only or manifest-only diff is not a release and returns
+#      false (CHANGELOG.md is baked into the frontend image, so the frontend
+#      build must still run for it)
+#   3. root package.json is identical between BASE and HEAD once `.version`
 #      is removed
-#   3. package-lock.json is identical once `.version` and
+#   4. package-lock.json is identical once `.version` and
 #      `.packages[""].version` are removed
+#   5. at HEAD the versions agree: package.json `.version` == package-lock
+#      `.version` == package-lock `.packages[""].version` == manifest `["."]`
+#      (manifest checked when present at HEAD)
 # Judged by content, never by branch name or author, so a dependency change
-# riding in a release PR fails (2) or (3) and runs the full CI.
+# riding in a release PR fails (3) or (4) and runs the full CI.
 #
 # Fails OPEN to full CI: any error (missing jq, bad JSON, git failure, empty
 # diff) prints "false". Always exits 0; diagnostics go to stderr so command
@@ -51,12 +58,21 @@ same_without() {
     [ -n "$a" ] && [ "$a" = "$b" ]
 }
 
-if echo "$changed" | grep -qx 'package.json'; then
-    same_without package.json 'del(.version)' || no "package.json differs beyond .version"
-fi
-if echo "$changed" | grep -qx 'package-lock.json'; then
-    same_without package-lock.json 'del(.version) | del(.packages[""].version)' \
-        || no "package-lock.json differs beyond root version"
+echo "$changed" | grep -qx 'package.json' || no "package.json not in diff"
+echo "$changed" | grep -qx 'package-lock.json' || no "package-lock.json not in diff"
+
+same_without package.json 'del(.version)' || no "package.json differs beyond .version"
+same_without package-lock.json 'del(.version) | del(.packages[""].version)' \
+    || no "package-lock.json differs beyond root version"
+
+pkg_v=$(git show "$head:package.json" | jq -er '.version') || no "package.json has no version"
+lock_v=$(git show "$head:package-lock.json" | jq -er '.version') || no "lock has no version"
+lock_root_v=$(git show "$head:package-lock.json" | jq -er '.packages[""].version') \
+    || no "lock has no root package version"
+[ "$pkg_v" = "$lock_v" ] && [ "$pkg_v" = "$lock_root_v" ] || no "version mismatch across package files"
+if git cat-file -e "$head:.release-please-manifest.json" 2> /dev/null; then
+    man_v=$(git show "$head:.release-please-manifest.json" | jq -er '.["."]') || no "manifest has no root version"
+    [ "$pkg_v" = "$man_v" ] || no "manifest version differs from package.json"
 fi
 
 echo "release-only: version-bump-only diff, heavy jobs can skip" >&2

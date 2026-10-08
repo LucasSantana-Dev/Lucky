@@ -435,14 +435,18 @@ jobs:
                       code=true
                   fi
 
-                  # Release-please PRs change only the version fields in root
-                  # package.json/package-lock.json plus CHANGELOG.md and the
-                  # manifest. Judged by content (scripts/ci/release-only.sh),
+                  # Release-please PRs change root package.json and
+                  # package-lock.json (version fields only), CHANGELOG.md and
+                  # the manifest. Judged by content (scripts/ci/release-only.sh),
                   # never by branch name: a dependency change inside a release
-                  # PR returns false and runs everything. Errors fail open to
-                  # the full suite. Required checks still report: skipped jobs
-                  # count as passing and docker-build-check short-circuits on
-                  # services=[].
+                  # PR returns false and runs everything. The script also
+                  # requires both package files in the diff and the version to
+                  # agree across them and the manifest, so a CHANGELOG-only or
+                  # manifest-only PR is NOT a release and still gets the full
+                  # suite (CHANGELOG.md is baked into the frontend image,
+                  # Dockerfile:152). Errors fail open to the full suite.
+                  # Required checks still report: skipped jobs count as passing
+                  # and docker-build-check short-circuits on services=[].
                   release_only=false
                   if [ "$EVENT" = "pull_request" ]; then
                       release_only=$(bash scripts/ci/release-only.sh "$BASE_SHA" HEAD) || release_only=false
