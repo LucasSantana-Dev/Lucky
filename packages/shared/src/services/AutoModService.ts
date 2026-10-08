@@ -62,16 +62,15 @@ const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
     {
         id: 'balanced',
         name: 'Balanced',
-        description:
-            'Balanced baseline for PT-BR + EN communities with common scam and abuse protection.',
+        description: 'Balanced spam protection: 6 messages in 8 seconds.',
         settings: {
             enabled: true,
             spamEnabled: true,
             spamThreshold: 6,
             spamTimeWindow: 8,
-            capsEnabled: true,
+            capsEnabled: false,
             capsThreshold: 75,
-            linksEnabled: true,
+            linksEnabled: false,
             allowedDomains: [
                 'youtube.com',
                 'youtu.be',
@@ -83,8 +82,8 @@ const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
                 'netlify.app',
                 'render.com',
             ],
-            invitesEnabled: true,
-            wordsEnabled: true,
+            invitesEnabled: false,
+            wordsEnabled: false,
             bannedWords: [
                 'nazi',
                 'kkk',
@@ -103,18 +102,18 @@ const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
         id: 'strict',
         name: 'Strict Shield',
         description:
-            'Aggressive anti-spam and anti-scam defaults for high-risk public servers.',
+            'Aggressive spam protection for high-risk public servers: 4 messages in 6 seconds.',
         settings: {
             enabled: true,
             spamEnabled: true,
             spamThreshold: 4,
             spamTimeWindow: 6,
-            capsEnabled: true,
+            capsEnabled: false,
             capsThreshold: 65,
-            linksEnabled: true,
+            linksEnabled: false,
             allowedDomains: ['youtube.com', 'youtu.be', 'discord.com'],
-            invitesEnabled: true,
-            wordsEnabled: true,
+            invitesEnabled: false,
+            wordsEnabled: false,
             bannedWords: [
                 'discord free nitro',
                 'gift card generator',
@@ -131,14 +130,14 @@ const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
         id: 'light',
         name: 'Light',
         description:
-            'Lower-friction defaults with basic link and spam protection enabled.',
+            'Lower-friction spam protection: 8 messages in 10 seconds.',
         settings: {
             enabled: true,
             spamEnabled: true,
             spamThreshold: 8,
             spamTimeWindow: 10,
             capsEnabled: false,
-            linksEnabled: true,
+            linksEnabled: false,
             allowedDomains: [
                 'youtube.com',
                 'youtu.be',
@@ -150,7 +149,7 @@ const AUTO_MOD_TEMPLATES: AutoModTemplate[] = [
                 'netlify.app',
                 'render.com',
             ],
-            invitesEnabled: true,
+            invitesEnabled: false,
             wordsEnabled: false,
             bannedWords: [],
         },

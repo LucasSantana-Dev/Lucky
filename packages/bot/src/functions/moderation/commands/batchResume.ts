@@ -1,7 +1,9 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js'
 import Command from '../../../models/Command'
 import { batchJobService } from '@lucky/shared/services/batch'
+import type { BatchJobType } from '@lucky/shared/services/batch'
 import { enqueueBatchJob } from '../../../utils/batch/batchQueue'
+import { hasExecutor } from '../../../workers/executorRegistry'
 import { errorLog, infoLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply'
 
@@ -77,6 +79,17 @@ export default new Command({
                     interaction,
                     content: {
                         content: `❌ Job is in \`${job.status}\` state — can only resume paused or failed jobs.`,
+                    },
+                })
+                return
+            }
+
+            if (!hasExecutor(job.jobType as BatchJobType)) {
+                await batchJobService.markCancelled(jobId)
+                await interactionReply({
+                    interaction,
+                    content: {
+                        content: `❌ Job type \`${job.jobType}\` is no longer supported, so it cannot be resumed. The job was cancelled.`,
                     },
                 })
                 return

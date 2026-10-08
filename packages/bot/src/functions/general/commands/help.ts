@@ -19,9 +19,10 @@ import { EMBED_COLORS } from '../../../utils/general/embeds'
 import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
 
 // The hosted bot leads with music (decisions/2026-09-27-music-first-
-// positioning.md point 2): moderation, automod, giveaways, logs and Twitch
-// are still fully functional if invoked directly, just not
-// surfaced by default here. The select menu below keeps every other
+// positioning.md point 2): moderation, giveaways, logs and Twitch
+// are still functional if invoked directly, just not surfaced by default
+// here. Automod now only covers spam detection (text filters were removed
+// with the MessageContent intent, #2714). The select menu below keeps every other
 // category one click away.
 const DEFAULT_HELP_CATEGORY = 'music'
 export const HELP_CATEGORY_SELECT_ID = 'help_category_select'
