@@ -65,7 +65,7 @@
             {
                 "name": "excluidas",
                 "type": "constant",
-                "query": "'110373943822540800','333949691962195969','1541452011466268704'",
+                "query": "110373943822540800,333949691962195969,1541452011466268704",
                 "hide": 2,
                 "description": "Guildas do operador, de listagem e de teste: nunca contam como uso."
             }
@@ -135,7 +135,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT count(DISTINCT g) AS \"Guildas ativas\" FROM (SELECT \"guildId\" AS g, \"playedAt\" AS t FROM track_history UNION ALL SELECT \"guildId\", \"occurredAt\" FROM command_events WHERE \"guildId\" IS NOT NULL) a WHERE t >= now() - interval '7 days' AND g NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "rawSql": "SELECT count(DISTINCT g) AS \"Guildas ativas\" FROM (SELECT \"guildId\" AS g, \"playedAt\" AS t FROM track_history UNION ALL SELECT \"guildId\", \"occurredAt\" FROM command_events WHERE \"guildId\" IS NOT NULL) a WHERE t >= now() - interval '7 days' AND g NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -199,7 +199,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days'), c AS (SELECT j.t, EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') AS heard, (EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days') OR EXISTS (SELECT 1 FROM command_events ce WHERE ce.\"guildId\" = j.g AND ce.\"occurredAt\" >= j.t + interval '7 days')) AS d8 FROM joins j WHERE j.g NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')) SELECT round(100.0 * count(*) FILTER (WHERE t <= now() - interval '1 hour' AND heard) / nullif(count(*) FILTER (WHERE t <= now() - interval '1 hour'), 0), 1) AS \"1ª hora (%)\" FROM c",
+                    "rawSql": "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days'), c AS (SELECT j.t, EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') AS heard, (EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days') OR EXISTS (SELECT 1 FROM command_events ce WHERE ce.\"guildId\" = j.g AND ce.\"occurredAt\" >= j.t + interval '7 days')) AS d8 FROM joins j WHERE j.g NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')) SELECT round(100.0 * count(*) FILTER (WHERE t <= now() - interval '1 hour' AND heard) / nullif(count(*) FILTER (WHERE t <= now() - interval '1 hour'), 0), 1) AS \"1ª hora (%)\" FROM c",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -265,7 +265,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days'), c AS (SELECT j.t, EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') AS heard, (EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days') OR EXISTS (SELECT 1 FROM command_events ce WHERE ce.\"guildId\" = j.g AND ce.\"occurredAt\" >= j.t + interval '7 days')) AS d8 FROM joins j WHERE j.g NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')) SELECT round(100.0 * count(*) FILTER (WHERE t <= now() - interval '8 days' AND d8) / nullif(count(*) FILTER (WHERE t <= now() - interval '8 days'), 0), 1) AS \"Dia 8 (%)\" FROM c",
+                    "rawSql": "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days'), c AS (SELECT j.t, EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') AS heard, (EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days') OR EXISTS (SELECT 1 FROM command_events ce WHERE ce.\"guildId\" = j.g AND ce.\"occurredAt\" >= j.t + interval '7 days')) AS d8 FROM joins j WHERE j.g NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')) SELECT round(100.0 * count(*) FILTER (WHERE t <= now() - interval '8 days' AND d8) / nullif(count(*) FILTER (WHERE t <= now() - interval '8 days'), 0), 1) AS \"Dia 8 (%)\" FROM c",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -374,7 +374,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT count(*) AS \"Entradas\" FROM guild_membership_events WHERE kind = 'JOIN' AND $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "rawSql": "SELECT count(*) AS \"Entradas\" FROM guild_membership_events WHERE kind = 'JOIN' AND $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -417,7 +417,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT count(*) AS \"Saídas\" FROM guild_membership_events WHERE kind = 'LEAVE' AND $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "rawSql": "SELECT count(*) AS \"Saídas\" FROM guild_membership_events WHERE kind = 'LEAVE' AND $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -477,7 +477,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT date_trunc('week', t) AS time, count(DISTINCT g) AS \"Guildas ativas\" FROM (SELECT \"guildId\" AS g, \"playedAt\" AS t FROM track_history UNION ALL SELECT \"guildId\", \"occurredAt\" FROM command_events WHERE \"guildId\" IS NOT NULL) a WHERE t >= date_trunc('week', now()) - interval '3 weeks' AND g NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
+                    "rawSql": "SELECT date_trunc('week', t) AS time, count(DISTINCT g) AS \"Guildas ativas\" FROM (SELECT \"guildId\" AS g, \"playedAt\" AS t FROM track_history UNION ALL SELECT \"guildId\", \"occurredAt\" FROM command_events WHERE \"guildId\" IS NOT NULL) a WHERE t >= date_trunc('week', now()) - interval '3 weeks' AND g NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
                     "format": "time_series",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -549,7 +549,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days') SELECT date_trunc('week', j.t)::date AS \"Semana\", count(*) AS \"Entraram\", count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour')) AS \"Tocaram na 1ª hora\", count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g)) AS \"Já tocaram\" FROM joins j WHERE j.g NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1 DESC",
+                    "rawSql": "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days') SELECT date_trunc('week', j.t)::date AS \"Semana\", count(*) AS \"Entraram\", count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour')) AS \"Tocaram na 1ª hora\", count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g)) AS \"Já tocaram\" FROM joins j WHERE j.g NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1 DESC",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -596,7 +596,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT date_trunc('day', \"playedAt\") AS time, count(*) FILTER (WHERE NOT \"isAutoplay\") AS \"Pedidas\", count(*) FILTER (WHERE \"isAutoplay\") AS \"Autoplay\" FROM track_history WHERE $__timeFilter(\"playedAt\") AND \"guildId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
+                    "rawSql": "SELECT date_trunc('day', \"playedAt\") AS time, count(*) FILTER (WHERE NOT \"isAutoplay\") AS \"Pedidas\", count(*) FILTER (WHERE \"isAutoplay\") AS \"Autoplay\" FROM track_history WHERE $__timeFilter(\"playedAt\") AND \"guildId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
                     "format": "time_series",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -650,7 +650,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT date_trunc('day', \"playedAt\") AS time, count(DISTINCT \"guildId\") AS \"Guildas tocando\" FROM track_history WHERE $__timeFilter(\"playedAt\") AND \"guildId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
+                    "rawSql": "SELECT date_trunc('day', \"playedAt\") AS time, count(DISTINCT \"guildId\") AS \"Guildas tocando\" FROM track_history WHERE $__timeFilter(\"playedAt\") AND \"guildId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
                     "format": "time_series",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -703,7 +703,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT command AS \"Comando\", count(*) AS \"Usos\", count(DISTINCT \"guildId\") AS \"Guildas\", round(percentile_cont(0.5) WITHIN GROUP (ORDER BY \"latencyMs\")) AS \"Resposta p50 (ms)\" FROM command_events WHERE $__timeFilter(\"occurredAt\") AND coalesce(\"guildId\", '') NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 2 DESC LIMIT 15",
+                    "rawSql": "SELECT command AS \"Comando\", count(*) AS \"Usos\", count(DISTINCT \"guildId\") AS \"Guildas\", round(percentile_cont(0.5) WITHIN GROUP (ORDER BY \"latencyMs\")) AS \"Resposta p50 (ms)\" FROM command_events WHERE $__timeFilter(\"occurredAt\") AND coalesce(\"guildId\", '') NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 2 DESC LIMIT 15",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -737,7 +737,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT date_trunc('day', \"occurredAt\") AS time, count(*) FILTER (WHERE kind = 'JOIN') AS \"Entraram\", -count(*) FILTER (WHERE kind = 'LEAVE') AS \"Saíram\" FROM guild_membership_events WHERE $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
+                    "rawSql": "SELECT date_trunc('day', \"occurredAt\") AS time, count(*) FILTER (WHERE kind = 'JOIN') AS \"Entraram\", -count(*) FILTER (WHERE kind = 'LEAVE') AS \"Saíram\" FROM guild_membership_events WHERE $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 ORDER BY 1",
                     "format": "time_series",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -834,7 +834,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT round(100.0 * count(*) FILTER (WHERE \"isAutoplay\") / nullif(count(*), 0), 1) AS \"Autoplay (%)\" FROM track_history WHERE $__timeFilter(\"playedAt\") AND \"guildId\" NOT IN (SELECT unnest(ARRAY[$excluidas]::text[]) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "rawSql": "SELECT round(100.0 * count(*) FILTER (WHERE \"isAutoplay\") / nullif(count(*), 0), 1) AS \"Autoplay (%)\" FROM track_history WHERE $__timeFilter(\"playedAt\") AND \"guildId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",

@@ -598,14 +598,14 @@
             "id": 8
         },
         {
-            "type": "table",
+            "type": "bargauge",
             "title": "Mensagens de erro mais frequentes",
             "description": "",
             "gridPos": {
                 "x": 0,
                 "y": 12,
                 "w": 12,
-                "h": 9
+                "h": 10
             },
             "datasource": {
                 "type": "loki",
@@ -617,62 +617,56 @@
                         "type": "loki",
                         "uid": "${ds_loki}"
                     },
-                    "expr": "topk(20, sum by (container_name, msg) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]` | regexp `\"msg\":\"(?P<msg>[^\"]{0,120}?)(?: [0-9]+ms)?\"` [$__range])))",
-                    "legendFormat": "",
+                    "expr": "topk(15, sum by (container_name, msg) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]` | regexp `\"msg\":\"(?P<msg>[^\"]{0,120}?)(?: [0-9]+ms)?\"` [$__range])))",
+                    "legendFormat": "{{container_name}}: {{msg}}",
                     "queryType": "instant",
                     "refId": "A"
                 }
             ],
             "fieldConfig": {
                 "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
                     "noValue": "Nenhum erro no período"
                 },
                 "overrides": []
             },
-            "options": {},
-            "transformations": [
-                {
-                    "id": "labelsToFields",
-                    "options": {
-                        "mode": "columns"
-                    }
-                },
-                {
-                    "id": "organize",
-                    "options": {
-                        "excludeByName": {
-                            "Time": true
-                        },
-                        "renameByName": {
-                            "container_name": "Serviço",
-                            "msg": "Mensagem",
-                            "Value": "Vezes"
-                        }
-                    }
-                },
-                {
-                    "id": "sortBy",
-                    "options": {
-                        "sort": [
-                            {
-                                "field": "Vezes",
-                                "desc": true
-                            }
-                        ]
-                    }
+            "options": {
+                "displayMode": "basic",
+                "orientation": "horizontal",
+                "valueMode": "text",
+                "namePlacement": "top",
+                "showUnfilled": false,
+                "sizing": "manual",
+                "minVizHeight": 16,
+                "maxVizHeight": 22,
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
                 }
-            ],
+            },
             "id": 9
         },
         {
-            "type": "table",
+            "type": "bargauge",
             "title": "Avisos mais frequentes",
             "description": "Volume alto e repetido costuma ser ruído a corrigir na origem.",
             "gridPos": {
                 "x": 12,
                 "y": 12,
                 "w": 12,
-                "h": 9
+                "h": 10
             },
             "datasource": {
                 "type": "loki",
@@ -684,51 +678,45 @@
                         "type": "loki",
                         "uid": "${ds_loki}"
                     },
-                    "expr": "topk(20, sum by (container_name, msg) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[WARN\\]` | regexp `\"msg\":\"(?P<msg>[^\"]{0,120}?)(?: [0-9]+ms)?\"` [$__range])))",
-                    "legendFormat": "",
+                    "expr": "topk(15, sum by (container_name, msg) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[WARN\\]` | regexp `\"msg\":\"(?P<msg>[^\"]{0,120}?)(?: [0-9]+ms)?\"` [$__range])))",
+                    "legendFormat": "{{container_name}}: {{msg}}",
                     "queryType": "instant",
                     "refId": "A"
                 }
             ],
             "fieldConfig": {
                 "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "orange",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
                     "noValue": "Nenhum aviso no período"
                 },
                 "overrides": []
             },
-            "options": {},
-            "transformations": [
-                {
-                    "id": "labelsToFields",
-                    "options": {
-                        "mode": "columns"
-                    }
-                },
-                {
-                    "id": "organize",
-                    "options": {
-                        "excludeByName": {
-                            "Time": true
-                        },
-                        "renameByName": {
-                            "container_name": "Serviço",
-                            "msg": "Mensagem",
-                            "Value": "Vezes"
-                        }
-                    }
-                },
-                {
-                    "id": "sortBy",
-                    "options": {
-                        "sort": [
-                            {
-                                "field": "Vezes",
-                                "desc": true
-                            }
-                        ]
-                    }
+            "options": {
+                "displayMode": "basic",
+                "orientation": "horizontal",
+                "valueMode": "text",
+                "namePlacement": "top",
+                "showUnfilled": false,
+                "sizing": "manual",
+                "minVizHeight": 16,
+                "maxVizHeight": 22,
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
                 }
-            ],
+            },
             "id": 10
         },
         {
@@ -737,7 +725,7 @@
             "description": "user_error = uso errado; denied = sem permissão; error = falha do bot.",
             "gridPos": {
                 "x": 0,
-                "y": 21,
+                "y": 22,
                 "w": 12,
                 "h": 8
             },
@@ -773,7 +761,7 @@
             "description": "",
             "gridPos": {
                 "x": 12,
-                "y": 21,
+                "y": 22,
                 "w": 12,
                 "h": 8
             },
@@ -824,7 +812,7 @@
             "description": "",
             "gridPos": {
                 "x": 0,
-                "y": 29,
+                "y": 30,
                 "w": 12,
                 "h": 8
             },
@@ -879,7 +867,7 @@
             "description": "YouTube/Spotify fora ou limitados.",
             "gridPos": {
                 "x": 12,
-                "y": 29,
+                "y": 30,
                 "w": 12,
                 "h": 8
             },
@@ -934,7 +922,7 @@
             "description": "",
             "gridPos": {
                 "x": 0,
-                "y": 37,
+                "y": 38,
                 "w": 24,
                 "h": 10
             },

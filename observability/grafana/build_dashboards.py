@@ -22,9 +22,11 @@ SENTRY_PROJECT_ID = "4509260792070144"  # Sentry project "lucky"
 
 # Operator, listing and test guilds never count as usage
 # (scripts/music-first-gates.sql, decisions/2026-09-27-music-first-positioning.md).
-EXCLUDED = "'110373943822540800','333949691962195969','1541452011466268704'"
+# No quotes in the value: Grafana's SQL datasources double single quotes when
+# interpolating a single-value variable, which broke ARRAY['...'] literals.
+EXCLUDED = "110373943822540800,333949691962195969,1541452011466268704"
 EXCL = (
-    "(SELECT unnest(ARRAY[$excluidas]::text[]) "
+    "(SELECT unnest(string_to_array('$excluidas', ',')) "
     "UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' "
     "UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')"
 )
@@ -140,6 +142,10 @@ class Board:
         }
 
 
+# One horizontal bar per message, longest first, the label on top of the bar.
+TOP_BARS = {"displayMode": "basic", "orientation": "horizontal", "valueMode": "text", "namePlacement": "top",
+            "showUnfilled": False, "sizing": "manual", "minVizHeight": 16, "maxVizHeight": 22,
+            "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False}}
 UP_MAP = [{"type": "value", "options": {"0": {"text": "FORA", "color": RED}, "1": {"text": "OK", "color": GREEN}}}]
 BARS = {"drawStyle": "bars", "fillOpacity": 80, "lineWidth": 1, "stacking": {"mode": "normal", "group": "A"}}
 LINES = {"drawStyle": "line", "fillOpacity": 10, "lineWidth": 2, "showPoints": "never"}
@@ -331,20 +337,14 @@ def erros():
            "environments": [], "statsCategory": ["error"], "statsFields": ["sum(quantity)"], "statsGroupBy": [],
            "statsOutcome": ["accepted"], "statsInterval": "1d"}], w=8, h=8, custom={**BARS, "stacking": {"mode": "none"}}, options=TS_OPTS)
 
-    b.add("table", "Mensagens de erro mais frequentes", [loki(
-        f"topk(20, sum by (container_name, msg) (count_over_time({{{APP}}} {ERR_LINE} {MSG} [$__range])))", instant=True)],
-        w=12, h=9, no_value="Nenhum erro no período",
-        transformations=[{"id": "labelsToFields", "options": {"mode": "columns"}},
-                         {"id": "organize", "options": {"excludeByName": {"Time": True},
-                          "renameByName": {"container_name": "Serviço", "msg": "Mensagem", "Value": "Vezes"}}},
-                         {"id": "sortBy", "options": {"sort": [{"field": "Vezes", "desc": True}]}}])
-    b.add("table", "Avisos mais frequentes", [loki(
-        f"topk(20, sum by (container_name, msg) (count_over_time({{{APP}}} {WARN_LINE} {MSG} [$__range])))", instant=True)],
-        w=12, h=9, no_value="Nenhum aviso no período",
-        transformations=[{"id": "labelsToFields", "options": {"mode": "columns"}},
-                         {"id": "organize", "options": {"excludeByName": {"Time": True},
-                          "renameByName": {"container_name": "Serviço", "msg": "Mensagem", "Value": "Vezes"}}},
-                         {"id": "sortBy", "options": {"sort": [{"field": "Vezes", "desc": True}]}}],
+    b.add("bargauge", "Mensagens de erro mais frequentes", [loki(
+        f"topk(15, sum by (container_name, msg) (count_over_time({{{APP}}} {ERR_LINE} {MSG} [$__range])))",
+        "{{container_name}}: {{msg}}", instant=True)],
+        w=12, h=10, no_value="Nenhum erro no período", options=TOP_BARS, th=thresholds((RED, 0)))
+    b.add("bargauge", "Avisos mais frequentes", [loki(
+        f"topk(15, sum by (container_name, msg) (count_over_time({{{APP}}} {WARN_LINE} {MSG} [$__range])))",
+        "{{container_name}}: {{msg}}", instant=True)],
+        w=12, h=10, no_value="Nenhum aviso no período", options=TOP_BARS, th=thresholds((ORANGE, 0)),
         desc="Volume alto e repetido costuma ser ruído a corrigir na origem.")
     b.add("table", "Comandos que não deram certo", [sql(
         "SELECT command AS \"Comando\", outcome AS \"Resultado\", coalesce(\"errorClass\", '') AS \"Erro\", count(*) AS \"Vezes\", "
@@ -375,6 +375,7 @@ def sistema():
                         ("Backend", 'max(up{job="lucky-backend"})'), ("Render (cards)", 'max(up{job="lucky-render"})')]:
         b.stat(title, prom(expr, instant=True), mappings=UP_MAP, th=thresholds((RED, 0), (GREEN, 1)), w=4)
     b.stat("Ligado há", prom('min(time() - container_start_time_seconds{name="lucky-bot"})', instant=True), unit="s", w=4,
+           th=thresholds(("text", 0)),
            desc="Tempo desde o último início do container do bot (deploy ou restart).")
     b.stat("Disco livre (pior partição)", prom(
         'min(node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"})', instant=True),
