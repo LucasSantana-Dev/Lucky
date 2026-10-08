@@ -19,8 +19,8 @@ import { EMBED_COLORS } from '../../../utils/general/embeds'
 import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
 
 // The hosted bot leads with music (decisions/2026-09-27-music-first-
-// positioning.md point 2): moderation, automod, giveaways, logs, Twitch and
-// custom commands are still fully functional if invoked directly, just not
+// positioning.md point 2): moderation, automod, giveaways, logs and Twitch
+// are still fully functional if invoked directly, just not
 // surfaced by default here. The select menu below keeps every other
 // category one click away.
 const DEFAULT_HELP_CATEGORY = 'music'

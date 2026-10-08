@@ -58,7 +58,6 @@ describe('auditHandler ignore-list gating', () => {
             guild: { id: 'g1', name: 'Guild' },
             author: { bot: false, id: 'u1', tag: 'u#1' },
             channelId: 'c1',
-            content: 'hi',
         })
 
         expect(mockIsIgnored).toHaveBeenCalledWith('g1', {
@@ -76,37 +75,9 @@ describe('auditHandler ignore-list gating', () => {
             guild: { id: 'g1', name: 'Guild' },
             author: { bot: false, id: 'u1', tag: 'u#1' },
             channelId: 'c1',
-            content: 'hi',
         })
 
         expect(mockCreateLog).toHaveBeenCalled()
-    })
-
-    it('skips logging an edited message when the author is ignored', async () => {
-        mockIsIgnored.mockResolvedValue(true)
-        const { client, listeners } = createMockClient()
-        handleAuditEvents(client)
-
-        await listeners.get(Events.MessageUpdate)?.(
-            {
-                guild: { id: 'g1', name: 'Guild' },
-                author: { bot: false, id: 'u1', tag: 'u#1' },
-                channelId: 'c1',
-                content: 'old',
-            },
-            {
-                guild: { id: 'g1', name: 'Guild' },
-                author: { bot: false, id: 'u1', tag: 'u#1' },
-                channelId: 'c1',
-                content: 'new',
-            },
-        )
-
-        expect(mockIsIgnored).toHaveBeenCalledWith('g1', {
-            channelId: 'c1',
-            userId: 'u1',
-        })
-        expect(mockCreateLog).not.toHaveBeenCalled()
     })
 
     it('skips logging a ban when the banned user is ignored', async () => {

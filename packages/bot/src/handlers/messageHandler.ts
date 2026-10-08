@@ -2,41 +2,25 @@ import { Events, type Client, type Message } from 'discord.js'
 import { featureToggleService } from '@lucky/shared/services'
 import { errorLog } from '@lucky/shared/utils'
 import { MessagePipeline } from './message/pipeline'
-import { autoModHandler } from '../functions/automod/handlers/autoModHandler'
 import { spamHandler } from '../functions/automod/handlers/spamHandler'
-import { customCommandHandler } from './message/customCommandHandler'
 import { afkHandler } from './message/afkHandler'
 import { xpHandler } from './message/xpHandler'
-import { starboardSeedHandler } from './message/starboardSeedHandler'
 import type { MessageContext } from './message/types'
 
 const pipeline = new MessagePipeline()
     .register(spamHandler)
-    .register(autoModHandler)
-    .register(customCommandHandler)
     .register(afkHandler)
     .register(xpHandler)
-    .register(starboardSeedHandler)
 
 export function handleMessageCreate(client: Client): void {
     client.on(Events.MessageCreate, async (message: Message) => {
         try {
             if (!message.guild || !message.member) return
 
-            const [automod, customCommands] = await Promise.all([
-                featureToggleService
-                    .isEnabled('AUTOMOD', { guildId: message.guild.id })
-                    .catch(() => false),
-                featureToggleService
-                    .isEnabled('CUSTOM_COMMANDS', {
-                        guildId: message.guild.id,
-                    })
-                    .catch(() => false),
-            ])
-            const featureToggles = {
-                AUTOMOD: automod,
-                CUSTOM_COMMANDS: customCommands,
-            }
+            const automod = await featureToggleService
+                .isEnabled('AUTOMOD', { guildId: message.guild.id })
+                .catch(() => false)
+            const featureToggles = { AUTOMOD: automod }
 
             const context: MessageContext = {
                 guild: message.guild,

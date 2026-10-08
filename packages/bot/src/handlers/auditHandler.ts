@@ -64,7 +64,6 @@ async function handleMessageDelete(
             'message_delete',
             'Message deleted',
             {
-                content: message.content?.substring(0, 500) || '[No content]',
                 authorId: message.author?.id,
                 authorTag: message.author?.tag,
             },
@@ -88,11 +87,6 @@ async function handleMessageDelete(
                     value: `<#${message.channelId}>`,
                     inline: true,
                 },
-                {
-                    name: 'Content',
-                    value:
-                        message.content?.substring(0, 1000) || '[No content]',
-                },
             )
             .setTimestamp()
         await postToModLog(message.guild, embed)
@@ -103,88 +97,6 @@ async function handleMessageDelete(
     } catch (error) {
         errorLog({
             message: 'Error logging message delete:',
-            error,
-        })
-    }
-}
-
-async function handleMessageUpdate(
-    oldMessage: Message<boolean> | PartialMessage<boolean>,
-    newMessage: Message<boolean> | PartialMessage<boolean>,
-): Promise<void> {
-    if (!newMessage.guild || newMessage.author?.bot) return
-    if (oldMessage.content === newMessage.content) return
-    if (!(await isServerLogsEnabled(newMessage.guild.id))) return
-
-    try {
-        if (
-            await logSettingsService.isIgnored(newMessage.guild.id, {
-                channelId: newMessage.channelId,
-                userId: newMessage.author?.id,
-            })
-        )
-            return
-    } catch (error) {
-        // Fail open: log settings errors should not prevent logging
-        errorLog({
-            message: '[LogSettings] Failed to check ignore list',
-            error,
-        })
-    }
-
-    try {
-        await serverLogService.createLog(
-            newMessage.guild.id,
-            'message_edit',
-            'Message edited',
-            {
-                oldContent:
-                    oldMessage.content?.substring(0, 500) || '[No content]',
-                newContent:
-                    newMessage.content?.substring(0, 500) || '[No content]',
-                authorId: newMessage.author?.id,
-                authorTag: newMessage.author?.tag,
-            },
-            {
-                userId: newMessage.author?.id,
-                channelId: newMessage.channelId,
-            },
-        )
-
-        const embed = new EmbedBuilder()
-            .setColor(0xfee75c)
-            .setTitle('✏️ Message Edited')
-            .addFields(
-                {
-                    name: 'Author',
-                    value: `${newMessage.author?.tag ?? 'Unknown'} (${newMessage.author?.id ?? '?'})`,
-                    inline: true,
-                },
-                {
-                    name: 'Channel',
-                    value: `<#${newMessage.channelId}>`,
-                    inline: true,
-                },
-                {
-                    name: 'Before',
-                    value:
-                        oldMessage.content?.substring(0, 500) || '[No content]',
-                },
-                {
-                    name: 'After',
-                    value:
-                        newMessage.content?.substring(0, 500) || '[No content]',
-                },
-            )
-            .setTimestamp()
-        await postToModLog(newMessage.guild, embed)
-
-        debugLog({
-            message: `Logged message edit in ${newMessage.guild.name}`,
-        })
-    } catch (error) {
-        errorLog({
-            message: 'Error logging message edit:',
             error,
         })
     }
@@ -579,23 +491,6 @@ export function handleAuditEvents(client: Client): void {
             } catch (error) {
                 errorLog({
                     message: 'Error in message delete handler:',
-                    error,
-                })
-            }
-        },
-    )
-
-    client.on(
-        Events.MessageUpdate,
-        async (
-            oldMessage: Message<boolean> | PartialMessage<boolean>,
-            newMessage: Message<boolean> | PartialMessage<boolean>,
-        ) => {
-            try {
-                await handleMessageUpdate(oldMessage, newMessage)
-            } catch (error) {
-                errorLog({
-                    message: 'Error in message update handler:',
                     error,
                 })
             }

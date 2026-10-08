@@ -22,16 +22,8 @@ jest.mock('../message/pipeline', () => ({
     })),
 }))
 
-jest.mock('../../functions/automod/handlers/autoModHandler', () => ({
-    autoModHandler: {},
-}))
-
 jest.mock('../../functions/automod/handlers/spamHandler', () => ({
     spamHandler: {},
-}))
-
-jest.mock('../message/customCommandHandler', () => ({
-    customCommandHandler: {},
 }))
 
 jest.mock('../message/xpHandler', () => ({
@@ -103,10 +95,10 @@ describe('messageHandler', () => {
             expect(featureToggleService.isEnabled).not.toHaveBeenCalled()
         })
 
-        it('should fetch both feature toggles via featureToggleService', async () => {
-            ;(featureToggleService.isEnabled as jest.Mock)
-                .mockResolvedValueOnce(true)
-                .mockResolvedValueOnce(false)
+        it('should fetch the AUTOMOD feature toggle via featureToggleService', async () => {
+            ;(
+                featureToggleService.isEnabled as jest.Mock
+            ).mockResolvedValueOnce(true)
 
             const mockClient = {
                 on: jest.fn(),
@@ -128,16 +120,12 @@ describe('messageHandler', () => {
                 'AUTOMOD',
                 { guildId: 'guild1' },
             )
-            expect(featureToggleService.isEnabled).toHaveBeenCalledWith(
-                'CUSTOM_COMMANDS',
-                { guildId: 'guild1' },
-            )
         })
 
         it('should handle featureToggleService failures gracefully', async () => {
-            ;(featureToggleService.isEnabled as jest.Mock)
-                .mockRejectedValueOnce(new Error('Service error'))
-                .mockResolvedValueOnce(true)
+            ;(
+                featureToggleService.isEnabled as jest.Mock
+            ).mockRejectedValueOnce(new Error('Service error'))
 
             mockExecute.mockResolvedValueOnce(undefined)
 
@@ -161,9 +149,9 @@ describe('messageHandler', () => {
         })
 
         it('should call pipeline.execute with correct context', async () => {
-            ;(featureToggleService.isEnabled as jest.Mock)
-                .mockResolvedValueOnce(true)
-                .mockResolvedValueOnce(false)
+            ;(
+                featureToggleService.isEnabled as jest.Mock
+            ).mockResolvedValueOnce(true)
 
             mockExecute.mockResolvedValueOnce(undefined)
 
@@ -188,18 +176,15 @@ describe('messageHandler', () => {
                 expect.objectContaining({
                     guild: mockMessage.guild,
                     member: mockMessage.member,
-                    featureToggles: {
-                        AUTOMOD: true,
-                        CUSTOM_COMMANDS: false,
-                    },
+                    featureToggles: { AUTOMOD: true },
                 }),
             )
         })
 
         it('should call errorLog when an error is thrown inside the handler', async () => {
-            ;(featureToggleService.isEnabled as jest.Mock)
-                .mockResolvedValueOnce(true)
-                .mockResolvedValueOnce(false)
+            ;(
+                featureToggleService.isEnabled as jest.Mock
+            ).mockResolvedValueOnce(true)
 
             const mockError = new Error('Pipeline error')
             mockExecute.mockRejectedValueOnce(mockError)

@@ -196,10 +196,6 @@ export async function startBatchJobWorker(): Promise<void> {
     // (worker → executor → bot/start → initializer → worker) and keeps the
     // executor's import.meta-using deps out of unit-test import chains.
     try {
-        const { ChannelMoveBatchExecutor } =
-            await import('../functions/moderation/batch/channelMoveExecutor')
-        registerExecutor(new ChannelMoveBatchExecutor())
-
         const { BulkKickExecutor } =
             await import('../functions/moderation/batch/bulkKickExecutor')
         registerExecutor(new BulkKickExecutor())

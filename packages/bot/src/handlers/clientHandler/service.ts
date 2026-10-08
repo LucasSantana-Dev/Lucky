@@ -48,7 +48,8 @@ export async function createClient(): Promise<CustomClient> {
                 GatewayIntentBits.GuildMembers,
                 GatewayIntentBits.GuildMessages,
                 GatewayIntentBits.GuildVoiceStates,
-                GatewayIntentBits.MessageContent,
+                // MessageContent (privileged) is intentionally NOT requested:
+                // no feature reads message text from other authors (#2714).
                 GatewayIntentBits.GuildMessageReactions,
             ],
         }) as CustomClient

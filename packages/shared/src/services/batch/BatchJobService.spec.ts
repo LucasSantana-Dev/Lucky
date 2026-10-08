@@ -21,7 +21,7 @@ describe('BatchJobService', () => {
             const jobData = {
                 id: 'job-1',
                 guildId: 'guild-1',
-                jobType: 'channel_move_batch',
+                jobType: 'bulk_kick',
                 initiatedBy: 'user-1',
                 scope: { type: 'all', config: {} },
                 totalItems: 100,
@@ -41,7 +41,7 @@ describe('BatchJobService', () => {
 
             const result = await service.create({
                 guildId: 'guild-1',
-                jobType: 'channel_move_batch',
+                jobType: 'bulk_kick',
                 initiatedBy: 'user-1',
                 sourceChannelId: 'chan-src',
                 targetChannelId: 'chan-dst',

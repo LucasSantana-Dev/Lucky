@@ -16,7 +16,6 @@ export interface ScopeConfig {
 
 /** Union of all supported batch job types. */
 export type BatchJobType =
-    | 'channel_move_batch'
     | 'bulk_ban'
     | 'bulk_kick'
     | 'bulk_warn'

@@ -30,7 +30,6 @@ type ReactionCount = {
     messageId: string
     messageUrl: string
     authorId: string
-    content: string
     totalReactions: number
 }
 
@@ -293,7 +292,6 @@ export class WeeklyDigestService {
                         messageId: message.id,
                         messageUrl: message.url,
                         authorId: message.author.id,
-                        content: message.content || '(empty message)',
                         totalReactions,
                     })
                 }
@@ -430,7 +428,7 @@ export class WeeklyDigestService {
             const topMessagesList = topMessages
                 .map(
                     (msg) =>
-                        `[💬 ${msg.content.substring(0, 50)}](${msg.messageUrl})`,
+                        `[💬 Ver mensagem](${msg.messageUrl}) de <@${msg.authorId}>`,
                 )
                 .join('\n')
             embed.addFields({
