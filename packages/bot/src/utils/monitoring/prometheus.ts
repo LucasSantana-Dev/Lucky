@@ -22,6 +22,9 @@ collectDefaultMetrics({ register: registry })
 /**
  * Gauge: number of guilds the bot is currently in vs. has been removed
  * from, sourced from the `guilds` table via `joinedAt` / `leftAt`.
+ * Rows with no `joinedAt` were created by the dashboard or integrations for
+ * guilds the bot never joined, so they count as neither. Same definition as
+ * the `analytics.guilds` view the business dashboard reads.
  * Updated lazily on each scrape via collect(); no in-memory drift.
  */
 const guildsGaugeCollect: CollectFunction<Gauge<'state'>> =
@@ -29,8 +32,12 @@ const guildsGaugeCollect: CollectFunction<Gauge<'state'>> =
         try {
             const prisma = getPrismaClient()
             const [active, left] = await Promise.all([
-                prisma.guild.count({ where: { leftAt: null } }),
-                prisma.guild.count({ where: { NOT: { leftAt: null } } }),
+                prisma.guild.count({
+                    where: { joinedAt: { not: null }, leftAt: null },
+                }),
+                prisma.guild.count({
+                    where: { joinedAt: { not: null }, NOT: { leftAt: null } },
+                }),
             ])
             this.set({ state: 'active' }, active)
             this.set({ state: 'left' }, left)
