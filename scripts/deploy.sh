@@ -179,12 +179,13 @@ require_running_containers() {
     # webhook is a deployment helper (not a user-facing service) and runs on demand.
     # alertmanager-config is a one-shot renderer for the observability profile
     # (docker-compose.yml): it is expected to exit 0 and stay stopped, so it
-    # must never be treated as a required long-running container.
-    local excluded_pattern="^(cloudflared|webhook|alertmanager-config)$"
+    # must never be treated as a required long-running container. Same for
+    # grafana-db-role, which sets the grafana_ro password once and exits.
+    local excluded_pattern="^(cloudflared|webhook|alertmanager-config|grafana-db-role)$"
     # render has no image for SHAs older than its introduction; a rollback that
     # could not pull it (ROLLBACK_SKIP_RENDER=1) must not be failed on it.
     if [[ "${ROLLBACK_SKIP_RENDER:-0}" == "1" ]]; then
-        excluded_pattern="^(cloudflared|webhook|alertmanager-config|render)$"
+        excluded_pattern="^(cloudflared|webhook|alertmanager-config|grafana-db-role|render)$"
     fi
     local expected_services
     expected_services=$(docker_compose config --services 2>/dev/null | grep -v -E "$excluded_pattern" || true)
@@ -238,6 +239,39 @@ resolve_postgres_password() {
     fi
 
     echo ""
+}
+
+# The read-only grafana_ro Postgres role behind the business dashboards needs a
+# password in the host .env (GRAFANA_DB_PASSWORD). Generate one the first time
+# so nobody has to set it by hand; an existing value is never touched.
+ensure_grafana_db_password() {
+    local env_file="$COMPOSE_WORKDIR/.env" password
+    [[ -f "$env_file" ]] || return 0
+    grep -qE '^GRAFANA_DB_PASSWORD=.+' "$env_file" && return 0
+
+    password=$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')
+    if [[ ${#password} -ne 48 ]]; then
+        log "WARN: could not generate GRAFANA_DB_PASSWORD; business dashboards stay offline"
+        return 0
+    fi
+    if grep -qE '^GRAFANA_DB_PASSWORD=' "$env_file"; then
+        sed -i "s/^GRAFANA_DB_PASSWORD=.*/GRAFANA_DB_PASSWORD=${password}/" "$env_file"
+    else
+        printf '\nGRAFANA_DB_PASSWORD=%s\n' "$password" >>"$env_file"
+    fi
+    log "Generated GRAFANA_DB_PASSWORD in $env_file"
+}
+
+# When the observability profile is already running, re-apply its Grafana so
+# provisioned dashboards, mounts and the grafana_ro password follow the deploy.
+# Best-effort: a failure here never fails the app deploy.
+refresh_grafana_if_running() {
+    docker ps -a --format '{{.Names}}' | grep -qx "lucky-grafana" || return 0
+    if docker_compose --profile observability up -d grafana-db-role grafana >/dev/null 2>&1; then
+        log "Grafana refreshed (observability profile)"
+    else
+        log "WARN: could not refresh Grafana; run docker compose --profile observability up -d"
+    fi
 }
 
 archive_local_checkout_state() {
@@ -801,9 +835,13 @@ ensure_on_lucky_network() {
     fi
 }
 
+ensure_grafana_db_password
+
 log "Rolling out services..."
 # shellcheck disable=SC2086  # intentional word splitting of the service list
 docker_compose up -d --remove-orphans --no-deps $_app_services postgres redis
+
+refresh_grafana_if_running
 
 # The webhook runs this script, so it is never recreated here; nginx proxies
 # /webhook/ to it by service name.

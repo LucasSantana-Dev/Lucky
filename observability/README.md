@@ -160,7 +160,11 @@ payloads; days bucketed in America/Sao_Paulo) and the `grafana_ro` role
 `public`, `statement_timeout` 15s, 5 connections). The one-shot
 `grafana-db-role` service sets the role's login password from
 `GRAFANA_DB_PASSWORD` on every `up`; with the variable unset it does nothing
-and only the business panels show a datasource error. The datasource is
+and only the business panels show a datasource error. `scripts/deploy.sh`
+generates `GRAFANA_DB_PASSWORD` into the host `.env` on the first deploy that
+finds it missing (an existing value is never changed) and, when the
+observability profile is already running, re-applies `grafana-db-role` and
+`grafana` so dashboards and the password follow each deploy. The datasource is
 `provisioning/datasources/postgres.yaml`. A new view needs its own `GRANT
 SELECT ... TO grafana_ro` in the migration that adds it.
 
