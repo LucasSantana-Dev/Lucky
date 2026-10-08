@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.7](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.6...v2.58.7) (2026-10-08)
+
+
+### Bug Fixes
+
+* **bot:** record track history on stop and disconnect, gate last.fm scrobbles ([#2773](https://github.com/LucasSantana-Dev/Lucky/issues/2773)) ([c84dcff](https://github.com/LucasSantana-Dev/Lucky/commit/c84dcffb0dc905b23a4d0f710831cf0ec0b80a66))
+
 ## [2.58.6](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.5...v2.58.6) (2026-10-08)
 
 
