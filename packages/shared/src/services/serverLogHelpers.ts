@@ -186,22 +186,6 @@ export async function logAutoModSettingsChange(
     )
 }
 
-export async function logCustomCommandChange(
-    svc: ServerLogService,
-    guildId: string,
-    action: 'created' | 'updated' | 'deleted',
-    details: { commandName: string; changes?: Record<string, unknown> },
-    moderatorId: string,
-) {
-    return svc.createLog(
-        guildId,
-        'custom_command',
-        `Custom command ${action}: ${details.commandName}`,
-        details,
-        { moderatorId },
-    )
-}
-
 export async function logEmbedTemplateChange(
     svc: ServerLogService,
     guildId: string,

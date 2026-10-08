@@ -44,13 +44,7 @@ const defaultToggles: Record<FeatureToggleName, FeatureToggleConfig> = {
     AUTOMOD: {
         name: 'AUTOMOD',
         enabled: true,
-        description:
-            'Enable auto-moderation (spam, caps, links, invites, badwords)',
-    },
-    CUSTOM_COMMANDS: {
-        name: 'CUSTOM_COMMANDS',
-        enabled: true,
-        description: 'Enable custom command creation and triggers',
+        description: 'Enable auto-moderation (spam)',
     },
     AUTO_MESSAGES: {
         name: 'AUTO_MESSAGES',

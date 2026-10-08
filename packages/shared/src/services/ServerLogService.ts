@@ -486,22 +486,6 @@ export class ServerLogService {
         )
     }
 
-    /** Logs a custom command create, update, or delete event. */
-    async logCustomCommandChange(
-        guildId: string,
-        action: 'created' | 'updated' | 'deleted',
-        details: { commandName: string; changes?: Record<string, unknown> },
-        moderatorId: string,
-    ) {
-        return helpers.logCustomCommandChange(
-            this,
-            guildId,
-            action,
-            details,
-            moderatorId,
-        )
-    }
-
     /** Logs an embed template create, update, delete, or send event. */
     async logEmbedTemplateChange(
         guildId: string,

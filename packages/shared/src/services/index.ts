@@ -16,7 +16,6 @@ export * from './LyricsService.js'
 export * from './ModerationService.js'
 export * from './moderationSettings.js'
 export * from './AutoMessageService.js'
-export * from './CustomCommandService.js'
 export * from './ServerLogService.js'
 export {
     AutoModService,
@@ -105,11 +104,6 @@ export {
     type LogEventTarget,
 } from './LogSettingsService.js'
 export { redisClient } from './redis/index.js'
-export {
-    starboardService,
-    type StarboardConfig,
-    type StarboardEntry,
-} from './StarboardService.js'
 export {
     supportSessionService,
     SupportSessionService,

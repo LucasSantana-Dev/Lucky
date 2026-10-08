@@ -2,14 +2,13 @@ import type { ScopeConfig } from './types.js'
 
 /**
  * Pure function to determine if a message matches a given scope.
- * Evaluates all 5 scope types: all, count, user, date_range, contains.
- * Date range is inclusive on both ends. Contains is case-insensitive.
+ * Evaluates the 4 scope types: all, count, user, date_range.
+ * Date range is inclusive on both ends.
  */
 export function matchesScope(
     message: {
         id: string
         authorId?: string
-        content?: string
         createdAt?: Date
         index?: number // 0-based position for 'count' scope
     },
@@ -47,13 +46,6 @@ export function matchesScope(
             const startMatch = !startDate || msgDate >= startDate
             const endMatch = !endDate || msgDate <= endDate
             return startMatch && endMatch
-        }
-
-        case 'contains': {
-            const searchText = scope.config.searchText
-            if (!searchText) return false
-            const content = message.content ?? ''
-            return content.toLowerCase().includes(searchText.toLowerCase())
         }
 
         default:
