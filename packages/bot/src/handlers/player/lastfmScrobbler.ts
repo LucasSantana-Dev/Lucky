@@ -117,16 +117,62 @@ export async function updateLastFmNowPlaying(
     }
 }
 
+const SCROBBLE_MIN_TRACK_SECONDS = 30
+const SCROBBLE_MAX_REQUIRED_PLAY_SECONDS = 240
+
+/**
+ * Last.fm's scrobble rule: the track is longer than 30 seconds AND it played
+ * for at least half its duration or 4 minutes, whichever comes first. With an
+ * unknown duration (live streams, missing metadata) neither bound can be
+ * checked, so only the 4 minute bound is enforced: the conservative reading,
+ * since it never scrobbles a short play of something we cannot measure.
+ */
+export function meetsScrobbleRule(
+    durationMS: number | undefined,
+    playedSeconds: number,
+): boolean {
+    if (!durationMS || durationMS <= 0) {
+        return playedSeconds >= SCROBBLE_MAX_REQUIRED_PLAY_SECONDS
+    }
+    const durationSeconds = durationMS / 1000
+    if (durationSeconds <= SCROBBLE_MIN_TRACK_SECONDS) return false
+    return (
+        playedSeconds >=
+        Math.min(durationSeconds / 2, SCROBBLE_MAX_REQUIRED_PLAY_SECONDS)
+    )
+}
+
 /**
  * Scrobble the currently-playing (or specified) track to Last.fm.
  * Uses the stored track start timestamp if available, otherwise uses current time.
+ * When `playedSeconds` is given (finish, skip and stop all pass it), the
+ * scrobble is skipped unless Last.fm's rule holds. A natural finish does not
+ * always satisfy it: a track of 30 seconds or less never does, and discord-
+ * player v7 also routes some manual skips through playerFinish. Omit it only
+ * when the play time is unknown, in which case nothing is judged.
  */
 export async function scrobbleCurrentTrackIfLastFm(
     queue: GuildQueue,
     track?: Track,
+    playedSeconds?: number,
 ): Promise<void> {
     const trackToScrobble = track ?? queue.currentTrack
     if (!trackToScrobble || !isLastFmConfigured()) return
+    if (
+        playedSeconds !== undefined &&
+        !meetsScrobbleRule(trackToScrobble.durationMS, playedSeconds)
+    ) {
+        lastFmTrackStartTime.delete(queue.guild.id)
+        debugLog({
+            message: 'Last.fm scrobble skipped: play too short',
+            data: {
+                title: trackToScrobble.title,
+                playedSeconds,
+                durationMS: trackToScrobble.durationMS,
+            },
+        })
+        return
+    }
     const requesterId = getLastFmRequesterId(queue, trackToScrobble)
     const sessionKey = await getSessionKeyForUser(requesterId, {
         allowEnvFallback: requesterId === undefined,

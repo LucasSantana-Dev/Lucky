@@ -984,6 +984,11 @@ describe('track history playback fields (#2652)', () => {
             playDuration: 42,
         })
         expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledTimes(1)
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledWith(
+            queue,
+            track,
+            42,
+        )
     })
 
     it('a play that ends on its own records the seconds played and is not skipped', async () => {
@@ -998,6 +1003,12 @@ describe('track history playback fields (#2652)', () => {
         expect(addTrackToHistoryMock).toHaveBeenCalledWith(track, 'guild-1', {
             playDuration: 200,
         })
+        // The play time reaches the scrobble gate on finish too.
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledWith(
+            queue,
+            track,
+            200,
+        )
     })
 
     it('a stream that never started (ERR_NO_STREAM) is neither recorded nor scrobbled', async () => {
@@ -1027,6 +1038,241 @@ describe('track history playback fields (#2652)', () => {
             track,
             'guild-1',
             { playDuration: 10 },
+        )
+    })
+})
+
+describe('track history when a queue is deleted mid-play', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        guildRecentSkipCounts.clear()
+        featureEnabledMock.mockResolvedValue(true)
+        replenishQueueMock.mockResolvedValue(undefined)
+        addTrackToHistoryMock.mockResolvedValue(undefined)
+        sendNowPlayingEmbedMock.mockResolvedValue(undefined)
+        updateLastFmNowPlayingMock.mockResolvedValue(undefined)
+        scrobbleCurrentTrackIfLastFmMock.mockResolvedValue(undefined)
+        saveSnapshotMock.mockResolvedValue(undefined)
+        recordImplicitFeedbackMock.mockResolvedValue(undefined)
+        recordRecommendationOutcomeMock.mockResolvedValue(undefined)
+        jest.useFakeTimers()
+    })
+
+    afterEach(() => {
+        jest.useRealTimers()
+    })
+
+    function queueWithCurrent(track: Track | null): GuildQueue {
+        return {
+            ...createQueue(QueueRepeatMode.OFF),
+            currentTrack: track,
+        } as unknown as GuildQueue
+    }
+
+    it('records the interrupted play once, with the seconds played (/stop, /leave, disconnect, empty channel)', async () => {
+        const handlers = setupHandlers()
+        const track = { ...createTrack('delete-stop'), durationMS: 200_000 }
+        const queue = queueWithCurrent(track)
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(65_000)
+        await handlers.queueDelete(queue)
+        // A second delete signal for the same play (e.g. disconnect after
+        // stop) finds nothing left to record.
+        await handlers.queueDelete(queue)
+
+        expect(addTrackToHistoryMock).toHaveBeenCalledTimes(1)
+        expect(addTrackToHistoryMock).toHaveBeenCalledWith(track, 'guild-1', {
+            playDuration: 65,
+        })
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledTimes(1)
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledWith(
+            queue,
+            track,
+            65,
+        )
+    })
+
+    it('hands the cut-short play time to the scrobbler for a short /stop and a long skip', async () => {
+        const handlers = setupHandlers()
+        const stopped = { ...createTrack('stop-short'), durationMS: 200_000 }
+        const stopQueue = queueWithCurrent(stopped)
+        await handlers.playerStart(stopQueue, stopped)
+        jest.advanceTimersByTime(2_000)
+        await handlers.queueDelete(stopQueue)
+
+        const skipped = { ...createTrack('skip-long'), durationMS: 200_000 }
+        const skipQueue = queueWithCurrent(skipped)
+        await handlers.playerStart(skipQueue, skipped)
+        jest.advanceTimersByTime(150_000)
+        await handlers.playerSkip(skipQueue, skipped, 'MANUAL')
+
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenNthCalledWith(
+            1,
+            stopQueue,
+            stopped,
+            2,
+        )
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenNthCalledWith(
+            2,
+            skipQueue,
+            skipped,
+            150,
+        )
+    })
+
+    it('does not record again when a skip already recorded the play', async () => {
+        const handlers = setupHandlers()
+        const track = {
+            ...createTrack('delete-after-skip'),
+            durationMS: 200_000,
+        }
+        const queue = queueWithCurrent(track)
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(10_000)
+        await handlers.playerSkip(queue, track, 'MANUAL')
+        await handlers.queueDelete(queue)
+
+        expect(addTrackToHistoryMock).toHaveBeenCalledTimes(1)
+        expect(addTrackToHistoryMock).toHaveBeenCalledWith(track, 'guild-1', {
+            skipped: true,
+            playDuration: 10,
+        })
+    })
+
+    it('does not record again when the play already finished', async () => {
+        const handlers = setupHandlers()
+        const track = {
+            ...createTrack('delete-after-finish'),
+            durationMS: 200_000,
+        }
+        const queue = queueWithCurrent(track)
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(200_000)
+        await handlers.playerFinish(queue, track)
+        await handlers.queueDelete(queue)
+
+        expect(addTrackToHistoryMock).toHaveBeenCalledTimes(1)
+        expect(addTrackToHistoryMock).toHaveBeenCalledWith(track, 'guild-1', {
+            playDuration: 200,
+        })
+    })
+
+    it('still records a normal finish exactly once when no delete follows', async () => {
+        const handlers = setupHandlers()
+        const track = { ...createTrack('finish-only'), durationMS: 100_000 }
+        const queue = queueWithCurrent(track)
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(100_000)
+        await handlers.playerFinish(queue, track)
+
+        expect(addTrackToHistoryMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('records nothing for a stream that never started (ERR_NO_STREAM) or an idle queue', async () => {
+        const handlers = setupHandlers()
+        const failed = createTrack('delete-no-stream')
+        const failedQueue = queueWithCurrent(failed)
+
+        await handlers.playerSkip(failedQueue, failed, 'ERR_NO_STREAM')
+        await handlers.queueDelete(failedQueue)
+        await handlers.queueDelete(queueWithCurrent(null))
+
+        expect(addTrackToHistoryMock).not.toHaveBeenCalled()
+        expect(scrobbleCurrentTrackIfLastFmMock).not.toHaveBeenCalled()
+    })
+
+    it('does not throw when the scrobble fails', async () => {
+        const handlers = setupHandlers()
+        const track = {
+            ...createTrack('delete-scrobble-error'),
+            durationMS: 200_000,
+        }
+        const queue = queueWithCurrent(track)
+        scrobbleCurrentTrackIfLastFmMock.mockRejectedValueOnce(
+            new Error('boom'),
+        )
+
+        await handlers.playerStart(queue, track)
+        await expect(handlers.queueDelete(queue)).resolves.toBeUndefined()
+    })
+
+    it('does not throw when the history write fails', async () => {
+        const handlers = setupHandlers()
+        const track = {
+            ...createTrack('delete-history-error'),
+            durationMS: 200_000,
+        }
+        const queue = queueWithCurrent(track)
+        addTrackToHistoryMock.mockRejectedValueOnce(new Error('db down'))
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(60_000)
+        await expect(handlers.queueDelete(queue)).resolves.toBeUndefined()
+        expect(addTrackToHistoryMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not count paused time as played (stop after pause and resume)', async () => {
+        const handlers = setupHandlers()
+        const track = { ...createTrack('delete-paused'), durationMS: 200_000 }
+        const queue = queueWithCurrent(track)
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(10_000)
+        handlers.playerPause(queue)
+        jest.advanceTimersByTime(100_000)
+        handlers.playerResume(queue)
+        jest.advanceTimersByTime(20_000)
+        await handlers.queueDelete(queue)
+
+        expect(addTrackToHistoryMock).toHaveBeenCalledWith(track, 'guild-1', {
+            playDuration: 30,
+        })
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledWith(
+            queue,
+            track,
+            30,
+        )
+    })
+
+    it('does not count a pause still open at skip time', async () => {
+        const handlers = setupHandlers()
+        const track = { ...createTrack('skip-paused'), durationMS: 200_000 }
+        const queue = queueWithCurrent(track)
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(5_000)
+        handlers.playerPause(queue)
+        jest.advanceTimersByTime(300_000)
+        await handlers.playerSkip(queue, track, 'MANUAL')
+
+        expect(addTrackToHistoryMock).toHaveBeenCalledWith(track, 'guild-1', {
+            skipped: true,
+            playDuration: 5,
+        })
+    })
+
+    it('a pause from the previous track does not leak into the next play', async () => {
+        const handlers = setupHandlers()
+        const first = { ...createTrack('pause-first'), durationMS: 200_000 }
+        const second = { ...createTrack('pause-second'), durationMS: 200_000 }
+        const queue = queueWithCurrent(first)
+
+        await handlers.playerStart(queue, first)
+        handlers.playerPause(queue)
+        jest.advanceTimersByTime(50_000)
+        await handlers.playerSkip(queue, first, 'MANUAL')
+        await handlers.playerStart(queue, second)
+        jest.advanceTimersByTime(40_000)
+        await handlers.playerFinish(queue, second)
+
+        expect(addTrackToHistoryMock).toHaveBeenLastCalledWith(
+            second,
+            'guild-1',
+            { playDuration: 40 },
         )
     })
 })

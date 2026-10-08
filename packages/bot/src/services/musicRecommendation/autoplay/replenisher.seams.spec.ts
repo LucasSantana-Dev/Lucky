@@ -426,20 +426,25 @@ describe('replenisher seam functions', () => {
             expect(result.mergedImplicitDislikeKeys).toContain('guild-key-1')
         })
 
-        it('logs warning when persistent history empty', async () => {
+        it('logs a debug note, not a warning, when persistent history is empty', async () => {
             const queue = createGuildQueue()
-            const { warnLog } = require('@lucky/shared/utils')
+            const { warnLog, debugLog } = require('@lucky/shared/utils')
+            warnLog.mockClear()
+            debugLog.mockClear()
 
             const { trackHistoryService } = require('@lucky/shared/services')
             trackHistoryService.getTrackHistory.mockResolvedValue([])
 
             await fetchFeedbackAndHistoryData(queue, null, [], [], [])
 
-            expect(warnLog).toHaveBeenCalledWith(
+            expect(debugLog).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    message: expect.stringContaining(
-                        'persistent history empty',
-                    ),
+                    message: expect.stringContaining('no play history yet'),
+                }),
+            )
+            expect(warnLog).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('Autoplay:'),
                 }),
             )
         })

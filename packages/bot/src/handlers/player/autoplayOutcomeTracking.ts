@@ -84,8 +84,45 @@ export function getRecentSkipCount(guildId: string): number {
     return guildRecentSkipCounts.get(guildId) ?? 0
 }
 
+// Time the CURRENT play of a guild spent paused. Wall-clock since playerStart
+// counts paused time as played, which inflates history playDuration and the
+// Last.fm play-time gate, so pauses are accumulated here. One entry per guild
+// is enough: a guild plays one track at a time, and playerStart resets it.
+// discord-player's own node.playbackTime was not used because it drops the
+// seek/filter offset (resetProgress runs before playerFinish is emitted).
+type PauseState = { pausedAt?: number; pausedMs: number }
+const guildPauseStates = new LRUCache<string, PauseState>({ max: 500 })
+
+export function resetPausedTime(guildId: string): void {
+    guildPauseStates.delete(guildId)
+}
+
+export function markPaused(guildId: string, now: number): void {
+    const state = guildPauseStates.get(guildId) ?? { pausedMs: 0 }
+    state.pausedAt ??= now
+    guildPauseStates.set(guildId, state)
+}
+
+export function markResumed(guildId: string, now: number): void {
+    const state = guildPauseStates.get(guildId)
+    if (state?.pausedAt === undefined) return
+    state.pausedMs += now - state.pausedAt
+    state.pausedAt = undefined
+}
+
+/** Total ms the current play was paused, counting a pause still open. */
+export function getPausedMs(guildId: string, now: number): number {
+    const state = guildPauseStates.get(guildId)
+    if (!state) return 0
+    return (
+        state.pausedMs +
+        (state.pausedAt === undefined ? 0 : now - state.pausedAt)
+    )
+}
+
 export function __resetTrackHandlerCachesForTests(): void {
     guildRecentSkipCounts.clear()
+    guildPauseStates.clear()
     // A WeakMap has no clear(), so drop the whole map. Tests rely on this to
     // simulate a start time being lost before its finish event arrives.
     trackPlayStartTimes = new WeakMap<Track, number[]>()

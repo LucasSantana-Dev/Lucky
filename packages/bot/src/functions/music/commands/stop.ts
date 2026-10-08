@@ -38,6 +38,9 @@ export default new Command({
             await musicSessionSnapshotService.deleteSnapshot(queue.guild.id)
             clearSessionMoodCache(queue.guild.id)
         }
+        // delete() swallows the playerFinish this stop would cause, so the
+        // interrupted play is written to track_history by the queueDelete
+        // handler in trackEventHandlers, not here.
         queue?.node.stop()
         queue?.clear()
         queue?.delete()
