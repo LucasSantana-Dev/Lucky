@@ -1,9 +1,15 @@
 import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 
 const mockInc = jest.fn()
+const mockSetExtractorDegraded = jest.fn()
 
 jest.mock('../../utils/monitoring/prometheus', () => ({
     extractionFailuresTotal: { inc: (...args: unknown[]) => mockInc(...args) },
+}))
+
+jest.mock('./extractorHealth', () => ({
+    setExtractorDegraded: (...args: unknown[]) =>
+        mockSetExtractorDegraded(...args),
 }))
 
 import {
@@ -22,11 +28,17 @@ const FORBIDDEN = new Error(
 describe('ytdlpBlockBreaker (#2653)', () => {
     beforeEach(() => {
         mockInc.mockReset()
+        mockSetExtractorDegraded.mockReset()
         recordYtDlpSuccess()
+        mockSetExtractorDegraded.mockReset()
     })
 
     it.each([
         [FORBIDDEN.message, 'forbidden'],
+        [
+            'yt-dlp exited with code 1 - ERROR: Sign in to confirm your age',
+            'botcheck',
+        ],
         ['yt-dlp exited without output (code 0)', 'empty'],
         ['yt-dlp: timed out waiting for stream start', 'timeout'],
         ['yt-dlp: domain not in allowlist: example.com', 'other'],
@@ -102,5 +114,37 @@ describe('ytdlpBlockBreaker (#2653)', () => {
         recordYtDlpFailure(FORBIDDEN, 3)
 
         expect(isYtDlpBlocked(3)).toBe(true)
+    })
+
+    it('two bot-check failures open the block (#2744)', () => {
+        const BOTCHECK = new Error(
+            'yt-dlp exited with code 1 - ERROR: Sign in to confirm your age',
+        )
+        recordYtDlpFailure(BOTCHECK, 1_000)
+        recordYtDlpFailure(BOTCHECK, 2_000)
+
+        expect(isYtDlpBlocked(2_000)).toBe(true)
+    })
+
+    it('sets degradation gauge when block opens (#2744)', () => {
+        recordYtDlpFailure(FORBIDDEN, 1_000)
+        expect(mockSetExtractorDegraded).not.toHaveBeenCalledWith(
+            'youtube',
+            true,
+        )
+
+        recordYtDlpFailure(FORBIDDEN, 2_000)
+
+        expect(mockSetExtractorDegraded).toHaveBeenCalledWith('youtube', true)
+    })
+
+    it('clears degradation gauge on success (#2744)', () => {
+        recordYtDlpFailure(FORBIDDEN, 1_000)
+        recordYtDlpFailure(FORBIDDEN, 2_000)
+        mockSetExtractorDegraded.mockReset()
+
+        recordYtDlpSuccess()
+
+        expect(mockSetExtractorDegraded).toHaveBeenCalledWith('youtube', false)
     })
 })

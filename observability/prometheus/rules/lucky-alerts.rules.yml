@@ -27,6 +27,23 @@
 # was added.
 
 groups:
+  - name: lucky-youtube-degradation
+    rules:
+      - alert: LuckyYouTubeDegraded
+        expr: lucky_music_extractor_degraded{extractor="youtube"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          service: lucky-bot
+        annotations:
+          summary: "YouTube yt-dlp block open for > 2m"
+          description: >-
+            The yt-dlp block breaker has marked YouTube as degraded for more
+            than 2 minutes. Plays are falling back to SoundCloud. Cause:
+            consecutive HTTP 403s or bot-check (Sign in to confirm) failures
+            within the 15-minute window. Check lucky_bot_extraction_failures_total
+            labelled forbidden/botcheck and recent yt-dlp logs.
+
   - name: lucky-backend-errors
     rules:
       - alert: LuckyBackendHighErrorRate

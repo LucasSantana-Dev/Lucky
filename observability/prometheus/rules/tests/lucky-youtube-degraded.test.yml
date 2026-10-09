@@ -1,0 +1,53 @@
+# promtool unit tests for the lucky-youtube-degradation group.
+# Run: promtool test rules observability/prometheus/rules/tests/lucky-youtube-degraded.test.yml
+# Kept in tests/ so the /etc/prometheus/rules/*.yml glob never loads it.
+rule_files:
+  - ../lucky-alerts.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: degraded for 2m fires LuckyYouTubeDegraded
+    interval: 1m
+    input_series:
+      - series: 'lucky_music_extractor_degraded{extractor="youtube"}'
+        values: '0+0x3 1+0x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: LuckyYouTubeDegraded
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: LuckyYouTubeDegraded
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: lucky-bot
+              extractor: youtube
+            exp_annotations:
+              summary: "YouTube yt-dlp block open for > 2m"
+              description: >-
+                The yt-dlp block breaker has marked YouTube as degraded for more
+                than 2 minutes. Plays are falling back to SoundCloud. Cause:
+                consecutive HTTP 403s or bot-check (Sign in to confirm) failures
+                within the 15-minute window. Check lucky_bot_extraction_failures_total
+                labelled forbidden/botcheck and recent yt-dlp logs.
+
+  - name: gauge stays 0 never fires
+    interval: 1m
+    input_series:
+      - series: 'lucky_music_extractor_degraded{extractor="youtube"}'
+        values: '0+0x30'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: LuckyYouTubeDegraded
+        exp_alerts: []
+
+  - name: non-youtube extractor does not fire
+    interval: 1m
+    input_series:
+      - series: 'lucky_music_extractor_degraded{extractor="spotify"}'
+        values: '0+0x3 1+0x10'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LuckyYouTubeDegraded
+        exp_alerts: []
