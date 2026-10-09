@@ -158,6 +158,11 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
     })
 }
 
+// Deliberately broad: matches both the bot-check ("Sign in to confirm you're
+// not a bot") and the age gate ("Sign in to confirm your age"), since a
+// logged-in cookies session is what an age-gated video needs. Not the same as
+// classifyYtDlpFailure in ytdlpBlockBreaker.ts, which matches only the
+// bot-check (#2779) so age-gate failures never open a YouTube-wide block.
 function needsSignIn(error: unknown): boolean {
     return (
         error instanceof Error && error.message.includes('Sign in to confirm')

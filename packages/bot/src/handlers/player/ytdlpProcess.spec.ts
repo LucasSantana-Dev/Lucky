@@ -85,6 +85,8 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
     const originalEnv = process.env.YTDLP_COOKIES_FILE
     const SIGN_IN =
         "ERROR: [youtube] abc123: Sign in to confirm you're not a bot\n"
+    const AGE_GATE =
+        'ERROR: [youtube] abc123: Sign in to confirm your age. This video may be inappropriate for some users.\n'
     const FORBIDDEN =
         'ERROR: unable to download video data: HTTP Error 403: Forbidden\n'
 
@@ -142,16 +144,25 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         expect(spawnArgs(0)).not.toContain('--cookies')
     })
 
-    it('retries once with --cookies <file> when YouTube asks to sign in', async () => {
-        readableCookies()
-        script(SIGN_IN, 'ok')
+    // Both sign-in challenges retry with cookies on purpose: a logged-in
+    // session is what an age-gated video needs. The block breaker matches
+    // only the bot-check (#2779), so the two must not be narrowed together.
+    it.each([
+        ['the bot-check', SIGN_IN],
+        ['the age gate', AGE_GATE],
+    ])(
+        'retries once with --cookies <file> on %s',
+        async (_label, challenge) => {
+            readableCookies()
+            script(challenge, 'ok')
 
-        await streamViaYtDlp(validUrl)
+            await streamViaYtDlp(validUrl)
 
-        expect(mockSpawn).toHaveBeenCalledTimes(2)
-        const args = spawnArgs(1)
-        expect(args[args.indexOf('--cookies') + 1]).toBe(cookiesPath)
-    })
+            expect(mockSpawn).toHaveBeenCalledTimes(2)
+            const args = spawnArgs(1)
+            expect(args[args.indexOf('--cookies') + 1]).toBe(cookiesPath)
+        },
+    )
 
     it('does not retry with cookies on a 403 (cookies cause it)', async () => {
         readableCookies()
