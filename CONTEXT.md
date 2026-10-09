@@ -1,6 +1,6 @@
 # Lucky
 
-Self-hosted Discord music + moderation bot with a React dashboard. TypeScript monorepo (`packages/bot`, `packages/backend`, `packages/frontend`, `packages/shared`). This glossary defines the canonical vocabulary used across code, issues, PRs, and ADRs.
+Self-hosted Discord music bot with a weekly recap and a React dashboard. TypeScript monorepo (`packages/bot`, `packages/backend`, `packages/frontend`, `packages/shared`). This glossary defines the canonical vocabulary used across code, issues, PRs, and ADRs.
 
 ## Language
 

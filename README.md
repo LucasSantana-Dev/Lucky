@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <b>🎵 The Discord music bot that learns your server's taste and keeps the call playing.</b><br>
+  <b>🎵 Every Sunday, Lucky shows your server what it listened to — and keeps the call playing in between, no DJ needed.</b><br>
   <strong>Free · Open source · English and Português · No paywall, no premium tier</strong>
 </p>
 
@@ -31,7 +31,7 @@
 
 ## 🎯 What is Lucky?
 
-Lucky is a **free Discord music bot** that learns what your server likes. Search by name or paste a Spotify link, and smart autoplay keeps the queue going from your server's listening history. Add it in one click; every feature is included, with no paywall and no premium tier.
+Lucky is a **free Discord music bot** that keeps the call going and remembers what your server plays. Every Sunday it posts a recap of the week's most-played tracks. Search by name or paste a Spotify link; smart autoplay keeps the queue running from your listening history. Add it in one click — every feature is included, no paywall, no premium tier.
 
 The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 
@@ -55,11 +55,10 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 - **Lyrics on-demand**: `/lyrics` for currently playing track
 - **Listening stats**: `/artist` and `/album` commands with Spotify integration
 
-### 🛡️ Moderation & Auto-mod
-- **Case tracking**: `/warn` `/mute` `/kick` `/ban` with full history
-- **Auto-mod presets**: Spam detection
-- **Scheduled digests**: Automated reports of moderation activity
-- **RBAC**: Role-based access control on the dashboard
+### 📅 Weekly Recap
+- **Every Sunday**: Lucky posts a recap of the week's top tracks and artists
+- **Per-server**: each guild gets its own listening summary
+- **Run on demand**: `/recap` to see the current week's summary any time
 
 ### 📊 Engagement & Community
 - **Leveling system**: XP-based progression with role rewards
@@ -71,7 +70,6 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 - **Discord OAuth login**: Secure, permission-based access
 - **Guild management**: Control settings and features per server
 - **Music controls**: Queue, playback, and playlist management from the web
-- **Moderation overview**: Case history, warnings, and actions
 - **Feature status view**: Global, admin-managed
 
 ### 📈 Reliability & Monitoring
@@ -205,17 +203,7 @@ SENTRY_DSN=...
 | `/songinfo` | Details on current track |
 | `/history` | Your recently played tracks |
 | `/session` | Save/load playback sessions |
-
-### 🛡️ Moderation
-| Command | Purpose |
-|---------|---------|
-| `/warn` | Issue a warning with reason |
-| `/mute` | Mute a user for specified duration |
-| `/kick` | Remove a user from server |
-| `/ban` | Ban a user permanently |
-| `/cases` | View moderation history |
-| `/digest` | Manual moderation report |
-| `/automod` | Configure auto-mod rules and presets |
+| `/recap` | Show the server's weekly listening summary |
 
 ### 🎮 Engagement
 | Command | Purpose |
