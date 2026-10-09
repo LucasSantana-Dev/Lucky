@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.9](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.8...v2.58.9) (2026-10-09)
+
+
+### Bug Fixes
+
+* **bot:** skip history and scrobble for tracks whose stream never started ([#2777](https://github.com/LucasSantana-Dev/Lucky/issues/2777)) ([58d6355](https://github.com/LucasSantana-Dev/Lucky/commit/58d63555d2f1eef340f06cf808df4e4ae4b12a37))
+
 ## [2.58.8](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.7...v2.58.8) (2026-10-08)
 
 
