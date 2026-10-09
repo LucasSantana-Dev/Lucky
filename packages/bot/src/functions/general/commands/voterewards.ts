@@ -1,11 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder } from '@discordjs/builders'
-import {
-    COLOR,
-    TOP_GG_VOTE_TIERS,
-    TOP_GG_VOTE_URL,
-    tierForVoteStreak,
-    type TopggVoteTier,
-} from '@lucky/shared/constants'
+import { COLOR, TOP_GG_VOTE_URL } from '@lucky/shared/constants'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
@@ -15,24 +9,6 @@ type VoteState = {
     streak: number
     nextVoteInSeconds: number
 }
-
-type VoteTier = {
-    threshold: TopggVoteTier['threshold']
-    label: TopggVoteTier['label']
-    perk: string
-}
-
-const PERKS_BY_THRESHOLD: Record<TopggVoteTier['threshold'], string> = {
-    30: 'Dashboard badge + custom autoplay weighting + priority support',
-    14: 'Custom autoplay weighting + early access to new commands',
-    7: 'Early access to new commands',
-    1: 'Our thanks 💛',
-}
-
-const TIERS: VoteTier[] = TOP_GG_VOTE_TIERS.map((tier) => ({
-    ...tier,
-    perk: PERKS_BY_THRESHOLD[tier.threshold],
-}))
 
 function getBackendOrigin(): string | null {
     const raw = process.env.WEBAPP_BACKEND_URL?.trim()
@@ -86,9 +62,7 @@ function formatNextVoteIn(seconds: number): string {
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('voterewards')
-        .setDescription(
-            '💛 Check your Lucky vote streak and upcoming perks on top.gg.',
-        ),
+        .setDescription('💛 Check your Lucky vote streak on top.gg.'),
     category: 'general',
     execute: async ({ interaction }) => {
         infoLog({
@@ -103,7 +77,7 @@ export default new Command({
                 .setColor(COLOR.LUCKY_PURPLE)
                 .setDescription(
                     [
-                        'Your vote streak unlocks perks — custom autoplay weighting, a dashboard badge, and more.',
+                        'Thanks for supporting Lucky! Your votes help more music fans find us.',
                         '',
                         `[Vote on top.gg](${TOP_GG_VOTE_URL})`,
                     ].join('\n'),
@@ -118,40 +92,25 @@ export default new Command({
             return
         }
 
-        const tierBase = tierForVoteStreak(state.streak)
-        const tier = tierBase
-            ? { ...tierBase, perk: PERKS_BY_THRESHOLD[tierBase.threshold] }
-            : null
         const voteLine = state.hasVoted
             ? `🗳️ You voted recently — next vote ${formatNextVoteIn(state.nextVoteInSeconds)}`
             : `🗳️ You can [vote now](${TOP_GG_VOTE_URL}) to start or extend your streak`
-        const tierLine = tier
-            ? `🏅 **${tier.label}** (${state.streak}-vote streak) — ${tier.perk}`
-            : `Vote to unlock your first perk at streak **1**.`
 
         const embed = new EmbedBuilder()
-            .setTitle('💛 Lucky Vote Rewards')
+            .setTitle('💛 Thanks for supporting Lucky!')
             .setColor(COLOR.LUCKY_PURPLE)
-            .setDescription([voteLine, '', tierLine].join('\n'))
-            .addFields(
-                {
-                    name: 'Current streak',
-                    value: `${state.streak}`,
-                    inline: true,
-                },
-                {
-                    name: 'Next tier',
-                    value: (() => {
-                        const nextTier = [...TIERS]
-                            .reverse()
-                            .find((t) => t.threshold > state.streak)
-                        return nextTier
-                            ? `${nextTier.label} at ${nextTier.threshold}`
-                            : 'Max tier reached'
-                    })(),
-                    inline: true,
-                },
+            .setDescription(
+                [
+                    voteLine,
+                    '',
+                    'Your votes help more music fans find us. 💛',
+                ].join('\n'),
             )
+            .addFields({
+                name: 'Current streak',
+                value: `${state.streak}`,
+                inline: true,
+            })
             .setURL(TOP_GG_VOTE_URL)
 
         await interactionReply({

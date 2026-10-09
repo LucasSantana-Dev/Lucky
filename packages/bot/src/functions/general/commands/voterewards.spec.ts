@@ -17,19 +17,7 @@ jest.mock('@lucky/shared/constants', () => ({
         INFO_GREEN: 0x22c55e,
         LUCKY_PURPLE: 0x7c3aed,
     },
-    TOP_GG_VOTE_TIERS: [
-        { threshold: 30, label: 'Ultimate' },
-        { threshold: 14, label: 'Pro' },
-        { threshold: 7, label: 'Supporter' },
-        { threshold: 1, label: 'Voter' },
-    ],
     TOP_GG_VOTE_URL: 'https://top.gg/bot/962198089161134131/vote',
-    tierForVoteStreak: jest.fn((streak: number) => {
-        if (streak >= 30) return { threshold: 30, label: 'Ultimate' }
-        if (streak >= 14) return { threshold: 14, label: 'Pro' }
-        if (streak >= 7) return { threshold: 7, label: 'Supporter' }
-        return { threshold: 1, label: 'Voter' }
-    }),
 }))
 
 const interactionReply = jest.fn() as jest.MockedFunction<
@@ -136,5 +124,39 @@ describe('/voterewards', () => {
         await voterewardsCommand.execute({ interaction })
 
         expect(interactionReply).toHaveBeenCalledTimes(1)
+    })
+
+    // Every claim the old tier table made; none may come back.
+    const REMOVED_PERK_PROMISES =
+        /perk|autoplay weighting|early access|dashboard badge|priority support/i
+
+    test('no perk text in description when vote state is returned', async () => {
+        process.env.WEBAPP_BACKEND_URL = 'http://localhost:3000'
+        process.env.LUCKY_NOTIFY_API_KEY = 'test-key'
+
+        const interaction = makeInteraction() as never
+
+        await voterewardsCommand.execute({ interaction })
+
+        const call = interactionReply.mock.calls[0][0] as {
+            content: { embeds?: Array<{ description?: string }> }
+        }
+        const embed = call.content.embeds?.[0] as { description?: string }
+        expect(embed?.description).not.toMatch(REMOVED_PERK_PROMISES)
+    })
+
+    test('no perk text in fallback embed when backend is unavailable', async () => {
+        delete process.env.WEBAPP_BACKEND_URL
+        delete process.env.LUCKY_NOTIFY_API_KEY
+
+        const interaction = makeInteraction() as never
+
+        await voterewardsCommand.execute({ interaction })
+
+        const call = interactionReply.mock.calls[0][0] as {
+            content: { embeds?: Array<{ description?: string }> }
+        }
+        const embed = call.content.embeds?.[0] as { description?: string }
+        expect(embed?.description).not.toMatch(REMOVED_PERK_PROMISES)
     })
 })
