@@ -269,7 +269,8 @@ async function scrobbleAndRecord(
     if (!trackToRecord) return
     // Every ending goes through Last.fm's play-time rule: discord-player v7
     // routes some manual skips through playerFinish, so a finish is not
-    // proof of a full play. An unknown play time (lost start) is not judged.
+    // proof of a full play. An unknown play time is not judged here; callers
+    // that know the stream never started must not call this at all.
     await scrobbleCurrentTrackIfLastFm(queue, trackToRecord, playDuration)
     await addTrackToHistory(trackToRecord, queue.guild.id, { playDuration })
 }
@@ -285,7 +286,14 @@ const handlePlayerFinish = async (
         const played = playedSeconds(startTime, queue.guild.id)
         const recordedOnSkip = track ? recordedBySkip.delete(track) : false
 
-        if (!recordedOnSkip) {
+        // A finish for a track with no play-start entry is not a play: its
+        // stream never started (discord-player's #throw emits playerFinish
+        // with the failed track after an ERR_NO_STREAM skip when nothing is
+        // queued next). Recording or scrobbling it would log a song nobody
+        // heard. The autoplay and queue-exhaustion handling below still runs.
+        const neverStarted = track !== undefined && startTime === undefined
+
+        if (!recordedOnSkip && !neverStarted) {
             await scrobbleAndRecord(queue, track, played)
         }
 

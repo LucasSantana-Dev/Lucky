@@ -190,6 +190,16 @@ function createQueue(repeatMode: QueueRepeatMode): GuildQueue {
     } as unknown as GuildQueue
 }
 
+function emptyQueue(): GuildQueue {
+    const queue = createQueue(QueueRepeatMode.OFF) as unknown as {
+        tracks: { size: number }
+        currentTrack: null
+    }
+    queue.tracks.size = 0
+    queue.currentTrack = null
+    return queue as unknown as GuildQueue
+}
+
 function setupHandlers(
     botUserId = 'bot-1',
 ): Record<string, PlayerEventHandler> {
@@ -1020,6 +1030,53 @@ describe('track history playback fields (#2652)', () => {
 
         expect(addTrackToHistoryMock).not.toHaveBeenCalled()
         expect(scrobbleCurrentTrackIfLastFmMock).not.toHaveBeenCalled()
+    })
+
+    it('a finish for a track whose stream never started records and scrobbles nothing but still runs queue exhaustion', async () => {
+        const handlers = setupHandlers()
+        // Empty queue, so the exhaustion branch (clearStatus) really runs.
+        const queue = emptyQueue()
+        const track = createTrack('history-finish-no-start')
+
+        await handlers.playerFinish(queue, track)
+
+        expect(addTrackToHistoryMock).not.toHaveBeenCalled()
+        expect(scrobbleCurrentTrackIfLastFmMock).not.toHaveBeenCalled()
+        expect(clearStatusMock).toHaveBeenCalledWith(queue)
+    })
+
+    it('an ERR_NO_STREAM skip followed by the finish for the same track records nothing', async () => {
+        const handlers = setupHandlers()
+        const queue = emptyQueue()
+        const track = createTrack('history-no-stream-finish')
+
+        await handlers.playerSkip(queue, track, 'ERR_NO_STREAM')
+        await handlers.playerFinish(queue, track)
+
+        expect(addTrackToHistoryMock).not.toHaveBeenCalled()
+        expect(scrobbleCurrentTrackIfLastFmMock).not.toHaveBeenCalled()
+        expect(clearStatusMock).toHaveBeenCalledWith(queue)
+    })
+
+    it('a normal start then finish still records once with the play time and scrobbles once', async () => {
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.OFF)
+        const track = { ...createTrack('history-normal'), durationMS: 120_000 }
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(120_000)
+        await handlers.playerFinish(queue, track)
+
+        expect(addTrackToHistoryMock).toHaveBeenCalledTimes(1)
+        expect(addTrackToHistoryMock).toHaveBeenCalledWith(track, 'guild-1', {
+            playDuration: 120,
+        })
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledTimes(1)
+        expect(scrobbleCurrentTrackIfLastFmMock).toHaveBeenCalledWith(
+            queue,
+            track,
+            120,
+        )
     })
 
     it('a skip whose finish never came does not suppress the next play of the same track', async () => {
