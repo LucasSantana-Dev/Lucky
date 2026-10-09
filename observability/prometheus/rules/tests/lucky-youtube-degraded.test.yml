@@ -24,13 +24,31 @@ tests:
               service: lucky-bot
               extractor: youtube
             exp_annotations:
-              summary: "YouTube yt-dlp block open for > 2m"
+              summary: "YouTube extractor degraded for > 2m"
               description: >-
-                The yt-dlp block breaker has marked YouTube as degraded for more
-                than 2 minutes. Plays are falling back to SoundCloud. Cause:
-                consecutive HTTP 403s or bot-check (Sign in to confirm) failures
-                within the 15-minute window. Check lucky_bot_extraction_failures_total
-                labelled forbidden/botcheck and recent yt-dlp logs.
+                YouTube has been marked degraded for more than 2 minutes. Plays are
+                falling back to SoundCloud. Causes: the yt-dlp block breaker opened
+                on consecutive HTTP 403s or bot-check ("not a bot") failures within
+                the 15-minute window, or the YouTube extractor failed to register
+                at startup. Check lucky_bot_extraction_failures_total labelled
+                forbidden/botcheck, recent yt-dlp logs, and the startup log for
+                "YouTube extractor unavailable".
+
+  - name: short blip that clears before 2m stays silent
+    interval: 1m
+    input_series:
+      - series: 'lucky_music_extractor_degraded{extractor="youtube"}'
+        values: '0+0x3 1 0+0x10'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: LuckyYouTubeDegraded
+        exp_alerts: []
+      - eval_time: 6m
+        alertname: LuckyYouTubeDegraded
+        exp_alerts: []
+      - eval_time: 14m
+        alertname: LuckyYouTubeDegraded
+        exp_alerts: []
 
   - name: gauge stays 0 never fires
     interval: 1m
