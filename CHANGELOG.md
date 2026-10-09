@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.10](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.9...v2.58.10) (2026-10-09)
+
+
+### Bug Fixes
+
+* **bot:** remove perk promises from /voterewards ([#2782](https://github.com/LucasSantana-Dev/Lucky/issues/2782)) ([ab11688](https://github.com/LucasSantana-Dev/Lucky/commit/ab1168893de70b89c725071e1fb0233094cc2e36))
+* **observability:** feed 403 and bot-check into degradation gauge ([#2779](https://github.com/LucasSantana-Dev/Lucky/issues/2779)) ([fe3a606](https://github.com/LucasSantana-Dev/Lucky/commit/fe3a606b5eb573e833decabb34193d3d64e640c5))
+
 ## [2.58.9](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.8...v2.58.9) (2026-10-09)
 
 
