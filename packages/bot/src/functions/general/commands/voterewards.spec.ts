@@ -126,6 +126,10 @@ describe('/voterewards', () => {
         expect(interactionReply).toHaveBeenCalledTimes(1)
     })
 
+    // Every claim the old tier table made; none may come back.
+    const REMOVED_PERK_PROMISES =
+        /perk|autoplay weighting|early access|dashboard badge|priority support/i
+
     test('no perk text in description when vote state is returned', async () => {
         process.env.WEBAPP_BACKEND_URL = 'http://localhost:3000'
         process.env.LUCKY_NOTIFY_API_KEY = 'test-key'
@@ -138,8 +142,7 @@ describe('/voterewards', () => {
             content: { embeds?: Array<{ description?: string }> }
         }
         const embed = call.content.embeds?.[0] as { description?: string }
-        expect(embed?.description).not.toContain('perk')
-        expect(embed?.description).not.toContain('autoplay weighting')
+        expect(embed?.description).not.toMatch(REMOVED_PERK_PROMISES)
     })
 
     test('no perk text in fallback embed when backend is unavailable', async () => {
@@ -154,7 +157,6 @@ describe('/voterewards', () => {
             content: { embeds?: Array<{ description?: string }> }
         }
         const embed = call.content.embeds?.[0] as { description?: string }
-        expect(embed?.description).not.toContain('perk')
-        expect(embed?.description).not.toContain('autoplay weighting')
+        expect(embed?.description).not.toMatch(REMOVED_PERK_PROMISES)
     })
 })
