@@ -1,0 +1,29 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`buildOnboardingEmbed renders the English onboarding embed 1`] = `
+{
+  "color": 5793266,
+  "description": "\`/play <song or url>\` — start music in your voice channel
+
+Every Sunday, a weekly recap card shows your top tracks and artists. Use \`/recap\` anytime.",
+  "footer": {
+    "icon_url": undefined,
+    "text": "Lucky",
+  },
+  "title": "🎵 Thanks for adding Lucky!",
+}
+`;
+
+exports[`buildOnboardingEmbed renders the pt-BR onboarding embed 1`] = `
+{
+  "color": 5793266,
+  "description": "\`/play <música ou url>\` — toque músicas no seu canal de voz
+
+Todo domingo, um card de recap semanal mostra suas músicas e artistas favoritos. Use \`/recap\` quando quiser.",
+  "footer": {
+    "icon_url": undefined,
+    "text": "Lucky",
+  },
+  "title": "🎵 Obrigado por adicionar o Lucky!",
+}
+`;

@@ -47,12 +47,18 @@
             "youtubeDisabledDescription": "YouTube isn't available on this bot right now. Try a Spotify or SoundCloud link, or just search by song and artist name."
         },
         "nowPlaying": "Now playing {{title}}, don't stop",
+        "onboarding": {
+            "title": "🎵 Thanks for adding Lucky!",
+            "description": "`/play <song or url>` — start music in your voice channel\n\nEvery Sunday, a weekly recap card shows your top tracks and artists. Use `/recap` anytime.",
+            "playButton": "▶ Start Listening"
+        },
         "station": {
             "genres": {
                 "lofi": "Lo-fi",
                 "gaming": "Gaming",
                 "pop": "Pop",
-                "brMix": "Brazilian Mix"
+                "brMix": "Brazilian Mix",
+                "play": "Start Listening"
             },
             "notInVoiceTitle": "Join a voice channel",
             "notInVoiceDescription": "Join a voice channel first, then click a station again.",
