@@ -904,6 +904,49 @@ describe('play command', () => {
         expect(vcMemberIds).toContain('user-2')
         expect(vcMemberIds).not.toContain('bot-1')
     })
+
+    it('marks outcome as user_error when collaborative limit is reached', async () => {
+        const interaction = createInteraction('guild-1')
+        canAddTracksMock.mockReturnValue({ allowed: false, limit: 1 })
+
+        await playCommand.execute({
+            client: createClient(async () => ({})),
+            interaction,
+        } as any)
+
+        const outcome = takeCommandOutcome(interaction)
+        expect(outcome?.outcome).toBe('user_error')
+    })
+
+    it('marks outcome as error with InteractionExpired class when deferReply fails with unknown interaction', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.deferReply.mockRejectedValue(
+            Object.assign(new Error('Unknown interaction'), { code: 10062 }),
+        )
+
+        await playCommand.execute({
+            client: createClient(async () => ({})),
+            interaction,
+        } as any)
+
+        const outcome = takeCommandOutcome(interaction)
+        expect(outcome?.outcome).toBe('error')
+        expect(outcome?.errorClass).toBe('InteractionExpired')
+    })
+
+    it('marks outcome as error when play throws a non-interaction error', async () => {
+        const interaction = createInteraction('guild-1')
+
+        await playCommand.execute({
+            client: createClient(async () => {
+                throw new Error('Search failed')
+            }),
+            interaction,
+        } as any)
+
+        const outcome = takeCommandOutcome(interaction)
+        expect(outcome?.outcome).toBe('error')
+    })
 })
 
 describe('play command: early reply and start failure (#2741)', () => {

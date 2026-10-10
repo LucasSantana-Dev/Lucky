@@ -77,6 +77,14 @@ jest.mock('./onboardingStation', () => ({
     ONBOARDING_STATION_BUTTON_PREFIX: 'station_',
 }))
 
+const buildOnboardingEmbedMock = jest.fn(() => ({
+    toJSON: () => ({ title: 'mocked embed', description: 'mocked desc' }),
+}))
+jest.mock('./onboardingEmbed', () => ({
+    buildOnboardingEmbed: (...args: unknown[]) =>
+        buildOnboardingEmbedMock(...args),
+}))
+
 jest.mock('./commandsHandler', () => ({
     executeCommand: (...args: unknown[]) => executeCommandMock(...args),
     executeContextMenu: (...args: unknown[]) => executeContextMenuMock(...args),
@@ -117,6 +125,12 @@ jest.mock('@lucky/shared/services', () => ({
         handleButtonInteraction: (...args: unknown[]) =>
             handleButtonInteractionMock(...args),
     },
+}))
+
+const translatorForInteractionMock = jest.fn(async () => (key: string) => key)
+jest.mock('../i18n/translatorForInteraction', () => ({
+    translatorForInteraction: (...args: unknown[]) =>
+        translatorForInteractionMock(...args),
 }))
 
 jest.mock('../services/musicManagement/namedSessions', () => ({
@@ -231,6 +245,13 @@ describe('eventHandler', () => {
         jest.clearAllMocks()
         createUserFriendlyErrorMock.mockReturnValue('Friendly error')
         namedSessionListMock.mockResolvedValue([])
+        translatorForInteractionMock.mockResolvedValue((key: string) => key)
+        buildOnboardingEmbedMock.mockReturnValue({
+            toJSON: () => ({
+                title: 'mocked embed',
+                description: 'mocked desc',
+            }),
+        })
     })
 
     // Drain all pending microtasks so fire-and-forget async handlers
