@@ -22,6 +22,6 @@ jobs:
             ${{ github.event.issue.pull_request
             && (github.event.comment.body == '/claude-review' || startsWith(github.event.comment.body, '/claude-review '))
             && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) }}
-        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@b487626c2b3b3e089e98e0d358baad5bd6671513 # main
+        uses: LucasSantana-Dev/.github/.github/workflows/claude-review.yml@f534ac9dfb4ff1ffceebc209df38361882bd78a4 # main
         secrets:
             CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
