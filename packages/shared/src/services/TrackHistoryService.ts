@@ -32,6 +32,8 @@ export interface TrackHistoryInput {
     thumbnail?: string
     /** Seconds actually played, when the play start time is known. */
     playDuration?: number
+    /** True when the track was added as part of a playlist, not a single search. */
+    isPlaylist?: boolean
 }
 
 /** Statistics for guild track playback history. */
@@ -128,6 +130,7 @@ export class TrackHistoryService {
                     playDuration: track.playDuration,
                     skipped: track.skipped ?? false,
                     isAutoplay: Boolean(track.metadata?.isAutoplay ?? false),
+                    isPlaylist: Boolean(track.isPlaylist ?? false),
                 },
             })
 

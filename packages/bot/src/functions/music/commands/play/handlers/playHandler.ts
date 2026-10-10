@@ -174,13 +174,21 @@ export async function executePlayHandler({
     // editing the public defer below, which would strip the ephemeral flag.
     // Safe on the raw query: SoundCloud expansion/normalization below never
     // changes a youtube.com/youtu.be host.
-    if (await replyYoutubeDisabledIfNeeded(interaction, rawQuery, provider))
+    if (await replyYoutubeDisabledIfNeeded(interaction, rawQuery, provider)) {
+        markCommandOutcome(interaction, { outcome: 'user_error' })
         return
+    }
 
     try {
         await interaction.deferReply()
     } catch (error) {
-        if (isUnknownInteractionError(error)) return
+        if (isUnknownInteractionError(error)) {
+            markCommandOutcome(interaction, {
+                outcome: 'error',
+                errorClass: 'InteractionExpired',
+            })
+            return
+        }
         throw error
     }
 
@@ -196,6 +204,7 @@ export async function executePlayHandler({
         1,
     )
     if (!collaborativeCheck.allowed) {
+        markCommandOutcome(interaction, { outcome: 'user_error' })
         await interactionReply({
             interaction,
             content: {
@@ -351,6 +360,36 @@ export async function executePlayHandler({
 
         const isPlaylist = !!result.searchResult.playlist
 
+        if (isPlaylist) {
+            for (const t of result.searchResult.tracks) {
+                const descriptor = Object.getOwnPropertyDescriptor(
+                    t,
+                    'metadata',
+                )
+                if (descriptor?.configurable === false) {
+                    const meta = (
+                        t as unknown as { metadata?: Record<string, unknown> }
+                    ).metadata
+                    if (
+                        meta &&
+                        typeof meta === 'object' &&
+                        !Object.isFrozen(meta)
+                    )
+                        meta['isPlaylist'] = true
+                } else {
+                    const existing = ((
+                        t as unknown as { metadata?: Record<string, unknown> }
+                    ).metadata ?? {}) as Record<string, unknown>
+                    Object.defineProperty(t, 'metadata', {
+                        value: { ...existing, isPlaylist: true },
+                        writable: true,
+                        configurable: true,
+                        enumerable: true,
+                    })
+                }
+            }
+        }
+
         // discord-player does not throw to this caller when every stream
         // source fails: it skips the track and resolves play() as if it had
         // started. Say so instead of leaving "added to queue" on screen.
@@ -469,6 +508,10 @@ export async function executePlayHandler({
             debugLog({
                 message: 'Play command interaction expired before reply',
                 data: { query, guildId: interaction.guildId },
+            })
+            markCommandOutcome(interaction, {
+                outcome: 'error',
+                errorClass: 'InteractionExpired',
             })
             return
         }
