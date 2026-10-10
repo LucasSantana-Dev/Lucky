@@ -27,7 +27,7 @@ jobs:
         if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+            - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
               with:
                   node-version: '24'
                   cache: 'npm'
@@ -38,7 +38,7 @@ jobs:
             - name: Build shared package
               run: npm run build:shared
             - name: Upload shared artifact
-              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
               with:
                   name: shared-build
                   path: |
@@ -54,14 +54,14 @@ jobs:
         if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+            - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
               with:
                   node-version: '24'
                   cache: 'npm'
             - name: Install dependencies
               run: npm ci --legacy-peer-deps --ignore-scripts
             - name: Download shared artifact
-              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
               with:
                   name: shared-build
                   path: packages/shared
@@ -151,13 +151,13 @@ jobs:
         if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+            - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
               with:
                   node-version: '24'
                   cache: 'npm'
             - run: npm ci --legacy-peer-deps --ignore-scripts
             - name: Download shared artifact
-              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
               with:
                   name: shared-build
                   path: packages/shared
@@ -175,19 +175,19 @@ jobs:
         if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+            - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
               with:
                   node-version: '24'
                   cache: 'npm'
             - run: npm ci --legacy-peer-deps --ignore-scripts
             - name: Download shared artifact
-              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
               with:
                   name: shared-build
                   path: packages/shared
             - name: Run backend tests
               run: npm run test --workspace=packages/backend -- --ci --coverage
-            - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
               if: always()
               with:
                   name: coverage-backend
@@ -202,13 +202,13 @@ jobs:
         if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+            - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
               with:
                   node-version: '24'
                   cache: 'npm'
             - run: npm ci --legacy-peer-deps --ignore-scripts
             - name: Download shared artifact
-              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
               with:
                   name: shared-build
                   path: packages/shared
@@ -237,7 +237,7 @@ jobs:
               run: npm run test --workspace=packages/bot -- --ci --coverage
             - name: Run music incident regression
               run: npm run test:music:incident
-            - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
               if: always()
               with:
                   name: coverage-bot
@@ -260,13 +260,13 @@ jobs:
           )
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+            - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
               with:
                   node-version: '24'
                   cache: 'npm'
             - run: npm ci --legacy-peer-deps --ignore-scripts
             - name: Download shared artifact
-              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
               with:
                   name: shared-build
                   path: packages/shared
@@ -285,19 +285,19 @@ jobs:
         if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
-            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+            - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
               with:
                   node-version: '24'
                   cache: 'npm'
             - run: npm ci --legacy-peer-deps --ignore-scripts
             - name: Download shared artifact
-              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
               with:
                   name: shared-build
                   path: packages/shared
             - name: Run frontend tests
               run: npm run test --workspace=packages/frontend -- --coverage --coverage.reporter=lcov --coverage.reporter=text
-            - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
               if: always()
               with:
                   name: coverage-frontend
@@ -328,14 +328,14 @@ jobs:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
               with:
                   persist-credentials: false
-            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+            - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
               with:
                   node-version: '24'
                   cache: 'npm'
             - name: Install dependencies
               run: npm ci --legacy-peer-deps --ignore-scripts
             - name: Download shared artifact
-              uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
               with:
                   name: shared-build
                   path: packages/shared
@@ -880,15 +880,15 @@ jobs:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
               with:
                   fetch-depth: 0
-            - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
               with:
                   name: coverage-backend
                   path: packages/backend/coverage
-            - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
               with:
                   name: coverage-bot
                   path: packages/bot/coverage
-            - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
               with:
                   name: coverage-frontend
                   path: packages/frontend/coverage
@@ -949,7 +949,7 @@ jobs:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
               with:
                   fetch-depth: 0
-            - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+            - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
               with:
                   node-version: '24'
                   cache: 'npm'
