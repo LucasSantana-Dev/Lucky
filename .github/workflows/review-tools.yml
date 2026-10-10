@@ -62,6 +62,6 @@ jobs:
   # AI review is currently covered by cubic and CodeRabbit, which run as apps
   # rather than workflow jobs.
   danger:
-    uses: LucasSantana-Dev/.github/.github/workflows/danger.yml@404e45f1192956a5cf5c3652dbe3ffb75fad6ac1 # main (skips the yt-dlp download, #2109)
+    uses: LucasSantana-Dev/.github/.github/workflows/danger.yml@f534ac9dfb4ff1ffceebc209df38361882bd78a4 # main (skips the yt-dlp download, #2109)
     with:
       node_version: '22'
