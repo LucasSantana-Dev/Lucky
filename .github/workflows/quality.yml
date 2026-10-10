@@ -64,7 +64,7 @@ jobs:
 
     quality:
         needs: changes
-        uses: LucasSantana-Dev/.github/.github/workflows/quality.yml@fa22667c1e0b6a5a27e7262c56b412db8b9f7c13
+        uses: LucasSantana-Dev/.github/.github/workflows/quality.yml@f534ac9dfb4ff1ffceebc209df38361882bd78a4
         with:
             node-version: '24'
             has-dockerfile: ${{ github.event_name != 'pull_request' || needs.changes.outputs.dockerfile == 'true' }}
