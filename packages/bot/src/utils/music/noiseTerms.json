@@ -30,5 +30,5 @@
         "single version",
         "album version"
     ],
-    "bareTitleNoise": ["lyrics", "legendado", "traduzido", "legendas"]
+    "bareTitleNoise": ["lyrics", "letra", "legenda", "legendado", "traduzido", "legendas"]
 }

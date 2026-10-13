@@ -147,6 +147,35 @@ describe('findMatchingSoundCloudResult – title matching', () => {
 // findMatchingSoundCloudResult — duration matching
 // ---------------------------------------------------------------------------
 
+describe('findMatchingSoundCloudResult – accent folding', () => {
+    it.each([
+        ['Mirándote', 'Mirandote'],
+        ['Mirandote', 'Mirándote'],
+        ['Bésame', 'Besame'],
+        ['NO BATIDÃO', 'No Batidao'],
+        ['Cuéntame', 'CUENTAME'],
+    ])('matches query %s against result %s', (query, name) => {
+        const results = [makeResult(name)]
+        expect(findMatchingSoundCloudResult(query, undefined, results)).toBe(
+            results[0],
+        )
+    })
+
+    it('still rejects a clearly different title', () => {
+        const results = [makeResult('Completamente Diferente')]
+        expect(
+            findMatchingSoundCloudResult('Mirándote', undefined, results),
+        ).toBeUndefined()
+    })
+
+    it('still rejects a match more than 30 seconds off', () => {
+        const results = [makeResult('Mirandote', 400)]
+        expect(
+            findMatchingSoundCloudResult('Mirándote', '3:30', results),
+        ).toBeUndefined()
+    })
+})
+
 describe('findMatchingSoundCloudResult – duration matching', () => {
     it('accepts match within 30 seconds of track duration', () => {
         const results = [makeResult('Song', 200)] // 3:20
@@ -336,6 +365,27 @@ describe('streamViaSoundCloud', () => {
         mockSearch.mockResolvedValue([makeResult('Completely Different', 300)])
         await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
             'SoundCloud: no validated match',
+        )
+    })
+
+    it('logs rejected candidates when nothing validates', async () => {
+        mockSearch.mockResolvedValue([makeResult('Completely Different', 300)])
+        await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
+            'SoundCloud: no validated match for "song name" (title/duration mismatch)',
+        )
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'SoundCloud: no validated match',
+                data: expect.objectContaining({
+                    rejected: [
+                        {
+                            name: 'Completely Different',
+                            titleScore: 0,
+                            durationDeltaSec: 90,
+                        },
+                    ],
+                }),
+            }),
         )
     })
 

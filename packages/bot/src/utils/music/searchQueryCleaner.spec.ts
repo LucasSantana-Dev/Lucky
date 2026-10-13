@@ -94,6 +94,18 @@ describe('cleanSearchQuery', () => {
     })
 })
 
+describe('cleanTitle — letra and legenda noise', () => {
+    it('strips letra from a bracketed suffix', () => {
+        expect(cleanTitle('Pegame y decime Shirley [Letra]')).not.toMatch(
+            /letra/i,
+        )
+    })
+
+    it('strips a bare legenda', () => {
+        expect(cleanTitle('Song Name legenda')).not.toMatch(/legenda/i)
+    })
+})
+
 describe('cleanTitle — Brazilian noise', () => {
     it.each([
         ['strips (Tradução)', 'Beyoncé - Halo (Tradução)', 'Beyoncé - Halo'],
