@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.11](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.10...v2.58.11) (2026-10-13)
+
+
+### Bug Fixes
+
+* **bot:** fold accents when matching SoundCloud results ([#2803](https://github.com/LucasSantana-Dev/Lucky/issues/2803)) ([bf0819b](https://github.com/LucasSantana-Dev/Lucky/commit/bf0819bbb4c36f45bfb66a46a81e0608b80a0b55))
+* **bot:** make the session snapshot save atomic per guild ([#2805](https://github.com/LucasSantana-Dev/Lucky/issues/2805)) ([f3f5140](https://github.com/LucasSantana-Dev/Lucky/commit/f3f51401a5096aacff7a8aed0373f3d2aade3935))
+* **bot:** retry an empty YouTube search without the official audio suffix ([#2804](https://github.com/LucasSantana-Dev/Lucky/issues/2804)) ([ae4a962](https://github.com/LucasSantana-Dev/Lucky/commit/ae4a9622b157698b11ec5b1cca976704e790386f))
+* **bot:** retry yt-dlp once on a per-request 403 ([#2802](https://github.com/LucasSantana-Dev/Lucky/issues/2802)) ([26804df](https://github.com/LucasSantana-Dev/Lucky/commit/26804dfa21985c03e27712daf23f4b23b844b1c2))
+* **observability:** send one Sentry event per failed play, breadcrumbs per stage ([#2801](https://github.com/LucasSantana-Dev/Lucky/issues/2801)) ([ff63cef](https://github.com/LucasSantana-Dev/Lucky/commit/ff63cef2da5a5a97df98645f42dfa83116fe1d7a))
+
 ## [2.58.10](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.9...v2.58.10) (2026-10-13)
 
 
