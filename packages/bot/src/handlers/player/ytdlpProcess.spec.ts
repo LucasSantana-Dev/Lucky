@@ -33,6 +33,7 @@ import {
     recordYtDlpFailure,
     recordYtDlpSuccess,
 } from './ytdlpBlockBreaker'
+import { extractionFailuresTotal } from '../../utils/monitoring/prometheus'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -222,11 +223,16 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         }
 
         it('a recovered 403 never reaches the breaker', async () => {
+            const incSpy = jest.spyOn(extractionFailuresTotal, 'inc')
             for (let i = 0; i < 3; i++) {
                 script(FORBIDDEN, 'ok')
                 await playLikeBridge()
             }
             expect(isYtDlpBlocked()).toBe(false)
+            // recordYtDlpSuccess clears the streak, so also prove the failure
+            // recorder (metric + streak) was never reached.
+            expect(incSpy).not.toHaveBeenCalled()
+            incSpy.mockRestore()
         })
 
         it('403 on both attempts counts once, and two such plays open it', async () => {
