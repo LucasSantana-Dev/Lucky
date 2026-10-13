@@ -704,6 +704,23 @@ describe('empty YouTube search retry', () => {
         )
     })
 
+    it.each([
+        ['Nerissima, Serp', 'Nerissima'],
+        ['  Nerissima  ; Serp', 'Nerissima'],
+        ['Nerissima feat. Serp', 'Nerissima'],
+        ['Nerissima ft Serp', 'Nerissima'],
+        ['  Simon & Garfunkel  ', 'Simon & Garfunkel'],
+        ['X Ambassadors', 'X Ambassadors'],
+    ])('uses the lead artist of %j', async (author, lead) => {
+        mockCleanTitle.mockReturnValue('Song')
+        mockCleanAuthor.mockReturnValue(author)
+        mockStreamViaYtDlpSearch
+            .mockRejectedValueOnce(empty())
+            .mockResolvedValueOnce(fakeStream)
+        await createResilientStream(spotifyTrack())
+        expect(mockStreamViaYtDlpSearch.mock.calls[1][0]).toBe(`Song ${lead}`)
+    })
+
     it('logs the empty search as a retry, not a SoundCloud fallback', async () => {
         mockStreamViaYtDlpSearch
             .mockRejectedValueOnce(empty())

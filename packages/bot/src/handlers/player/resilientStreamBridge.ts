@@ -184,7 +184,7 @@ function buildBroadYtQuery(
     cleanedAuthor: string,
 ): string {
     const leadArtist = cleanedAuthor
-        .split(/\s*(?:,|;|\bfeat\.?\s|\bft\.?\s)\s*/i)[0]
+        .split(/,|;|\bfeat\.?\s|\bft\.?\s/i)[0]
         .trim()
     return cleanSearchQuery(
         computeCoreTitleCandidate(cleanedTitle, cleanedAuthor),
