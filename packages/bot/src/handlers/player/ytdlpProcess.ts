@@ -275,3 +275,91 @@ export function streamViaYtDlpSearch(query: string): Promise<Readable> {
         return Promise.reject(new Error('yt-dlp search: empty query'))
     return streamViaYtDlp(`ytsearch1:${query}`)
 }
+
+// URL-only resolution timeout is shorter than the stream-start budget because
+// we're only asking yt-dlp to search and print the video URL — no download.
+export const YTDLP_URL_RESOLVE_TIMEOUT_MS = 6_000
+
+/**
+ * Resolves the stable YouTube video URL for a search query without streaming
+ * audio. Used by the Spotify source cache so repeat plays skip the ytsearch1
+ * round-trip and call streamViaYtDlp() directly with the cached URL.
+ */
+export async function resolveYtDlpSearchUrl(query: string): Promise<string> {
+    if (!query.trim()) throw new Error('yt-dlp search: empty query')
+    if (
+        isYoutubeYtDlpTarget(`ytsearch1:${query}`) &&
+        !isHostedYoutubeEnabled()
+    ) {
+        throw new Error('yt-dlp: YouTube disabled (HOSTED_YOUTUBE_ENABLED)')
+    }
+    return spawnYtDlpGetUrl(`ytsearch1:${query}`)
+}
+
+function spawnYtDlpGetUrl(url: string): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+        const proc = spawn(
+            YTDLP_BINARY_PATH,
+            [
+                '--no-playlist',
+                '-f',
+                'bestaudio/best',
+                '--print',
+                'webpage_url',
+                '--no-download',
+                '--quiet',
+                '--no-warnings',
+                '--no-progress',
+                '--js-runtimes',
+                `node:${process.execPath}`,
+                url,
+            ],
+            { stdio: ['ignore', 'pipe', 'pipe'] },
+        )
+
+        const timeout = setTimeout(() => {
+            proc.kill()
+            reject(new Error('yt-dlp: timed out resolving URL'))
+        }, YTDLP_URL_RESOLVE_TIMEOUT_MS)
+
+        const stdoutChunks: Buffer[] = []
+        const stderrChunks: Buffer[] = []
+
+        assertDefined(proc.stdout, 'stdout guaranteed by stdio config').on(
+            'data',
+            (chunk: Buffer) => stdoutChunks.push(chunk),
+        )
+        assertDefined(proc.stderr, 'stderr guaranteed by stdio config').on(
+            'data',
+            (chunk: Buffer) => stderrChunks.push(chunk),
+        )
+
+        let settled = false
+
+        proc.once('error', (err) => {
+            if (settled) return
+            settled = true
+            clearTimeout(timeout)
+            proc.kill()
+            reject(err)
+        })
+
+        proc.once('close', (code) => {
+            if (settled) return
+            settled = true
+            clearTimeout(timeout)
+            const output = Buffer.concat(stdoutChunks).toString().trim()
+            const stderr = Buffer.concat(stderrChunks).toString().trim()
+            if (!output) {
+                const reason = stderr ? ` - ${stderr.split('\n')[0]}` : ''
+                reject(
+                    new Error(
+                        `yt-dlp URL resolve failed (code ${code})${reason}`,
+                    ),
+                )
+                return
+            }
+            resolve(output)
+        })
+    })
+}

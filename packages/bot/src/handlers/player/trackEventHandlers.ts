@@ -28,6 +28,7 @@ import {
 } from '../../services/musicManagement/replenishSuppressionStore'
 import { handleQueueExhaustion } from './queueExhaustion'
 import { recordRecommendationOutcome } from '../../services/musicRecommendation/recommendationTelemetry'
+import { prefetchNextSpotifyTrack } from './spotifyPrefetch'
 import {
     getRecentSkipCount,
     getTrackRequesterId,
@@ -69,6 +70,7 @@ export const setupTrackHandlers = ({
     player.events.on('playerStart', async (queue: GuildQueue, track: Track) => {
         clearIdleTimer(queue.guild.id)
         clearVotes(queue.guild.id)
+        void prefetchNextSpotifyTrack(queue)
         await handlePlayerStart(queue, track, client)
     })
     player.events.on(
