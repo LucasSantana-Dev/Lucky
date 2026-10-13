@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <b>🎵 Every Sunday, Lucky shows your server what it listened to — and keeps the call playing in between, no DJ needed.</b><br>
+  <b>🎵 Lucky keeps the call playing and — when your server admin enables it — posts a weekly recap of what you listened to every Sunday.</b><br>
   <strong>Free · Open source · English and Português · No paywall, no premium tier</strong>
 </p>
 
@@ -31,7 +31,7 @@
 
 ## 🎯 What is Lucky?
 
-Lucky is a **free Discord music bot** that keeps the call going and remembers what your server plays. Every Sunday it posts a recap of the week's most-played tracks. Search by name or paste a Spotify link; smart autoplay keeps the queue running from your listening history. Add it in one click — every feature is included, no paywall, no premium tier.
+Lucky is a **free Discord music bot** that keeps the call going and remembers what your server plays. When enabled, it posts a Sunday recap of the week's most-played tracks (opt-in per server; weeks with fewer than five plays are skipped). Search by name or paste a Spotify link; smart autoplay keeps the queue running from your listening history. Add it in one click — every feature is included, no paywall, no premium tier.
 
 The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 
@@ -56,9 +56,9 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 - **Listening stats**: `/artist` and `/album` commands with Spotify integration
 
 ### 📅 Weekly Recap
-- **Every Sunday**: Lucky posts a recap of the week's top tracks and artists
+- **Weekly post**: when enabled, Lucky posts a recap every Sunday of the week's top tracks and artists (weeks with fewer than five plays are skipped)
 - **Per-server**: each guild gets its own listening summary
-- **Run on demand**: `/recap` to see the current week's summary any time
+- **Opt-in**: `/recap channel #channel` to enable the Sunday post; `/recap off` to stop it (requires Manage Guild)
 
 ### 📊 Engagement & Community
 - **Leveling system**: XP-based progression with role rewards
@@ -203,7 +203,7 @@ SENTRY_DSN=...
 | `/songinfo` | Details on current track |
 | `/history` | Your recently played tracks |
 | `/session` | Save/load playback sessions |
-| `/recap` | Show the server's weekly listening summary |
+| `/recap channel` / `/recap off` | Enable or disable the Sunday recap post (requires Manage Guild) |
 
 ### 🎮 Engagement
 | Command | Purpose |
