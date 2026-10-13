@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.58.12](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.11...v2.58.12) (2026-10-13)
+
+
+### Bug Fixes
+
+* **observability:** skip the duplicate Sentry exception for an already reported exhausted play ([#2807](https://github.com/LucasSantana-Dev/Lucky/issues/2807)) ([87e3005](https://github.com/LucasSantana-Dev/Lucky/commit/87e3005d8fde411c9b58a074cc7723c16db99a7d))
+
 ## [2.58.11](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.10...v2.58.11) (2026-10-13)
 
 
