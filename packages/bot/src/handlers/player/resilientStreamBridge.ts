@@ -20,6 +20,7 @@ import { playStageSeconds } from '../../utils/monitoring/prometheus'
 import { streamViaYtDlp, streamViaYtDlpSearch } from './ytdlpProcess'
 import {
     isYtDlpBlocked,
+    classifyYtDlpFailure,
     recordYtDlpFailure,
     recordYtDlpSuccess,
 } from './ytdlpBlockBreaker'
@@ -36,6 +37,7 @@ type BridgeTrack = Pick<
 type BridgeStage =
     | 'ytdlp_url'
     | 'ytdlp_search'
+    | 'ytdlp_search_broad'
     | 'soundcloud_full'
     | 'soundcloud_title'
     | 'soundcloud_core'
@@ -158,6 +160,75 @@ async function attemptYtDlpSearch(
             data: {
                 error: (ytSearchError as Error).message,
                 query: ytQuery,
+                cleanedTitle,
+                durationMs,
+            },
+        })
+        // Niche tracks often have no "<title> <artist> official audio" hit at
+        // all (LUCKY-79). Only an empty result is worth one broader retry;
+        // 403, bot-check and timeout keep the existing flow.
+        if (classifyYtDlpFailure(ytSearchError) === 'empty') {
+            return attemptBroadYtDlpSearch(cleanedTitle, cleanedAuthor)
+        }
+        return null
+    }
+}
+
+// Broader YouTube query: no " official audio" suffix, title cut at its first
+// parenthetical (or reduced to the song core), and only the lead artist when
+// the author field is a credit list.
+function buildBroadYtQuery(
+    cleanedTitle: string,
+    cleanedAuthor: string,
+): string {
+    const leadArtist = cleanedAuthor
+        .split(/\s*(?:,|&|;|\bfeat\.?\s|\bft\.?\s|\bx\s)\s*/i)[0]
+        .trim()
+    return cleanSearchQuery(
+        computeCoreTitleCandidate(cleanedTitle, cleanedAuthor),
+        leadArtist,
+    )
+}
+
+async function attemptBroadYtDlpSearch(
+    cleanedTitle: string,
+    cleanedAuthor: string,
+): Promise<Readable | null> {
+    const broadQuery = buildBroadYtQuery(cleanedTitle, cleanedAuthor)
+    if (!broadQuery) return null
+    const startedAt = Date.now()
+    try {
+        const stream = await streamViaYtDlpSearch(broadQuery)
+        const durationMs = observeStage('ytdlp_search_broad', startedAt, 'ok')
+        recordYtDlpSuccess()
+        addBreadcrumb(
+            'YouTube broad search stream resolved after empty result',
+            'music.youtube-extraction',
+            'info',
+        )
+        infoLog({
+            message: 'Bridge: streamed via yt-dlp broad YouTube search retry',
+            data: { query: broadQuery, title: cleanedTitle, durationMs },
+        })
+        return stream
+    } catch (broadError) {
+        const durationMs = observeStage('ytdlp_search_broad', startedAt, 'fail')
+        recordYtDlpFailure(broadError)
+        addBreadcrumb(
+            'YouTube broad search retry failed',
+            'music.youtube-extraction',
+            'warning',
+            {
+                error: scrubUrls((broadError as Error).message),
+                searchText: broadQuery,
+            },
+        )
+        warnLog({
+            message:
+                'Bridge: yt-dlp broad YouTube search retry failed, falling back to SoundCloud',
+            data: {
+                error: (broadError as Error).message,
+                query: broadQuery,
                 cleanedTitle,
                 durationMs,
             },

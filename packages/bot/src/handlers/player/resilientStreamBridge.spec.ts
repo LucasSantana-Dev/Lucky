@@ -78,6 +78,12 @@ jest.mock('./ytdlpBlockBreaker', () => ({
     isYtDlpBlocked: () => mockIsYtDlpBlocked(),
     recordYtDlpFailure: (...args: unknown[]) => mockRecordYtDlpFailure(...args),
     recordYtDlpSuccess: () => mockRecordYtDlpSuccess(),
+    classifyYtDlpFailure: (error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error)
+        if (message.includes('HTTP Error 403')) return 'forbidden'
+        if (message.includes('exited without output')) return 'empty'
+        return 'other'
+    },
 }))
 
 import {
@@ -613,6 +619,79 @@ describe('yt-dlp block breaker wiring (#2653)', () => {
 
         expect(mockRecordYtDlpSuccess).toHaveBeenCalled()
         expect(mockRecordYtDlpFailure).not.toHaveBeenCalled()
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Broad YouTube search retry on an empty result (LUCKY-79)
+// ---------------------------------------------------------------------------
+
+describe('empty YouTube search retry', () => {
+    const spotifyTrack = () =>
+        makeTrack({ url: 'https://open.spotify.com/track/123' })
+    const empty = () => new Error('yt-dlp exited without output (code 0)')
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockCleanTitle.mockReturnValue('Tempo (Latrelle, Promessa)')
+        mockCleanAuthor.mockReturnValue('Nerissima, Serp & Friend')
+        mockCleanSearchQuery.mockImplementation(
+            (t: unknown, a: unknown) => `${t} ${a}`,
+        )
+        mockExtractSongCore.mockReturnValue(null)
+        mockIsAvailable.mockReturnValue(true)
+        mockIsYtDlpBlocked.mockReturnValue(false)
+        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+    })
+
+    it('retries once without the suffix and credits, then streams via yt-dlp', async () => {
+        mockStreamViaYtDlpSearch
+            .mockRejectedValueOnce(empty())
+            .mockResolvedValueOnce(fakeStream)
+
+        const result = await createResilientStream(spotifyTrack())
+
+        expect(result).toBe(fakeStream)
+        expect(mockStreamViaYtDlpSearch).toHaveBeenCalledTimes(2)
+        expect(mockStreamViaYtDlpSearch.mock.calls[0][0]).toMatch(
+            / official audio$/,
+        )
+        expect(mockStreamViaYtDlpSearch.mock.calls[1][0]).toBe(
+            'Tempo Nerissima',
+        )
+        expect(mockStreamViaSoundCloud).not.toHaveBeenCalled()
+        expect(mockObserve.mock.calls.map((c) => c[0])).toEqual([
+            { stage: 'ytdlp_search', outcome: 'fail' },
+            { stage: 'ytdlp_search_broad', outcome: 'ok' },
+            { stage: 'bridge_total', outcome: 'ok' },
+        ])
+    })
+
+    it('falls back to SoundCloud when the broad retry is empty too', async () => {
+        mockStreamViaYtDlpSearch.mockRejectedValue(empty())
+
+        const result = await createResilientStream(spotifyTrack())
+
+        expect(result).toBe(fakeStream)
+        expect(mockStreamViaYtDlpSearch).toHaveBeenCalledTimes(2)
+        expect(mockStreamViaSoundCloud).toHaveBeenCalled()
+        expect(mockObserve.mock.calls.map((c) => c[0].stage)).toEqual([
+            'ytdlp_search',
+            'ytdlp_search_broad',
+            'soundcloud_full',
+            'bridge_total',
+        ])
+    })
+
+    it('does not retry on a 403', async () => {
+        mockStreamViaYtDlpSearch.mockRejectedValue(
+            new Error('HTTP Error 403: Forbidden'),
+        )
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockStreamViaYtDlpSearch).toHaveBeenCalledTimes(1)
+        expect(mockStreamViaSoundCloud).toHaveBeenCalled()
     })
 })
 
