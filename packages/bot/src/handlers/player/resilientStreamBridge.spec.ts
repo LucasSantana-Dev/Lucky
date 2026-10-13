@@ -469,9 +469,9 @@ describe('Sentry events per play', () => {
         async (message, failureClass) => {
             mockStreamViaYtDlp.mockRejectedValue(new Error(message))
             mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
-            await expect(
-                createResilientStream(makeTrack()),
-            ).rejects.toThrow('Bridge exhausted')
+            await expect(createResilientStream(makeTrack())).rejects.toThrow(
+                'Bridge exhausted',
+            )
             expect(mockCaptureMessage).toHaveBeenCalledTimes(1)
             expect(mockCaptureMessage).toHaveBeenCalledWith(
                 'YouTube extraction exhausted all fallback stages',
@@ -681,6 +681,155 @@ describe('yt-dlp block breaker wiring (#2653)', () => {
 
         expect(mockRecordYtDlpSuccess).toHaveBeenCalled()
         expect(mockRecordYtDlpFailure).not.toHaveBeenCalled()
+    })
+})
+
+// ---------------------------------------------------------------------------
+// Broad YouTube search retry on an empty result (LUCKY-79)
+// ---------------------------------------------------------------------------
+
+describe('empty YouTube search retry', () => {
+    const spotifyTrack = () =>
+        makeTrack({ url: 'https://open.spotify.com/track/123' })
+    const empty = () => new Error('yt-dlp exited without output (code 0)')
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockCleanTitle.mockReturnValue('Tempo (Latrelle, Promessa)')
+        mockCleanAuthor.mockReturnValue('Nerissima, Serp & Friend')
+        mockCleanSearchQuery.mockImplementation(
+            (t: unknown, a: unknown) => `${t} ${a}`,
+        )
+        mockExtractSongCore.mockReturnValue(null)
+        mockIsAvailable.mockReturnValue(true)
+        mockIsYtDlpBlocked.mockReturnValue(false)
+        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+    })
+
+    it('retries once without the suffix and credits, then streams via yt-dlp', async () => {
+        mockStreamViaYtDlpSearch
+            .mockRejectedValueOnce(empty())
+            .mockResolvedValueOnce(fakeStream)
+
+        const result = await createResilientStream(spotifyTrack())
+
+        expect(result).toBe(fakeStream)
+        expect(mockStreamViaYtDlpSearch).toHaveBeenCalledTimes(2)
+        expect(mockStreamViaYtDlpSearch.mock.calls[0][0]).toMatch(
+            / official audio$/,
+        )
+        expect(mockStreamViaYtDlpSearch.mock.calls[1][0]).toBe(
+            'Tempo Nerissima',
+        )
+        expect(mockStreamViaSoundCloud).not.toHaveBeenCalled()
+        expect(mockObserve.mock.calls.map((c) => c[0])).toEqual([
+            { stage: 'ytdlp_search', outcome: 'fail' },
+            { stage: 'ytdlp_search_broad', outcome: 'ok' },
+            { stage: 'bridge_total', outcome: 'ok' },
+        ])
+    })
+
+    it('falls back to SoundCloud when the broad retry is empty too', async () => {
+        mockStreamViaYtDlpSearch.mockRejectedValue(empty())
+
+        const result = await createResilientStream(spotifyTrack())
+
+        expect(result).toBe(fakeStream)
+        expect(mockStreamViaYtDlpSearch).toHaveBeenCalledTimes(2)
+        expect(mockStreamViaSoundCloud).toHaveBeenCalled()
+        expect(mockObserve.mock.calls.map((c) => c[0].stage)).toEqual([
+            'ytdlp_search',
+            'ytdlp_search_broad',
+            'soundcloud_full',
+            'bridge_total',
+        ])
+    })
+
+    it('keeps a lead artist whose name contains & or a leading x', async () => {
+        mockCleanTitle.mockReturnValue('The Boxer')
+        mockCleanAuthor.mockReturnValue('Simon & Garfunkel')
+        mockStreamViaYtDlpSearch
+            .mockRejectedValueOnce(empty())
+            .mockResolvedValueOnce(fakeStream)
+        await createResilientStream(spotifyTrack())
+        expect(mockStreamViaYtDlpSearch.mock.calls[1][0]).toBe(
+            'The Boxer Simon & Garfunkel',
+        )
+
+        mockCleanAuthor.mockReturnValue('X Ambassadors')
+        mockStreamViaYtDlpSearch
+            .mockRejectedValueOnce(empty())
+            .mockResolvedValueOnce(fakeStream)
+        await createResilientStream(spotifyTrack())
+        expect(mockStreamViaYtDlpSearch.mock.calls[3][0]).toBe(
+            'The Boxer X Ambassadors',
+        )
+    })
+
+    it.each([
+        ['Nerissima, Serp', 'Nerissima'],
+        ['  Nerissima  ; Serp', 'Nerissima'],
+        ['Nerissima feat. Serp', 'Nerissima'],
+        ['Nerissima ft Serp', 'Nerissima'],
+        ['  Simon & Garfunkel  ', 'Simon & Garfunkel'],
+        ['X Ambassadors', 'X Ambassadors'],
+    ])('uses the lead artist of %j', async (author, lead) => {
+        mockCleanTitle.mockReturnValue('Song')
+        mockCleanAuthor.mockReturnValue(author)
+        mockStreamViaYtDlpSearch
+            .mockRejectedValueOnce(empty())
+            .mockResolvedValueOnce(fakeStream)
+        await createResilientStream(spotifyTrack())
+        expect(mockStreamViaYtDlpSearch.mock.calls[1][0]).toBe(`Song ${lead}`)
+    })
+
+    it('logs the empty search as a retry, not a SoundCloud fallback', async () => {
+        mockStreamViaYtDlpSearch
+            .mockRejectedValueOnce(empty())
+            .mockResolvedValueOnce(fakeStream)
+        await createResilientStream(spotifyTrack())
+        const messages = mockWarnLog.mock.calls.map(
+            (c) => (c[0] as { message: string }).message,
+        )
+        expect(messages).toEqual([
+            expect.stringContaining('retrying with a broader query'),
+        ])
+    })
+
+    it('keeps the first failure class and lists the broad stage when exhausted', async () => {
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
+        mockStreamViaYtDlpSearch
+            .mockRejectedValueOnce(empty())
+            .mockRejectedValueOnce(new Error('HTTP Error 403: Forbidden'))
+
+        await expect(createResilientStream(spotifyTrack())).rejects.toThrow(
+            'Bridge exhausted',
+        )
+
+        expect(mockCaptureMessage).toHaveBeenCalledTimes(1)
+        expect(mockCaptureMessage).toHaveBeenCalledWith(
+            'YouTube extraction exhausted all fallback stages',
+            'warning',
+            expect.any(Object),
+            expect.objectContaining({
+                failure_class: 'empty',
+                stages_tried: expect.stringContaining(
+                    'yt-dlp-search,yt-dlp-search-broad',
+                ),
+            }),
+            ['youtube-extraction-exhausted', 'empty'],
+        )
+    })
+
+    it('does not retry on a 403', async () => {
+        mockStreamViaYtDlpSearch.mockRejectedValue(
+            new Error('HTTP Error 403: Forbidden'),
+        )
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockStreamViaYtDlpSearch).toHaveBeenCalledTimes(1)
+        expect(mockStreamViaSoundCloud).toHaveBeenCalled()
     })
 })
 

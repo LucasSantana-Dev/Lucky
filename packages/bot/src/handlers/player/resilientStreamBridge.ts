@@ -39,6 +39,9 @@ type BridgeTrack = Pick<
 // YouTube failure is kept per track so the single all-exhausted event can be
 // fingerprinted by root cause.
 const firstYouTubeFailure = new WeakMap<object, string>()
+// Tracks whose empty YouTube search went on to the broad retry, so the
+// exhausted event can list that stage in stages_tried.
+const broadSearchTried = new WeakSet<object>()
 
 function noteFirstYouTubeFailure(track: BridgeTrack, error: unknown): void {
     if (!firstYouTubeFailure.has(track)) {
@@ -49,6 +52,7 @@ function noteFirstYouTubeFailure(track: BridgeTrack, error: unknown): void {
 type BridgeStage =
     | 'ytdlp_url'
     | 'ytdlp_search'
+    | 'ytdlp_search_broad'
     | 'soundcloud_full'
     | 'soundcloud_title'
     | 'soundcloud_core'
@@ -156,12 +160,85 @@ async function attemptYtDlpSearch(
             },
         )
         noteFirstYouTubeFailure(track, ytSearchError)
+        const isEmpty = classifyYtDlpFailure(ytSearchError) === 'empty'
         warnLog({
-            message:
-                'Bridge: yt-dlp YouTube search failed, falling back to SoundCloud',
+            message: isEmpty
+                ? 'Bridge: yt-dlp YouTube search returned nothing, retrying with a broader query'
+                : 'Bridge: yt-dlp YouTube search failed, falling back to SoundCloud',
             data: {
                 error: (ytSearchError as Error).message,
                 query: ytQuery,
+                cleanedTitle,
+                durationMs,
+            },
+        })
+        // Niche tracks often have no "<title> <artist> official audio" hit at
+        // all (LUCKY-79). Only an empty result is worth one broader retry;
+        // 403, bot-check and timeout keep the existing flow.
+        if (isEmpty) {
+            return attemptBroadYtDlpSearch(cleanedTitle, cleanedAuthor, track)
+        }
+        return null
+    }
+}
+
+// Broader YouTube query: no " official audio" suffix, title cut at its first
+// parenthetical (or reduced to the song core), and only the lead artist when
+// the author field is a credit list.
+function buildBroadYtQuery(
+    cleanedTitle: string,
+    cleanedAuthor: string,
+): string {
+    const leadArtist = cleanedAuthor
+        .split(/,|;|\bfeat\.?\s|\bft\.?\s/i)[0]
+        .trim()
+    return cleanSearchQuery(
+        computeCoreTitleCandidate(cleanedTitle, cleanedAuthor),
+        leadArtist,
+    )
+}
+
+async function attemptBroadYtDlpSearch(
+    cleanedTitle: string,
+    cleanedAuthor: string,
+    track: BridgeTrack,
+): Promise<Readable | null> {
+    const broadQuery = buildBroadYtQuery(cleanedTitle, cleanedAuthor)
+    if (!broadQuery) return null
+    broadSearchTried.add(track)
+    const startedAt = Date.now()
+    try {
+        const stream = await streamViaYtDlpSearch(broadQuery)
+        const durationMs = observeStage('ytdlp_search_broad', startedAt, 'ok')
+        recordYtDlpSuccess()
+        addBreadcrumb(
+            'YouTube broad search stream resolved after empty result',
+            'music.youtube-extraction',
+            'info',
+        )
+        infoLog({
+            message: 'Bridge: streamed via yt-dlp broad YouTube search retry',
+            data: { query: broadQuery, title: cleanedTitle, durationMs },
+        })
+        return stream
+    } catch (broadError) {
+        const durationMs = observeStage('ytdlp_search_broad', startedAt, 'fail')
+        recordYtDlpFailure(broadError)
+        addBreadcrumb(
+            'YouTube broad search retry failed',
+            'music.youtube-extraction',
+            'warning',
+            {
+                error: scrubUrls((broadError as Error).message),
+                searchText: broadQuery,
+            },
+        )
+        warnLog({
+            message:
+                'Bridge: yt-dlp broad YouTube search retry failed, falling back to SoundCloud',
+            data: {
+                error: (broadError as Error).message,
+                query: broadQuery,
                 cleanedTitle,
                 durationMs,
             },
@@ -235,7 +312,7 @@ async function attemptCoreStageOrLogExhausted(
     track: BridgeTrack,
     cleanedTitle: string,
     cleanedAuthor: string,
-    youtubeStage: string | undefined,
+    youtubeStages: string[],
 ): Promise<Readable | null> {
     const coreTitle = computeCoreTitleCandidate(cleanedTitle, cleanedAuthor)
     const alreadyTriedQueries = new Set([
@@ -245,7 +322,7 @@ async function attemptCoreStageOrLogExhausted(
 
     if (!coreTitle || alreadyTriedQueries.has(coreTitle)) {
         logAllStagesExhausted(track, cleanedTitle, [
-            youtubeStage || 'yt-dlp',
+            ...youtubeStages,
             'soundcloud-full',
             'soundcloud-title',
         ])
@@ -272,7 +349,7 @@ async function attemptCoreStageOrLogExhausted(
             track,
             cleanedTitle,
             [
-                youtubeStage || 'yt-dlp',
+                ...youtubeStages,
                 'soundcloud-full',
                 'soundcloud-title',
                 'soundcloud-core',
@@ -436,7 +513,8 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         },
     })
 
-    let youtubeStage: string | undefined
+    let youtubeStages: string[] = []
+    broadSearchTried.delete(track)
     // The same Track instance can be played again: drop the previous play's
     // failure class so this play's event is fingerprinted by its own cause.
     firstYouTubeFailure.delete(track)
@@ -445,7 +523,7 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     // paying 4-10 s per play for a known failure (#2653).
     const ytDlpBlocked = isYtDlpBlocked()
     if (ytDlpBlocked) {
-        youtubeStage = 'yt-dlp-blocked'
+        youtubeStages = ['yt-dlp-blocked']
         if (!firstYouTubeFailure.has(track)) {
             firstYouTubeFailure.set(track, 'breaker_open')
         }
@@ -459,17 +537,23 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     if (!ytDlpBlocked && track.url && !isSpotifyUrl) {
         const stream = await attemptYtDlpUrl(track, cleanedTitle)
         if (stream) return stream
-        youtubeStage = 'yt-dlp-url'
+        youtubeStages = ['yt-dlp-url']
     }
 
     if (!ytDlpBlocked && isSpotifyUrl) {
-        const stream = await attemptYtDlpSearch(cleanedTitle, cleanedAuthor, track)
+        const stream = await attemptYtDlpSearch(
+            cleanedTitle,
+            cleanedAuthor,
+            track,
+        )
         if (stream) return stream
-        youtubeStage = 'yt-dlp-search'
+        youtubeStages = broadSearchTried.has(track)
+            ? ['yt-dlp-search', 'yt-dlp-search-broad']
+            : ['yt-dlp-search']
     }
 
     // Neither yt-dlp branch ran (no URL): do not claim yt-dlp was attempted.
-    youtubeStage ??= 'yt-dlp-not-attempted'
+    if (youtubeStages.length === 0) youtubeStages = ['yt-dlp-not-attempted']
 
     if (!cleanedTitle) {
         warnLog({
@@ -520,7 +604,7 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         track,
         cleanedTitle,
         cleanedAuthor,
-        youtubeStage,
+        youtubeStages,
     )
     if (coreStream) return coreStream
 
