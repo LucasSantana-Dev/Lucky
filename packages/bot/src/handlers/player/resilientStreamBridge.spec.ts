@@ -75,6 +75,12 @@ const mockIsYtDlpBlocked = jest.fn(() => false)
 const mockRecordYtDlpFailure = jest.fn()
 const mockRecordYtDlpSuccess = jest.fn()
 jest.mock('./ytdlpBlockBreaker', () => ({
+    classifyYtDlpFailure: (error: unknown) =>
+        (
+            jest.requireActual('./ytdlpBlockBreaker') as {
+                classifyYtDlpFailure: (e: unknown) => string
+            }
+        ).classifyYtDlpFailure(error),
     isYtDlpBlocked: () => mockIsYtDlpBlocked(),
     recordYtDlpFailure: (...args: unknown[]) => mockRecordYtDlpFailure(...args),
     recordYtDlpSuccess: () => mockRecordYtDlpSuccess(),
@@ -275,7 +281,7 @@ describe('createResilientStream', () => {
         )
     })
 
-    it('captures breadcrumb and message on yt-dlp URL extraction failure', async () => {
+    it('captures breadcrumb, not a Sentry event, on yt-dlp URL extraction failure', async () => {
         mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp error'))
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
         await createResilientStream(makeTrack())
@@ -288,18 +294,7 @@ describe('createResilientStream', () => {
                 url: 'https://www.youtube.com', // redacted to origin
             }),
         )
-        // Verify captureMessage was called with correct stage as tag and redacted URL
-        expect(mockCaptureMessage).toHaveBeenCalledWith(
-            expect.stringContaining('YouTube extraction failed'),
-            'warning',
-            expect.objectContaining({
-                url: 'https://www.youtube.com', // redacted to origin
-            }),
-            expect.objectContaining({
-                category: 'music.youtube-extraction',
-                stage: 'yt-dlp-url',
-            }),
-        )
+        expect(mockCaptureMessage).not.toHaveBeenCalled()
     })
 
     it('scrubs a tokenized URL out of the yt-dlp error before it reaches Sentry', async () => {
@@ -310,16 +305,6 @@ describe('createResilientStream', () => {
         )
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
         await createResilientStream(makeTrack())
-
-        const msgCall = mockCaptureMessage.mock.calls.find((c) =>
-            String(c[0]).includes('YouTube extraction failed'),
-        )
-        expect(msgCall).toBeDefined()
-        expect(String(msgCall?.[0])).not.toContain('SECRETTOKEN')
-        expect(String(msgCall?.[0])).not.toContain('sig=')
-        expect(String(msgCall?.[0])).toContain(
-            'https://rr3---sn-abc.googlevideo.com',
-        )
 
         const bcCall = mockAddBreadcrumb.mock.calls.find(
             (c) => c[0] === 'YouTube extraction failed via yt-dlp URL',
@@ -343,7 +328,7 @@ describe('createResilientStream', () => {
         )
     })
 
-    it('captures breadcrumb and message on YouTube search extraction failure for Spotify', async () => {
+    it('captures breadcrumb, not a Sentry event, on YouTube search extraction failure for Spotify', async () => {
         mockStreamViaYtDlpSearch.mockRejectedValue(new Error('yt-dlp error'))
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
         const track = makeTrack({
@@ -357,15 +342,7 @@ describe('createResilientStream', () => {
             'warning',
             expect.any(Object),
         )
-        expect(mockCaptureMessage).toHaveBeenCalledWith(
-            expect.stringContaining('YouTube search extraction failed'),
-            'warning',
-            expect.any(Object),
-            expect.objectContaining({
-                category: 'music.youtube-extraction',
-                stage: 'yt-dlp-search',
-            }),
-        )
+        expect(mockCaptureMessage).not.toHaveBeenCalled()
     })
 
     it('captures breadcrumb when SoundCloud circuit is open', async () => {
@@ -382,7 +359,7 @@ describe('createResilientStream', () => {
         )
     })
 
-    it('captures message on exhausted all-fallback stages (with parentheticals)', async () => {
+    it('captures exactly one message on exhausted all-fallback stages (with parentheticals)', async () => {
         mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
         mockCleanTitle.mockReturnValue('Song (Official) Mix')
@@ -396,11 +373,14 @@ describe('createResilientStream', () => {
             expect.objectContaining({
                 category: 'music.youtube-extraction',
                 stage: 'all-exhausted',
+                failure_class: 'other',
             }),
+            ['youtube-extraction-exhausted', 'other'],
         )
+        expect(mockCaptureMessage).toHaveBeenCalledTimes(1)
     })
 
-    it('captures message on exhausted all-fallback stages (no parentheticals)', async () => {
+    it('captures exactly one message on exhausted all-fallback stages (no parentheticals)', async () => {
         mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
         mockCleanTitle.mockReturnValue('Simple Song Name')
@@ -414,9 +394,59 @@ describe('createResilientStream', () => {
             expect.objectContaining({
                 category: 'music.youtube-extraction',
                 stage: 'all-exhausted',
+                failure_class: 'other',
             }),
+            ['youtube-extraction-exhausted', 'other'],
         )
+        expect(mockCaptureMessage).toHaveBeenCalledTimes(1)
     })
+})
+
+describe('Sentry events per play', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockCleanTitle.mockReturnValue('Test Track')
+        mockCleanAuthor.mockReturnValue('Test Artist')
+        mockCleanSearchQuery.mockReturnValue('Test Track Test Artist')
+        mockExtractSongCore.mockReturnValue(null)
+        mockIsAvailable.mockReturnValue(true)
+        mockIsYtDlpBlocked.mockReturnValue(false)
+    })
+
+    it('sends no Sentry event when yt-dlp fails but SoundCloud succeeds', async () => {
+        mockStreamViaYtDlp.mockRejectedValue(
+            new Error('ERROR: HTTP Error 403: Forbidden'),
+        )
+        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+        await createResilientStream(makeTrack())
+        expect(mockCaptureMessage).not.toHaveBeenCalled()
+    })
+
+    it.each([
+        ['ERROR: HTTP Error 403: Forbidden', 'forbidden'],
+        ['yt-dlp exited without output', 'empty'],
+        ['yt-dlp timed out after 10s', 'timeout'],
+    ])(
+        'sends exactly one event fingerprinted by the first failure (%s)',
+        async (message, failureClass) => {
+            mockStreamViaYtDlp.mockRejectedValue(new Error(message))
+            mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
+            await expect(
+                createResilientStream(makeTrack()),
+            ).rejects.toThrow('Bridge exhausted')
+            expect(mockCaptureMessage).toHaveBeenCalledTimes(1)
+            expect(mockCaptureMessage).toHaveBeenCalledWith(
+                'YouTube extraction exhausted all fallback stages',
+                'warning',
+                expect.any(Object),
+                expect.objectContaining({
+                    failure_class: failureClass,
+                    stages_tried: expect.stringContaining('yt-dlp-url'),
+                }),
+                ['youtube-extraction-exhausted', failureClass],
+            )
+        },
+    )
 })
 
 // ---------------------------------------------------------------------------

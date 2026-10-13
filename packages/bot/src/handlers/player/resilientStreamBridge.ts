@@ -19,6 +19,7 @@ import { isHost } from '../../utils/general/urlHost'
 import { playStageSeconds } from '../../utils/monitoring/prometheus'
 import { streamViaYtDlp, streamViaYtDlpSearch } from './ytdlpProcess'
 import {
+    classifyYtDlpFailure,
     isYtDlpBlocked,
     recordYtDlpFailure,
     recordYtDlpSuccess,
@@ -32,6 +33,18 @@ type BridgeTrack = Pick<
     Track,
     'title' | 'author' | 'duration' | 'url' | 'metadata' | 'setMetadata'
 >
+
+// Per-stage failures are breadcrumbs, not Sentry events: a stage failing while
+// the next one succeeds is an expected fallback. The class of the first
+// YouTube failure is kept per track so the single all-exhausted event can be
+// fingerprinted by root cause.
+const firstYouTubeFailure = new WeakMap<object, string>()
+
+function noteFirstYouTubeFailure(track: BridgeTrack, error: unknown): void {
+    if (!firstYouTubeFailure.has(track)) {
+        firstYouTubeFailure.set(track, classifyYtDlpFailure(error))
+    }
+}
 
 type BridgeStage =
     | 'ytdlp_url'
@@ -90,12 +103,7 @@ async function attemptYtDlpUrl(
                 url: safeUrlOrigin(track.url),
             },
         )
-        captureMessage(
-            `YouTube extraction failed: ${scrubUrls((ytdlpError as Error).message)}`,
-            'warning',
-            { url: safeUrlOrigin(track.url) },
-            { category: 'music.youtube-extraction', stage: 'yt-dlp-url' },
-        )
+        noteFirstYouTubeFailure(track, ytdlpError)
         warnLog({
             message: 'Bridge: yt-dlp failed, falling back to SoundCloud',
             data: {
@@ -112,6 +120,7 @@ async function attemptYtDlpUrl(
 async function attemptYtDlpSearch(
     cleanedTitle: string,
     cleanedAuthor: string,
+    track: BridgeTrack,
 ): Promise<Readable | null> {
     const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
     const startedAt = Date.now()
@@ -146,12 +155,7 @@ async function attemptYtDlpSearch(
                 searchText: ytQuery,
             },
         )
-        captureMessage(
-            `YouTube search extraction failed: ${scrubUrls((ytSearchError as Error).message)}`,
-            'warning',
-            { searchText: ytQuery },
-            { category: 'music.youtube-extraction', stage: 'yt-dlp-search' },
-        )
+        noteFirstYouTubeFailure(track, ytSearchError)
         warnLog({
             message:
                 'Bridge: yt-dlp YouTube search failed, falling back to SoundCloud',
@@ -289,11 +293,18 @@ function logAllStagesExhausted(
         durationMs?: number
     } = {},
 ): void {
+    const failureClass = firstYouTubeFailure.get(track) ?? 'none'
     captureMessage(
         'YouTube extraction exhausted all fallback stages',
         'warning',
         { title: track.title, url: safeUrlOrigin(track.url), stages },
-        { category: 'music.youtube-extraction', stage: 'all-exhausted' },
+        {
+            category: 'music.youtube-extraction',
+            stage: 'all-exhausted',
+            failure_class: failureClass,
+            stages_tried: stages.join(','),
+        },
+        ['youtube-extraction-exhausted', failureClass],
     )
     warnLog({
         message: 'Bridge: all stages exhausted',
@@ -432,6 +443,9 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     const ytDlpBlocked = isYtDlpBlocked()
     if (ytDlpBlocked) {
         youtubeStage = 'yt-dlp-blocked'
+        if (!firstYouTubeFailure.has(track)) {
+            firstYouTubeFailure.set(track, 'breaker_open')
+        }
         debugLog({
             message:
                 'Bridge: yt-dlp blocked (YouTube 403), skipping to SoundCloud',
@@ -446,7 +460,7 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     }
 
     if (!ytDlpBlocked && isSpotifyUrl) {
-        const stream = await attemptYtDlpSearch(cleanedTitle, cleanedAuthor)
+        const stream = await attemptYtDlpSearch(cleanedTitle, cleanedAuthor, track)
         if (stream) return stream
         youtubeStage = 'yt-dlp-search'
     }
