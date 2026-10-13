@@ -16,8 +16,11 @@ import {
     scrubUrls,
 } from '../../utils/monitoring/sentry'
 import { isHost } from '../../utils/general/urlHost'
-import { playStageSeconds } from '../../utils/monitoring/prometheus'
-import { streamViaYtDlp, streamViaYtDlpSearch } from './ytdlpProcess'
+import {
+    playStageSeconds,
+    spotifyCacheTotal,
+} from '../../utils/monitoring/prometheus'
+import { streamViaYtDlp, resolveYtDlpSearchUrl } from './ytdlpProcess'
 import {
     isYtDlpBlocked,
     recordYtDlpFailure,
@@ -27,6 +30,12 @@ import {
     stampFallbackStage,
     type StreamBridgeFallbackStage,
 } from './streamFallbackState'
+import {
+    getSpotifySource,
+    setSpotifySource,
+    setSpotifySourceNegative,
+    isNegativeEntry,
+} from './spotifySourceCache'
 
 type BridgeTrack = Pick<
     Track,
@@ -101,63 +110,6 @@ async function attemptYtDlpUrl(
             data: {
                 error: (ytdlpError as Error).message,
                 url: track.url,
-                cleanedTitle,
-                durationMs,
-            },
-        })
-        return null
-    }
-}
-
-async function attemptYtDlpSearch(
-    cleanedTitle: string,
-    cleanedAuthor: string,
-): Promise<Readable | null> {
-    const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
-    const startedAt = Date.now()
-    try {
-        const stream = await streamViaYtDlpSearch(ytQuery)
-        const durationMs = observeStage('ytdlp_search', startedAt, 'ok')
-        recordYtDlpSuccess()
-        addBreadcrumb(
-            'YouTube search stream resolved for Spotify source',
-            'music.youtube-extraction',
-            'info',
-        )
-        infoLog({
-            message:
-                'Bridge: streamed via yt-dlp YouTube search (Spotify source)',
-            data: {
-                query: ytQuery,
-                title: cleanedTitle,
-                durationMs,
-            },
-        })
-        return stream
-    } catch (ytSearchError) {
-        const durationMs = observeStage('ytdlp_search', startedAt, 'fail')
-        recordYtDlpFailure(ytSearchError)
-        addBreadcrumb(
-            'YouTube extraction failed via search',
-            'music.youtube-extraction',
-            'warning',
-            {
-                error: scrubUrls((ytSearchError as Error).message),
-                searchText: ytQuery,
-            },
-        )
-        captureMessage(
-            `YouTube search extraction failed: ${scrubUrls((ytSearchError as Error).message)}`,
-            'warning',
-            { searchText: ytQuery },
-            { category: 'music.youtube-extraction', stage: 'yt-dlp-search' },
-        )
-        warnLog({
-            message:
-                'Bridge: yt-dlp YouTube search failed, falling back to SoundCloud',
-            data: {
-                error: (ytSearchError as Error).message,
-                query: ytQuery,
                 cleanedTitle,
                 durationMs,
             },
@@ -406,6 +358,156 @@ export async function streamSpotifyTrackViaBridge(
     return createResilientStream(track)
 }
 
+/**
+ * Resolves audio for a Spotify track via a two-tier cache (L1 LRU + Redis).
+ *
+ * Cache hit  → calls streamViaYtDlp() with the cached YouTube URL directly,
+ *              skipping the ytsearch1 round-trip (~4–6 s saved).
+ * Negative   → skip yt-dlp entirely; return null so the caller falls through
+ *              to SoundCloud immediately.
+ * Cache miss → resolve the YouTube URL with resolveYtDlpSearchUrl(), populate
+ *              the cache, then stream from that URL; on resolution failure,
+ *              store a negative entry and return null.
+ *
+ * Returns null when the stream could not be resolved (caller handles SoundCloud
+ * fallback) and always handles its own cache writes.
+ */
+async function resolveSpotifyViaCache(
+    spotifyUrl: string,
+    cleanedTitle: string,
+    cleanedAuthor: string,
+): Promise<Readable | null> {
+    const cached = await getSpotifySource(spotifyUrl).catch(() => null)
+
+    if (cached !== null) {
+        if (isNegativeEntry(cached)) {
+            spotifyCacheTotal.inc({ result: 'negative' })
+            debugLog({
+                message: 'Bridge: Spotify cache negative hit — skipping yt-dlp',
+                data: { cleanedTitle },
+            })
+            return null
+        }
+
+        spotifyCacheTotal.inc({ result: 'hit' })
+        const startedAt = Date.now()
+        try {
+            const stream = await streamViaYtDlp(cached)
+            const durationMs = observeStage('ytdlp_search', startedAt, 'ok')
+            recordYtDlpSuccess()
+            infoLog({
+                message: 'Bridge: Spotify cache hit — streamed via cached URL',
+                data: { cleanedTitle, durationMs },
+            })
+            return stream
+        } catch (cacheHitError) {
+            // Cached URL is stale or geo-blocked; fall through to a fresh resolve.
+            observeStage('ytdlp_search', startedAt, 'fail')
+            warnLog({
+                message:
+                    'Bridge: Spotify cache hit but stream failed — re-resolving',
+                data: {
+                    cleanedTitle,
+                    error: (cacheHitError as Error).message,
+                },
+            })
+        }
+    } else {
+        spotifyCacheTotal.inc({ result: 'miss' })
+    }
+
+    // Cache miss (or stale hit): resolve the YouTube URL, cache it, then stream.
+    const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
+    const resolveStart = Date.now()
+    let youtubeUrl: string
+    try {
+        youtubeUrl = await resolveYtDlpSearchUrl(ytQuery)
+    } catch (resolveError) {
+        observeStage('ytdlp_search', resolveStart, 'fail')
+        recordYtDlpFailure(resolveError)
+        addBreadcrumb(
+            'YouTube URL resolve failed for Spotify source',
+            'music.youtube-extraction',
+            'warning',
+            {
+                error: scrubUrls((resolveError as Error).message),
+                searchText: ytQuery,
+            },
+        )
+        captureMessage(
+            `YouTube search extraction failed: ${scrubUrls((resolveError as Error).message)}`,
+            'warning',
+            { searchText: ytQuery },
+            { category: 'music.youtube-extraction', stage: 'yt-dlp-search' },
+        )
+        warnLog({
+            message:
+                'Bridge: yt-dlp URL resolve failed, storing negative and falling back to SoundCloud',
+            data: {
+                error: (resolveError as Error).message,
+                query: ytQuery,
+                cleanedTitle,
+            },
+        })
+        void setSpotifySourceNegative(spotifyUrl)
+        return null
+    }
+
+    // URL resolved — cache it, then stream.
+    void setSpotifySource(spotifyUrl, youtubeUrl)
+
+    const streamStart = Date.now()
+    try {
+        const stream = await streamViaYtDlp(youtubeUrl)
+        const durationMs = observeStage('ytdlp_search', resolveStart, 'ok')
+        recordYtDlpSuccess()
+        addBreadcrumb(
+            'YouTube search stream resolved for Spotify source',
+            'music.youtube-extraction',
+            'info',
+        )
+        infoLog({
+            message:
+                'Bridge: streamed via yt-dlp YouTube search (Spotify source)',
+            data: {
+                query: ytQuery,
+                title: cleanedTitle,
+                durationMs,
+            },
+        })
+        return stream
+    } catch (streamError) {
+        const durationMs = observeStage('ytdlp_search', streamStart, 'fail')
+        recordYtDlpFailure(streamError)
+        addBreadcrumb(
+            'YouTube extraction failed via search',
+            'music.youtube-extraction',
+            'warning',
+            {
+                error: scrubUrls((streamError as Error).message),
+                searchText: ytQuery,
+            },
+        )
+        captureMessage(
+            `YouTube search extraction failed: ${scrubUrls((streamError as Error).message)}`,
+            'warning',
+            { searchText: ytQuery },
+            { category: 'music.youtube-extraction', stage: 'yt-dlp-search' },
+        )
+        warnLog({
+            message:
+                'Bridge: yt-dlp stream failed after URL resolve, falling back to SoundCloud',
+            data: {
+                error: (streamError as Error).message,
+                query: ytQuery,
+                cleanedTitle,
+                durationMs,
+            },
+        })
+        return null
+    }
+}
+
 async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     const cleanedTitle = cleanTitle(track.title)
     const cleanedAuthor = cleanAuthor(track.author)
@@ -446,8 +548,12 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     }
 
     if (!ytDlpBlocked && isSpotifyUrl) {
-        const stream = await attemptYtDlpSearch(cleanedTitle, cleanedAuthor)
-        if (stream) return stream
+        const stream = await resolveSpotifyViaCache(
+            track.url as string,
+            cleanedTitle,
+            cleanedAuthor,
+        )
+        if (stream !== null) return stream
         youtubeStage = 'yt-dlp-search'
     }
 

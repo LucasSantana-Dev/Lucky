@@ -40,6 +40,12 @@ jest.mock('../../utils/monitoring/sentry', () => ({
     },
     scrubUrls: (text: string) => text,
 }))
+jest.mock('./spotifySourceCache', () => ({
+    getSpotifySource: jest.fn().mockResolvedValue(null),
+    setSpotifySource: jest.fn().mockResolvedValue(undefined),
+    setSpotifySourceNegative: jest.fn().mockResolvedValue(undefined),
+    isNegativeEntry: jest.fn().mockReturnValue(false),
+}))
 
 import { createResilientStream } from './resilientStreamBridge'
 

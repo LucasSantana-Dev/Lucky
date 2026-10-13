@@ -239,6 +239,19 @@ export const extractionFailuresTotal = new Counter<'type'>({
 })
 
 /**
+ * Counter: Spotify source cache lookups by result (hit|miss|negative).
+ * `hit` — resolved YouTube URL served from cache (L1 or Redis).
+ * `miss` — cache miss; yt-dlp search runs to resolve the source.
+ * `negative` — cached failure entry; falls through to SoundCloud immediately.
+ */
+export const spotifyCacheTotal = new Counter<'result'>({
+    name: 'lucky_bot_spotify_cache_total',
+    help: 'Spotify source cache lookups, by result (hit|miss|negative).',
+    labelNames: ['result'],
+    registers: [registry],
+})
+
+/**
  * Render the registry as Prometheus text exposition format.
  */
 export async function renderMetrics(): Promise<string> {

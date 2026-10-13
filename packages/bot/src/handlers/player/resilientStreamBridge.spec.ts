@@ -15,11 +15,27 @@ const mockAddBreadcrumb = jest.fn()
 const mockCaptureMessage = jest.fn()
 const mockStreamViaYtDlp = jest.fn()
 const mockStreamViaYtDlpSearch = jest.fn()
+const mockResolveYtDlpSearchUrl = jest.fn()
 const mockStampFallbackStage = jest.fn()
 const mockObserve = jest.fn()
+const mockSpotifyCacheInc = jest.fn()
+const mockGetSpotifySource = jest.fn()
+const mockSetSpotifySource = jest.fn()
+const mockSetSpotifySourceNegative = jest.fn()
 
 jest.mock('../../utils/monitoring/prometheus', () => ({
     playStageSeconds: { observe: (...args: unknown[]) => mockObserve(...args) },
+    spotifyCacheTotal: {
+        inc: (...args: unknown[]) => mockSpotifyCacheInc(...args),
+    },
+}))
+
+jest.mock('./spotifySourceCache', () => ({
+    getSpotifySource: (...args: unknown[]) => mockGetSpotifySource(...args),
+    setSpotifySource: (...args: unknown[]) => mockSetSpotifySource(...args),
+    setSpotifySourceNegative: (...args: unknown[]) =>
+        mockSetSpotifySourceNegative(...args),
+    isNegativeEntry: (value: unknown) => value === '__neg__',
 }))
 
 jest.mock('./soundcloudMatcher', () => ({
@@ -67,6 +83,8 @@ jest.mock('./ytdlpProcess', () => ({
     streamViaYtDlp: (...args: unknown[]) => mockStreamViaYtDlp(...args),
     streamViaYtDlpSearch: (...args: unknown[]) =>
         mockStreamViaYtDlpSearch(...args),
+    resolveYtDlpSearchUrl: (...args: unknown[]) =>
+        mockResolveYtDlpSearchUrl(...args),
 }))
 jest.mock('./streamFallbackState', () => ({
     stampFallbackStage: (...args: unknown[]) => mockStampFallbackStage(...args),
@@ -117,6 +135,14 @@ function makeTrack(
 
 const fakeStream = new EventEmitter() as any
 
+// Module-level defaults so every describe block starts with a clean, sane state
+// (jest.clearAllMocks keeps implementations, so setting them once is enough).
+// Tests that need different behavior override with mockResolvedValueOnce etc.
+mockGetSpotifySource.mockResolvedValue(null) // default: cache miss
+mockResolveYtDlpSearchUrl.mockResolvedValue(
+    'https://www.youtube.com/watch?v=test-resolved',
+)
+
 // ---------------------------------------------------------------------------
 // createResilientStream — fallback chain + Sentry instrumentation
 // ---------------------------------------------------------------------------
@@ -162,7 +188,7 @@ describe('createResilientStream', () => {
         })
 
         it('observes ytdlp_search for Spotify tracks', async () => {
-            mockStreamViaYtDlpSearch.mockResolvedValue(fakeStream)
+            mockStreamViaYtDlp.mockResolvedValue(fakeStream)
             await createResilientStream(
                 makeTrack({ url: 'https://open.spotify.com/track/1' }),
             )
@@ -330,7 +356,7 @@ describe('createResilientStream', () => {
     })
 
     it('captures breadcrumb on successful YouTube search stream for Spotify source', async () => {
-        mockStreamViaYtDlpSearch.mockResolvedValue(fakeStream)
+        mockStreamViaYtDlp.mockResolvedValue(fakeStream)
         const track = makeTrack({
             url: 'https://open.spotify.com/track/123',
         })
@@ -344,7 +370,8 @@ describe('createResilientStream', () => {
     })
 
     it('captures breadcrumb and message on YouTube search extraction failure for Spotify', async () => {
-        mockStreamViaYtDlpSearch.mockRejectedValue(new Error('yt-dlp error'))
+        // URL resolve succeeds (module default), but streaming the resolved URL fails.
+        mockStreamViaYtDlp.mockRejectedValueOnce(new Error('yt-dlp error'))
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
         const track = makeTrack({
             url: 'https://open.spotify.com/track/123',
@@ -441,7 +468,7 @@ describe('fallback stage stamping', () => {
     })
 
     it('does not stamp metadata when the yt-dlp search stage resolves a Spotify track', async () => {
-        mockStreamViaYtDlpSearch.mockResolvedValue(fakeStream)
+        mockStreamViaYtDlp.mockResolvedValue(fakeStream)
         const track = makeTrack({ url: 'https://open.spotify.com/track/123' })
         mockCleanSearchQuery.mockReturnValue('song name')
         await createResilientStream(track)
@@ -575,6 +602,7 @@ describe('yt-dlp block breaker wiring (#2653)', () => {
         mockExtractSongCore.mockReturnValue(null)
         mockIsAvailable.mockReturnValue(true)
         mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+        mockGetSpotifySource.mockResolvedValue(null) // cache miss for Spotify tests
     })
 
     it('skips the yt-dlp search stage while blocked and goes straight to SoundCloud', async () => {
@@ -583,7 +611,7 @@ describe('yt-dlp block breaker wiring (#2653)', () => {
         const result = await createResilientStream(spotifyTrack())
 
         expect(result).toBe(fakeStream)
-        expect(mockStreamViaYtDlpSearch).not.toHaveBeenCalled()
+        expect(mockResolveYtDlpSearchUrl).not.toHaveBeenCalled()
         expect(mockStreamViaSoundCloud).toHaveBeenCalled()
     })
 
@@ -598,7 +626,7 @@ describe('yt-dlp block breaker wiring (#2653)', () => {
 
     it('records a yt-dlp failure with its error', async () => {
         const error = new Error('HTTP Error 403: Forbidden')
-        mockStreamViaYtDlpSearch.mockRejectedValueOnce(error)
+        mockResolveYtDlpSearchUrl.mockRejectedValueOnce(error)
 
         await createResilientStream(spotifyTrack())
 
@@ -764,6 +792,7 @@ describe('streamSpotifyTrackViaBridge', () => {
         mockCleanAuthor.mockReturnValue('Test Artist')
         mockCleanSearchQuery.mockReturnValue('test track test artist')
         mockIsAvailable.mockReturnValue(true)
+        mockGetSpotifySource.mockResolvedValue(null) // cache miss — exercise full resolve path
     })
 
     const spotify = () => ({
@@ -772,13 +801,13 @@ describe('streamSpotifyTrackViaBridge', () => {
     })
 
     it('sends Spotify tracks straight to the bridge', async () => {
-        mockStreamViaYtDlpSearch.mockResolvedValueOnce(fakeStream)
+        mockStreamViaYtDlp.mockResolvedValueOnce(fakeStream)
 
         await expect(streamSpotifyTrackViaBridge(spotify())).resolves.toBe(
             fakeStream,
         )
 
-        expect(mockStreamViaYtDlpSearch).toHaveBeenCalledTimes(1)
+        expect(mockResolveYtDlpSearchUrl).toHaveBeenCalledTimes(1)
         expect(mockObserve).toHaveBeenCalledWith(
             { stage: 'bridge_total', outcome: 'ok' },
             expect.any(Number),
@@ -786,7 +815,7 @@ describe('streamSpotifyTrackViaBridge', () => {
     })
 
     it('rejects when the bridge is exhausted so the track is skipped', async () => {
-        mockStreamViaYtDlpSearch.mockRejectedValue(new Error('yt fail'))
+        mockResolveYtDlpSearchUrl.mockRejectedValue(new Error('yt fail'))
         mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
 
         await expect(streamSpotifyTrackViaBridge(spotify())).rejects.toThrow(
