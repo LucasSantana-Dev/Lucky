@@ -53,7 +53,9 @@ describe('ytdlpBlockBreaker (#2653)', () => {
         ],
         [AGE_GATE.message, 'other'],
         ['yt-dlp exited without output (code 0)', 'empty'],
+        ['yt-dlp URL resolve failed (code 1) - ERROR: no results', 'empty'],
         ['yt-dlp: timed out waiting for stream start', 'timeout'],
+        ['yt-dlp: timed out resolving URL', 'timeout'],
         ['yt-dlp: domain not in allowlist: example.com', 'other'],
     ])('classifies "%s" as %s', (message, type) => {
         expect(classifyYtDlpFailure(new Error(message))).toBe(type)
@@ -78,12 +80,54 @@ describe('ytdlpBlockBreaker (#2653)', () => {
         expect(isYtDlpBlocked(2_000 + YTDLP_BLOCK_COOLDOWN_MS)).toBe(false)
     })
 
-    it('does not open on non-403 failures', () => {
+    it('does not open on "other" failures (e.g., age gate, domain)', () => {
         for (let i = 0; i < 5; i++) {
-            recordYtDlpFailure(new Error('yt-dlp: timed out'), i)
+            recordYtDlpFailure(AGE_GATE, i)
         }
 
         expect(isYtDlpBlocked(5)).toBe(false)
+    })
+
+    it('two consecutive timeouts open the block (#2742)', () => {
+        recordYtDlpFailure(
+            new Error('yt-dlp: timed out waiting for stream start'),
+            1_000,
+        )
+        expect(isYtDlpBlocked(1_000)).toBe(false)
+
+        recordYtDlpFailure(
+            new Error('yt-dlp: timed out waiting for stream start'),
+            2_000,
+        )
+        expect(isYtDlpBlocked(2_000)).toBe(true)
+    })
+
+    it('two consecutive empty results open the block (#2742)', () => {
+        recordYtDlpFailure(
+            new Error('yt-dlp exited without output (code 0)'),
+            1_000,
+        )
+        expect(isYtDlpBlocked(1_000)).toBe(false)
+
+        recordYtDlpFailure(
+            new Error('yt-dlp exited without output (code 0)'),
+            2_000,
+        )
+        expect(isYtDlpBlocked(2_000)).toBe(true)
+    })
+
+    it('URL resolve failure (empty) counts toward the streak (#2742)', () => {
+        recordYtDlpFailure(
+            new Error('yt-dlp URL resolve failed (code 1)'),
+            1_000,
+        )
+        expect(isYtDlpBlocked(1_000)).toBe(false)
+
+        recordYtDlpFailure(
+            new Error('yt-dlp URL resolve failed (code 1)'),
+            2_000,
+        )
+        expect(isYtDlpBlocked(2_000)).toBe(true)
     })
 
     it('a success resets the streak', () => {
@@ -121,9 +165,9 @@ describe('ytdlpBlockBreaker (#2653)', () => {
         expect(isYtDlpBlocked(FORBIDDEN_WINDOW_MS)).toBe(false)
     })
 
-    it('a non-403 failure between two 403s neither counts nor breaks the streak', () => {
+    it('an "other" failure between two 403s neither counts nor breaks the streak', () => {
         recordYtDlpFailure(FORBIDDEN, 1)
-        recordYtDlpFailure(new Error('yt-dlp: timed out'), 2)
+        recordYtDlpFailure(AGE_GATE, 2) // 'other' — does not count
         recordYtDlpFailure(FORBIDDEN, 3)
 
         expect(isYtDlpBlocked(3)).toBe(true)

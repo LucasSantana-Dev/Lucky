@@ -38,7 +38,11 @@ export function classifyYtDlpFailure(error: unknown): YtDlpFailureType {
     const message = error instanceof Error ? error.message : String(error)
     if (message.includes('HTTP Error 403')) return 'forbidden'
     if (/Sign in to confirm you.re not a bot/.test(message)) return 'botcheck'
-    if (message.includes('exited without output')) return 'empty'
+    if (
+        message.includes('exited without output') ||
+        message.includes('URL resolve failed')
+    )
+        return 'empty'
     if (message.includes('timed out')) return 'timeout'
     return 'other'
 }
@@ -63,7 +67,10 @@ function markBreakerDegraded(): void {
 export function recordYtDlpFailure(error: unknown, now = Date.now()): void {
     const type = classifyYtDlpFailure(error)
     extractionFailuresTotal.inc({ type })
-    if (type !== 'forbidden' && type !== 'botcheck') return
+    // 'forbidden' and 'botcheck' are access-denial signals.
+    // 'timeout' and 'empty' also count: repeated hangs or no-output results
+    // indicate YouTube is degraded, not per-track issues (#2742).
+    if (type === 'other') return
     if (now - lastForbiddenAt >= FORBIDDEN_WINDOW_MS) consecutiveForbidden = 0
     lastForbiddenAt = now
     consecutiveForbidden += 1
