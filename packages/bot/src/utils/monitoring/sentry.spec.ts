@@ -102,6 +102,18 @@ describe('sentry telemetry helpers', () => {
         )
     })
 
+    it('forwards an optional fingerprint to Sentry.captureMessage', () => {
+        captureMessage('exhausted', 'warning', undefined, undefined, [
+            'bridge',
+            'forbidden',
+        ])
+
+        expect(Sentry.captureMessage).toHaveBeenCalledWith(
+            'exhausted',
+            expect.objectContaining({ fingerprint: ['bridge', 'forbidden'] }),
+        )
+    })
+
     it('forwards breadcrumb data to Sentry.addBreadcrumb', () => {
         addBreadcrumb(
             'extraction failed',

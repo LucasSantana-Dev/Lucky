@@ -116,6 +116,18 @@ export async function streamViaSoundCloud(
 
     const match = findMatchingSoundCloudResult(query, trackDuration, results)
     if (!match) {
+        warnLog({
+            message: 'SoundCloud: no validated match',
+            data: {
+                query,
+                trackDuration,
+                rejected: describeRejectedCandidates(
+                    query,
+                    trackDuration,
+                    results,
+                ),
+            },
+        })
         throw new Error(
             `SoundCloud: no validated match for "${query}" (title/duration mismatch)`,
         )
@@ -213,8 +225,35 @@ export function findMatchingSoundCloudResult(
     }, pool[0]).result
 }
 
+function describeRejectedCandidates(
+    query: string,
+    trackDuration: string | undefined,
+    results: readonly SoundCloudSearchResult[],
+): { name: string; titleScore: number; durationDeltaSec: number | null }[] {
+    const tokens = normalizeForMatch(query).split(/ +/).filter(Boolean)
+    const trackSec = parseDurationString(trackDuration)
+    return results.slice(0, 5).map((result) => {
+        const resultNorm = normalizeForMatch(result.name)
+        const matched = tokens.filter((token) =>
+            resultNorm.includes(token),
+        ).length
+        return {
+            name: result.name,
+            titleScore: tokens.length
+                ? Number((matched / tokens.length).toFixed(2))
+                : 0,
+            durationDeltaSec:
+                trackSec !== null && result.durationInSec
+                    ? Math.abs(result.durationInSec - trackSec)
+                    : null,
+        }
+    })
+}
+
 function normalizeForMatch(value: string): string {
     return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .replace(/[^a-z0-9 ]/g, '')
         .replace(/ {2,}/g, ' ') // NOSONAR: S5852 — bounded input, no catastrophic backtracking risk
