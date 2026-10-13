@@ -63,7 +63,6 @@ export async function createOnboardingStationRow(
         new ButtonBuilder()
             .setCustomId(`${ONBOARDING_STATION_BUTTON_PREFIX}play`)
             .setLabel(t('music.onboarding.playButton'))
-            .setEmoji('▶️')
             .setStyle(ButtonStyle.Primary),
     )
 }

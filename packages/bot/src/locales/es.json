@@ -49,7 +49,7 @@
         "nowPlaying": "Reproduciendo {{title}}, no pares",
         "onboarding": {
             "title": "🎵 ¡Gracias por agregar Lucky!",
-            "description": "`/play <canción o url>` — pon música en tu canal de voz\n\nCada domingo, un resumen semanal muestra tus canciones y artistas favoritos. Usa `/recap` cuando quieras.",
+            "description": "`/play <canción o url>` — pon música en tu canal de voz\n\nCuando está configurado, Lucky publica un resumen dominical de tus canciones y artistas favoritos. Un administrador puede activarlo con `/recap channel`.",
             "playButton": "▶ Empezar a Escuchar"
         },
         "station": {
@@ -58,7 +58,7 @@
                 "gaming": "Gaming",
                 "pop": "Pop",
                 "brMix": "Mix Brasileño",
-                "play": "Empezar a Escuchar"
+                "play": "Mix Popular"
             },
             "notInVoiceTitle": "Únete a un canal de voz",
             "notInVoiceDescription": "Únete a un canal de voz primero y vuelve a hacer clic en la estación.",
