@@ -1,5 +1,5 @@
 import { createPgAdapter } from './pgAdapter'
-import type { PrismaClient } from '../../generated/prisma/client.js'
+import type { PrismaClient, Prisma } from '../../generated/prisma/client.js'
 import { createRequire } from 'module'
 
 let _require: NodeRequire
@@ -35,4 +35,16 @@ export function disconnectPrisma(): Promise<void> {
         return prismaInstance.$disconnect()
     }
     return Promise.resolve()
+}
+
+/**
+ * Returns Prisma's `DbNull` sentinel (SQL NULL for a nullable `Json?` column).
+ * Writing a plain `null` to a `Json?` field is rejected by Prisma, so callers
+ * that need to clear such a column in an update must pass this value.
+ */
+export function getDbNull(): typeof Prisma.DbNull {
+    const { Prisma: PrismaNamespace } = _require(
+        '../../generated/prisma/client.js',
+    ) as { Prisma: { DbNull: typeof Prisma.DbNull } }
+    return PrismaNamespace.DbNull
 }

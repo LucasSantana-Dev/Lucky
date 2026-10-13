@@ -4,6 +4,7 @@ import type { User } from 'discord.js'
 import { randomUUID } from 'crypto'
 import {
     getPrismaClient,
+    getDbNull,
     debugLog,
     errorLog,
     infoLog,
@@ -169,23 +170,27 @@ export class MusicSessionSnapshotService {
             const sessionSnapshotId = randomUUID()
             const prisma = getPrismaClient()
 
-            // One snapshot per guild: overwrite by replacing the row. (delete +
-            // create avoids the Json-null footgun of clearing currentTrack on update.)
-            await prisma.musicSessionSnapshot.deleteMany({ where: { guildId } })
-            await prisma.musicSessionSnapshot.create({
-                data: {
-                    guildId,
-                    sessionSnapshotId,
-                    voiceChannelId: queue.channel?.id ?? null,
-                    upcomingTracks:
-                        upcomingTracks as unknown as Prisma.InputJsonValue,
-                    ...(currentSnapshot
-                        ? {
-                              currentTrack:
-                                  currentSnapshot as unknown as Prisma.InputJsonValue,
-                          }
-                        : {}),
-                },
+            // One snapshot per guild, written atomically. A delete + create pair
+            // raced when two saves for the same guild interleaved (both deleted,
+            // then the second create hit the unique guildId constraint, P2002).
+            // upsert is a single statement (INSERT .. ON CONFLICT DO UPDATE), so
+            // concurrent saves converge on the last writer. A cleared
+            // currentTrack must be written as DbNull: Prisma rejects a plain null
+            // for a Json? column, and omitting the key would keep the stale track.
+            const data = {
+                sessionSnapshotId,
+                voiceChannelId: queue.channel?.id ?? null,
+                upcomingTracks:
+                    upcomingTracks as unknown as Prisma.InputJsonValue,
+                currentTrack: currentSnapshot
+                    ? (currentSnapshot as unknown as Prisma.InputJsonValue)
+                    : getDbNull(),
+                savedAt: new Date(),
+            }
+            await prisma.musicSessionSnapshot.upsert({
+                where: { guildId },
+                create: { guildId, ...data },
+                update: data,
             })
 
             return {
