@@ -753,6 +753,10 @@ fi
 
 log "Pulling images..."
 phase_start image_pull
+# Capture the running bot's image digest before pulling. If the pulled image
+# has the same content-addressable ID the bot container is left untouched,
+# avoiding a voice-session drop on observability-only or pure-frontend releases.
+_bot_image_id_before=$(docker inspect lucky-bot --format '{{.Image}}' 2>/dev/null || true)
 # Render is optional only when the target commit predates the render service
 # (no packages/render/Cargo.toml in it); then it is pulled separately. Every
 # other deploy, pinned or not, keeps render mandatory.
@@ -793,6 +797,21 @@ if [[ "$_render_optional" == "true" ]]; then
 fi
 
 phase_end image_pull
+
+# Decide whether the bot container needs recreating. Skip it when the pulled
+# image has the same content-addressable ID as the image the running container
+# was started from (handles observability-only and pure-frontend releases).
+_bot_skip_recreate=false
+if [[ -n "$_bot_image_id_before" ]]; then
+    _image_prefix="${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}"
+    _image_tag="${IMAGE_TAG:-latest}"
+    _bot_image_id_after=$(docker inspect "${_image_prefix}-bot:${_image_tag}" \
+        --format '{{.Id}}' 2>/dev/null || true)
+    if [[ -n "$_bot_image_id_after" && "$_bot_image_id_before" == "$_bot_image_id_after" ]]; then
+        _bot_skip_recreate=true
+        log "Bot image unchanged (${_bot_image_id_after:7:16}…) — skipping bot container recreate"
+    fi
+fi
 
 log "Starting database services..."
 phase_start db_up
@@ -868,8 +887,16 @@ ensure_on_lucky_network() {
 
 log "Rolling out services..."
 phase_start rollout
+_rollout_services=""
+for _svc in $_app_services; do
+    if [[ "$_svc" == "bot" && "$_bot_skip_recreate" == "true" ]]; then
+        log "Rollout: skipping bot container (image unchanged)"
+        continue
+    fi
+    _rollout_services="${_rollout_services:+$_rollout_services }$_svc"
+done
 # shellcheck disable=SC2086  # intentional word splitting of the service list
-docker_compose up -d --remove-orphans --no-deps $_app_services postgres redis
+docker_compose up -d --remove-orphans --no-deps $_rollout_services postgres redis
 phase_end rollout
 
 # The webhook runs this script, so it is never recreated here; nginx proxies
