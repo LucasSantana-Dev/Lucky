@@ -14,6 +14,20 @@ Every Sunday, a weekly recap card shows your top tracks and artists. Use \`/reca
 }
 `;
 
+exports[`buildOnboardingEmbed renders the es onboarding embed 1`] = `
+{
+  "color": 5793266,
+  "description": "\`/play <canción o url>\` — pon música en tu canal de voz
+
+Cada domingo, un resumen semanal muestra tus canciones y artistas favoritos. Usa \`/recap\` cuando quieras.",
+  "footer": {
+    "icon_url": undefined,
+    "text": "Lucky",
+  },
+  "title": "🎵 ¡Gracias por agregar Lucky!",
+}
+`;
+
 exports[`buildOnboardingEmbed renders the pt-BR onboarding embed 1`] = `
 {
   "color": 5793266,

@@ -13,6 +13,11 @@ describe('buildOnboardingEmbed', () => {
         expect(buildOnboardingEmbed(t).toJSON()).toMatchSnapshot()
     })
 
+    it('renders the es onboarding embed', () => {
+        const t = translatorFor('es')
+        expect(buildOnboardingEmbed(t).toJSON()).toMatchSnapshot()
+    })
+
     it('embed description mentions /play and recap (en)', () => {
         const t = translatorFor('en')
         const embed = buildOnboardingEmbed(t).toJSON()
@@ -27,6 +32,13 @@ describe('buildOnboardingEmbed', () => {
         expect(embed.description).toMatch(/recap/)
     })
 
+    it('embed description mentions /play and recap (es)', () => {
+        const t = translatorFor('es')
+        const embed = buildOnboardingEmbed(t).toJSON()
+        expect(embed.description).toMatch(/\/play/)
+        expect(embed.description).toMatch(/resumen|recap/)
+    })
+
     it('embed description never contains invite or vote CTA (en)', () => {
         const t = translatorFor('en')
         const embed = buildOnboardingEmbed(t).toJSON()
@@ -36,6 +48,12 @@ describe('buildOnboardingEmbed', () => {
     it('embed description never contains invite or vote CTA (pt-BR)', () => {
         const t = translatorFor('pt-BR')
         const embed = buildOnboardingEmbed(t).toJSON()
-        expect(embed.description.toLowerCase()).not.toMatch(/invite|vote/)
+        expect(embed.description.toLowerCase()).not.toMatch(/convid|vot/)
+    })
+
+    it('embed description never contains invite or vote CTA (es)', () => {
+        const t = translatorFor('es')
+        const embed = buildOnboardingEmbed(t).toJSON()
+        expect(embed.description.toLowerCase()).not.toMatch(/invit|vot/)
     })
 })
