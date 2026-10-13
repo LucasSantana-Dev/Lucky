@@ -437,6 +437,9 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     })
 
     let youtubeStage: string | undefined
+    // The same Track instance can be played again: drop the previous play's
+    // failure class so this play's event is fingerprinted by its own cause.
+    firstYouTubeFailure.delete(track)
 
     // YouTube is answering media downloads with 403: skip yt-dlp instead of
     // paying 4-10 s per play for a known failure (#2653).
@@ -464,6 +467,9 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         if (stream) return stream
         youtubeStage = 'yt-dlp-search'
     }
+
+    // Neither yt-dlp branch ran (no URL): do not claim yt-dlp was attempted.
+    youtubeStage ??= 'yt-dlp-not-attempted'
 
     if (!cleanedTitle) {
         warnLog({

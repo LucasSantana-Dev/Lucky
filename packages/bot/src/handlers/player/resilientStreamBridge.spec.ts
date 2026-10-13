@@ -422,6 +422,44 @@ describe('Sentry events per play', () => {
         expect(mockCaptureMessage).not.toHaveBeenCalled()
     })
 
+    it('does not carry the failure class of a previous play on the same track', async () => {
+        const track = makeTrack()
+        mockStreamViaYtDlp.mockRejectedValueOnce(
+            new Error('ERROR: HTTP Error 403: Forbidden'),
+        )
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
+        await expect(createResilientStream(track)).rejects.toThrow(
+            'Bridge exhausted',
+        )
+        mockCaptureMessage.mockClear()
+        mockStreamViaYtDlp.mockRejectedValueOnce(
+            new Error('yt-dlp exited without output'),
+        )
+        await expect(createResilientStream(track)).rejects.toThrow(
+            'Bridge exhausted',
+        )
+        expect(mockCaptureMessage).toHaveBeenCalledTimes(1)
+        expect(mockCaptureMessage.mock.calls[0][4]).toEqual([
+            'youtube-extraction-exhausted',
+            'empty',
+        ])
+    })
+
+    it('does not list yt-dlp as tried when the track has no URL', async () => {
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
+        await expect(
+            createResilientStream(makeTrack({ url: '' })),
+        ).rejects.toThrow('Bridge exhausted')
+        expect(mockStreamViaYtDlp).not.toHaveBeenCalled()
+        const tags = mockCaptureMessage.mock.calls[0][3] as {
+            stages_tried: string
+            failure_class: string
+        }
+        expect(tags.failure_class).toBe('none')
+        expect(tags.stages_tried).not.toMatch(/(^|,)yt-dlp(,|$)/)
+        expect(tags.stages_tried).toContain('yt-dlp-not-attempted')
+    })
+
     it.each([
         ['ERROR: HTTP Error 403: Forbidden', 'forbidden'],
         ['yt-dlp exited without output', 'empty'],
