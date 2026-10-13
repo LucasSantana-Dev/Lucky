@@ -362,31 +362,11 @@ export async function executePlayHandler({
 
         if (isPlaylist) {
             for (const t of result.searchResult.tracks) {
-                const descriptor = Object.getOwnPropertyDescriptor(
-                    t,
-                    'metadata',
-                )
-                if (descriptor?.configurable === false) {
-                    const meta = (
-                        t as unknown as { metadata?: Record<string, unknown> }
-                    ).metadata
-                    if (
-                        meta &&
-                        typeof meta === 'object' &&
-                        !Object.isFrozen(meta)
-                    )
-                        meta['isPlaylist'] = true
-                } else {
-                    const existing = ((
-                        t as unknown as { metadata?: Record<string, unknown> }
-                    ).metadata ?? {}) as Record<string, unknown>
-                    Object.defineProperty(t, 'metadata', {
-                        value: { ...existing, isPlaylist: true },
-                        writable: true,
-                        configurable: true,
-                        enumerable: true,
-                    })
-                }
+                const existing =
+                    t.metadata && typeof t.metadata === 'object'
+                        ? (t.metadata as Record<string, unknown>)
+                        : {}
+                t.setMetadata({ ...existing, isPlaylist: true })
             }
         }
 
