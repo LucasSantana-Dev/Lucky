@@ -86,6 +86,7 @@ jest.mock('./ytdlpBlockBreaker', () => ({
     recordYtDlpSuccess: () => mockRecordYtDlpSuccess(),
 }))
 
+import { isReportedBridgeExhausted } from './bridgeExhaustedError'
 import {
     createResilientStream,
     streamSpotifyTrackViaBridge,
@@ -458,6 +459,32 @@ describe('Sentry events per play', () => {
         expect(tags.failure_class).toBe('none')
         expect(tags.stages_tried).not.toMatch(/(^|,)yt-dlp(,|$)/)
         expect(tags.stages_tried).toContain('yt-dlp-not-attempted')
+    })
+
+    it('marks the thrown error as reported only when the exhausted event was sent', async () => {
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
+        const reported = await createResilientStream(makeTrack()).catch(
+            (e) => e,
+        )
+        expect(mockCaptureMessage).toHaveBeenCalledTimes(1)
+        expect(isReportedBridgeExhausted(reported)).toBe(true)
+
+        mockCaptureMessage.mockClear()
+        mockCleanTitle.mockReturnValue('')
+        const emptyTitle = await createResilientStream(makeTrack()).catch(
+            (e) => e,
+        )
+        expect(mockCaptureMessage).not.toHaveBeenCalled()
+        expect(isReportedBridgeExhausted(emptyTitle)).toBe(false)
+
+        mockCleanTitle.mockReturnValue('Test Track')
+        mockIsAvailable.mockReturnValue(false)
+        const circuitOpen = await createResilientStream(makeTrack()).catch(
+            (e) => e,
+        )
+        expect(mockCaptureMessage).not.toHaveBeenCalled()
+        expect(isReportedBridgeExhausted(circuitOpen)).toBe(false)
     })
 
     it.each([
@@ -879,6 +906,19 @@ describe('bridge runs once per track', () => {
         expect(mockStreamViaSoundCloud).toHaveBeenCalledTimes(scCalls)
         // One bridge_total observation per track, not per call.
         expect(stageCount('bridge_total')).toBe(1)
+    })
+
+    it('keeps the reported marker on the fail-fast second call', async () => {
+        const ext = makeExt({ id: 'pass-marker' })
+        const first = await createResilientStream(makeTrack(), ext).catch(
+            (e) => e,
+        )
+        const second = await createResilientStream(
+            makeTrack({ title: 'Searched Hit' }),
+            ext,
+        ).catch((e) => e)
+        expect(isReportedBridgeExhausted(first)).toBe(true)
+        expect(isReportedBridgeExhausted(second)).toBe(true)
     })
 
     it('lets the fallback hit with a different URL try yt-dlp once', async () => {

@@ -19,6 +19,10 @@ import { isHost } from '../../utils/general/urlHost'
 import { playStageSeconds } from '../../utils/monitoring/prometheus'
 import { streamViaYtDlp, streamViaYtDlpSearch } from './ytdlpProcess'
 import {
+    BridgeExhaustedError,
+    isReportedBridgeExhausted,
+} from './bridgeExhaustedError'
+import {
     classifyYtDlpFailure,
     isYtDlpBlocked,
     recordYtDlpFailure,
@@ -42,6 +46,10 @@ const firstYouTubeFailure = new WeakMap<object, string>()
 // Tracks whose empty YouTube search went on to the broad retry, so the
 // exhausted event can list that stage in stages_tried.
 const broadSearchTried = new WeakSet<object>()
+
+// Tracks whose all-exhausted event was already sent, so the final throw can
+// carry the marker that lets handlePlayerError skip its duplicate exception.
+const reportedExhausted = new WeakSet<object>()
 
 function noteFirstYouTubeFailure(track: BridgeTrack, error: unknown): void {
     if (!firstYouTubeFailure.has(track)) {
@@ -370,6 +378,7 @@ function logAllStagesExhausted(
         durationMs?: number
     } = {},
 ): void {
+    reportedExhausted.add(track)
     const failureClass = firstYouTubeFailure.get(track) ?? 'none'
     captureMessage(
         'YouTube extraction exhausted all fallback stages',
@@ -409,6 +418,8 @@ function logAllStagesExhausted(
 // different upload, which can succeed where the original was geo-blocked or
 // private, so a different URL still gets one direct yt-dlp attempt.
 const exhaustedPasses = new WeakMap<object, string | null>()
+// Passes whose first failure already sent the all-exhausted event.
+const reportedPasses = new WeakSet<object>()
 
 function currentPassKey(ext: unknown): object | null {
     try {
@@ -427,7 +438,11 @@ export async function createResilientStream(
 ): Promise<Readable> {
     const passKey = currentPassKey(ext)
     if (passKey && exhaustedPasses.has(passKey)) {
-        return retryExhaustedPass(track, exhaustedPasses.get(passKey) ?? null)
+        return retryExhaustedPass(
+            track,
+            exhaustedPasses.get(passKey) ?? null,
+            reportedPasses.has(passKey),
+        )
     }
 
     const startedAt = Date.now()
@@ -441,7 +456,10 @@ export async function createResilientStream(
         return stream
     } catch (error) {
         const durationMs = observeStage('bridge_total', startedAt, 'fail')
-        if (passKey) exhaustedPasses.set(passKey, track.url ?? null)
+        if (passKey) {
+            exhaustedPasses.set(passKey, track.url ?? null)
+            if (isReportedBridgeExhausted(error)) reportedPasses.add(passKey)
+        }
         debugLog({
             message: 'Bridge: failed',
             data: {
@@ -461,6 +479,7 @@ export async function createResilientStream(
 async function retryExhaustedPass(
     track: BridgeTrack,
     failedUrl: string | null,
+    reported: boolean,
 ): Promise<Readable> {
     const url = track.url
     const canRescue =
@@ -476,7 +495,10 @@ async function retryExhaustedPass(
         message: 'Bridge: already exhausted for this play, failing fast',
         data: { title: track.title, rescueTried: canRescue },
     })
-    throw new Error(`Bridge exhausted: no stream for "${track.title}"`)
+    throw new BridgeExhaustedError(
+        `Bridge exhausted: no stream for "${track.title}"`,
+        reported,
+    )
 }
 
 /**
@@ -518,6 +540,7 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     // The same Track instance can be played again: drop the previous play's
     // failure class so this play's event is fingerprinted by its own cause.
     firstYouTubeFailure.delete(track)
+    reportedExhausted.delete(track)
 
     // YouTube is answering media downloads with 403: skip yt-dlp instead of
     // paying 4-10 s per play for a known failure (#2653).
@@ -608,5 +631,8 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     )
     if (coreStream) return coreStream
 
-    throw new Error(`Bridge exhausted: no stream for "${track.title}"`)
+    throw new BridgeExhaustedError(
+        `Bridge exhausted: no stream for "${track.title}"`,
+        reportedExhausted.has(track),
+    )
 }

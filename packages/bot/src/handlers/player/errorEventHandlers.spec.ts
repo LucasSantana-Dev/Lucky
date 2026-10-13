@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { setupErrorHandlers, handlePlayerError } from './errorEventHandlers'
+import { BridgeExhaustedError } from './bridgeExhaustedError'
 
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -407,5 +408,69 @@ describe('errorEventHandlers', () => {
                 message: expect.stringContaining('stream extraction error'),
             }),
         )
+    })
+
+    describe('Bridge exhausted dedupe', () => {
+        const makeQueue = () => ({
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            currentTrack: { url: 'https://youtube.com/watch?v=1', title: 'T' },
+            node: { skip: jest.fn() },
+        })
+        // discord-player wraps the bridge error: only its stack text survives.
+        const wrapLikeDiscordPlayer = (inner: Error) =>
+            new Error(
+                `Could not extract stream for this track\n\n${inner.stack || inner}`,
+            )
+
+        beforeEach(() => {
+            captureExceptionMock.mockClear()
+        })
+
+        it('skips the exception for a reported exhausted error, logging still happens', async () => {
+            await handlePlayerError(
+                makeQueue() as any,
+                new BridgeExhaustedError(
+                    'Bridge exhausted: no stream for "T"',
+                    true,
+                ),
+            )
+            expect(captureExceptionMock).not.toHaveBeenCalled()
+            expect(errorLogMock).toHaveBeenCalled()
+        })
+
+        it('skips the exception when discord-player wrapped the reported error', async () => {
+            const inner = new BridgeExhaustedError(
+                'Bridge exhausted: no stream for "T"',
+                true,
+            )
+            await handlePlayerError(
+                makeQueue() as any,
+                wrapLikeDiscordPlayer(inner),
+            )
+            expect(captureExceptionMock).not.toHaveBeenCalled()
+        })
+
+        it.each([
+            ['empty title', 'Bridge exhausted: no stream for empty title'],
+            ['circuit open', 'Bridge exhausted: no stream for "T"'],
+        ])(
+            'still captures an unreported exhausted error (%s)',
+            async (_n, msg) => {
+                await handlePlayerError(
+                    makeQueue() as any,
+                    new BridgeExhaustedError(msg, false),
+                )
+                await handlePlayerError(
+                    makeQueue() as any,
+                    wrapLikeDiscordPlayer(new Error(msg)),
+                )
+                expect(captureExceptionMock).toHaveBeenCalledTimes(2)
+            },
+        )
+
+        it('still captures other player errors', async () => {
+            await handlePlayerError(makeQueue() as any, new Error('boom'))
+            expect(captureExceptionMock).toHaveBeenCalledTimes(1)
+        })
     })
 })

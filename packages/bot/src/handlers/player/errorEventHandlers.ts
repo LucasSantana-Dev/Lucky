@@ -10,6 +10,7 @@ import {
     runSafely,
     logHandlerFailure,
 } from './errorClassification'
+import { isReportedBridgeExhausted } from './bridgeExhaustedError'
 import { notifyChannelStreamFailed } from './streamFailureNotifier'
 import { settlePlayStartWatch } from './playStartWatch'
 import {
@@ -150,12 +151,19 @@ export async function handlePlayerError(
                 ...toErrorDetails(error),
             },
         })
-        captureException(toErrorInstance(error) ?? new Error(String(error)), {
-            context: 'player-error',
-            guildId: queue.guild.id,
-            provider: currentTrackProvider,
-            trackUrl: queue.currentTrack?.url,
-        })
+        // The bridge already sent the all-exhausted Sentry event for this
+        // play; a second exception would just duplicate it.
+        if (!isReportedBridgeExhausted(error)) {
+            captureException(
+                toErrorInstance(error) ?? new Error(String(error)),
+                {
+                    context: 'player-error',
+                    guildId: queue.guild.id,
+                    provider: currentTrackProvider,
+                    trackUrl: queue.currentTrack?.url,
+                },
+            )
+        }
 
         const isStreamExtractionError =
             error.message.includes('Could not extract stream') ||
