@@ -48,6 +48,12 @@ const DYNAMIC_NOISE_PATTERNS: RegExp[] = [
         buildTermRe(t, 'paren'),
         buildTermRe(t, 'bracket'),
     ]),
+    // Ambiguous words that are also real title words ("La Letra"): only
+    // stripped when wrapped as a tag, e.g. "[Letra]" or "(Legenda)".
+    ...noiseTerms.taggedOnlyNoise.flatMap((t) => [
+        buildTermRe(t, 'paren'),
+        buildTermRe(t, 'bracket'),
+    ]),
     ...noiseTerms.bareTitleNoise.map((t) => buildTermRe(t, 'word')),
 ]
 
