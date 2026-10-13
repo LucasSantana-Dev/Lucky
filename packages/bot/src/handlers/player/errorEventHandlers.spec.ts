@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { setupErrorHandlers, handlePlayerError } from './errorEventHandlers'
-import { BridgeExhaustedError } from './bridgeExhaustedError'
+import {
+    BridgeExhaustedError,
+    BRIDGE_EXHAUSTED_REPORTED_MARKER,
+} from './bridgeExhaustedError'
 
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -448,6 +451,34 @@ describe('errorEventHandlers', () => {
                 wrapLikeDiscordPlayer(inner),
             )
             expect(captureExceptionMock).not.toHaveBeenCalled()
+        })
+
+        it('skips the exception when the reported error is only in the cause chain', async () => {
+            const wrapper = new Error(
+                'Could not extract stream for this track',
+                {
+                    cause: new BridgeExhaustedError(
+                        'Bridge exhausted: no stream for "T"',
+                        true,
+                    ),
+                },
+            )
+            await handlePlayerError(makeQueue() as any, wrapper)
+            expect(captureExceptionMock).not.toHaveBeenCalled()
+        })
+
+        it('is not fooled by a track title that imitates a fixed marker', async () => {
+            await handlePlayerError(
+                makeQueue() as any,
+                new BridgeExhaustedError(
+                    'Bridge exhausted: no stream for "x [sentry-reported]"',
+                    false,
+                ),
+            )
+            expect(captureExceptionMock).toHaveBeenCalledTimes(1)
+            expect(BRIDGE_EXHAUSTED_REPORTED_MARKER).not.toBe(
+                '[sentry-reported]',
+            )
         })
 
         it.each([

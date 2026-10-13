@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 // The bridge sends one Sentry event (the all-exhausted message) when every
 // stage failed. discord-player then wraps the thrown error into a new
 // NoResultError whose message embeds only the original `error.stack` text, so
@@ -5,7 +7,9 @@
 // lives in the message, which the wrapped text still carries. Errors thrown on
 // paths that did not send the event (empty title, SoundCloud circuit open)
 // stay unmarked and are still captured as exceptions.
-export const BRIDGE_EXHAUSTED_REPORTED_MARKER = '[sentry-reported]'
+// The marker carries a per-process random token. Track titles end up in the
+// message, so a fixed string could be spoofed by a title that contains it.
+export const BRIDGE_EXHAUSTED_REPORTED_MARKER = `[sentry-reported:${randomUUID()}]`
 
 export class BridgeExhaustedError extends Error {
     readonly reported: boolean
