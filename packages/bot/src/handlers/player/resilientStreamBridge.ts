@@ -154,9 +154,11 @@ async function attemptYtDlpSearch(
             { searchText: ytQuery },
             { category: 'music.youtube-extraction', stage: 'yt-dlp-search' },
         )
+        const isEmpty = classifyYtDlpFailure(ytSearchError) === 'empty'
         warnLog({
-            message:
-                'Bridge: yt-dlp YouTube search failed, falling back to SoundCloud',
+            message: isEmpty
+                ? 'Bridge: yt-dlp YouTube search returned nothing, retrying with a broader query'
+                : 'Bridge: yt-dlp YouTube search failed, falling back to SoundCloud',
             data: {
                 error: (ytSearchError as Error).message,
                 query: ytQuery,
@@ -167,7 +169,7 @@ async function attemptYtDlpSearch(
         // Niche tracks often have no "<title> <artist> official audio" hit at
         // all (LUCKY-79). Only an empty result is worth one broader retry;
         // 403, bot-check and timeout keep the existing flow.
-        if (classifyYtDlpFailure(ytSearchError) === 'empty') {
+        if (isEmpty) {
             return attemptBroadYtDlpSearch(cleanedTitle, cleanedAuthor)
         }
         return null
@@ -182,7 +184,7 @@ function buildBroadYtQuery(
     cleanedAuthor: string,
 ): string {
     const leadArtist = cleanedAuthor
-        .split(/\s*(?:,|&|;|\bfeat\.?\s|\bft\.?\s|\bx\s)\s*/i)[0]
+        .split(/\s*(?:,|;|\bfeat\.?\s|\bft\.?\s)\s*/i)[0]
         .trim()
     return cleanSearchQuery(
         computeCoreTitleCandidate(cleanedTitle, cleanedAuthor),

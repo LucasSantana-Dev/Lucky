@@ -683,6 +683,40 @@ describe('empty YouTube search retry', () => {
         ])
     })
 
+    it('keeps a lead artist whose name contains & or a leading x', async () => {
+        mockCleanTitle.mockReturnValue('The Boxer')
+        mockCleanAuthor.mockReturnValue('Simon & Garfunkel')
+        mockStreamViaYtDlpSearch
+            .mockRejectedValueOnce(empty())
+            .mockResolvedValueOnce(fakeStream)
+        await createResilientStream(spotifyTrack())
+        expect(mockStreamViaYtDlpSearch.mock.calls[1][0]).toBe(
+            'The Boxer Simon & Garfunkel',
+        )
+
+        mockCleanAuthor.mockReturnValue('X Ambassadors')
+        mockStreamViaYtDlpSearch
+            .mockRejectedValueOnce(empty())
+            .mockResolvedValueOnce(fakeStream)
+        await createResilientStream(spotifyTrack())
+        expect(mockStreamViaYtDlpSearch.mock.calls[3][0]).toBe(
+            'The Boxer X Ambassadors',
+        )
+    })
+
+    it('logs the empty search as a retry, not a SoundCloud fallback', async () => {
+        mockStreamViaYtDlpSearch
+            .mockRejectedValueOnce(empty())
+            .mockResolvedValueOnce(fakeStream)
+        await createResilientStream(spotifyTrack())
+        const messages = mockWarnLog.mock.calls.map(
+            (c) => (c[0] as { message: string }).message,
+        )
+        expect(messages).toEqual([
+            expect.stringContaining('retrying with a broader query'),
+        ])
+    })
+
     it('does not retry on a 403', async () => {
         mockStreamViaYtDlpSearch.mockRejectedValue(
             new Error('HTTP Error 403: Forbidden'),
