@@ -6,7 +6,7 @@ import { handleOAuthCallback } from '../../../src/routes/authCallback'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { discordOAuthService } from '../../../src/services/DiscordOAuthService'
-import { telemetryLog } from '@lucky/shared/utils'
+import { errorLog, telemetryLog } from '@lucky/shared/utils'
 import {
     MOCK_DISCORD_USER,
     MOCK_TOKEN_RESPONSE,
@@ -252,6 +252,56 @@ describe('OAuth Callback (handleOAuthCallback)', () => {
                 .expect(302)
 
             expect(secondAttempt.headers.location).toContain('invalid_state')
+        })
+
+        test('should send a replayed callback on an authenticated session to the dashboard (LUCKY-7E)', async () => {
+            mockSuccessfulOAuthFlow()
+
+            const testApp = express()
+            setupSessionMiddleware(testApp)
+            testApp.use((req, _res, next) => {
+                req.session.authenticated = true
+                req.session.userId = MOCK_DISCORD_USER.id
+                next()
+            })
+            testApp.get('/api/auth/callback', handleOAuthCallback)
+            testApp.use(errorHandler)
+
+            const response = await request(testApp)
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
+                .expect(302)
+
+            expect(response.headers.location).toContain('authenticated=true')
+            expect(
+                getDiscordOAuthMock().exchangeCodeForToken,
+            ).not.toHaveBeenCalled()
+            expect(errorLog).not.toHaveBeenCalled()
+            expect(telemetryLogMock).not.toHaveBeenCalled()
+        })
+
+        test('should reject a stateless callback on an unauthenticated session', async () => {
+            mockSuccessfulOAuthFlow()
+
+            const testApp = express()
+            setupSessionMiddleware(testApp)
+            testApp.use((req, _res, next) => {
+                req.session.userId = MOCK_DISCORD_USER.id
+                next()
+            })
+            testApp.get('/api/auth/callback', handleOAuthCallback)
+            testApp.use(errorHandler)
+
+            const response = await request(testApp)
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
+                .expect(302)
+
+            expect(response.headers.location).toContain('invalid_state')
+            expect(errorLog).toHaveBeenCalledWith({
+                message: 'OAuth state validation failed: no state in session',
+                data: { hasSessionCookie: false },
+            })
         })
     })
 
