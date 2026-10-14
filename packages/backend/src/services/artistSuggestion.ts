@@ -354,18 +354,37 @@ export class ArtistSuggestionService {
      * in-flight fetch, so an expired cache costs one round of searches.
      */
     private refreshFallback(): Promise<SpotifyArtist[]> {
-        this.fallbackRefresh ??= this.fetchPopularArtists()
-            .then((artists) => {
-                if (artists.length > 0) {
-                    this.fallbackCache.set(this.fallbackCacheKey, artists)
-                    this.staleFallback = artists
-                }
-                return artists
-            })
+        if (this.fallbackRefresh) return this.fallbackRefresh
+
+        // An empty or failed sweep re-arms the last good list for another TTL,
+        // so a Spotify outage costs one sweep per TTL, not one per request.
+        // A refresh dropped by resetCachesForTests writes nothing.
+        const store = (artists: SpotifyArtist[]): void => {
+            if (this.fallbackRefresh !== refresh) return
+            const list = artists.length > 0 ? artists : this.staleFallback
+            if (list.length > 0) {
+                this.fallbackCache.set(this.fallbackCacheKey, list)
+                this.staleFallback = list
+            }
+        }
+        const refresh: Promise<SpotifyArtist[]> = this.fetchPopularArtists()
+            .then(
+                (artists) => {
+                    store(artists)
+                    return artists
+                },
+                (error: unknown) => {
+                    store([])
+                    throw error
+                },
+            )
             .finally(() => {
-                this.fallbackRefresh = null
+                if (this.fallbackRefresh === refresh) {
+                    this.fallbackRefresh = null
+                }
             })
-        return this.fallbackRefresh
+        this.fallbackRefresh = refresh
+        return refresh
     }
 
     /**
