@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { accessSync, constants, statSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { PassThrough } from 'node:stream'
 import type { Readable } from 'node:stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
@@ -205,7 +206,10 @@ function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
                 ...cookiesArgs,
                 url,
             ],
-            { stdio: ['ignore', 'pipe', 'pipe'] },
+            // HLS sources (SoundCloud AAC) make yt-dlp write fragment .part
+            // files to the cwd even with `-o -`. The container's cwd (/app) is
+            // root-owned, so run from the temp dir the bot user can write.
+            { stdio: ['ignore', 'pipe', 'pipe'], cwd: tmpdir() },
         )
 
         // On every attempt this fires, the caller still has to wait out the

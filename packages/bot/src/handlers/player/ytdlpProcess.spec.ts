@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals'
 import { EventEmitter } from 'events'
 import { PassThrough } from 'stream'
+import { tmpdir } from 'os'
 
 // --- mocks (declared before imports) ---
 const mockSpawn = jest.fn()
@@ -148,6 +149,15 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
 
         expect(mockSpawn).toHaveBeenCalledTimes(1)
         expect(spawnArgs(0)).not.toContain('--cookies')
+    })
+
+    it('runs yt-dlp from the temp dir so HLS fragments are writable', async () => {
+        script('ok')
+
+        await streamViaYtDlp(validUrl)
+
+        const options = mockSpawn.mock.calls[0]?.[2] as { cwd?: string }
+        expect(options.cwd).toBe(tmpdir())
     })
 
     // Both sign-in challenges retry with cookies on purpose: a logged-in
