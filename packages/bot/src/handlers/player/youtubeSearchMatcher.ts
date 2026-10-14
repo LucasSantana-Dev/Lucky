@@ -31,9 +31,9 @@ const TITLE_MATCH_THRESHOLD = 0.75
 // recording of the same song exactly 30 s off.
 const MAX_DURATION_DELTA_SEC = 20
 
-// Markers of a different recording or a non-music upload. Matched as whole
-// words of the normalized candidate title; a marker that also appears in the
-// Spotify title or credits is allowed ("Ao Vivo" track, artist "DJ Snake").
+// Markers of a different recording or a non-music upload. Only counted in a
+// tag of the title (see versionMarkers); a marker the Spotify title also tags
+// is allowed ("Ao Vivo" track), and so is one in the credits ("DJ Snake").
 const VERSION_MARKERS = [
     'ao vivo',
     'en vivo',
@@ -59,12 +59,14 @@ const VERSION_MARKERS = [
 // Channels that rebroadcast music: radio stations, DJ and karaoke channels.
 const CHANNEL_MARKERS = ['radio', 'fm', 'dj', 'karaoke']
 
+// Folds accents and case but keeps every script's letters and digits, so
+// Japanese, Korean or Cyrillic titles can still pass the title gate.
 function normalize(value: string): string {
     return value
         .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
+        .replace(/\p{M}/gu, '')
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, ' ')
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
         .trim()
 }
 
@@ -91,17 +93,45 @@ function tokenScore(tokens: string[], candidateWords: Set<string>): number {
     return tokens.filter((t) => candidateWords.has(t)).length / tokens.length
 }
 
+// Not split on "&": it is part of duo names such as "Simon & Garfunkel".
 function creditedArtists(author: string): string[] {
     return author
-        .split(/,|;|&|\bfeat\.?\s|\bft\.?\s/i)
+        .split(/,|;|\bfeat\.?\s|\bft\.?\s/i)
         .map((name) => normalize(name))
         .filter(Boolean)
+}
+
+const TAG_RE = /\(([^)]*)\)|\[([^\]]*)\]/g
+const TITLE_SEPARATORS = [' - ', ' | ', ' \u2013 ', ' \u2014 ']
+
+// Version markers a title carries as a tag: inside "(...)" or "[...]", or as
+// the whole last " - " segment ("Song - Live", "Song - Remix Version"). A
+// bare word is part of the song name ("Live Forever", "Radio Ga Ga").
+function versionMarkers(title: string): string[] {
+    const tags = [...title.matchAll(TAG_RE)].map((m) =>
+        normalize(m[1] ?? m[2] ?? ''),
+    )
+    const untagged = title.replace(TAG_RE, ' ')
+    const cut = Math.max(
+        ...TITLE_SEPARATORS.map((s) => untagged.lastIndexOf(s)),
+    )
+    const suffix =
+        cut > 0
+            ? normalize(untagged.slice(cut + 3)).replace(
+                  / (version|edit|mix)$/,
+                  '',
+              )
+            : ''
+    return VERSION_MARKERS.filter(
+        (m) => suffix === m || tags.some((tag) => hasPhrase(tag, m)),
+    )
 }
 
 type MatchContext = {
     gateTokens: string[]
     fullTokens: string[]
     requested: string
+    requestedMarkers: string[]
     artists: string[]
     trackSec: number | null
 }
@@ -109,15 +139,18 @@ type MatchContext = {
 function buildContext(target: YouTubeMatchTarget): MatchContext {
     // Gate on the title without its parentheticals: "Song (feat. X)" is
     // often uploaded as plain "Song". The full title only adds to the score.
-    const coreTitle =
-        target.title.replace(/\([^)]*\)|\[[^\]]*\]/g, ' ').trim() ||
-        target.title
+    const coreTitle = target.title.replace(TAG_RE, ' ').trim() || target.title
+    const authorNorm = normalize(target.author)
     return {
         gateTokens: words(coreTitle),
         fullTokens: words(target.title),
         requested: normalize(
             `${target.sourceTitle} ${target.title} ${target.author}`,
         ),
+        requestedMarkers: [
+            ...versionMarkers(target.sourceTitle),
+            ...VERSION_MARKERS.filter((m) => hasPhrase(authorNorm, m)),
+        ],
         artists: creditedArtists(target.author),
         trackSec: parseDurationSec(target.duration),
     }
@@ -154,7 +187,9 @@ function rejectionReason(
         return 'channel'
     }
     if (
-        VERSION_MARKERS.some((m) => hasPhrase(titleNorm, m) && isUnrequested(m))
+        versionMarkers(candidate.title).some(
+            (m) => !ctx.requestedMarkers.includes(m),
+        )
     ) {
         return 'marker'
     }

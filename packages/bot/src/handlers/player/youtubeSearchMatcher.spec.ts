@@ -47,7 +47,8 @@ describe('pickYouTubeCandidate', () => {
         expect(rejected.map((r) => [r.id, r.reason])).toEqual([
             ['gQeQ', 'channel'],
             ['SMzl', 'duration'],
-            ['crMQ', 'marker'],
+            // "Remix" is not tagged in this title, so duration rejects it.
+            ['crMQ', 'duration'],
             ['1uMU', 'duration'],
         ])
     })
@@ -145,6 +146,73 @@ describe('pickYouTubeCandidate', () => {
             [candidate('s', 'Song', 'Artist - Topic', 181)],
         )
         expect(pick?.id).toBe('s')
+    })
+
+    it('does not read a bare title word as a version marker', () => {
+        const { pick } = pickYouTubeCandidate(
+            target({
+                title: 'Forever',
+                sourceTitle: 'Forever',
+                author: 'Artist',
+                duration: '4:00',
+            }),
+            [candidate('lf', 'Live Forever', 'Artist - Topic', 240)],
+        )
+        expect(pick?.id).toBe('lf')
+    })
+
+    it.each([
+        'Forever (Live at Wembley)',
+        'Forever [Karaoke Version]',
+        'Artist - Forever - Remix',
+    ])('rejects a tagged version marker: %p', (title) => {
+        const { pick, rejected } = pickYouTubeCandidate(
+            target({
+                title: 'Forever',
+                sourceTitle: 'Forever',
+                author: 'Artist',
+                duration: '4:00',
+            }),
+            [candidate('v', title, 'Artist - Topic', 240)],
+        )
+        expect(pick).toBeNull()
+        expect(rejected[0].reason).toBe('marker')
+    })
+
+    it('keeps a duo credited with "&" as one artist', () => {
+        const { pick } = pickYouTubeCandidate(
+            target({
+                title: 'The Boxer',
+                sourceTitle: 'The Boxer',
+                author: 'Simon & Garfunkel',
+                duration: '5:08',
+            }),
+            [
+                candidate('fan', 'The Boxer', 'Art Garfunkel Archive', 308),
+                candidate('duo', 'The Boxer', 'Simon & Garfunkel', 308),
+            ],
+        )
+        expect(pick?.id).toBe('duo')
+    })
+
+    it('matches non-Latin titles', () => {
+        const { pick } = pickYouTubeCandidate(
+            target({
+                title: 'アイドル',
+                sourceTitle: 'アイドル',
+                author: 'YOASOBI',
+                duration: '3:33',
+            }),
+            [
+                candidate(
+                    'idol',
+                    'YOASOBI「アイドル」 Official Music Video',
+                    'Ayase / YOASOBI',
+                    213,
+                ),
+            ],
+        )
+        expect(pick?.id).toBe('idol')
     })
 
     it('skips the duration gate when the Spotify duration is unknown', () => {

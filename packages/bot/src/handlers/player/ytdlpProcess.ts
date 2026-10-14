@@ -365,11 +365,14 @@ export function searchYtDlpCandidates(
             finish(err)
         })
 
-        proc.once('close', (code) => {
-            if (code && code !== 0) {
+        proc.once('close', (code, signal) => {
+            // A signal kill reports code null: that output is partial, so only
+            // a clean exit counts as a search result.
+            if (code !== 0) {
                 const stderr = Buffer.concat(stderrChunks).toString().trim()
                 const reason = stderr ? ` - ${stderr.split('\n')[0]}` : ''
-                finish(new Error(`yt-dlp exited with code ${code}${reason}`))
+                const exit = code === null ? `signal ${signal}` : `code ${code}`
+                finish(new Error(`yt-dlp exited with ${exit}${reason}`))
                 return
             }
             finish(

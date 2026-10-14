@@ -472,6 +472,21 @@ describe('searchYtDlpCandidates', () => {
         )
     })
 
+    it('rejects instead of resolving partial output when killed by a signal', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValueOnce(proc)
+        setImmediate(() => {
+            proc.stdout.emit(
+                'data',
+                Buffer.from('{"id": "a1", "title": "Song", "duration": 201}\n'),
+            )
+            proc.emit('close', null, 'SIGKILL')
+        })
+        await expect(searchYtDlpCandidates('song')).rejects.toThrow(
+            'yt-dlp exited with signal SIGKILL',
+        )
+    })
+
     it('kills the process and rejects as a timeout past its budget', async () => {
         jest.useFakeTimers()
         try {
