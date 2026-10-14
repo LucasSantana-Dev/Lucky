@@ -101,7 +101,7 @@ function creditedArtists(author: string): string[] {
         .filter(Boolean)
 }
 
-const TAG_RE = /\(([^)]*)\)|\[([^\]]*)\]/g
+const TAG_RE = /\(([^)]*)\)|\[([^\]]*)\]/g // NOSONAR: S8786, video and track titles are ~100 chars, backtracking is bounded
 const TITLE_SEPARATORS = [' - ', ' | ', ' \u2013 ', ' \u2014 ']
 
 // Version markers a title carries as a tag: inside "(...)" or "[...]", or as
