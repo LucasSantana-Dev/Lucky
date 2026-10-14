@@ -5,6 +5,7 @@ import type { Readable } from 'node:stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
+import { classifyYtDlpFailure } from './ytdlpBlockBreaker'
 
 // Absolute path, not a bare "yt-dlp" resolved via PATH lookup (CWE-426):
 // the Dockerfile symlinks the venv binary to this fixed location. Override
@@ -151,7 +152,24 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
     // token, so every cookie-backed download got HTTP 403, while the same
     // download without cookies streams. The bot-check that cookies were added
     // for (#2036) logged 0 times in the 30 days before.
+    //
+    // A per-request 403 is intermittent (measured 2026-10-13: 2 of 12 runs of
+    // the same command, other runs of the same query succeeded). Re-running
+    // gets a freshly signed URL and usually works, so a 403 is retried once,
+    // cookie-less like the first attempt. Each cause gets at most one extra
+    // attempt and only the first failure is inspected, so the paths never
+    // chain: sign-in -> cookies retry, 403 -> plain retry, anything else ->
+    // throw. A failure of the retry itself propagates as is. The retry runs
+    // inside this function, so the block breaker (recordYtDlpFailure in the
+    // bridge) only sees a 403 that also failed the retry.
     return spawnYtDlp(url, []).catch((error: unknown) => {
+        if (classifyYtDlpFailure(error) === 'forbidden') {
+            infoLog({
+                message: 'Bridge: yt-dlp got HTTP 403, retrying once',
+                data: { retry: 'forbidden' },
+            })
+            return spawnYtDlp(url, [])
+        }
         const cookiesArgs = needsSignIn(error) ? ytdlpCookiesArgs() : []
         if (cookiesArgs.length === 0) throw error
         return spawnYtDlp(url, cookiesArgs)
@@ -194,7 +212,8 @@ function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
         // full duration before falling back to SoundCloud, so a long timeout
         // directly taxes perceived playback latency whenever yt-dlp is
         // degraded (rate-limited/blocked) rather than erroring fast. See the
-        // constant above for why this isn't shorter.
+        // constant above for why this isn't shorter. The 403 retry adds one
+        // more attempt only after a fast failure, never after a timeout.
         const timeout = setTimeout(() => {
             proc.kill()
             reject(new Error('yt-dlp: timed out waiting for stream start'))
