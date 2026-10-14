@@ -37,8 +37,26 @@ export async function handleOAuthCallback(
 
         const sessionState = req.session.oauthState
         if (!sessionState) {
+            // Replay of a callback this session already completed (LUCKY-7E):
+            // the first request was slow, the browser dropped it (nginx 499)
+            // and asked again with the same, now consumed, state. The session
+            // is logged in, so send the user on instead of showing an error.
+            // The code is never used here, so this cannot log anyone in.
+            if (req.session.authenticated && req.session.userId) {
+                debugLog({
+                    message:
+                        'OAuth callback replay on an authenticated session',
+                })
+                res.redirect(`${frontendUrl}/?authenticated=true`)
+                return
+            }
             errorLog({
                 message: 'OAuth state validation failed: no state in session',
+                data: {
+                    hasSessionCookie: /(?:^|;\s*)sessionId=/.test(
+                        req.headers.cookie ?? '',
+                    ),
+                },
             })
             res.redirect(
                 `${frontendUrl}/?error=auth_failed&message=invalid_state`,
