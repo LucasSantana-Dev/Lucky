@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.59.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.1...v2.59.2) (2026-10-14)
+
+
+### Bug Fixes
+
+* **bot:** stream SoundCloud fallback matches through yt-dlp ([#2817](https://github.com/LucasSantana-Dev/Lucky/issues/2817)) ([51a2c94](https://github.com/LucasSantana-Dev/Lucky/commit/51a2c94d25fc6ef6efc73745b30deedb2e484f3e))
+
 ## [2.59.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.0...v2.59.1) (2026-10-14)
 
 
