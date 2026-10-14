@@ -60,6 +60,12 @@ export class ArtistSuggestionService {
     // ADRs (single-instance; revisit if Lucky scales out).
     private readonly userTopArtistsCache: TtlCache<SpotifyArtist[]>
     private readonly fallbackCache: TtlCache<SpotifyArtist[]>
+    // Last good popular list, kept past the TTL. Once the cache expires the
+    // refetch (~20 sequential Spotify searches) runs longer than the tier
+    // deadline, so the request served nothing and got a 503 (LUCKY-7C).
+    // Serve this copy and refresh in the background instead.
+    private staleFallback: SpotifyArtist[] = []
+    private fallbackRefresh: Promise<SpotifyArtist[]> | null = null
 
     constructor(config: ArtistSuggestionServiceConfig = {}) {
         const merged = { ...DEFAULT_CONFIG, ...config }
@@ -313,13 +319,20 @@ export class ArtistSuggestionService {
         suggestions: Map<string, ArtistSuggestion>,
     ): Promise<void> {
         try {
-            let fallback = this.fallbackCache.get(this.fallbackCacheKey) ?? []
+            let fallback = this.fallbackCache.get(this.fallbackCacheKey)
 
-            if (fallback.length === 0) {
-                fallback = await this.fetchPopularArtists()
-                if (fallback.length > 0) {
-                    this.fallbackCache.set(this.fallbackCacheKey, fallback)
-                }
+            if (!fallback && this.staleFallback.length > 0) {
+                fallback = this.staleFallback
+                this.refreshFallback().catch((error) => {
+                    errorLog({
+                        message: 'Failed to refresh popular artists fallback',
+                        error,
+                    })
+                })
+            }
+
+            if (!fallback) {
+                fallback = await this.refreshFallback()
             }
 
             for (const artist of fallback) {
@@ -334,6 +347,25 @@ export class ArtistSuggestionService {
                 error,
             })
         }
+    }
+
+    /**
+     * Refetch the popular list and store it. Concurrent callers share one
+     * in-flight fetch, so an expired cache costs one round of searches.
+     */
+    private refreshFallback(): Promise<SpotifyArtist[]> {
+        this.fallbackRefresh ??= this.fetchPopularArtists()
+            .then((artists) => {
+                if (artists.length > 0) {
+                    this.fallbackCache.set(this.fallbackCacheKey, artists)
+                    this.staleFallback = artists
+                }
+                return artists
+            })
+            .finally(() => {
+                this.fallbackRefresh = null
+            })
+        return this.fallbackRefresh
     }
 
     /**
@@ -393,12 +425,7 @@ export class ArtistSuggestionService {
             // Populate the in-memory fallback cache at startup so the first
             // Discover request hits a warm cache instead of the ~20-call
             // Spotify search (which would otherwise blow the per-tier deadline).
-            const artists = await this.fetchPopularArtists()
-            if (artists.length === 0) {
-                return
-            }
-
-            this.fallbackCache.set(this.fallbackCacheKey, artists)
+            await this.refreshFallback()
         } catch (error) {
             errorLog({ message: 'Failed to prewarm suggestions cache', error })
         }
@@ -408,6 +435,8 @@ export class ArtistSuggestionService {
     resetCachesForTests(): void {
         this.userTopArtistsCache.clear()
         this.fallbackCache.clear()
+        this.staleFallback = []
+        this.fallbackRefresh = null
     }
 
     // Route handlers — handle validation and return responses or throw errors
