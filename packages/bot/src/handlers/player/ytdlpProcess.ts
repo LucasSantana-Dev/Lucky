@@ -286,3 +286,119 @@ export function streamViaYtDlpSearch(query: string): Promise<Readable> {
         return Promise.reject(new Error('yt-dlp search: empty query'))
     return streamViaYtDlp(`ytsearch1:${query}`)
 }
+
+export type YtSearchCandidate = {
+    id: string
+    title: string
+    channel: string
+    durationSec: number | null
+}
+
+// A flat search only fetches the results page (no player JS, no formats):
+// measured 1-2 s. The stream of the chosen video then gets its own
+// YTDLP_STREAM_START_TIMEOUT_MS, the same budget a direct URL play has.
+export const YTDLP_SEARCH_RESOLVE_TIMEOUT_MS = 5_000
+const YTDLP_SEARCH_MAX_OUTPUT_BYTES = 64 * 1024
+
+/**
+ * Lists the top YouTube search hits without streaming any of them, so the
+ * caller can validate title, channel and duration before playing one.
+ * Resolves [] when the search has no results.
+ */
+export function searchYtDlpCandidates(
+    query: string,
+    limit = 5,
+): Promise<YtSearchCandidate[]> {
+    if (!query.trim())
+        return Promise.reject(new Error('yt-dlp search: empty query'))
+    if (!isHostedYoutubeEnabled()) {
+        return Promise.reject(
+            new Error('yt-dlp: YouTube disabled (HOSTED_YOUTUBE_ENABLED)'),
+        )
+    }
+    return new Promise<YtSearchCandidate[]>((resolve, reject) => {
+        const proc = spawn(
+            YTDLP_BINARY_PATH,
+            [
+                '--flat-playlist',
+                '--no-warnings',
+                '--print',
+                '%(.{id,title,channel,duration})j',
+                `ytsearch${limit}:${query}`,
+            ],
+            { stdio: ['ignore', 'pipe', 'pipe'], cwd: tmpdir() },
+        )
+
+        let settled = false
+        const finish = (error: Error | null, result?: YtSearchCandidate[]) => {
+            if (settled) return
+            settled = true
+            clearTimeout(timeout)
+            if (error) reject(error)
+            else resolve(result ?? [])
+        }
+
+        const timeout = setTimeout(() => {
+            proc.kill()
+            finish(new Error('yt-dlp: timed out resolving search results'))
+        }, YTDLP_SEARCH_RESOLVE_TIMEOUT_MS)
+
+        const stdoutChunks: Buffer[] = []
+        let stdoutBytes = 0
+        const stderrChunks: Buffer[] = []
+        assertDefined(proc.stdout, 'stdout guaranteed by stdio config').on(
+            'data',
+            (chunk: Buffer) => {
+                stdoutBytes += chunk.length
+                if (stdoutBytes <= YTDLP_SEARCH_MAX_OUTPUT_BYTES) {
+                    stdoutChunks.push(chunk)
+                }
+            },
+        )
+        assertDefined(proc.stderr, 'stderr guaranteed by stdio config').on(
+            'data',
+            (chunk: Buffer) => stderrChunks.push(chunk),
+        )
+
+        proc.once('error', (err) => {
+            proc.kill()
+            finish(err)
+        })
+
+        proc.once('close', (code) => {
+            if (code && code !== 0) {
+                const stderr = Buffer.concat(stderrChunks).toString().trim()
+                const reason = stderr ? ` - ${stderr.split('\n')[0]}` : ''
+                finish(new Error(`yt-dlp exited with code ${code}${reason}`))
+                return
+            }
+            finish(
+                null,
+                parseSearchCandidates(Buffer.concat(stdoutChunks).toString()),
+            )
+        })
+    })
+}
+
+function parseSearchCandidates(output: string): YtSearchCandidate[] {
+    const candidates: YtSearchCandidate[] = []
+    for (const line of output.split('\n')) {
+        if (!line.trim()) continue
+        try {
+            const entry = JSON.parse(line) as Record<string, unknown>
+            if (typeof entry.id !== 'string' || !entry.id) continue
+            candidates.push({
+                id: entry.id,
+                title: typeof entry.title === 'string' ? entry.title : '',
+                channel: typeof entry.channel === 'string' ? entry.channel : '',
+                durationSec:
+                    typeof entry.duration === 'number' && entry.duration > 0
+                        ? entry.duration
+                        : null,
+            })
+        } catch {
+            // A truncated or non-JSON line is skipped, not fatal.
+        }
+    }
+    return candidates
+}
