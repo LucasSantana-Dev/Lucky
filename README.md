@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <b>🎵 The Discord music bot that learns your server's taste and keeps the call playing.</b><br>
+  <b>🎵 Lucky keeps the call playing and — when your server admin enables it — posts a weekly recap of what you listened to every Sunday.</b><br>
   <strong>Free · Open source · English and Português · No paywall, no premium tier</strong>
 </p>
 
@@ -31,7 +31,7 @@
 
 ## 🎯 What is Lucky?
 
-Lucky is a **free Discord music bot** that learns what your server likes. Search by name or paste a Spotify link, and smart autoplay keeps the queue going from your server's listening history. Add it in one click; every feature is included, with no paywall and no premium tier.
+Lucky is a **free Discord music bot** that keeps the call going and remembers what your server plays. When enabled, it posts a Sunday recap of the week's most-played tracks (opt-in per server; weeks with fewer than five plays are skipped). Search by name or paste a Spotify link; smart autoplay keeps the queue running from your listening history. Add it in one click — every feature is included, no paywall, no premium tier.
 
 The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 
@@ -55,11 +55,10 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 - **Lyrics on-demand**: `/lyrics` for currently playing track
 - **Listening stats**: `/artist` and `/album` commands with Spotify integration
 
-### 🛡️ Moderation & Auto-mod
-- **Case tracking**: `/warn` `/mute` `/kick` `/ban` with full history
-- **Auto-mod presets**: Spam detection
-- **Scheduled digests**: Automated reports of moderation activity
-- **RBAC**: Role-based access control on the dashboard
+### 📅 Weekly Recap
+- **Weekly post**: when enabled, Lucky posts a recap every Sunday of the week's top tracks and artists (weeks with fewer than five plays are skipped)
+- **Per-server**: each guild gets its own listening summary
+- **Opt-in**: `/recap channel #channel` to enable the Sunday post; `/recap off` to stop it (requires Manage Guild)
 
 ### 📊 Engagement & Community
 - **Leveling system**: XP-based progression with role rewards
@@ -71,7 +70,6 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 - **Discord OAuth login**: Secure, permission-based access
 - **Guild management**: Control settings and features per server
 - **Music controls**: Queue, playback, and playlist management from the web
-- **Moderation overview**: Case history, warnings, and actions
 - **Feature status view**: Global, admin-managed
 
 ### 📈 Reliability & Monitoring
@@ -205,17 +203,7 @@ SENTRY_DSN=...
 | `/songinfo` | Details on current track |
 | `/history` | Your recently played tracks |
 | `/session` | Save/load playback sessions |
-
-### 🛡️ Moderation
-| Command | Purpose |
-|---------|---------|
-| `/warn` | Issue a warning with reason |
-| `/mute` | Mute a user for specified duration |
-| `/kick` | Remove a user from server |
-| `/ban` | Ban a user permanently |
-| `/cases` | View moderation history |
-| `/digest` | Manual moderation report |
-| `/automod` | Configure auto-mod rules and presets |
+| `/recap channel` / `/recap off` | Enable or disable the Sunday recap post (requires Manage Guild) |
 
 ### 🎮 Engagement
 | Command | Purpose |

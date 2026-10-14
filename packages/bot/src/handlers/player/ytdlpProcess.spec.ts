@@ -28,6 +28,12 @@ import {
     YTDLP_STREAM_START_TIMEOUT_MS,
     __resetYtdlpCookiesLogStateForTests,
 } from './ytdlpProcess'
+import {
+    isYtDlpBlocked,
+    recordYtDlpFailure,
+    recordYtDlpSuccess,
+} from './ytdlpBlockBreaker'
+import { extractionFailuresTotal } from '../../utils/monitoring/prometheus'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -164,12 +170,80 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         },
     )
 
-    it('does not retry with cookies on a 403 (cookies cause it)', async () => {
+    it('retries a 403 once without cookies, even when cookies are configured', async () => {
         readableCookies()
-        script(FORBIDDEN)
+        script(FORBIDDEN, 'ok')
+
+        await expect(streamViaYtDlp(validUrl)).resolves.toBeDefined()
+        expect(mockSpawn).toHaveBeenCalledTimes(2)
+        expect(spawnArgs(1)).not.toContain('--cookies')
+    })
+
+    it('gives up after a second 403 (one retry, no loop)', async () => {
+        readableCookies()
+        script(FORBIDDEN, FORBIDDEN, 'ok')
 
         await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
+        expect(mockSpawn).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not retry a 403 on the cookies attempt (no chained retries)', async () => {
+        readableCookies()
+        script(SIGN_IN, FORBIDDEN, 'ok')
+
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
+        expect(mockSpawn).toHaveBeenCalledTimes(2)
+    })
+
+    it.each([
+        ['an unavailable video', 'ERROR: Video unavailable\n'],
+        ['an empty download', ''],
+        ['an HTTP 429', 'ERROR: HTTP Error 429: Too Many Requests\n'],
+    ])('does not retry %s', async (_label, outcome) => {
+        readableCookies()
+        script(outcome, 'ok')
+
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow()
         expect(mockSpawn).toHaveBeenCalledTimes(1)
+    })
+
+    describe('with the real block breaker', () => {
+        beforeEach(() => recordYtDlpSuccess())
+        afterEach(() => recordYtDlpSuccess())
+
+        // Mirrors resilientStreamBridge: success -> recordYtDlpSuccess,
+        // rejection -> recordYtDlpFailure.
+        async function playLikeBridge(): Promise<void> {
+            try {
+                await streamViaYtDlp(validUrl)
+                recordYtDlpSuccess()
+            } catch (error) {
+                recordYtDlpFailure(error)
+            }
+        }
+
+        it('a recovered 403 never reaches the breaker', async () => {
+            const incSpy = jest.spyOn(extractionFailuresTotal, 'inc')
+            for (let i = 0; i < 3; i++) {
+                script(FORBIDDEN, 'ok')
+                await playLikeBridge()
+            }
+            expect(isYtDlpBlocked()).toBe(false)
+            // recordYtDlpSuccess clears the streak, so also prove the failure
+            // recorder (metric + streak) was never reached.
+            expect(incSpy).not.toHaveBeenCalled()
+            incSpy.mockRestore()
+        })
+
+        it('403 on both attempts counts once, and two such plays open it', async () => {
+            script(FORBIDDEN, FORBIDDEN)
+            await playLikeBridge()
+            expect(isYtDlpBlocked()).toBe(false)
+
+            script(FORBIDDEN, FORBIDDEN)
+            await playLikeBridge()
+            expect(isYtDlpBlocked()).toBe(true)
+        })
     })
 
     it.each([
