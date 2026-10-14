@@ -137,15 +137,19 @@ describe('TopggStatsScheduler', () => {
             text: jest.fn().mockResolvedValue('error details'),
         })
         const scheduler = new TopggStatsScheduler({
-            tickIntervalMs: 100,
+            tickIntervalMs: 60_000,
             fetch: mockFetch,
         })
         const client = makeClient(10) as any
 
         scheduler.start(client)
 
-        // Wait for onStart's immediate tick to complete
+        // Wait for onStart's immediate tick, then fail twice more
         await new Promise((resolve) => setTimeout(resolve, 50))
+        await scheduler.tick()
+        await scheduler.tick()
+
+        expect(captureMessage).toHaveBeenCalledTimes(1)
 
         expect(warnLog).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -226,15 +230,17 @@ describe('TopggStatsScheduler', () => {
         const testError = new Error('Network error')
         const mockFetch = jest.fn().mockRejectedValue(testError)
         const scheduler = new TopggStatsScheduler({
-            tickIntervalMs: 100,
+            tickIntervalMs: 60_000,
             fetch: mockFetch,
         })
         const client = makeClient(7) as any
 
         scheduler.start(client)
 
-        // Wait for onStart's immediate tick to complete
+        // Wait for onStart's immediate tick, then fail twice more
         await new Promise((resolve) => setTimeout(resolve, 50))
+        await scheduler.tick()
+        await scheduler.tick()
 
         expect(warnLog).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -252,6 +258,59 @@ describe('TopggStatsScheduler', () => {
             expect.objectContaining({
                 category: 'topgg.stats',
             }),
+        )
+
+        scheduler.stop()
+    })
+
+    // LUCKY-77: a lone timeout heals on the next tick, so it stays out of Sentry.
+    test('a failure that heals on the next tick is logged but not reported', async () => {
+        process.env.TOPGG_TOKEN = 'test-token-123'
+        const timeout = new DOMException('aborted', 'TimeoutError')
+        const mockFetch = jest
+            .fn()
+            .mockRejectedValueOnce(timeout)
+            .mockRejectedValueOnce(timeout)
+            .mockResolvedValueOnce({ ok: true })
+            .mockRejectedValueOnce(timeout)
+            .mockRejectedValueOnce(timeout)
+        const scheduler = new TopggStatsScheduler({
+            tickIntervalMs: 60_000,
+            fetch: mockFetch,
+        })
+        scheduler.start(makeClient(3) as any)
+
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        for (let i = 0; i < 4; i++) await scheduler.tick()
+
+        // Two failures, a success that resets the count, two more failures.
+        expect(mockFetch).toHaveBeenCalledTimes(5)
+        expect(warnLog).toHaveBeenCalledTimes(4)
+        expect(captureMessage).not.toHaveBeenCalled()
+
+        scheduler.stop()
+    })
+
+    test('an outage is reported once, not on every failing tick', async () => {
+        process.env.TOPGG_TOKEN = 'test-token-123'
+        const mockFetch = jest
+            .fn()
+            .mockRejectedValue(new DOMException('aborted', 'TimeoutError'))
+        const scheduler = new TopggStatsScheduler({
+            tickIntervalMs: 60_000,
+            fetch: mockFetch,
+        })
+        scheduler.start(makeClient(3) as any)
+
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        for (let i = 0; i < 5; i++) await scheduler.tick()
+
+        expect(mockFetch).toHaveBeenCalledTimes(6)
+        expect(captureMessage).toHaveBeenCalledTimes(1)
+        expect(captureMessage).toHaveBeenCalledWith(
+            expect.stringContaining('TimeoutError'),
+            'warning',
+            expect.objectContaining({ consecutiveFailures: 3 }),
         )
 
         scheduler.stop()
