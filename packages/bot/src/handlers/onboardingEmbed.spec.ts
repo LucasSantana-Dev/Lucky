@@ -48,7 +48,7 @@ describe('buildOnboardingEmbed', () => {
     it('embed description never contains invite or vote CTA (pt-BR)', () => {
         const t = translatorFor('pt-BR')
         const embed = buildOnboardingEmbed(t).toJSON()
-        expect(embed.description.toLowerCase()).not.toMatch(/convid|vot/)
+        expect(embed.description.toLowerCase()).not.toMatch(/invite|convid|vot/)
     })
 
     it('embed description never contains invite or vote CTA (es)', () => {
