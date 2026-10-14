@@ -12,9 +12,13 @@ jest.mock('node:child_process', () => ({
 }))
 const mockStatSync = jest.fn()
 const mockAccessSync = jest.fn()
+const mockMkdtempSync = jest.fn((prefix: string) => `${prefix}XXXXXX`)
+const mockRmSync = jest.fn()
 jest.mock('node:fs', () => ({
     statSync: (...args: unknown[]) => mockStatSync(...args),
     accessSync: (...args: unknown[]) => mockAccessSync(...args),
+    mkdtempSync: (prefix: string) => mockMkdtempSync(prefix),
+    rmSync: (...args: unknown[]) => mockRmSync(...args),
     constants: { R_OK: 4 },
 }))
 jest.mock('@lucky/shared/utils', () => ({
@@ -130,6 +134,8 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         __resetYtdlpCookiesLogStateForTests()
         mockSpawn.mockReset()
         mockStatSync.mockReset()
+        mockMkdtempSync.mockClear()
+        mockRmSync.mockClear()
         mockAccessSync.mockReset()
         mockInfoLog.mockReset()
         mockWarnLog.mockReset()
@@ -148,6 +154,24 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
 
         expect(mockSpawn).toHaveBeenCalledTimes(1)
         expect(spawnArgs(0)).not.toContain('--cookies')
+    })
+
+    it('runs each yt-dlp in its own temp dir and removes it on close', async () => {
+        script(FORBIDDEN, 'ok')
+
+        await streamViaYtDlp(validUrl)
+
+        const cwdOf = (call: number) =>
+            (mockSpawn.mock.calls[call]?.[2] as { cwd?: string }).cwd
+        expect(mockMkdtempSync).toHaveBeenCalledTimes(2)
+        expect(cwdOf(0)).toBe(mockMkdtempSync.mock.results[0]?.value)
+        expect(cwdOf(1)).toBe(mockMkdtempSync.mock.results[1]?.value)
+        // The first run failed and closed; the second is still streaming.
+        expect(mockRmSync).toHaveBeenCalledTimes(1)
+        expect(mockRmSync).toHaveBeenCalledWith(cwdOf(0), {
+            recursive: true,
+            force: true,
+        })
     })
 
     // Both sign-in challenges retry with cookies on purpose: a logged-in

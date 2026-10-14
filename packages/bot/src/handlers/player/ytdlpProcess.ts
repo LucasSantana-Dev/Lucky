@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process'
-import { accessSync, constants, statSync } from 'node:fs'
+import { accessSync, constants, mkdtempSync, rmSync, statSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import type { Readable } from 'node:stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
@@ -189,6 +191,13 @@ function needsSignIn(error: unknown): boolean {
 
 function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
     return new Promise<Readable>((resolve, reject) => {
+        // HLS sources (SoundCloud AAC) make yt-dlp write fragment .part
+        // files (`--Frag1.part`) to the cwd even with `-o -`. The container's
+        // cwd (/app) is root-owned, and concurrent streams would clobber each
+        // other's fragments in a shared dir, so each run gets its own.
+        const workDir = mkdtempSync(join(tmpdir(), 'ytdlp-'))
+        const removeWorkDir = () =>
+            rmSync(workDir, { recursive: true, force: true })
         const proc = spawn(
             YTDLP_BINARY_PATH,
             [
@@ -205,8 +214,9 @@ function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
                 ...cookiesArgs,
                 url,
             ],
-            { stdio: ['ignore', 'pipe', 'pipe'] },
+            { stdio: ['ignore', 'pipe', 'pipe'], cwd: workDir },
         )
+        proc.once('close', removeWorkDir)
 
         // On every attempt this fires, the caller still has to wait out the
         // full duration before falling back to SoundCloud, so a long timeout
@@ -244,6 +254,7 @@ function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
         )
 
         proc.once('error', (err) => {
+            removeWorkDir()
             if (settled) return
             settled = true
             clearTimeout(timeout)
