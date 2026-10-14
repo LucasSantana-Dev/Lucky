@@ -51,9 +51,21 @@ describe('security headers via helmet (#1283)', () => {
         expect(csp).toContain("object-src 'none'")
         expect(csp).toContain('https://cdn.discordapp.com')
         expect(csp).toContain('https://*.sentry.io')
-        expect(csp).toContain('https://static.cloudflareinsights.com')
-        expect(csp).toContain('https://i.ytimg.com')
-        expect(csp).toContain('https://i.scdn.co')
+        // Check the directive, not just the header: a host under the wrong
+        // directive would still pass a plain substring match.
+        const directives = Object.fromEntries(
+            String(csp)
+                .split(';')
+                .map((directive) => {
+                    const [name, ...sources] = directive.trim().split(/\s+/)
+                    return [name, sources]
+                }),
+        )
+        expect(directives['script-src']).toContain(
+            'https://static.cloudflareinsights.com',
+        )
+        expect(directives['img-src']).toContain('https://i.ytimg.com')
+        expect(directives['img-src']).toContain('https://i.scdn.co')
         expect(csp).toContain('report-uri /api/security/csp-report')
     })
 })
