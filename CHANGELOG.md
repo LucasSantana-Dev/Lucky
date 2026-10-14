@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.59.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.12...v2.59.0) (2026-10-14)
+
+
+### Features
+
+* **bot:** localized welcome embed with recap cta ([#2785](https://github.com/LucasSantana-Dev/Lucky/issues/2785)) ([347b035](https://github.com/LucasSantana-Dev/Lucky/commit/347b035d41a436f66df66504a2abbc99193b8910))
+
+
+### Bug Fixes
+
+* **analytics:** fix play outcome recording and isPlaylist flag ([#2796](https://github.com/LucasSantana-Dev/Lucky/issues/2796)) ([b13865c](https://github.com/LucasSantana-Dev/Lucky/commit/b13865cf132d1609d094babe8bb48e0a986f8262))
+* **backend:** send replayed OAuth callbacks on a logged-in session to the dashboard ([#2809](https://github.com/LucasSantana-Dev/Lucky/issues/2809)) ([a21017c](https://github.com/LucasSantana-Dev/Lucky/commit/a21017c0fc621029d8530b03dcf4320849c73242))
+* **backend:** serve stale popular artists while refreshing ([#2812](https://github.com/LucasSantana-Dev/Lucky/issues/2812)) ([81d46a1](https://github.com/LucasSantana-Dev/Lucky/commit/81d46a123f3ed93b666e044aaf787de890d07583))
+* **security:** allow track cover art and the Cloudflare beacon in the CSP ([#2810](https://github.com/LucasSantana-Dev/Lucky/issues/2810)) ([815d642](https://github.com/LucasSantana-Dev/Lucky/commit/815d64278b37e6cc7044c0af053626b60ee329e5))
+
 ## [2.58.12](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.11...v2.58.12) (2026-10-13)
 
 
