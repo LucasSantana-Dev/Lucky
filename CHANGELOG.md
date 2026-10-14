@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.59.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.2...v2.59.3) (2026-10-14)
+
+
+### Bug Fixes
+
+* **bot:** run yt-dlp from the temp dir so HLS fragments are writable ([#2819](https://github.com/LucasSantana-Dev/Lucky/issues/2819)) ([f9aaafb](https://github.com/LucasSantana-Dev/Lucky/commit/f9aaafb39b23b295dab8fcedd3318efbab51377e))
+
 ## [2.59.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.1...v2.59.2) (2026-10-14)
 
 
