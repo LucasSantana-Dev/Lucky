@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.59.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.0...v2.59.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* **bot:** log reported exhausted plays at warn level ([#2815](https://github.com/LucasSantana-Dev/Lucky/issues/2815)) ([010274d](https://github.com/LucasSantana-Dev/Lucky/commit/010274d7569ec9e1cc797c7309244a5db6000fbc))
+* **bot:** report Top.gg stats failures only after 3 in a row ([#2814](https://github.com/LucasSantana-Dev/Lucky/issues/2814)) ([b369bea](https://github.com/LucasSantana-Dev/Lucky/commit/b369beab90d7a76f6e685af0b11d5347f18405b8))
+
 ## [2.59.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.12...v2.59.0) (2026-10-14)
 
 
