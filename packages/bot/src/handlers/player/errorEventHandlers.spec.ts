@@ -7,11 +7,13 @@ import {
 
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
+const warnLogMock = jest.fn()
 const captureExceptionMock = jest.fn()
 const notifyChannelStreamFailedMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }))
@@ -427,9 +429,13 @@ describe('errorEventHandlers', () => {
 
         beforeEach(() => {
             captureExceptionMock.mockClear()
+            errorLogMock.mockClear()
+            warnLogMock.mockClear()
         })
 
-        it('skips the exception for a reported exhausted error, logging still happens', async () => {
+        // errorLog forwards to Sentry as well, so it must not run either:
+        // that is how LUCKY-47 kept a duplicate event per exhausted play.
+        it('skips the exception for a reported exhausted error, logging at warn level', async () => {
             await handlePlayerError(
                 makeQueue() as any,
                 new BridgeExhaustedError(
@@ -438,7 +444,12 @@ describe('errorEventHandlers', () => {
                 ),
             )
             expect(captureExceptionMock).not.toHaveBeenCalled()
-            expect(errorLogMock).toHaveBeenCalled()
+            expect(errorLogMock).not.toHaveBeenCalled()
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: expect.stringContaining('Player error in queue'),
+                }),
+            )
         })
 
         it('skips the exception when discord-player wrapped the reported error', async () => {
@@ -451,6 +462,7 @@ describe('errorEventHandlers', () => {
                 wrapLikeDiscordPlayer(inner),
             )
             expect(captureExceptionMock).not.toHaveBeenCalled()
+            expect(errorLogMock).not.toHaveBeenCalled()
         })
 
         it('skips the exception when the reported error is only in the cause chain', async () => {
@@ -496,6 +508,7 @@ describe('errorEventHandlers', () => {
                     wrapLikeDiscordPlayer(new Error(msg)),
                 )
                 expect(captureExceptionMock).toHaveBeenCalledTimes(2)
+                expect(errorLogMock).toHaveBeenCalledTimes(2)
             },
         )
 
