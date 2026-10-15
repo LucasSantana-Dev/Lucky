@@ -680,15 +680,18 @@ describe('candidateScorer', () => {
             }
         })
 
-        it.each(['Song - Sped-Up', 'Song (Club-Mix)', 'Song - Reverb'])(
-            'penalizes hyphenated and reverb markers: %s',
-            (title) => {
-                const seed = createTrack({ title: 'Beat It' })
-                expect(score(title, 'Other', seed).signals).toContain(
-                    'unrequested remix',
-                )
-            },
-        )
+        it.each([
+            'Song - Sped-Up',
+            'Song (Club-Mix)',
+            'Song - Reverb',
+            'Song (The Remixes)',
+            'Song - Re-Mix',
+        ])('penalizes hyphenated and reverb markers: %s', (title) => {
+            const seed = createTrack({ title: 'Beat It' })
+            expect(score(title, 'Other', seed).signals).toContain(
+                'unrequested remix',
+            )
+        })
 
         it('ignores marker words that are the song name itself', () => {
             const seed = createTrack({ title: 'Remix' })

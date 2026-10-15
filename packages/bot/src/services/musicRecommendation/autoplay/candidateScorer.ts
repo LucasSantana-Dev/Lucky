@@ -53,8 +53,13 @@ export const RECENCY_WINDOW_TRACKS = 10
 const SCORE_UNREQUESTED_REMIX = -0.6
 // Remix-family markers only. Official cuts ("Single Edit", "Single Mix",
 // "Remaster") are left alone.
-const REMIX_MARKER_RE =
-    /\b(?:remix(?:ed)?|rmx|bootleg|mashup|nightcore|reverb|slowed|sp(?:e|ee)d[\s-]{0,3}up|8d[\s-]{0,3}audio|bass[\s-]{0,3}boosted|(?:extended|club|vip|dub)[\s-]{0,3}mix)\b/i
+const REMIX_MARKERS: readonly RegExp[] = [
+    /\bre-?mix(?:e[ds])?\b/i,
+    /\b(?:rmx|bootleg|mashup|nightcore|reverb|slowed)\b/i,
+    /\bsp(?:e|ee)d[\s-]{0,3}up\b/i,
+    /\b(?:8d[\s-]{0,3}audio|bass[\s-]{0,3}boosted)\b/i,
+    /\b(?:extended|club|vip|dub)[\s-]{0,3}mix\b/i,
+]
 const BRACKETED_RE = /[([]([^)\]]*)[)\]]/g
 
 /**
@@ -68,7 +73,7 @@ function hasRemixMarker(title: string): boolean {
         const idx = title.lastIndexOf(sep)
         if (idx > 0) segments.push(title.slice(idx + sep.length))
     }
-    return segments.some((s) => REMIX_MARKER_RE.test(s))
+    return segments.some((s) => REMIX_MARKERS.some((re) => re.test(s)))
 }
 // Genre families dense/cohesive enough that a cross-family jump reads as drift.
 // Used both for the cross-family penalty and the untagged-candidate fail-closed
