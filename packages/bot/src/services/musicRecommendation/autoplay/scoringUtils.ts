@@ -41,6 +41,34 @@ export function normalizeTrackKey(title?: string, author?: string): string {
     return `${normalizeText(cleanedTitle)}::${normalizeText(primaryAuthor)}`
 }
 
+// A vote rarely reaches the scorer through its own track key: the voted song
+// sits in the last-150 history exclusion. Spread it to the artist instead.
+// Per artist the decayed weights (0.15..1 each) are summed, so two dislikes
+// weigh more than one, and capped so one heavily voted artist stays bounded.
+const ARTIST_FEEDBACK_WEIGHT_CAP = 2
+
+/**
+ * Fold per-track feedback weights ("<title>::<primaryartist>" keys) into
+ * per-artist weights keyed by the same normalized primary artist.
+ */
+export function buildArtistFeedbackWeights(
+    trackWeights: Map<string, number>,
+): Map<string, number> {
+    const artistWeights = new Map<string, number>()
+    for (const [trackKey, weight] of trackWeights) {
+        const artistKey = trackKey.split('::')[1]
+        if (!artistKey) continue
+        artistWeights.set(
+            artistKey,
+            Math.min(
+                ARTIST_FEEDBACK_WEIGHT_CAP,
+                (artistWeights.get(artistKey) ?? 0) + weight,
+            ),
+        )
+    }
+    return artistWeights
+}
+
 /**
  * Extract Spotify track ID from a track URL or URI.
  * Returns null if no valid ID is found.

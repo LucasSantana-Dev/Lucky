@@ -14,6 +14,9 @@ export interface AutoplayContext {
     excludedKeys: Set<string>
     dislikedWeights: Map<string, number>
     likedWeights: Map<string, number>
+    /** Summed like/dislike weights per normalized primary artist. */
+    likedArtistWeights?: Map<string, number>
+    dislikedArtistWeights?: Map<string, number>
     preferredArtistKeys: Set<string>
     blockedArtistKeys: Set<string>
     currentTrack: Track

@@ -19,6 +19,8 @@ export type RecommendationSignal =
     | 'liked artist'
     | 'known artist'
     | 'liked track'
+    | 'liked artist track'
+    | 'disliked artist'
     | 'old dislike'
     | 'skipped before'
     | 'completed before'

@@ -8,6 +8,7 @@ import {
     getGenreFamilies,
     RECENCY_WINDOW_TRACKS,
 } from './candidateScorer'
+import { buildArtistFeedbackWeights, normalizeTrackKey } from './scoringUtils'
 import type { SessionMood } from './sessionMood'
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -743,6 +744,112 @@ describe('candidateScorer', () => {
             })
             expect(result.signals).not.toContain('session novelty')
             expect(result.signals).toContain('recency decay')
+        })
+    })
+
+    describe('artist-level feedback', () => {
+        // Owner report 2026-10-15: thumbs up/down never showed in later
+        // autoplay picks. The voted song sits in the last-150 history
+        // exclusion, so its exact-key weight never meets a candidate.
+        const seed = createTrack({ title: 'Take On Me', author: 'a-ha' })
+        const sameArtist = createTrack({
+            title: 'Beat It',
+            author: 'Michael Jackson',
+        })
+        const unrelated = createTrack({ title: 'Africa', author: 'Toto' })
+        const votes = (...titles: string[]) =>
+            new Map(
+                titles.map((t) => [normalizeTrackKey(t, 'Michael Jackson'), 1]),
+            )
+        const score = (
+            candidate: Track,
+            feedback: {
+                likedWeights?: Map<string, number>
+                dislikedWeights?: Map<string, number>
+            },
+        ) =>
+            calculateRecommendationScore({
+                candidate,
+                currentTrack: seed,
+                recentArtists: new Set(),
+                ...feedback,
+                likedArtistWeights: buildArtistFeedbackWeights(
+                    feedback.likedWeights ?? new Map(),
+                ),
+                dislikedArtistWeights: buildArtistFeedbackWeights(
+                    feedback.dislikedWeights ?? new Map(),
+                ),
+            })
+
+        it('a like on one song lifts the same artist over an equal unrelated candidate', () => {
+            const likedWeights = votes('Billie Jean')
+            const liked = score(sameArtist, { likedWeights })
+            const other = score(unrelated, { likedWeights })
+            expect(liked.score).toBeGreaterThan(other.score)
+            expect(liked.signals).toContain('liked artist track')
+            expect(other.signals).not.toContain('liked artist track')
+        })
+
+        it('matches a co-credited candidate on the voted primary artist', () => {
+            const result = score(
+                createTrack({
+                    title: 'Thriller',
+                    author: 'Michael Jackson, Steve Aoki',
+                }),
+                { likedWeights: votes('Billie Jean') },
+            )
+            expect(result.signals).toContain('liked artist track')
+        })
+
+        it('caps the liked-artist boost', () => {
+            const base = score(sameArtist, {})
+            const many = score(sameArtist, {
+                likedWeights: votes(
+                    'Billie Jean',
+                    'Thriller',
+                    'Bad',
+                    'Smooth Criminal',
+                ),
+            })
+            expect(many.score - base.score).toBeCloseTo(0.4)
+        })
+
+        it('a dislike on one song demotes the same artist below an equal unrelated candidate', () => {
+            const dislikedWeights = votes('Billie Jean')
+            const disliked = score(sameArtist, { dislikedWeights })
+            const other = score(unrelated, { dislikedWeights })
+            expect(disliked.score).toBeLessThan(other.score)
+            expect(disliked.score).toBeGreaterThan(-Infinity)
+            expect(disliked.signals).toContain('disliked artist')
+        })
+
+        it('two disliked songs of an artist weigh more than one', () => {
+            const one = score(sameArtist, {
+                dislikedWeights: votes('Billie Jean'),
+            })
+            const two = score(sameArtist, {
+                dislikedWeights: votes('Billie Jean', 'Thriller'),
+            })
+            expect(two.score).toBeLessThan(one.score)
+            expect(two.score).toBeGreaterThan(-Infinity)
+        })
+
+        it('buildArtistFeedbackWeights sums per primary artist and caps at 2', () => {
+            const weights = buildArtistFeedbackWeights(
+                new Map([
+                    [normalizeTrackKey('Billie Jean', 'Michael Jackson'), 0.9],
+                    [
+                        normalizeTrackKey('Bad', 'Michael Jackson, Steve Aoki'),
+                        0.4,
+                    ],
+                    [normalizeTrackKey('Thriller', 'Michael Jackson'), 1],
+                    [normalizeTrackKey('Africa', 'Toto'), 0.15],
+                    ['', 1],
+                ]),
+            )
+            expect(weights.get('michaeljackson')).toBe(2)
+            expect(weights.get('toto')).toBe(0.15)
+            expect(weights.size).toBe(2)
         })
     })
 
