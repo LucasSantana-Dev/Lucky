@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.59.7](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.6...v2.59.7) (2026-10-15)
+
+
+### Bug Fixes
+
+* match accented artist keys for block and prefer ([#2829](https://github.com/LucasSantana-Dev/Lucky/issues/2829)) ([802a951](https://github.com/LucasSantana-Dev/Lucky/commit/802a9515621e9f10a1d2e9b460e11ae3ec242402))
+
 ## [2.59.6](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.5...v2.59.6) (2026-10-15)
 
 
