@@ -26,6 +26,11 @@ const TOPGG_FETCH_TIMEOUT_MS = 10_000
 // for a missing TOPGG_TOKEN, the other "nothing changes until a human acts" case.
 const NON_RETRYABLE_STATUS = new Set([401, 403])
 
+// A single timeout or 5xx heals on the next tick: over 7 days, 5 of 336 posts timed out
+// and every one succeeded 30 minutes later (LUCKY-77). Each still logs a warning, but
+// Sentry only hears about an outage, once, when this many ticks in a row have failed.
+const REPORT_AFTER_CONSECUTIVE_FAILURES = 3
+
 type TopggStatsSchedulerOptions = {
     tickIntervalMs?: number
     fetch?: typeof fetch
@@ -35,6 +40,7 @@ export class TopggStatsScheduler extends IntervalScheduler {
     private readonly fetchFn: typeof fetch
     private loggedMissingToken = false
     private credentialRejected = false
+    private consecutiveFailures = 0
 
     constructor(options: TopggStatsSchedulerOptions = {}) {
         super(options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS)
@@ -142,18 +148,22 @@ export class TopggStatsScheduler extends IntervalScheduler {
                     { status: response.status, serverCount },
                 )
 
-                captureMessage(
-                    `Top.gg stats POST failed: ${statusText} (status ${response.status})`,
-                    'warning',
-                    {
-                        category: 'topgg.stats',
-                        serverCount,
-                        status: response.status,
-                    },
-                )
+                if (this.recordFailure()) {
+                    captureMessage(
+                        `Top.gg stats POST failed: ${statusText} (status ${response.status})`,
+                        'warning',
+                        {
+                            category: 'topgg.stats',
+                            serverCount,
+                            status: response.status,
+                            consecutiveFailures: this.consecutiveFailures,
+                        },
+                    )
+                }
                 return
             }
 
+            this.consecutiveFailures = 0
             infoLog({
                 message: 'Top.gg stats posted successfully',
                 data: { serverCount },
@@ -172,12 +182,24 @@ export class TopggStatsScheduler extends IntervalScheduler {
                 { error: String(error), serverCount },
             )
 
-            captureMessage(
-                `Top.gg stats POST request failed: ${String(error)}`,
-                'warning',
-                { category: 'topgg.stats', serverCount },
-            )
+            if (this.recordFailure()) {
+                captureMessage(
+                    `Top.gg stats POST request failed: ${String(error)}`,
+                    'warning',
+                    {
+                        category: 'topgg.stats',
+                        serverCount,
+                        consecutiveFailures: this.consecutiveFailures,
+                    },
+                )
+            }
         }
+    }
+
+    /** Count a retryable failure; true on the tick that should reach Sentry. */
+    private recordFailure(): boolean {
+        this.consecutiveFailures += 1
+        return this.consecutiveFailures === REPORT_AFTER_CONSECUTIVE_FAILURES
     }
 
     private async publishMemberReach(client: Client): Promise<void> {

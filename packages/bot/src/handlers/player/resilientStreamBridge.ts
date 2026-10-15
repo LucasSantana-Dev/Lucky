@@ -22,29 +22,54 @@ import {
 } from '../../utils/monitoring/prometheus'
 import { streamViaYtDlp, resolveYtDlpSearchUrl } from './ytdlpProcess'
 import {
+    BridgeExhaustedError,
+    isReportedBridgeExhausted,
+} from './bridgeExhaustedError'
+import {
+    classifyYtDlpFailure,
     isYtDlpBlocked,
     recordYtDlpFailure,
     recordYtDlpSuccess,
 } from './ytdlpBlockBreaker'
-import {
-    stampFallbackStage,
-    type StreamBridgeFallbackStage,
-} from './streamFallbackState'
 import {
     getSpotifySource,
     setSpotifySource,
     setSpotifySourceNegative,
     isNegativeEntry,
 } from './spotifySourceCache'
+import {
+    stampFallbackStage,
+    type StreamBridgeFallbackStage,
+} from './streamFallbackState'
 
 type BridgeTrack = Pick<
     Track,
     'title' | 'author' | 'duration' | 'url' | 'metadata' | 'setMetadata'
 >
 
+// Per-stage failures are breadcrumbs, not Sentry events: a stage failing while
+// the next one succeeds is an expected fallback. The class of the first
+// YouTube failure is kept per track so the single all-exhausted event can be
+// fingerprinted by root cause.
+const firstYouTubeFailure = new WeakMap<object, string>()
+// Tracks whose empty YouTube search went on to the broad retry, so the
+// exhausted event can list that stage in stages_tried.
+const broadSearchTried = new WeakSet<object>()
+
+// Tracks whose all-exhausted event was already sent, so the final throw can
+// carry the marker that lets handlePlayerError skip its duplicate exception.
+const reportedExhausted = new WeakSet<object>()
+
+function noteFirstYouTubeFailure(track: BridgeTrack, error: unknown): void {
+    if (!firstYouTubeFailure.has(track)) {
+        firstYouTubeFailure.set(track, classifyYtDlpFailure(error))
+    }
+}
+
 type BridgeStage =
     | 'ytdlp_url'
     | 'ytdlp_search'
+    | 'ytdlp_search_broad'
     | 'soundcloud_full'
     | 'soundcloud_title'
     | 'soundcloud_core'
@@ -99,12 +124,7 @@ async function attemptYtDlpUrl(
                 url: safeUrlOrigin(track.url),
             },
         )
-        captureMessage(
-            `YouTube extraction failed: ${scrubUrls((ytdlpError as Error).message)}`,
-            'warning',
-            { url: safeUrlOrigin(track.url) },
-            { category: 'music.youtube-extraction', stage: 'yt-dlp-url' },
-        )
+        noteFirstYouTubeFailure(track, ytdlpError)
         warnLog({
             message: 'Bridge: yt-dlp failed, falling back to SoundCloud',
             data: {
@@ -183,7 +203,7 @@ async function attemptCoreStageOrLogExhausted(
     track: BridgeTrack,
     cleanedTitle: string,
     cleanedAuthor: string,
-    youtubeStage: string | undefined,
+    youtubeStages: string[],
 ): Promise<Readable | null> {
     const coreTitle = computeCoreTitleCandidate(cleanedTitle, cleanedAuthor)
     const alreadyTriedQueries = new Set([
@@ -193,7 +213,7 @@ async function attemptCoreStageOrLogExhausted(
 
     if (!coreTitle || alreadyTriedQueries.has(coreTitle)) {
         logAllStagesExhausted(track, cleanedTitle, [
-            youtubeStage || 'yt-dlp',
+            ...youtubeStages,
             'soundcloud-full',
             'soundcloud-title',
         ])
@@ -220,7 +240,7 @@ async function attemptCoreStageOrLogExhausted(
             track,
             cleanedTitle,
             [
-                youtubeStage || 'yt-dlp',
+                ...youtubeStages,
                 'soundcloud-full',
                 'soundcloud-title',
                 'soundcloud-core',
@@ -241,11 +261,19 @@ function logAllStagesExhausted(
         durationMs?: number
     } = {},
 ): void {
+    reportedExhausted.add(track)
+    const failureClass = firstYouTubeFailure.get(track) ?? 'none'
     captureMessage(
         'YouTube extraction exhausted all fallback stages',
         'warning',
         { title: track.title, url: safeUrlOrigin(track.url), stages },
-        { category: 'music.youtube-extraction', stage: 'all-exhausted' },
+        {
+            category: 'music.youtube-extraction',
+            stage: 'all-exhausted',
+            failure_class: failureClass,
+            stages_tried: stages.join(','),
+        },
+        ['youtube-extraction-exhausted', failureClass],
     )
     warnLog({
         message: 'Bridge: all stages exhausted',
@@ -273,6 +301,8 @@ function logAllStagesExhausted(
 // different upload, which can succeed where the original was geo-blocked or
 // private, so a different URL still gets one direct yt-dlp attempt.
 const exhaustedPasses = new WeakMap<object, string | null>()
+// Passes whose first failure already sent the all-exhausted event.
+const reportedPasses = new WeakSet<object>()
 
 function currentPassKey(ext: unknown): object | null {
     try {
@@ -291,7 +321,11 @@ export async function createResilientStream(
 ): Promise<Readable> {
     const passKey = currentPassKey(ext)
     if (passKey && exhaustedPasses.has(passKey)) {
-        return retryExhaustedPass(track, exhaustedPasses.get(passKey) ?? null)
+        return retryExhaustedPass(
+            track,
+            exhaustedPasses.get(passKey) ?? null,
+            reportedPasses.has(passKey),
+        )
     }
 
     const startedAt = Date.now()
@@ -305,7 +339,10 @@ export async function createResilientStream(
         return stream
     } catch (error) {
         const durationMs = observeStage('bridge_total', startedAt, 'fail')
-        if (passKey) exhaustedPasses.set(passKey, track.url ?? null)
+        if (passKey) {
+            exhaustedPasses.set(passKey, track.url ?? null)
+            if (isReportedBridgeExhausted(error)) reportedPasses.add(passKey)
+        }
         debugLog({
             message: 'Bridge: failed',
             data: {
@@ -325,6 +362,7 @@ export async function createResilientStream(
 async function retryExhaustedPass(
     track: BridgeTrack,
     failedUrl: string | null,
+    reported: boolean,
 ): Promise<Readable> {
     const url = track.url
     const canRescue =
@@ -340,38 +378,12 @@ async function retryExhaustedPass(
         message: 'Bridge: already exhausted for this play, failing fast',
         data: { title: track.title, rescueTried: canRescue },
     })
-    throw new Error(`Bridge exhausted: no stream for "${track.title}"`)
+    throw new BridgeExhaustedError(
+        `Bridge exhausted: no stream for "${track.title}"`,
+        reported,
+    )
 }
 
-/**
- * `onBeforeCreateStream` hook: Spotify has metadata only, so every Spotify
- * track is resolved by the bridge. Running it from this hook skips
- * discord-player's own pre-bridge work (SpotifyExtractor.stream ->
- * requestBridge -> SoundCloudExtractor.bridge does a SoundCloud search and
- * stream resolve before our bridge ever starts) and its generic/fallback
- * second pass. Other sources return null and keep the normal extractor chain.
- */
-export async function streamSpotifyTrackViaBridge(
-    track: Pick<Track, 'source'> & BridgeTrack,
-): Promise<Readable | null> {
-    if (track.source !== 'spotify') return null
-    return createResilientStream(track)
-}
-
-/**
- * Resolves audio for a Spotify track via a two-tier cache (L1 LRU + Redis).
- *
- * Cache hit  → calls streamViaYtDlp() with the cached YouTube URL directly,
- *              skipping the ytsearch1 round-trip (~4–6 s saved).
- * Negative   → skip yt-dlp entirely; return null so the caller falls through
- *              to SoundCloud immediately.
- * Cache miss → resolve the YouTube URL with resolveYtDlpSearchUrl(), populate
- *              the cache, then stream from that URL; on resolution failure,
- *              store a negative entry and return null.
- *
- * Returns null when the stream could not be resolved (caller handles SoundCloud
- * fallback) and always handles its own cache writes.
- */
 async function resolveSpotifyViaCache(
     spotifyUrl: string,
     cleanedTitle: string,
@@ -401,7 +413,6 @@ async function resolveSpotifyViaCache(
             })
             return stream
         } catch (cacheHitError) {
-            // Cached URL is stale or geo-blocked; fall through to a fresh resolve.
             observeStage('ytdlp_search', startedAt, 'fail')
             warnLog({
                 message:
@@ -416,7 +427,6 @@ async function resolveSpotifyViaCache(
         spotifyCacheTotal.inc({ result: 'miss' })
     }
 
-    // Cache miss (or stale hit): resolve the YouTube URL, cache it, then stream.
     const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
     const resolveStart = Date.now()
     let youtubeUrl: string
@@ -453,7 +463,6 @@ async function resolveSpotifyViaCache(
         return null
     }
 
-    // URL resolved — cache it, then stream.
     void setSpotifySource(spotifyUrl, youtubeUrl)
 
     const streamStart = Date.now()
@@ -508,6 +517,21 @@ async function resolveSpotifyViaCache(
     }
 }
 
+/**
+ * `onBeforeCreateStream` hook: Spotify has metadata only, so every Spotify
+ * track is resolved by the bridge. Running it from this hook skips
+ * discord-player's own pre-bridge work (SpotifyExtractor.stream ->
+ * requestBridge -> SoundCloudExtractor.bridge does a SoundCloud search and
+ * stream resolve before our bridge ever starts) and its generic/fallback
+ * second pass. Other sources return null and keep the normal extractor chain.
+ */
+export async function streamSpotifyTrackViaBridge(
+    track: Pick<Track, 'source'> & BridgeTrack,
+): Promise<Readable | null> {
+    if (track.source !== 'spotify') return null
+    return createResilientStream(track)
+}
+
 async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     const cleanedTitle = cleanTitle(track.title)
     const cleanedAuthor = cleanAuthor(track.author)
@@ -527,13 +551,21 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         },
     })
 
-    let youtubeStage: string | undefined
+    let youtubeStages: string[] = []
+    broadSearchTried.delete(track)
+    // The same Track instance can be played again: drop the previous play's
+    // failure class so this play's event is fingerprinted by its own cause.
+    firstYouTubeFailure.delete(track)
+    reportedExhausted.delete(track)
 
     // YouTube is answering media downloads with 403: skip yt-dlp instead of
     // paying 4-10 s per play for a known failure (#2653).
     const ytDlpBlocked = isYtDlpBlocked()
     if (ytDlpBlocked) {
-        youtubeStage = 'yt-dlp-blocked'
+        youtubeStages = ['yt-dlp-blocked']
+        if (!firstYouTubeFailure.has(track)) {
+            firstYouTubeFailure.set(track, 'breaker_open')
+        }
         debugLog({
             message:
                 'Bridge: yt-dlp blocked (YouTube 403), skipping to SoundCloud',
@@ -544,7 +576,7 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     if (!ytDlpBlocked && track.url && !isSpotifyUrl) {
         const stream = await attemptYtDlpUrl(track, cleanedTitle)
         if (stream) return stream
-        youtubeStage = 'yt-dlp-url'
+        youtubeStages = ['yt-dlp-url']
     }
 
     if (!ytDlpBlocked && isSpotifyUrl) {
@@ -554,8 +586,11 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
             cleanedAuthor,
         )
         if (stream !== null) return stream
-        youtubeStage = 'yt-dlp-search'
+        youtubeStages = ['yt-dlp-search']
     }
+
+    // Neither yt-dlp branch ran (no URL): do not claim yt-dlp was attempted.
+    if (youtubeStages.length === 0) youtubeStages = ['yt-dlp-not-attempted']
 
     if (!cleanedTitle) {
         warnLog({
@@ -606,9 +641,12 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         track,
         cleanedTitle,
         cleanedAuthor,
-        youtubeStage,
+        youtubeStages,
     )
     if (coreStream) return coreStream
 
-    throw new Error(`Bridge exhausted: no stream for "${track.title}"`)
+    throw new BridgeExhaustedError(
+        `Bridge exhausted: no stream for "${track.title}"`,
+        reportedExhausted.has(track),
+    )
 }

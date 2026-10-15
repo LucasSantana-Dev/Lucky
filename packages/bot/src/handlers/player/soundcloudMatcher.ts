@@ -3,10 +3,12 @@ import type { Readable } from 'stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { withTimeout } from './withTimeout'
 import { hasVersionMarker } from '../../utils/music/searchQueryCleaner'
+import { streamViaYtDlp } from './ytdlpProcess'
 
 type SoundCloudSearchResult = {
     name: string
     url: string
+    permalink?: string
     durationInSec?: number
 }
 
@@ -122,9 +124,37 @@ export async function streamViaSoundCloud(
 
     const match = findMatchingSoundCloudResult(query, trackDuration, results)
     if (!match) {
+        warnLog({
+            message: 'SoundCloud: no validated match',
+            data: {
+                query,
+                trackDuration,
+                rejected: describeRejectedCandidates(
+                    query,
+                    trackDuration,
+                    results,
+                ),
+            },
+        })
         throw new Error(
             `SoundCloud: no validated match for "${query}" (title/duration mismatch)`,
         )
+    }
+
+    // SoundCloud now lists an adaptive `abr_sq` HLS transcoding last, and
+    // play-dl 1.9.7 always streams the last HLS format, whose URL answers
+    // 404. The AAC formats before it are fMP4 segments, and play-dl drops
+    // their init segment (EXT-X-MAP), so ffmpeg cannot decode those either.
+    // yt-dlp handles both. play-dl stays as the fallback for mp3 tracks.
+    if (match.permalink) {
+        try {
+            return await streamViaYtDlp(match.permalink)
+        } catch (err) {
+            warnLog({
+                message: 'SoundCloud: yt-dlp stream failed, trying play-dl',
+                data: { track: match.name, error: (err as Error).message },
+            })
+        }
     }
 
     let scStream: Awaited<ReturnType<typeof playdl.stream>>
@@ -224,8 +254,35 @@ export function findMatchingSoundCloudResult(
     }, pool[0]).result
 }
 
+function describeRejectedCandidates(
+    query: string,
+    trackDuration: string | undefined,
+    results: readonly SoundCloudSearchResult[],
+): { name: string; titleScore: number; durationDeltaSec: number | null }[] {
+    const tokens = normalizeForMatch(query).split(/ +/).filter(Boolean)
+    const trackSec = parseDurationString(trackDuration)
+    return results.slice(0, 5).map((result) => {
+        const resultNorm = normalizeForMatch(result.name)
+        const matched = tokens.filter((token) =>
+            resultNorm.includes(token),
+        ).length
+        return {
+            name: result.name,
+            titleScore: tokens.length
+                ? Number((matched / tokens.length).toFixed(2))
+                : 0,
+            durationDeltaSec:
+                trackSec !== null && result.durationInSec
+                    ? Math.abs(result.durationInSec - trackSec)
+                    : null,
+        }
+    })
+}
+
 function normalizeForMatch(value: string): string {
     return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .replace(/[^a-z0-9 ]/g, '')
         .replace(/ {2,}/g, ' ') // NOSONAR: S5852 — bounded input, no catastrophic backtracking risk

@@ -50,12 +50,14 @@ export function captureException(
  * @param level The severity level
  * @param extras Additional data to include with the message
  * @param tags Searchable string tags for aggregation and filtering
+ * @param fingerprint Optional grouping key so distinct root causes get their own issue
  */
 export function captureMessage(
     message: string,
     level: Sentry.SeverityLevel = 'info',
     extras?: Record<string, unknown>,
     tags?: Record<string, string>,
+    fingerprint?: string[],
 ): void {
     if (!process.env.SENTRY_DSN || process.env.NODE_ENV === 'development') {
         return
@@ -65,6 +67,7 @@ export function captureMessage(
         level,
         extra: extras,
         tags,
+        ...(fingerprint ? { fingerprint } : {}),
     })
 }
 

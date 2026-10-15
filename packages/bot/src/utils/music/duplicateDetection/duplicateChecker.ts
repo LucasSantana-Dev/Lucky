@@ -132,6 +132,7 @@ export async function addTrackToHistory(
             rawMetadata && typeof rawMetadata === 'object'
                 ? (rawMetadata as {
                       isAutoplay?: boolean
+                      isPlaylist?: boolean
                       requestedQuery?: string
                   })
                 : undefined
@@ -151,6 +152,7 @@ export async function addTrackToHistory(
                 metadata: { isAutoplay: Boolean(metadata?.isAutoplay) },
                 skipped: playback?.skipped,
                 playDuration: playback?.playDuration,
+                isPlaylist: Boolean(metadata?.isPlaylist),
             },
             guildId,
             track.requestedBy?.id,

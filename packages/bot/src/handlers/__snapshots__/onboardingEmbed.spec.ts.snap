@@ -1,0 +1,43 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`buildOnboardingEmbed renders the English onboarding embed 1`] = `
+{
+  "color": 5793266,
+  "description": "\`/play <song or url>\` — start music in your voice channel
+
+When configured, Lucky posts a Sunday recap of the server's most-played tracks and artists. A server admin can enable it with \`/recap channel\`.",
+  "footer": {
+    "icon_url": undefined,
+    "text": "Lucky",
+  },
+  "title": "🎵 Thanks for adding Lucky!",
+}
+`;
+
+exports[`buildOnboardingEmbed renders the es onboarding embed 1`] = `
+{
+  "color": 5793266,
+  "description": "\`/play <canción o url>\` — pon música en tu canal de voz
+
+Cuando está configurado, Lucky publica un resumen dominical de las canciones y artistas más escuchados del servidor. Un administrador puede activarlo con \`/recap channel\`.",
+  "footer": {
+    "icon_url": undefined,
+    "text": "Lucky",
+  },
+  "title": "🎵 ¡Gracias por agregar Lucky!",
+}
+`;
+
+exports[`buildOnboardingEmbed renders the pt-BR onboarding embed 1`] = `
+{
+  "color": 5793266,
+  "description": "\`/play <música ou url>\` — toque músicas no seu canal de voz
+
+Quando configurado, Lucky publica um recap dominical das faixas e artistas mais tocados no servidor. Um administrador pode ativar com \`/recap channel\`.",
+  "footer": {
+    "icon_url": undefined,
+    "text": "Lucky",
+  },
+  "title": "🎵 Obrigado por adicionar o Lucky!",
+}
+`;

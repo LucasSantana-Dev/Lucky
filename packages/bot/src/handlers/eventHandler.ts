@@ -1,6 +1,5 @@
 import {
     Events,
-    EmbedBuilder,
     ChannelType,
     PermissionFlagsBits,
     type Client,
@@ -40,6 +39,8 @@ import {
     handleOnboardingStationButton,
     ONBOARDING_STATION_BUTTON_PREFIX,
 } from './onboardingStation'
+import { translatorForInteraction } from '../i18n/translatorForInteraction'
+import { buildOnboardingEmbed } from './onboardingEmbed'
 import { executeCommand, executeContextMenu } from './commandsHandler'
 import { recordCommandEvent } from '../utils/monitoring/recordCommandEvent'
 import {
@@ -114,25 +115,6 @@ function handleClientReady(client: Client): void {
     })
 }
 
-// Pure-utility onboarding embed (no invite/vote CTA — see ADR
-// 2026-06-18-in-bot-growth). Helps a new server start using the bot; keeping it
-// utility-first avoids the Platform-Manipulation flags that jeopardize verification.
-const ONBOARDING_EMBED = new EmbedBuilder()
-    .setColor(0x5865f2)
-    .setTitle('🎵 Thanks for adding Lucky!')
-    .setDescription(
-        [
-            "Here's how to get started:",
-            '',
-            '`/play <song or url>` — play music in your voice channel',
-            '`/queue` — see the current and upcoming tracks',
-            '`/help` — browse every command',
-            '',
-            '🎧 Or join a voice channel and pick a station below to start listening now:',
-        ].join('\n'),
-    )
-    .setFooter({ text: 'Lucky' })
-
 // First text channel the bot can actually post to (system channel preferred).
 function findOnboardingChannel(guild: Guild): GuildBasedChannel | null {
     const me = guild.members?.me
@@ -163,9 +145,10 @@ async function sendOnboardingMessage(guild: Guild): Promise<void> {
         })
         return
     }
+    const t = await translatorForInteraction({ guildId: guild.id, guild })
     try {
         await channel.send({
-            embeds: [ONBOARDING_EMBED],
+            embeds: [buildOnboardingEmbed(t)],
             components: [await createOnboardingStationRow(guild)],
         })
         telemetryLog('onboarding', {
