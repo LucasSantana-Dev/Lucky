@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.59.6](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.5...v2.59.6) (2026-10-15)
+
+
+### Bug Fixes
+
+* **bot:** compare autoplay artists on the primary credit ([#2826](https://github.com/LucasSantana-Dev/Lucky/issues/2826)) ([4aa7116](https://github.com/LucasSantana-Dev/Lucky/commit/4aa7116cc8173e13c05b103009c26fcae9c48833))
+* **bot:** demote unrequested remixes in autoplay scoring ([#2825](https://github.com/LucasSantana-Dev/Lucky/issues/2825)) ([f8595f8](https://github.com/LucasSantana-Dev/Lucky/commit/f8595f873ee093b82c4b0b862ae5c4b63681849c))
+* **bot:** spread track votes to the artist in autoplay scoring ([#2827](https://github.com/LucasSantana-Dev/Lucky/issues/2827)) ([2f04769](https://github.com/LucasSantana-Dev/Lucky/commit/2f04769dc95c87b4cc04779fb8fd1d73e7cec306))
+
 ## [2.59.5](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.4...v2.59.5) (2026-10-15)
 
 
