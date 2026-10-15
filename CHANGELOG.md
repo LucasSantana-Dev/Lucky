@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.59.5](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.4...v2.59.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **bot:** read spotify " - X Remix" suffix as a requested version ([#2823](https://github.com/LucasSantana-Dev/Lucky/issues/2823)) ([8f0272c](https://github.com/LucasSantana-Dev/Lucky/commit/8f0272c08301e8b361d9a2c6d90c5da70a3121a1))
+
 ## [2.59.4](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.3...v2.59.4) (2026-10-15)
 
 
