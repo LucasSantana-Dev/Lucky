@@ -2,6 +2,7 @@ import type { Track } from 'discord-player'
 import type { SessionMood } from './sessionMood'
 import type { RecommendationSignal } from './recommendationBasis.js'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
+import { primaryArtist } from '../../../utils/music/trackNormalization'
 import { detectSpanishMarkers } from '../../../utils/music/languageHeuristics'
 import { normalizeText, normalizeTrackKey } from './scoringUtils'
 
@@ -252,8 +253,11 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     const sessionHasStrongFamily = Array.from(referenceFamilies).some((f) =>
         STRONG_GENRE_FAMILIES.includes(f),
     )
-    const currentArtist = currentTrack.author.toLowerCase()
-    const candidateArtist = candidate.author.toLowerCase()
+    // Compare on the first credited artist: "Michael Jackson, Steve Aoki" is
+    // still Michael Jackson, so a co-credit does not dodge the same-artist
+    // penalty or earn session novelty.
+    const currentArtist = primaryArtist(currentTrack.author).toLowerCase()
+    const candidateArtist = primaryArtist(candidate.author).toLowerCase()
     const candidateArtistKey = normalizeText(cleanAuthor(candidate.author))
 
     if (blockedArtistKeys.has(candidateArtistKey)) {
@@ -387,7 +391,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     }
 
     const deepDiveArtist = sessionMood?.deepDiveArtist
-        ? cleanAuthor(sessionMood.deepDiveArtist).toLowerCase()
+        ? primaryArtist(sessionMood.deepDiveArtist).toLowerCase()
         : null
     const isDeepDive =
         deepDiveArtist !== null && candidateArtist === deepDiveArtist
@@ -459,10 +463,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
 
     if (sessionMood) {
         const durationMs = candidate.durationMS ?? 0
-        if (
-            sessionMood.deepDiveArtist &&
-            candidateArtist === sessionMood.deepDiveArtist
-        ) {
+        if (isDeepDive) {
             score += SCORE_DURATION_MATCH
             signals.push('deep dive')
         }
@@ -522,7 +523,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     // cross-genre on un-vetted sources) and respects provenance-aware guards.
     if (
         replayFrequentTrackIds.has(candidate.id) ||
-        replayFrequentArtists.has(candidateArtist)
+        replayFrequentArtists.has(candidate.author.toLowerCase())
     ) {
         score += SCORE_REPLAY_COUNT_BOOST
         signals.push('replay frequent')
