@@ -679,6 +679,26 @@ describe('candidateScorer', () => {
                 )
             }
         })
+
+        it.each(['Song - Sped-Up', 'Song (Club-Mix)', 'Song - Reverb'])(
+            'penalizes hyphenated and reverb markers: %s',
+            (title) => {
+                const seed = createTrack({ title: 'Beat It' })
+                expect(score(title, 'Other', seed).signals).toContain(
+                    'unrequested remix',
+                )
+            },
+        )
+
+        it('ignores marker words that are the song name itself', () => {
+            const seed = createTrack({ title: 'Remix' })
+            expect(score('Speed Up', 'Other', seed).signals).not.toContain(
+                'unrequested remix',
+            )
+            expect(score('Thriller (Remix)', 'Other', seed).signals).toContain(
+                'unrequested remix',
+            )
+        })
     })
 
     describe('recency-decay penalty (diversity decay)', () => {
