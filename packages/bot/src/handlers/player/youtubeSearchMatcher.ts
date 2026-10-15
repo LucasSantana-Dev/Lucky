@@ -107,7 +107,10 @@ const TITLE_SEPARATORS = [' - ', ' | ', ' \u2013 ', ' \u2014 ']
 // Version markers a title carries as a tag: inside "(...)" or "[...]", or as
 // the whole last " - " segment ("Song - Live", "Song - Remix Version"). A
 // bare word is part of the song name ("Live Forever", "Radio Ga Ga").
-function versionMarkers(title: string): string[] {
+// `phraseSuffix` reads that segment by phrase instead: Spotify titles put the
+// version there ("Song - Nirso Remix", "Song - Live at Wembley"), while on a
+// YouTube title it is often the song name ("Artist - Live Forever").
+function versionMarkers(title: string, phraseSuffix = false): string[] {
     const tags = [...title.matchAll(TAG_RE)].map((m) =>
         normalize(m[1] ?? m[2] ?? ''),
     )
@@ -115,15 +118,14 @@ function versionMarkers(title: string): string[] {
     const cut = Math.max(
         ...TITLE_SEPARATORS.map((s) => untagged.lastIndexOf(s)),
     )
-    const suffix =
-        cut > 0
-            ? normalize(untagged.slice(cut + 3)).replace(
-                  / (version|edit|mix)$/,
-                  '',
-              )
-            : ''
+    const suffix = cut > 0 ? normalize(untagged.slice(cut + 3)) : ''
+    // Phrase mode keeps a trailing "Mix" ("Song - DJ Mix" requests "mix").
+    const matchesSuffix = (m: string) =>
+        phraseSuffix
+            ? hasPhrase(suffix, m)
+            : suffix.replace(/ (version|edit|mix)$/, '') === m
     return VERSION_MARKERS.filter(
-        (m) => suffix === m || tags.some((tag) => hasPhrase(tag, m)),
+        (m) => matchesSuffix(m) || tags.some((tag) => hasPhrase(tag, m)),
     )
 }
 
@@ -148,7 +150,7 @@ function buildContext(target: YouTubeMatchTarget): MatchContext {
             `${target.sourceTitle} ${target.title} ${target.author}`,
         ),
         requestedMarkers: [
-            ...versionMarkers(target.sourceTitle),
+            ...versionMarkers(target.sourceTitle, true),
             ...VERSION_MARKERS.filter((m) => hasPhrase(authorNorm, m)),
         ],
         artists: creditedArtists(target.author),
