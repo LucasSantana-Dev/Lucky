@@ -179,8 +179,16 @@ describe('RecommendationFeedbackService', () => {
             const artistKey2 = `artist2_${feedback}`
 
             mockUserArtistPreference.findMany.mockResolvedValueOnce([
-                { artistKey: artistKey1, preference: feedback },
-                { artistKey: artistKey2, preference: feedback },
+                {
+                    artistKey: artistKey1,
+                    artistName: 'A',
+                    preference: feedback,
+                },
+                {
+                    artistKey: artistKey2,
+                    artistName: 'B',
+                    preference: feedback,
+                },
             ])
 
             const result = await (
@@ -616,8 +624,8 @@ describe('implicit feedback', () => {
             const service = new RecommendationFeedbackService(30)
 
             mockUserArtistPreference.findMany.mockResolvedValueOnce([
-                { artistKey: 'artist1', preference: 'prefer' },
-                { artistKey: 'artist2', preference: 'prefer' },
+                { artistKey: 'artist1', artistName: 'X', preference: 'prefer' },
+                { artistKey: 'artist2', artistName: 'X', preference: 'prefer' },
             ])
 
             const result = await service.getPreferredArtistKeys(
@@ -643,7 +651,7 @@ describe('implicit feedback', () => {
             const service = new RecommendationFeedbackService(30)
 
             mockUserArtistPreference.findMany.mockResolvedValueOnce([
-                { artistKey: 'blocked1', preference: 'block' },
+                { artistKey: 'blocked1', artistName: 'X', preference: 'block' },
             ])
 
             const result = await service.getBlockedArtistKeys(
@@ -659,6 +667,28 @@ describe('implicit feedback', () => {
                         guildId: 'guild-1',
                         preference: 'block',
                     }),
+                }),
+            )
+        })
+
+        it('maps legacy rows to the current key and keeps distinct artists apart', async () => {
+            const service = new RecommendationFeedbackService(30)
+
+            mockUserArtistPreference.findMany.mockResolvedValueOnce([
+                { artistKey: 'bjork', artistName: 'Bjo\u0308rk' },
+                { artistKey: 'bjork', artistName: 'Bjork' },
+                { artistKey: 'bjrk', artistName: 'Björk - Topic' },
+            ])
+
+            const result = await service.getBlockedArtistKeys(
+                'guild-1',
+                'user-1',
+            )
+
+            expect([...result].sort()).toEqual(['bjork', 'björk'])
+            expect(mockUserArtistPreference.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    select: { artistKey: true, artistName: true },
                 }),
             )
         })

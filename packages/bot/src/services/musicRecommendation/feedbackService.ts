@@ -3,6 +3,7 @@ import { parseIntEnv } from '@lucky/shared/utils/env'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import {
     artistKeyVariants,
+    lookupArtistKey,
     normalizeArtistKey,
     staleLegacyKeys,
 } from '@lucky/shared/utils/artistKey'
@@ -330,10 +331,10 @@ export class RecommendationFeedbackService {
             const db = getPrismaClient()
             const prefs = await db.userArtistPreference.findMany({
                 where: { discordUserId: userId, guildId, preference },
-                select: { artistKey: true },
+                select: { artistKey: true, artistName: true },
                 take: 5000,
             })
-            return new Set(prefs.map((p) => p.artistKey))
+            return new Set(prefs.map((p) => lookupArtistKey(p, cleanAuthor)))
         } catch (error) {
             errorLog({
                 message: `Failed to load ${preference} artist keys`,

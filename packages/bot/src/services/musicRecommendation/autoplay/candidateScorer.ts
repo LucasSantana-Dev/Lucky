@@ -311,7 +311,8 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     const candidateAuthor = cleanAuthor(candidate.author)
     const candidateArtistKey = normalizeText(candidateAuthor)
 
-    // Stored keys follow the shared artist key rule (legacy ASCII rows too).
+    // Key sets come from lookupArtistKey, so legacy ASCII rows already map
+    // to the current key here.
     if (
         hasArtistKey(blockedArtistKeys, candidateAuthor) ||
         hasArtistKey(blockedArtistKeys, candidateArtist)

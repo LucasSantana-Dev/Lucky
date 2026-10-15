@@ -495,21 +495,24 @@ describe('ArtistSuggestionService', () => {
             expect(mockPrisma.userArtistPreference.upsert).toHaveBeenCalled()
         })
 
-        test('should throw 400 when the name has no letters or digits', async () => {
-            const error = await service
-                .handleSavePreferredArtist('user_123', {
-                    guildId: 'guild_1',
-                    artistKey: '!!!',
-                    artistName: '!!!',
-                })
-                .catch((e) => e)
+        test.each(['!!!', '\u0301\u0308'])(
+            'should throw 400 when the name %j has no letters or digits',
+            async (name) => {
+                const error = await service
+                    .handleSavePreferredArtist('user_123', {
+                        guildId: 'guild_1',
+                        artistKey: name,
+                        artistName: name,
+                    })
+                    .catch((e) => e)
 
-            expect(error).toBeInstanceOf(AppError)
-            expect(error.statusCode).toBe(400)
-            expect(
-                mockPrisma.userArtistPreference.upsert,
-            ).not.toHaveBeenCalled()
-        })
+                expect(error).toBeInstanceOf(AppError)
+                expect(error.statusCode).toBe(400)
+                expect(
+                    mockPrisma.userArtistPreference.upsert,
+                ).not.toHaveBeenCalled()
+            },
+        )
     })
 
     describe('handleBatchSavePreferences', () => {

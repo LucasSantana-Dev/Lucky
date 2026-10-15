@@ -4,14 +4,16 @@
  * so a block or preference saved for "Björk" matches a "Björk" candidate.
  *
  * Unicode letters, combining marks and digits are kept ("björk", "米津玄師",
- * "कु"); everything else is dropped. Rows written before this rule used an ASCII-only key ("bjrk"),
+ * "कु"); everything else is dropped. A name with no letter or digit gives an
+ * empty key. Rows written before this rule used an ASCII-only key ("bjrk"),
  * see legacyArtistKey.
  */
 export function normalizeArtistKey(name: string): string {
-    return name
+    const key = name
         .normalize('NFKC')
         .toLowerCase()
         .replaceAll(/[^\p{L}\p{M}\p{N}]+/gu, '')
+    return /[\p{L}\p{N}]/u.test(key) ? key : ''
 }
 
 /** The old ASCII-only key. Only used to find rows stored before the Unicode rule. */
@@ -46,7 +48,23 @@ export function staleLegacyKeys(
         .map((r) => r.artistKey)
 }
 
-/** True when the set holds the artist under its current or legacy key. */
+/**
+ * Key to look a stored row up by. A legacy ASCII row maps to the current key
+ * of its own artistName, so NFD "Björk" stored as "bjork" matches "björk" and
+ * never the distinct artist "Bjork". Other rows keep their stored key.
+ */
+export function lookupArtistKey(
+    row: { artistKey: string; artistName: string },
+    clean: (name: string) => string = (name) => name,
+): string {
+    const name = clean(row.artistName)
+    const key = normalizeArtistKey(name)
+    const legacy = [legacyArtistKey(name), legacyArtistKey(key)]
+    return key !== '' && legacy.includes(row.artistKey) ? key : row.artistKey
+}
+
+/** True when the set, built with lookupArtistKey, holds the artist. */
 export function hasArtistKey(keys: ReadonlySet<string>, name: string): boolean {
-    return artistKeyVariants(name).some((k) => keys.has(k))
+    const key = normalizeArtistKey(name)
+    return key !== '' && keys.has(key)
 }

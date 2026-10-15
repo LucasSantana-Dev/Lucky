@@ -12,12 +12,14 @@ import EmptyState from '@/components/ui/EmptyState'
 import { cn } from '@/lib/utils'
 
 // Mirrors normalizeArtistKey in @lucky/shared/utils/artistKey (the backend
-// re-normalizes whatever key is sent): Unicode letters, marks and digits are kept.
+// re-normalizes whatever key is sent): Unicode letters, marks and digits are
+// kept, and a name with no letter or digit gives an empty key.
 function normalizeArtistKey(name: string): string {
-    return name
+    const key = name
         .normalize('NFKC')
         .toLowerCase()
         .replace(/[^\p{L}\p{M}\p{N}]+/gu, '')
+    return /[\p{L}\p{N}]/u.test(key) ? key : ''
 }
 
 interface ArtistTileProps {

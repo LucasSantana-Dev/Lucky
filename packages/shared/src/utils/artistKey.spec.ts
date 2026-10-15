@@ -3,6 +3,7 @@ import {
     artistKeyVariants,
     hasArtistKey,
     legacyArtistKey,
+    lookupArtistKey,
     normalizeArtistKey,
     staleLegacyKeys,
 } from './artistKey'
@@ -14,6 +15,7 @@ describe('artistKey', () => {
         ['米津玄師', '米津玄師'],
         ['AC/DC', 'acdc'],
         ['!!!', ''],
+        ['\u0301\u0308', ''],
     ])('normalizeArtistKey(%s) is %s', (name: string, key: string) => {
         expect(normalizeArtistKey(name)).toBe(key)
     })
@@ -56,10 +58,24 @@ describe('artistKey', () => {
         expect(artistKeyVariants(name)).toEqual(variants)
     })
 
-    it('finds an artist stored under either key form', () => {
+    it.each([
+        ['legacy NFC row', { artistKey: 'bjrk', artistName: 'Björk' }, 'björk'],
+        [
+            'legacy NFD row',
+            { artistKey: 'bjork', artistName: 'Bjo\u0308rk' },
+            'björk',
+        ],
+        ['ASCII artist', { artistKey: 'bjork', artistName: 'Bjork' }, 'bjork'],
+        ['current row', { artistKey: 'björk', artistName: 'Björk' }, 'björk'],
+        ['non-name key', { artistKey: 'drake', artistName: 'Drake!' }, 'drake'],
+    ])('lookupArtistKey maps a %s', (_, row, key) => {
+        expect(lookupArtistKey(row)).toBe(key)
+    })
+
+    it('matches only the current key', () => {
         expect(hasArtistKey(new Set(['björk']), 'Björk')).toBe(true)
-        expect(hasArtistKey(new Set(['bjrk']), 'Björk')).toBe(true)
-        expect(hasArtistKey(new Set(['bjrk']), 'Taylor Swift')).toBe(false)
-        expect(hasArtistKey(new Set(['']), '米津玄師')).toBe(false)
+        expect(hasArtistKey(new Set(['bjork']), 'Bjo\u0308rk')).toBe(false)
+        expect(hasArtistKey(new Set(['björk']), 'Bjork')).toBe(false)
+        expect(hasArtistKey(new Set(['']), '!!!')).toBe(false)
     })
 })

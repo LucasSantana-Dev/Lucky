@@ -89,10 +89,8 @@ describe('candidateScorer', () => {
             expect(result.signals).toContain('preferred artist')
         })
 
-        it.each([
-            ['current key', 'björk'],
-            ['legacy ASCII key', 'bjrk'],
-        ])('blocks and prefers an accented artist by its %s', (_, key) => {
+        it('blocks and prefers an accented artist by its Unicode key', () => {
+            const key = 'björk'
             const base = {
                 candidate: createTrack({ author: 'Björk' }),
                 currentTrack: createTrack(),
