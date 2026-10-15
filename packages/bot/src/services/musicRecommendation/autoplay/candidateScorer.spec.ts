@@ -728,6 +728,19 @@ describe('candidateScorer', () => {
             },
         )
 
+        it('blocks a co-credit of a blocked artist', () => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack({
+                    title: 'Thriller',
+                    author: 'Michael Jackson, Steve Aoki',
+                }),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                blockedArtistKeys: new Set(['michaeljackson']),
+            })
+            expect(result.score).toBe(-Infinity)
+        })
+
         it('treats a co-credit of a recent artist as recent', () => {
             const result = calculateRecommendationScore({
                 candidate: createTrack({

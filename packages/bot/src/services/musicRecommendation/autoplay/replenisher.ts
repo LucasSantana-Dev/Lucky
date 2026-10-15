@@ -841,10 +841,11 @@ export async function selectAndRerankCandidates(
     // When the user is deep-diving an artist (3+ tracks in last 8), relax
     // the per-artist cap for that artist so autoplay follows their intent.
     const deepDiveKey = sessionMood.deepDiveArtist
-    const effectiveMaxPerArtist =
-        deepDiveKey && currentTrack.author.toLowerCase().includes(deepDiveKey)
-            ? 5
-            : MAX_TRACKS_PER_ARTIST
+    const isDeepDiveSeed =
+        !!deepDiveKey &&
+        (primaryArtist(deepDiveKey).toLowerCase() === seedArtistKey ||
+            currentTrack.author.toLowerCase().includes(deepDiveKey))
+    const effectiveMaxPerArtist = isDeepDiveSeed ? 5 : MAX_TRACKS_PER_ARTIST
     const selected = interleaveByArtist(
         selectDiverseCandidates(
             candidates,

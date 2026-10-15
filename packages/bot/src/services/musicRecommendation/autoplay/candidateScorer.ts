@@ -298,7 +298,10 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     const candidateArtist = primaryArtist(candidate.author).toLowerCase()
     const candidateArtistKey = normalizeText(cleanAuthor(candidate.author))
 
-    if (blockedArtistKeys.has(candidateArtistKey)) {
+    if (
+        blockedArtistKeys.has(candidateArtistKey) ||
+        blockedArtistKeys.has(normalizeText(candidateArtist))
+    ) {
         return { score: -Infinity, signals: [] }
     }
 
