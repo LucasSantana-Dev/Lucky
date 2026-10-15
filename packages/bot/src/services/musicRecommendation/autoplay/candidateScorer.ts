@@ -54,8 +54,28 @@ export const RECENCY_WINDOW_TRACKS = 10
 const SCORE_UNREQUESTED_REMIX = -0.6
 // Remix-family markers only. Official cuts ("Single Edit", "Single Mix",
 // "Remaster") are left alone.
-const REMIX_MARKER_RE =
-    /\b(?:remix(?:ed)?|rmx|bootleg|mashup|nightcore|sped\s{0,3}up|speed\s{0,3}up|slowed|8d\s{0,3}audio|bass\s{0,3}boosted|(?:extended|club|vip|dub)\s{0,3}mix)\b/i
+const REMIX_MARKERS: readonly RegExp[] = [
+    /\bre-?mix(?:e[ds])?\b/i,
+    /\b(?:rmx|bootleg|mashup|nightcore|reverb|slowed)\b/i,
+    /\bsp(?:e|ee)d[\s-]{0,3}up\b/i,
+    /\b(?:8d[\s-]{0,3}audio|bass[\s-]{0,3}boosted)\b/i,
+    /\b(?:extended|club|vip|dub)[\s-]{0,3}mix\b/i,
+]
+const BRACKETED_RE = /[([]([^)\]]*)[)\]]/g
+
+/**
+ * True when a remix marker sits in a structured position: inside (...)/[...]
+ * or in the final " - " suffix. A bare title like "Speed Up" or "Remix" is
+ * the song's own name, not a version tag.
+ */
+function hasRemixMarker(title: string): boolean {
+    const segments = Array.from(title.matchAll(BRACKETED_RE), (m) => m[1])
+    for (const sep of [' - ', ' – ', ' — ']) {
+        const idx = title.lastIndexOf(sep)
+        if (idx > 0) segments.push(title.slice(idx + sep.length))
+    }
+    return segments.some((s) => REMIX_MARKERS.some((re) => re.test(s)))
+}
 // Genre families dense/cohesive enough that a cross-family jump reads as drift.
 // Used both for the cross-family penalty and the untagged-candidate fail-closed
 // guard. Kept deliberately narrow (pop/soul are too broad to fail closed on).
@@ -580,8 +600,8 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     }
 
     if (
-        REMIX_MARKER_RE.test(candidate.title ?? '') &&
-        !REMIX_MARKER_RE.test(currentTrack.title ?? '')
+        hasRemixMarker(candidate.title ?? '') &&
+        !hasRemixMarker(currentTrack.title ?? '')
     ) {
         score += SCORE_UNREQUESTED_REMIX
         signals.push('unrequested remix')
