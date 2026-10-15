@@ -179,6 +179,60 @@ describe('pickYouTubeCandidate', () => {
         expect(rejected[0].reason).toBe('marker')
     })
 
+    it('reads the trailing " - " segment of a YouTube title as a whole', () => {
+        const { pick } = pickYouTubeCandidate(
+            target({
+                title: 'Forever',
+                sourceTitle: 'Forever',
+                author: 'Artist',
+                duration: '4:00',
+            }),
+            [candidate('alf', 'Artist - Live Forever', 'Artist - Topic', 240)],
+        )
+        expect(pick?.id).toBe('alf')
+    })
+
+    // First play on 2.59.4 (2026-10-15): the remix upload was rejected.
+    it('accepts the remix a Spotify " - X Remix" title asks for', () => {
+        const { pick } = pickYouTubeCandidate(
+            target({
+                title: 'Cadê Zé ( Rosângela Macedo) - Nirso Remix',
+                sourceTitle: 'Cadê Zé (feat. Rosângela Macedo) - Nirso Remix',
+                author: 'Maga Bo, Rosângela Macedo, Nirso',
+                duration: '3:50',
+            }),
+            [
+                candidate(
+                    'nirso',
+                    'Cadê Zé (Nirso Remix) (feat. Rosângela Macedo)',
+                    'Maga Bo - Topic',
+                    230,
+                ),
+            ],
+        )
+        expect(pick?.id).toBe('nirso')
+    })
+
+    it('accepts the live version a Spotify " - Live at X" title asks for', () => {
+        const { pick } = pickYouTubeCandidate(
+            target({
+                title: 'Forever - Live at Wembley',
+                sourceTitle: 'Forever - Live at Wembley',
+                author: 'Artist',
+                duration: '4:00',
+            }),
+            [
+                candidate(
+                    'live',
+                    'Forever (Live at Wembley)',
+                    'Artist - Topic',
+                    240,
+                ),
+            ],
+        )
+        expect(pick?.id).toBe('live')
+    })
+
     it('keeps a duo credited with "&" as one artist', () => {
         const { pick } = pickYouTubeCandidate(
             target({
