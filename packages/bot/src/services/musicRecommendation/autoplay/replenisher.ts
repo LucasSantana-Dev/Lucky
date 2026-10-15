@@ -28,6 +28,7 @@ import {
     type ArtistTagFetcher,
 } from './artistTagCache'
 import { getGenreFamilies, RECENCY_WINDOW_TRACKS } from './candidateScorer'
+import { buildArtistFeedbackWeights } from './scoringUtils'
 import {
     buildExcludedUrls,
     buildExcludedKeys,
@@ -198,6 +199,8 @@ async function _replenishQueue(
         const {
             likedWeights,
             dislikedWeights,
+            likedArtistWeights,
+            dislikedArtistWeights,
             persistentHistory,
             guildSettings,
             implicitDislikeKeys: _implicitDislikeKeys,
@@ -245,6 +248,8 @@ async function _replenishQueue(
             excludedKeys,
             dislikedWeights,
             likedWeights,
+            likedArtistWeights,
+            dislikedArtistWeights,
             preferredArtistKeys,
             blockedArtistKeys,
             currentTrack,
@@ -414,6 +419,8 @@ export async function fetchFeedbackAndHistoryData(
 ): Promise<{
     likedWeights: Map<string, number>
     dislikedWeights: Map<string, number>
+    likedArtistWeights: Map<string, number>
+    dislikedArtistWeights: Map<string, number>
     persistentHistory: TrackHistoryEntry[]
     guildSettings: {
         autoplayMode?: 'similar' | 'discover' | 'popular'
@@ -517,6 +524,8 @@ export async function fetchFeedbackAndHistoryData(
     return {
         likedWeights,
         dislikedWeights,
+        likedArtistWeights: buildArtistFeedbackWeights(likedWeights),
+        dislikedArtistWeights: buildArtistFeedbackWeights(dislikedWeights),
         persistentHistory,
         guildSettings,
         implicitDislikeKeys,
@@ -769,6 +778,8 @@ export async function collectAllCandidates(
                 recentArtists: autoplayContext.recentArtists,
                 likedTrackKeys: autoplayContext.likedWeights,
                 dislikedTrackKeys: autoplayContext.dislikedWeights,
+                likedArtistWeights: autoplayContext.likedArtistWeights,
+                dislikedArtistWeights: autoplayContext.dislikedArtistWeights,
                 currentTrack: autoplayContext.currentTrack,
                 excludedUrls: autoplayContext.excludedUrls,
                 excludedKeys: autoplayContext.excludedKeys,

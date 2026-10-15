@@ -25,6 +25,12 @@ const SCORE_GENRE_TAG_MAX = 0.2
 const SCORE_GENRE_TAG_PER_MATCH = 0.05
 const SCORE_LIKED_ARTIST_WEIGHT = 0.2
 const SCORE_LIKED_ARTIST_TEMPO = 0.1
+// Artist-level feedback: a vote on one song nudges the artist's other songs.
+// Weights are summed per artist (capped at 2 upstream), so two dislikes hit
+// harder than one. Never a hard block: blockedArtistKeys covers that.
+const SCORE_LIKED_ARTIST_TRACK = 0.25
+const SCORE_LIKED_ARTIST_TRACK_MAX = 0.4
+const SCORE_DISLIKED_ARTIST = -0.3
 const DURATION_RATIO_TIGHT_LOW = 0.8
 const DURATION_RATIO_TIGHT_HIGH = 1.2
 const DURATION_RATIO_LOOSE_LOW = 0.7
@@ -221,6 +227,9 @@ export interface ScoringContext {
     implicitDislikeKeys?: Set<string>
     implicitLikeKeys?: Set<string>
     dislikedWeights?: Map<string, number>
+    /** Summed like/dislike weights keyed by normalized primary artist. */
+    likedArtistWeights?: Map<string, number>
+    dislikedArtistWeights?: Map<string, number>
     sessionMood?: SessionMood | null
     skipNoveltyBoost?: boolean
     /**
@@ -268,6 +277,8 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         implicitDislikeKeys = new Set(),
         implicitLikeKeys = new Set(),
         dislikedWeights = new Map<string, number>(),
+        likedArtistWeights = new Map<string, number>(),
+        dislikedArtistWeights = new Map<string, number>(),
         sessionMood = null,
         skipNoveltyBoost = false,
         seedDerived = false,
@@ -420,6 +431,22 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         }
         score -= Math.abs(SCORE_DISLIKED_PENALTY) * dislikedWeight
         signals.push('old dislike')
+    }
+
+    // Same "<title>::<primaryartist>" key the vote was stored under.
+    const candidateVoteArtist = candidateKey.split('::')[1] ?? ''
+    const likedArtistWeight = likedArtistWeights.get(candidateVoteArtist)
+    if (likedArtistWeight !== undefined) {
+        score += Math.min(
+            SCORE_LIKED_ARTIST_TRACK_MAX,
+            SCORE_LIKED_ARTIST_TRACK * likedArtistWeight,
+        )
+        signals.push('liked artist track')
+    }
+    const dislikedArtistWeight = dislikedArtistWeights.get(candidateVoteArtist)
+    if (dislikedArtistWeight !== undefined) {
+        score += SCORE_DISLIKED_ARTIST * dislikedArtistWeight
+        signals.push('disliked artist')
     }
 
     if (implicitDislikeKeys.has(candidateKey)) {
