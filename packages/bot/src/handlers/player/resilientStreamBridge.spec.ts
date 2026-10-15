@@ -15,19 +15,23 @@ const mockAddBreadcrumb = jest.fn()
 const mockCaptureMessage = jest.fn()
 const mockStreamViaYtDlp = jest.fn()
 const mockSearchYtDlpCandidates = jest.fn()
-const mockResolveYtDlpSearchUrl = jest.fn()
 const mockStampFallbackStage = jest.fn()
 const mockObserve = jest.fn()
 const mockSpotifyCacheInc = jest.fn()
 const mockGetSpotifySource = jest.fn()
 const mockSetSpotifySource = jest.fn()
-const mockSetSpotifySourceNegative = jest.fn()
 
 jest.mock('../../utils/monitoring/prometheus', () => ({
     playStageSeconds: { observe: (...args: unknown[]) => mockObserve(...args) },
     spotifyCacheTotal: {
         inc: (...args: unknown[]) => mockSpotifyCacheInc(...args),
     },
+}))
+
+jest.mock('./spotifySourceCache', () => ({
+    getSpotifySource: (...args: unknown[]) => mockGetSpotifySource(...args),
+    setSpotifySource: (...args: unknown[]) => mockSetSpotifySource(...args),
+    isNegativeEntry: (v: unknown) => v === null,
 }))
 
 jest.mock('./soundcloudMatcher', () => ({
@@ -75,15 +79,6 @@ jest.mock('./ytdlpProcess', () => ({
     streamViaYtDlp: (...args: unknown[]) => mockStreamViaYtDlp(...args),
     searchYtDlpCandidates: (...args: unknown[]) =>
         mockSearchYtDlpCandidates(...args),
-    resolveYtDlpSearchUrl: (...args: unknown[]) =>
-        mockResolveYtDlpSearchUrl(...args),
-}))
-jest.mock('./spotifySourceCache', () => ({
-    getSpotifySource: (...args: unknown[]) => mockGetSpotifySource(...args),
-    setSpotifySource: (...args: unknown[]) => mockSetSpotifySource(...args),
-    setSpotifySourceNegative: (...args: unknown[]) =>
-        mockSetSpotifySourceNegative(...args),
-    isNegativeEntry: (v: unknown) => v === null,
 }))
 jest.mock('./streamFallbackState', () => ({
     stampFallbackStage: (...args: unknown[]) => mockStampFallbackStage(...args),
@@ -141,13 +136,6 @@ function makeTrack(
 
 const fakeStream = new EventEmitter() as any
 
-// Module-level defaults so every describe block starts with a clean, sane state.
-// Tests that need different behavior override with mockResolvedValueOnce etc.
-mockGetSpotifySource.mockResolvedValue(null) // default: cache miss
-mockResolveYtDlpSearchUrl.mockResolvedValue(
-    'https://www.youtube.com/watch?v=test-resolved',
-)
-
 // A search hit that passes validation for makeTrack()'s defaults.
 function hit(
     overrides: Partial<{
@@ -184,6 +172,7 @@ describe('createResilientStream', () => {
         mockCleanSearchQuery.mockReturnValue('test track test artist')
         mockExtractSongCore.mockReturnValue(null)
         mockIsAvailable.mockReturnValue(true)
+        mockGetSpotifySource.mockResolvedValue(null)
     })
 
     describe('play stage telemetry', () => {
@@ -1072,6 +1061,7 @@ describe('streamSpotifyTrackViaBridge', () => {
         mockCleanAuthor.mockReturnValue('Test Artist')
         mockCleanSearchQuery.mockReturnValue('test track test artist')
         mockIsAvailable.mockReturnValue(true)
+        mockGetSpotifySource.mockResolvedValue(null)
     })
 
     const spotify = () => ({

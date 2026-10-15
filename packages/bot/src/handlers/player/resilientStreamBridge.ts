@@ -20,7 +20,13 @@ import {
     playStageSeconds,
     spotifyCacheTotal,
 } from '../../utils/monitoring/prometheus'
-import { streamViaYtDlp, resolveYtDlpSearchUrl } from './ytdlpProcess'
+import { searchYtDlpCandidates, streamViaYtDlp } from './ytdlpProcess'
+import {
+    pickYouTubeCandidate,
+    youtubeWatchUrl,
+    type RejectedYouTubeCandidate,
+    type ScoredYouTubeCandidate,
+} from './youtubeSearchMatcher'
 import {
     BridgeExhaustedError,
     isReportedBridgeExhausted,
@@ -34,7 +40,6 @@ import {
 import {
     getSpotifySource,
     setSpotifySource,
-    setSpotifySourceNegative,
     isNegativeEntry,
 } from './spotifySourceCache'
 import {
@@ -130,6 +135,238 @@ async function attemptYtDlpUrl(
             data: {
                 error: (ytdlpError as Error).message,
                 url: track.url,
+                cleanedTitle,
+                durationMs,
+            },
+        })
+        return null
+    }
+}
+
+type SearchOutcome =
+    | { stream: Readable; pick: ScoredYouTubeCandidate }
+    | { stream: null; rejected: RejectedYouTubeCandidate[] }
+
+// Lists the top hits, plays the best one that passes validation, and never
+// plays an unvalidated hit: no match returns the rejected list instead.
+async function streamValidatedSearchHit(
+    query: string,
+    cleanedTitle: string,
+    cleanedAuthor: string,
+    track: BridgeTrack,
+): Promise<SearchOutcome> {
+    const candidates = await searchYtDlpCandidates(query)
+    const { pick, rejected } = pickYouTubeCandidate(
+        {
+            title: cleanedTitle,
+            author: cleanedAuthor,
+            sourceTitle: track.title,
+            duration: track.duration,
+        },
+        candidates,
+    )
+    if (!pick) return { stream: null, rejected }
+    const stream = await streamViaYtDlp(youtubeWatchUrl(pick.id))
+    return { stream, pick }
+}
+
+function describePick(pick: ScoredYouTubeCandidate) {
+    return {
+        videoId: pick.id,
+        channel: pick.channel,
+        videoDurationSec: pick.durationSec,
+        score: Number(pick.score.toFixed(2)),
+    }
+}
+
+// An empty result keeps the 'empty' class it had before validation existed;
+// hits that all failed validation get their own class.
+function noteNoValidatedHit(
+    track: BridgeTrack,
+    rejected: RejectedYouTubeCandidate[],
+): void {
+    if (!firstYouTubeFailure.has(track)) {
+        firstYouTubeFailure.set(track, rejected.length ? 'no_match' : 'empty')
+    }
+}
+
+async function attemptYtDlpSearch(
+    cleanedTitle: string,
+    cleanedAuthor: string,
+    track: BridgeTrack,
+    cacheSpotifyUrl?: string,
+): Promise<Readable | null> {
+    const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
+    const startedAt = Date.now()
+    try {
+        const outcome = await streamValidatedSearchHit(
+            ytQuery,
+            cleanedTitle,
+            cleanedAuthor,
+            track,
+        )
+        if (!outcome.stream) {
+            const durationMs = observeStage('ytdlp_search', startedAt, 'fail')
+            noteNoValidatedHit(track, outcome.rejected)
+            warnLog({
+                message: outcome.rejected.length
+                    ? 'Bridge: no validated YouTube search hit, retrying with a broader query'
+                    : 'Bridge: yt-dlp YouTube search returned nothing, retrying with a broader query',
+                data: {
+                    query: ytQuery,
+                    cleanedTitle,
+                    trackDuration: track.duration,
+                    rejected: outcome.rejected,
+                    durationMs,
+                },
+            })
+            return attemptBroadYtDlpSearch(cleanedTitle, cleanedAuthor, track)
+        }
+        const durationMs = observeStage('ytdlp_search', startedAt, 'ok')
+        recordYtDlpSuccess()
+        if (cacheSpotifyUrl) {
+            void setSpotifySource(
+                cacheSpotifyUrl,
+                youtubeWatchUrl(outcome.pick.id),
+            )
+        }
+        addBreadcrumb(
+            'YouTube search stream resolved for Spotify source',
+            'music.youtube-extraction',
+            'info',
+        )
+        infoLog({
+            message:
+                'Bridge: streamed via yt-dlp YouTube search (Spotify source)',
+            data: {
+                query: ytQuery,
+                title: cleanedTitle,
+                ...describePick(outcome.pick),
+                durationMs,
+            },
+        })
+        return outcome.stream
+    } catch (ytSearchError) {
+        const durationMs = observeStage('ytdlp_search', startedAt, 'fail')
+        recordYtDlpFailure(ytSearchError)
+        addBreadcrumb(
+            'YouTube extraction failed via search',
+            'music.youtube-extraction',
+            'warning',
+            {
+                error: scrubUrls((ytSearchError as Error).message),
+                searchText: ytQuery,
+            },
+        )
+        noteFirstYouTubeFailure(track, ytSearchError)
+        const isEmpty = classifyYtDlpFailure(ytSearchError) === 'empty'
+        warnLog({
+            message: isEmpty
+                ? 'Bridge: yt-dlp YouTube search returned nothing, retrying with a broader query'
+                : 'Bridge: yt-dlp YouTube search failed, falling back to SoundCloud',
+            data: {
+                error: (ytSearchError as Error).message,
+                query: ytQuery,
+                cleanedTitle,
+                durationMs,
+            },
+        })
+        // Niche tracks often have no "<title> <artist> official audio" hit at
+        // all (LUCKY-79). Only an empty result is worth one broader retry;
+        // 403, bot-check and timeout keep the existing flow.
+        if (isEmpty) {
+            return attemptBroadYtDlpSearch(cleanedTitle, cleanedAuthor, track)
+        }
+        return null
+    }
+}
+
+// Broader YouTube query: no " official audio" suffix, title cut at its first
+// parenthetical (or reduced to the song core), and only the lead artist when
+// the author field is a credit list.
+function buildBroadYtQuery(
+    cleanedTitle: string,
+    cleanedAuthor: string,
+): string {
+    const leadArtist = cleanedAuthor
+        .split(/,|;|\bfeat\.?\s|\bft\.?\s/i)[0]
+        .trim()
+    return cleanSearchQuery(
+        computeCoreTitleCandidate(cleanedTitle, cleanedAuthor),
+        leadArtist,
+    )
+}
+
+async function attemptBroadYtDlpSearch(
+    cleanedTitle: string,
+    cleanedAuthor: string,
+    track: BridgeTrack,
+): Promise<Readable | null> {
+    const broadQuery = buildBroadYtQuery(cleanedTitle, cleanedAuthor)
+    if (!broadQuery) return null
+    broadSearchTried.add(track)
+    const startedAt = Date.now()
+    try {
+        const outcome = await streamValidatedSearchHit(
+            broadQuery,
+            cleanedTitle,
+            cleanedAuthor,
+            track,
+        )
+        if (!outcome.stream) {
+            const durationMs = observeStage(
+                'ytdlp_search_broad',
+                startedAt,
+                'fail',
+            )
+            warnLog({
+                message:
+                    'Bridge: no validated YouTube broad search hit, falling back to SoundCloud',
+                data: {
+                    query: broadQuery,
+                    cleanedTitle,
+                    trackDuration: track.duration,
+                    rejected: outcome.rejected,
+                    durationMs,
+                },
+            })
+            return null
+        }
+        const durationMs = observeStage('ytdlp_search_broad', startedAt, 'ok')
+        recordYtDlpSuccess()
+        addBreadcrumb(
+            'YouTube broad search stream resolved after empty result',
+            'music.youtube-extraction',
+            'info',
+        )
+        infoLog({
+            message: 'Bridge: streamed via yt-dlp broad YouTube search retry',
+            data: {
+                query: broadQuery,
+                title: cleanedTitle,
+                ...describePick(outcome.pick),
+                durationMs,
+            },
+        })
+        return outcome.stream
+    } catch (broadError) {
+        const durationMs = observeStage('ytdlp_search_broad', startedAt, 'fail')
+        recordYtDlpFailure(broadError)
+        addBreadcrumb(
+            'YouTube broad search retry failed',
+            'music.youtube-extraction',
+            'warning',
+            {
+                error: scrubUrls((broadError as Error).message),
+                searchText: broadQuery,
+            },
+        )
+        warnLog({
+            message:
+                'Bridge: yt-dlp broad YouTube search retry failed, falling back to SoundCloud',
+            data: {
+                error: (broadError as Error).message,
+                query: broadQuery,
                 cleanedTitle,
                 durationMs,
             },
@@ -384,139 +621,6 @@ async function retryExhaustedPass(
     )
 }
 
-async function resolveSpotifyViaCache(
-    spotifyUrl: string,
-    cleanedTitle: string,
-    cleanedAuthor: string,
-): Promise<Readable | null> {
-    const cached = await getSpotifySource(spotifyUrl).catch(() => null)
-
-    if (cached !== null) {
-        if (isNegativeEntry(cached)) {
-            spotifyCacheTotal.inc({ result: 'negative' })
-            debugLog({
-                message: 'Bridge: Spotify cache negative hit — skipping yt-dlp',
-                data: { cleanedTitle },
-            })
-            return null
-        }
-
-        spotifyCacheTotal.inc({ result: 'hit' })
-        const startedAt = Date.now()
-        try {
-            const stream = await streamViaYtDlp(cached)
-            const durationMs = observeStage('ytdlp_search', startedAt, 'ok')
-            recordYtDlpSuccess()
-            infoLog({
-                message: 'Bridge: Spotify cache hit — streamed via cached URL',
-                data: { cleanedTitle, durationMs },
-            })
-            return stream
-        } catch (cacheHitError) {
-            observeStage('ytdlp_search', startedAt, 'fail')
-            warnLog({
-                message:
-                    'Bridge: Spotify cache hit but stream failed — re-resolving',
-                data: {
-                    cleanedTitle,
-                    error: (cacheHitError as Error).message,
-                },
-            })
-        }
-    } else {
-        spotifyCacheTotal.inc({ result: 'miss' })
-    }
-
-    const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
-    const resolveStart = Date.now()
-    let youtubeUrl: string
-    try {
-        youtubeUrl = await resolveYtDlpSearchUrl(ytQuery)
-    } catch (resolveError) {
-        observeStage('ytdlp_search', resolveStart, 'fail')
-        recordYtDlpFailure(resolveError)
-        addBreadcrumb(
-            'YouTube URL resolve failed for Spotify source',
-            'music.youtube-extraction',
-            'warning',
-            {
-                error: scrubUrls((resolveError as Error).message),
-                searchText: ytQuery,
-            },
-        )
-        captureMessage(
-            `YouTube search extraction failed: ${scrubUrls((resolveError as Error).message)}`,
-            'warning',
-            { searchText: ytQuery },
-            { category: 'music.youtube-extraction', stage: 'yt-dlp-search' },
-        )
-        warnLog({
-            message:
-                'Bridge: yt-dlp URL resolve failed, storing negative and falling back to SoundCloud',
-            data: {
-                error: (resolveError as Error).message,
-                query: ytQuery,
-                cleanedTitle,
-            },
-        })
-        void setSpotifySourceNegative(spotifyUrl)
-        return null
-    }
-
-    void setSpotifySource(spotifyUrl, youtubeUrl)
-
-    const streamStart = Date.now()
-    try {
-        const stream = await streamViaYtDlp(youtubeUrl)
-        const durationMs = observeStage('ytdlp_search', resolveStart, 'ok')
-        recordYtDlpSuccess()
-        addBreadcrumb(
-            'YouTube search stream resolved for Spotify source',
-            'music.youtube-extraction',
-            'info',
-        )
-        infoLog({
-            message:
-                'Bridge: streamed via yt-dlp YouTube search (Spotify source)',
-            data: {
-                query: ytQuery,
-                title: cleanedTitle,
-                durationMs,
-            },
-        })
-        return stream
-    } catch (streamError) {
-        const durationMs = observeStage('ytdlp_search', streamStart, 'fail')
-        recordYtDlpFailure(streamError)
-        addBreadcrumb(
-            'YouTube extraction failed via search',
-            'music.youtube-extraction',
-            'warning',
-            {
-                error: scrubUrls((streamError as Error).message),
-                searchText: ytQuery,
-            },
-        )
-        captureMessage(
-            `YouTube search extraction failed: ${scrubUrls((streamError as Error).message)}`,
-            'warning',
-            { searchText: ytQuery },
-            { category: 'music.youtube-extraction', stage: 'yt-dlp-search' },
-        )
-        warnLog({
-            message:
-                'Bridge: yt-dlp stream failed after URL resolve, falling back to SoundCloud',
-            data: {
-                error: (streamError as Error).message,
-                query: ytQuery,
-                cleanedTitle,
-                durationMs,
-            },
-        })
-        return null
-    }
-}
-
 /**
  * `onBeforeCreateStream` hook: Spotify has metadata only, so every Spotify
  * track is resolved by the bridge. Running it from this hook skips
@@ -580,13 +684,51 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     }
 
     if (!ytDlpBlocked && isSpotifyUrl) {
-        const stream = await resolveSpotifyViaCache(
-            track.url as string,
-            cleanedTitle,
-            cleanedAuthor,
-        )
-        if (stream !== null) return stream
-        youtubeStages = ['yt-dlp-search']
+        const spotifyUrl = track.url as string
+        const cached = await getSpotifySource(spotifyUrl).catch(() => null)
+        if (cached !== null) {
+            if (isNegativeEntry(cached)) {
+                spotifyCacheTotal.inc({ result: 'negative' })
+                debugLog({
+                    message:
+                        'Bridge: Spotify cache negative hit — skipping yt-dlp',
+                    data: { cleanedTitle },
+                })
+            } else {
+                spotifyCacheTotal.inc({ result: 'hit' })
+                try {
+                    const stream = await streamViaYtDlp(cached)
+                    recordYtDlpSuccess()
+                    infoLog({
+                        message:
+                            'Bridge: Spotify cache hit — streamed via cached URL',
+                        data: { cleanedTitle },
+                    })
+                    return stream
+                } catch {
+                    // Cached URL is stale; fall through to a fresh search.
+                    warnLog({
+                        message:
+                            'Bridge: Spotify cache hit but stream failed — searching fresh',
+                        data: { cleanedTitle },
+                    })
+                }
+            }
+        } else {
+            spotifyCacheTotal.inc({ result: 'miss' })
+        }
+        if (cached === null || !isNegativeEntry(cached)) {
+            const stream = await attemptYtDlpSearch(
+                cleanedTitle,
+                cleanedAuthor,
+                track,
+                spotifyUrl,
+            )
+            if (stream) return stream
+        }
+        youtubeStages = broadSearchTried.has(track)
+            ? ['yt-dlp-search', 'yt-dlp-search-broad']
+            : ['yt-dlp-search']
     }
 
     // Neither yt-dlp branch ran (no URL): do not claim yt-dlp was attempted.
