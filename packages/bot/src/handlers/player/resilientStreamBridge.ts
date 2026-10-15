@@ -20,11 +20,7 @@ import {
     playStageSeconds,
     spotifyCacheTotal,
 } from '../../utils/monitoring/prometheus'
-import {
-    streamViaYtDlp,
-    streamViaYtDlpSearch,
-    resolveYtDlpSearchUrl,
-} from './ytdlpProcess'
+import { streamViaYtDlp, resolveYtDlpSearchUrl } from './ytdlpProcess'
 import {
     BridgeExhaustedError,
     isReportedBridgeExhausted,
@@ -36,15 +32,15 @@ import {
     recordYtDlpSuccess,
 } from './ytdlpBlockBreaker'
 import {
-    stampFallbackStage,
-    type StreamBridgeFallbackStage,
-} from './streamFallbackState'
-import {
     getSpotifySource,
     setSpotifySource,
     setSpotifySourceNegative,
     isNegativeEntry,
 } from './spotifySourceCache'
+import {
+    stampFallbackStage,
+    type StreamBridgeFallbackStage,
+} from './streamFallbackState'
 
 type BridgeTrack = Pick<
     Track,
@@ -388,40 +384,10 @@ async function retryExhaustedPass(
     )
 }
 
-/**
- * `onBeforeCreateStream` hook: Spotify has metadata only, so every Spotify
- * track is resolved by the bridge. Running it from this hook skips
- * discord-player's own pre-bridge work (SpotifyExtractor.stream ->
- * requestBridge -> SoundCloudExtractor.bridge does a SoundCloud search and
- * stream resolve before our bridge ever starts) and its generic/fallback
- * second pass. Other sources return null and keep the normal extractor chain.
- */
-export async function streamSpotifyTrackViaBridge(
-    track: Pick<Track, 'source'> & BridgeTrack,
-): Promise<Readable | null> {
-    if (track.source !== 'spotify') return null
-    return createResilientStream(track)
-}
-
-/**
- * Resolves audio for a Spotify track via a two-tier cache (L1 LRU + Redis).
- *
- * Cache hit  → calls streamViaYtDlp() with the cached YouTube URL directly,
- *              skipping the ytsearch1 round-trip (~4–6 s saved).
- * Negative   → skip yt-dlp entirely; return null so the caller falls through
- *              to SoundCloud immediately.
- * Cache miss → resolve the YouTube URL with resolveYtDlpSearchUrl(), populate
- *              the cache, then stream from that URL; on resolution failure,
- *              store a negative entry and return null.
- *
- * Returns null when the stream could not be resolved (caller handles SoundCloud
- * fallback) and always handles its own cache writes.
- */
 async function resolveSpotifyViaCache(
     spotifyUrl: string,
     cleanedTitle: string,
     cleanedAuthor: string,
-    track: BridgeTrack,
 ): Promise<Readable | null> {
     const cached = await getSpotifySource(spotifyUrl).catch(() => null)
 
@@ -447,7 +413,6 @@ async function resolveSpotifyViaCache(
             })
             return stream
         } catch (cacheHitError) {
-            // Cached URL is stale or geo-blocked; fall through to a fresh resolve.
             observeStage('ytdlp_search', startedAt, 'fail')
             warnLog({
                 message:
@@ -462,7 +427,6 @@ async function resolveSpotifyViaCache(
         spotifyCacheTotal.inc({ result: 'miss' })
     }
 
-    // Cache miss (or stale hit): resolve the YouTube URL, cache it, then stream.
     const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
     const resolveStart = Date.now()
     let youtubeUrl: string
@@ -471,7 +435,6 @@ async function resolveSpotifyViaCache(
     } catch (resolveError) {
         observeStage('ytdlp_search', resolveStart, 'fail')
         recordYtDlpFailure(resolveError)
-        noteFirstYouTubeFailure(track, resolveError)
         addBreadcrumb(
             'YouTube URL resolve failed for Spotify source',
             'music.youtube-extraction',
@@ -481,30 +444,25 @@ async function resolveSpotifyViaCache(
                 searchText: ytQuery,
             },
         )
-        const isEmpty = classifyYtDlpFailure(resolveError) === 'empty'
+        captureMessage(
+            `YouTube search extraction failed: ${scrubUrls((resolveError as Error).message)}`,
+            'warning',
+            { searchText: ytQuery },
+            { category: 'music.youtube-extraction', stage: 'yt-dlp-search' },
+        )
         warnLog({
-            message: isEmpty
-                ? 'Bridge: yt-dlp URL resolve returned nothing, retrying with a broader query'
-                : 'Bridge: yt-dlp URL resolve failed, storing negative and falling back to SoundCloud',
+            message:
+                'Bridge: yt-dlp URL resolve failed, storing negative and falling back to SoundCloud',
             data: {
                 error: (resolveError as Error).message,
                 query: ytQuery,
                 cleanedTitle,
             },
         })
-        if (isEmpty) {
-            const broadStream = await attemptBroadYtDlpSearch(
-                cleanedTitle,
-                cleanedAuthor,
-                track,
-            )
-            if (broadStream) return broadStream
-        }
         void setSpotifySourceNegative(spotifyUrl)
         return null
     }
 
-    // URL resolved — cache it, then stream.
     void setSpotifySource(spotifyUrl, youtubeUrl)
 
     const streamStart = Date.now()
@@ -530,7 +488,6 @@ async function resolveSpotifyViaCache(
     } catch (streamError) {
         const durationMs = observeStage('ytdlp_search', streamStart, 'fail')
         recordYtDlpFailure(streamError)
-        noteFirstYouTubeFailure(track, streamError)
         addBreadcrumb(
             'YouTube extraction failed via search',
             'music.youtube-extraction',
@@ -539,6 +496,12 @@ async function resolveSpotifyViaCache(
                 error: scrubUrls((streamError as Error).message),
                 searchText: ytQuery,
             },
+        )
+        captureMessage(
+            `YouTube search extraction failed: ${scrubUrls((streamError as Error).message)}`,
+            'warning',
+            { searchText: ytQuery },
+            { category: 'music.youtube-extraction', stage: 'yt-dlp-search' },
         )
         warnLog({
             message:
@@ -554,69 +517,19 @@ async function resolveSpotifyViaCache(
     }
 }
 
-// Broader YouTube query: no " official audio" suffix, title cut at its first
-// parenthetical (or reduced to the song core), and only the lead artist when
-// the author field is a credit list.
-function buildBroadYtQuery(
-    cleanedTitle: string,
-    cleanedAuthor: string,
-): string {
-    const leadArtist = cleanedAuthor
-        .split(/,|;|\bfeat\.?\s|\bft\.?\s/i)[0]
-        .trim()
-    return cleanSearchQuery(
-        computeCoreTitleCandidate(cleanedTitle, cleanedAuthor),
-        leadArtist,
-    )
-}
-
-async function attemptBroadYtDlpSearch(
-    cleanedTitle: string,
-    cleanedAuthor: string,
-    track: BridgeTrack,
+/**
+ * `onBeforeCreateStream` hook: Spotify has metadata only, so every Spotify
+ * track is resolved by the bridge. Running it from this hook skips
+ * discord-player's own pre-bridge work (SpotifyExtractor.stream ->
+ * requestBridge -> SoundCloudExtractor.bridge does a SoundCloud search and
+ * stream resolve before our bridge ever starts) and its generic/fallback
+ * second pass. Other sources return null and keep the normal extractor chain.
+ */
+export async function streamSpotifyTrackViaBridge(
+    track: Pick<Track, 'source'> & BridgeTrack,
 ): Promise<Readable | null> {
-    const broadQuery = buildBroadYtQuery(cleanedTitle, cleanedAuthor)
-    if (!broadQuery) return null
-    broadSearchTried.add(track)
-    const startedAt = Date.now()
-    try {
-        const stream = await streamViaYtDlpSearch(broadQuery)
-        const durationMs = observeStage('ytdlp_search_broad', startedAt, 'ok')
-        recordYtDlpSuccess()
-        addBreadcrumb(
-            'YouTube broad search stream resolved after empty result',
-            'music.youtube-extraction',
-            'info',
-        )
-        infoLog({
-            message: 'Bridge: streamed via yt-dlp broad YouTube search retry',
-            data: { query: broadQuery, title: cleanedTitle, durationMs },
-        })
-        return stream
-    } catch (broadError) {
-        const durationMs = observeStage('ytdlp_search_broad', startedAt, 'fail')
-        recordYtDlpFailure(broadError)
-        addBreadcrumb(
-            'YouTube broad search retry failed',
-            'music.youtube-extraction',
-            'warning',
-            {
-                error: scrubUrls((broadError as Error).message),
-                searchText: broadQuery,
-            },
-        )
-        warnLog({
-            message:
-                'Bridge: yt-dlp broad YouTube search retry failed, falling back to SoundCloud',
-            data: {
-                error: (broadError as Error).message,
-                query: broadQuery,
-                cleanedTitle,
-                durationMs,
-            },
-        })
-        return null
-    }
+    if (track.source !== 'spotify') return null
+    return createResilientStream(track)
 }
 
 async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
@@ -671,12 +584,9 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
             track.url as string,
             cleanedTitle,
             cleanedAuthor,
-            track,
         )
         if (stream !== null) return stream
-        youtubeStages = broadSearchTried.has(track)
-            ? ['yt-dlp-search', 'yt-dlp-search-broad']
-            : ['yt-dlp-search']
+        youtubeStages = ['yt-dlp-search']
     }
 
     // Neither yt-dlp branch ran (no URL): do not claim yt-dlp was attempted.

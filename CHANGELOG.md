@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.59.5](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.4...v2.59.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **bot:** read spotify " - X Remix" suffix as a requested version ([#2823](https://github.com/LucasSantana-Dev/Lucky/issues/2823)) ([8f0272c](https://github.com/LucasSantana-Dev/Lucky/commit/8f0272c08301e8b361d9a2c6d90c5da70a3121a1))
+
+## [2.59.4](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.3...v2.59.4) (2026-10-15)
+
+
+### Bug Fixes
+
+* **bot:** validate youtube search hits before streaming spotify tracks ([#2821](https://github.com/LucasSantana-Dev/Lucky/issues/2821)) ([13de588](https://github.com/LucasSantana-Dev/Lucky/commit/13de588b14dd61a97bb934e4b26a5e78d4390649))
+
+## [2.59.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.2...v2.59.3) (2026-10-14)
+
+
+### Bug Fixes
+
+* **bot:** run yt-dlp from the temp dir so HLS fragments are writable ([#2819](https://github.com/LucasSantana-Dev/Lucky/issues/2819)) ([f9aaafb](https://github.com/LucasSantana-Dev/Lucky/commit/f9aaafb39b23b295dab8fcedd3318efbab51377e))
+
+## [2.59.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.1...v2.59.2) (2026-10-14)
+
+
+### Bug Fixes
+
+* **bot:** stream SoundCloud fallback matches through yt-dlp ([#2817](https://github.com/LucasSantana-Dev/Lucky/issues/2817)) ([51a2c94](https://github.com/LucasSantana-Dev/Lucky/commit/51a2c94d25fc6ef6efc73745b30deedb2e484f3e))
+
+## [2.59.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.0...v2.59.1) (2026-10-14)
+
+
+### Bug Fixes
+
+* **bot:** log reported exhausted plays at warn level ([#2815](https://github.com/LucasSantana-Dev/Lucky/issues/2815)) ([010274d](https://github.com/LucasSantana-Dev/Lucky/commit/010274d7569ec9e1cc797c7309244a5db6000fbc))
+* **bot:** report Top.gg stats failures only after 3 in a row ([#2814](https://github.com/LucasSantana-Dev/Lucky/issues/2814)) ([b369bea](https://github.com/LucasSantana-Dev/Lucky/commit/b369beab90d7a76f6e685af0b11d5347f18405b8))
+
+## [2.59.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.12...v2.59.0) (2026-10-14)
+
+
+### Features
+
+* **bot:** localized welcome embed with recap cta ([#2785](https://github.com/LucasSantana-Dev/Lucky/issues/2785)) ([347b035](https://github.com/LucasSantana-Dev/Lucky/commit/347b035d41a436f66df66504a2abbc99193b8910))
+
+
+### Bug Fixes
+
+* **analytics:** fix play outcome recording and isPlaylist flag ([#2796](https://github.com/LucasSantana-Dev/Lucky/issues/2796)) ([b13865c](https://github.com/LucasSantana-Dev/Lucky/commit/b13865cf132d1609d094babe8bb48e0a986f8262))
+* **backend:** send replayed OAuth callbacks on a logged-in session to the dashboard ([#2809](https://github.com/LucasSantana-Dev/Lucky/issues/2809)) ([a21017c](https://github.com/LucasSantana-Dev/Lucky/commit/a21017c0fc621029d8530b03dcf4320849c73242))
+* **backend:** serve stale popular artists while refreshing ([#2812](https://github.com/LucasSantana-Dev/Lucky/issues/2812)) ([81d46a1](https://github.com/LucasSantana-Dev/Lucky/commit/81d46a123f3ed93b666e044aaf787de890d07583))
+* **security:** allow track cover art and the Cloudflare beacon in the CSP ([#2810](https://github.com/LucasSantana-Dev/Lucky/issues/2810)) ([815d642](https://github.com/LucasSantana-Dev/Lucky/commit/815d64278b37e6cc7044c0af053626b60ee329e5))
+
 ## [2.58.12](https://github.com/LucasSantana-Dev/Lucky/compare/v2.58.11...v2.58.12) (2026-10-13)
 
 

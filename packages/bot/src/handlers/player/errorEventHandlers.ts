@@ -1,5 +1,10 @@
 import type { GuildQueue } from 'discord-player'
-import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
+import {
+    errorLog,
+    warnLog,
+    debugLog,
+    captureException,
+} from '@lucky/shared/utils'
 import {
     providerFromTrack,
     providerHealthService,
@@ -121,6 +126,27 @@ async function handlePlayerErrorSafely(
     }
 }
 
+function logPlayerError(
+    queue: GuildQueue,
+    error: Error,
+    alreadyReported: boolean,
+): void {
+    const params = {
+        message: `Player error in queue ${queue.guild.name}:`,
+        error: toErrorInstance(error),
+        data: {
+            guildId: queue.guild.id,
+            guildName: queue.guild.name,
+            ...toErrorDetails(error),
+        },
+    }
+    if (alreadyReported) {
+        warnLog(params)
+    } else {
+        errorLog(params)
+    }
+}
+
 export async function handlePlayerError(
     queue: GuildQueue,
     error: Error,
@@ -142,18 +168,13 @@ export async function handlePlayerError(
             return
         }
 
-        errorLog({
-            message: `Player error in queue ${queue.guild.name}:`,
-            error: toErrorInstance(error),
-            data: {
-                guildId: queue.guild.id,
-                guildName: queue.guild.name,
-                ...toErrorDetails(error),
-            },
-        })
         // The bridge already sent the all-exhausted Sentry event for this
-        // play; a second exception would just duplicate it.
-        if (!isReportedBridgeExhausted(error)) {
+        // play. errorLog forwards its error to Sentry too, so a reported play
+        // logs at warn level: skipping only captureException still sent a
+        // second NoResultError event on LUCKY-47 for every exhausted play.
+        const alreadyReported = isReportedBridgeExhausted(error)
+        logPlayerError(queue, error, alreadyReported)
+        if (!alreadyReported) {
             captureException(
                 toErrorInstance(error) ?? new Error(String(error)),
                 {

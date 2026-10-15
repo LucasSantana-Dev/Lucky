@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process'
-import { accessSync, constants, statSync } from 'node:fs'
+import { accessSync, constants, mkdtempSync, rmSync, statSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import type { Readable } from 'node:stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
@@ -126,6 +128,12 @@ function ytdlpCookiesArgs(): string[] {
 // above that measured p100.
 export const YTDLP_STREAM_START_TIMEOUT_MS = 8_000
 
+// ytsearch adds a YouTube search round-trip on top of the audio stream start.
+// Its total observed p95 sits below the direct-URL p100, so a shorter budget
+// lets the bridge fail faster on degraded YouTube without cutting healthy
+// resolutions (#2742).
+export const YTDLP_SEARCH_STREAM_TIMEOUT_MS = 7_000
+
 // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-positioning.md
 // point 3): this is the layer that actually spawns yt-dlp against YouTube, so
 // the kill switch is enforced here rather than only at the extractor
@@ -136,7 +144,10 @@ export const YTDLP_STREAM_START_TIMEOUT_MS = 8_000
 // single check covers both the URL and search entry points. Scoped to actual
 // YouTube targets (isYoutubeYtDlpTarget) so the allowlisted SoundCloud path
 // through this same function keeps working when YouTube is disabled.
-export function streamViaYtDlp(url: string): Promise<Readable> {
+export function streamViaYtDlp(
+    url: string,
+    timeoutMs = YTDLP_STREAM_START_TIMEOUT_MS,
+): Promise<Readable> {
     if (isYoutubeYtDlpTarget(url) && !isHostedYoutubeEnabled()) {
         return Promise.reject(
             new Error('yt-dlp: YouTube disabled (HOSTED_YOUTUBE_ENABLED)'),
@@ -162,17 +173,17 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
     // throw. A failure of the retry itself propagates as is. The retry runs
     // inside this function, so the block breaker (recordYtDlpFailure in the
     // bridge) only sees a 403 that also failed the retry.
-    return spawnYtDlp(url, []).catch((error: unknown) => {
+    return spawnYtDlp(url, [], timeoutMs).catch((error: unknown) => {
         if (classifyYtDlpFailure(error) === 'forbidden') {
             infoLog({
                 message: 'Bridge: yt-dlp got HTTP 403, retrying once',
                 data: { retry: 'forbidden' },
             })
-            return spawnYtDlp(url, [])
+            return spawnYtDlp(url, [], timeoutMs)
         }
         const cookiesArgs = needsSignIn(error) ? ytdlpCookiesArgs() : []
         if (cookiesArgs.length === 0) throw error
-        return spawnYtDlp(url, cookiesArgs)
+        return spawnYtDlp(url, cookiesArgs, timeoutMs)
     })
 }
 
@@ -187,8 +198,19 @@ function needsSignIn(error: unknown): boolean {
     )
 }
 
-function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
+function spawnYtDlp(
+    url: string,
+    cookiesArgs: string[],
+    timeoutMs = YTDLP_STREAM_START_TIMEOUT_MS,
+): Promise<Readable> {
     return new Promise<Readable>((resolve, reject) => {
+        // HLS sources (SoundCloud AAC) make yt-dlp write fragment .part
+        // files (`--Frag1.part`) to the cwd even with `-o -`. The container's
+        // cwd (/app) is root-owned, and concurrent streams would clobber each
+        // other's fragments in a shared dir, so each run gets its own.
+        const workDir = mkdtempSync(join(tmpdir(), 'ytdlp-'))
+        const removeWorkDir = () =>
+            rmSync(workDir, { recursive: true, force: true })
         const proc = spawn(
             YTDLP_BINARY_PATH,
             [
@@ -205,8 +227,9 @@ function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
                 ...cookiesArgs,
                 url,
             ],
-            { stdio: ['ignore', 'pipe', 'pipe'] },
+            { stdio: ['ignore', 'pipe', 'pipe'], cwd: workDir },
         )
+        proc.once('close', removeWorkDir)
 
         // On every attempt this fires, the caller still has to wait out the
         // full duration before falling back to SoundCloud, so a long timeout
@@ -217,7 +240,7 @@ function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
         const timeout = setTimeout(() => {
             proc.kill()
             reject(new Error('yt-dlp: timed out waiting for stream start'))
-        }, YTDLP_STREAM_START_TIMEOUT_MS)
+        }, timeoutMs)
 
         const stderrChunks: Buffer[] = []
         assertDefined(proc.stderr, 'stderr guaranteed by stdio config').on(
@@ -244,6 +267,7 @@ function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
         )
 
         proc.once('error', (err) => {
+            removeWorkDir()
             if (settled) return
             settled = true
             clearTimeout(timeout)
@@ -273,7 +297,7 @@ function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
 export function streamViaYtDlpSearch(query: string): Promise<Readable> {
     if (!query.trim())
         return Promise.reject(new Error('yt-dlp search: empty query'))
-    return streamViaYtDlp(`ytsearch1:${query}`)
+    return streamViaYtDlp(`ytsearch1:${query}`, YTDLP_SEARCH_STREAM_TIMEOUT_MS)
 }
 
 // URL-only resolution timeout is shorter than the stream-start budget because
@@ -362,4 +386,123 @@ function spawnYtDlpGetUrl(url: string): Promise<string> {
             resolve(output)
         })
     })
+}
+
+export type YtSearchCandidate = {
+    id: string
+    title: string
+    channel: string
+    durationSec: number | null
+}
+
+// A flat search only fetches the results page (no player JS, no formats):
+// measured 1-2 s. The stream of the chosen video then gets its own
+// YTDLP_STREAM_START_TIMEOUT_MS, the same budget a direct URL play has.
+export const YTDLP_SEARCH_RESOLVE_TIMEOUT_MS = 5_000
+const YTDLP_SEARCH_MAX_OUTPUT_BYTES = 64 * 1024
+
+/**
+ * Lists the top YouTube search hits without streaming any of them, so the
+ * caller can validate title, channel and duration before playing one.
+ * Resolves [] when the search has no results.
+ */
+export function searchYtDlpCandidates(
+    query: string,
+    limit = 5,
+): Promise<YtSearchCandidate[]> {
+    if (!query.trim())
+        return Promise.reject(new Error('yt-dlp search: empty query'))
+    if (!isHostedYoutubeEnabled()) {
+        return Promise.reject(
+            new Error('yt-dlp: YouTube disabled (HOSTED_YOUTUBE_ENABLED)'),
+        )
+    }
+    return new Promise<YtSearchCandidate[]>((resolve, reject) => {
+        const proc = spawn(
+            YTDLP_BINARY_PATH,
+            [
+                '--flat-playlist',
+                '--no-warnings',
+                '--print',
+                '%(.{id,title,channel,duration})j',
+                `ytsearch${limit}:${query}`,
+            ],
+            { stdio: ['ignore', 'pipe', 'pipe'], cwd: tmpdir() },
+        )
+
+        let settled = false
+        const finish = (error: Error | null, result?: YtSearchCandidate[]) => {
+            if (settled) return
+            settled = true
+            clearTimeout(timeout)
+            if (error) reject(error)
+            else resolve(result ?? [])
+        }
+
+        const timeout = setTimeout(() => {
+            proc.kill()
+            finish(new Error('yt-dlp: timed out resolving search results'))
+        }, YTDLP_SEARCH_RESOLVE_TIMEOUT_MS)
+
+        const stdoutChunks: Buffer[] = []
+        let stdoutBytes = 0
+        const stderrChunks: Buffer[] = []
+        assertDefined(proc.stdout, 'stdout guaranteed by stdio config').on(
+            'data',
+            (chunk: Buffer) => {
+                stdoutBytes += chunk.length
+                if (stdoutBytes <= YTDLP_SEARCH_MAX_OUTPUT_BYTES) {
+                    stdoutChunks.push(chunk)
+                }
+            },
+        )
+        assertDefined(proc.stderr, 'stderr guaranteed by stdio config').on(
+            'data',
+            (chunk: Buffer) => stderrChunks.push(chunk),
+        )
+
+        proc.once('error', (err) => {
+            proc.kill()
+            finish(err)
+        })
+
+        proc.once('close', (code, signal) => {
+            // A signal kill reports code null: that output is partial, so only
+            // a clean exit counts as a search result.
+            if (code !== 0) {
+                const stderr = Buffer.concat(stderrChunks).toString().trim()
+                const reason = stderr ? ` - ${stderr.split('\n')[0]}` : ''
+                const exit = code === null ? `signal ${signal}` : `code ${code}`
+                finish(new Error(`yt-dlp exited with ${exit}${reason}`))
+                return
+            }
+            finish(
+                null,
+                parseSearchCandidates(Buffer.concat(stdoutChunks).toString()),
+            )
+        })
+    })
+}
+
+function parseSearchCandidates(output: string): YtSearchCandidate[] {
+    const candidates: YtSearchCandidate[] = []
+    for (const line of output.split('\n')) {
+        if (!line.trim()) continue
+        try {
+            const entry = JSON.parse(line) as Record<string, unknown>
+            if (typeof entry.id !== 'string' || !entry.id) continue
+            candidates.push({
+                id: entry.id,
+                title: typeof entry.title === 'string' ? entry.title : '',
+                channel: typeof entry.channel === 'string' ? entry.channel : '',
+                durationSec:
+                    typeof entry.duration === 'number' && entry.duration > 0
+                        ? entry.duration
+                        : null,
+            })
+        } catch {
+            // A truncated or non-JSON line is skipped, not fatal.
+        }
+    }
+    return candidates
 }

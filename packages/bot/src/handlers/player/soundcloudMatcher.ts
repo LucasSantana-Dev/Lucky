@@ -3,10 +3,12 @@ import type { Readable } from 'stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { withTimeout } from './withTimeout'
 import { hasVersionMarker } from '../../utils/music/searchQueryCleaner'
+import { streamViaYtDlp } from './ytdlpProcess'
 
 type SoundCloudSearchResult = {
     name: string
     url: string
+    permalink?: string
     durationInSec?: number
 }
 
@@ -131,6 +133,22 @@ export async function streamViaSoundCloud(
         throw new Error(
             `SoundCloud: no validated match for "${query}" (title/duration mismatch)`,
         )
+    }
+
+    // SoundCloud now lists an adaptive `abr_sq` HLS transcoding last, and
+    // play-dl 1.9.7 always streams the last HLS format, whose URL answers
+    // 404. The AAC formats before it are fMP4 segments, and play-dl drops
+    // their init segment (EXT-X-MAP), so ffmpeg cannot decode those either.
+    // yt-dlp handles both. play-dl stays as the fallback for mp3 tracks.
+    if (match.permalink) {
+        try {
+            return await streamViaYtDlp(match.permalink)
+        } catch (err) {
+            warnLog({
+                message: 'SoundCloud: yt-dlp stream failed, trying play-dl',
+                data: { track: match.name, error: (err as Error).message },
+            })
+        }
     }
 
     let scStream: Awaited<ReturnType<typeof playdl.stream>>

@@ -8,12 +8,16 @@ const mockGetFreeClientID = jest.fn()
 const mockSetToken = jest.fn()
 const mockInfoLog = jest.fn()
 const mockWarnLog = jest.fn()
+const mockStreamViaYtDlp = jest.fn()
 
 jest.mock('play-dl', () => ({
     search: (...args: unknown[]) => mockSearch(...args),
     stream: (...args: unknown[]) => mockStream(...args),
     getFreeClientID: (...args: unknown[]) => mockGetFreeClientID(...args),
     setToken: (...args: unknown[]) => mockSetToken(...args),
+}))
+jest.mock('./ytdlpProcess', () => ({
+    streamViaYtDlp: (...args: unknown[]) => mockStreamViaYtDlp(...args),
 }))
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => mockInfoLog(...args),
@@ -400,6 +404,51 @@ describe('streamViaSoundCloud', () => {
         mockStream.mockRejectedValue(new Error('401 Unauthorized'))
         await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
             'SoundCloud: stream creation failed for "Song Name" — 401 Unauthorized',
+        )
+    })
+
+    it('streams the permalink via yt-dlp and skips play-dl', async () => {
+        const ytdlpReadable = new PassThrough()
+        mockStreamViaYtDlp.mockResolvedValue(ytdlpReadable)
+        mockSearch.mockResolvedValue([
+            {
+                ...makeResult('Song Name', 210),
+                permalink: 'https://soundcloud.com/artist/song-name',
+            },
+        ])
+
+        const result = await streamViaSoundCloud('song name', '3:30')
+
+        expect(result).toBe(ytdlpReadable)
+        expect(mockStreamViaYtDlp).toHaveBeenCalledWith(
+            'https://soundcloud.com/artist/song-name',
+        )
+        expect(mockStream).not.toHaveBeenCalled()
+    })
+
+    it('falls back to play-dl when yt-dlp fails', async () => {
+        mockStreamViaYtDlp.mockRejectedValue(
+            new Error('yt-dlp exited with code 1'),
+        )
+        mockSearch.mockResolvedValue([
+            {
+                ...makeResult('Song Name', 210),
+                permalink: 'https://soundcloud.com/artist/song-name',
+            },
+        ])
+
+        const result = await streamViaSoundCloud('song name', '3:30')
+
+        expect(result).toBe(fakeReadable)
+        expect(mockStream).toHaveBeenCalledTimes(1)
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'SoundCloud: yt-dlp stream failed, trying play-dl',
+                data: {
+                    track: 'Song Name',
+                    error: 'yt-dlp exited with code 1',
+                },
+            }),
         )
     })
 
