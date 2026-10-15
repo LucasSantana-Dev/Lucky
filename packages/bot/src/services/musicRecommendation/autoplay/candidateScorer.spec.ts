@@ -704,6 +704,61 @@ describe('candidateScorer', () => {
         })
     })
 
+    describe('co-credited artist', () => {
+        // Prod 2026-10-15: "Michael Jackson, Steve Aoki" counted as a new
+        // artist on a Michael Jackson seed, so it dodged the same-artist
+        // penalty and picked up session novelty.
+        it.each([
+            ['Billie Jean', 'Michael Jackson', 'Michael Jackson, Steve Aoki'],
+            ["Baby's On Fire", 'Die Antwoord', 'Die Antwoord, G.O.D.'],
+        ])(
+            'gives "%s" by %s the same-artist treatment for %s',
+            (seedTitle, artist, coCredit) => {
+                const seed = createTrack({ title: seedTitle, author: artist })
+                const score = (author: string) =>
+                    calculateRecommendationScore({
+                        candidate: createTrack({ title: 'Thriller', author }),
+                        currentTrack: seed,
+                        recentArtists: new Set(),
+                    })
+                const solo = score(artist)
+                const credited = score(coCredit)
+                expect(credited.score).toBeCloseTo(solo.score)
+                expect(credited.signals).not.toContain('session novelty')
+            },
+        )
+
+        it('blocks a co-credit of a blocked artist', () => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack({
+                    title: 'Thriller',
+                    author: 'Michael Jackson, Steve Aoki',
+                }),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                blockedArtistKeys: new Set(['michaeljackson']),
+            })
+            expect(result.score).toBe(-Infinity)
+        })
+
+        it('treats a co-credit of a recent artist as recent', () => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack({
+                    title: 'Thriller',
+                    author: 'Michael Jackson, Steve Aoki',
+                }),
+                currentTrack: createTrack({
+                    title: 'Rich Girl',
+                    author: 'Die Antwoord',
+                }),
+                recentArtists: new Set(['michael jackson']),
+                recentArtistIndices: new Map([['michael jackson', 1]]),
+            })
+            expect(result.signals).not.toContain('session novelty')
+            expect(result.signals).toContain('recency decay')
+        })
+    })
+
     describe('recency-decay penalty (diversity decay)', () => {
         const candidateArtist = 'Recent Band'
         const candidateKey = candidateArtist.toLowerCase()
