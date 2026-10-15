@@ -213,6 +213,19 @@ describe('pickYouTubeCandidate', () => {
         expect(pick?.id).toBe('nirso')
     })
 
+    it('accepts the mix a Spotify " - DJ Mix" title asks for', () => {
+        const { pick } = pickYouTubeCandidate(
+            target({
+                title: 'Forever - DJ Mix',
+                sourceTitle: 'Forever - DJ Mix',
+                author: 'Artist',
+                duration: '4:00',
+            }),
+            [candidate('mix', 'Forever (DJ Mix)', 'Artist - Topic', 240)],
+        )
+        expect(pick?.id).toBe('mix')
+    })
+
     it('accepts the live version a Spotify " - Live at X" title asks for', () => {
         const { pick } = pickYouTubeCandidate(
             target({

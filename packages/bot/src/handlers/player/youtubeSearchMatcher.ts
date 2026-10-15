@@ -118,17 +118,14 @@ function versionMarkers(title: string, phraseSuffix = false): string[] {
     const cut = Math.max(
         ...TITLE_SEPARATORS.map((s) => untagged.lastIndexOf(s)),
     )
-    const suffix =
-        cut > 0
-            ? normalize(untagged.slice(cut + 3)).replace(
-                  / (version|edit|mix)$/,
-                  '',
-              )
-            : ''
+    const suffix = cut > 0 ? normalize(untagged.slice(cut + 3)) : ''
+    // Phrase mode keeps a trailing "Mix" ("Song - DJ Mix" requests "mix").
+    const matchesSuffix = (m: string) =>
+        phraseSuffix
+            ? hasPhrase(suffix, m)
+            : suffix.replace(/ (version|edit|mix)$/, '') === m
     return VERSION_MARKERS.filter(
-        (m) =>
-            (phraseSuffix ? hasPhrase(suffix, m) : suffix === m) ||
-            tags.some((tag) => hasPhrase(tag, m)),
+        (m) => matchesSuffix(m) || tags.some((tag) => hasPhrase(tag, m)),
     )
 }
 
