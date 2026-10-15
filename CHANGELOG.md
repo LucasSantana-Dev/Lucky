@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.59.4](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.3...v2.59.4) (2026-10-15)
+
+
+### Bug Fixes
+
+* **bot:** validate youtube search hits before streaming spotify tracks ([#2821](https://github.com/LucasSantana-Dev/Lucky/issues/2821)) ([13de588](https://github.com/LucasSantana-Dev/Lucky/commit/13de588b14dd61a97bb934e4b26a5e78d4390649))
+
 ## [2.59.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.2...v2.59.3) (2026-10-14)
 
 
