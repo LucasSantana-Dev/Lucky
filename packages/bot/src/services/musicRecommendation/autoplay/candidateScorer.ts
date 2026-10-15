@@ -61,7 +61,25 @@ const REMIX_MARKERS: readonly RegExp[] = [
     /\b(?:8d[\s-]{0,3}audio|bass[\s-]{0,3}boosted)\b/i,
     /\b(?:extended|club|vip|dub)[\s-]{0,3}mix\b/i,
 ]
-const BRACKETED_RE = /[([]([^)\]]*)[)\]]/g
+
+// Contents of each (...) and [...] group. indexOf scan, not a regex: an
+// unclosed bracket made the regex backtrack (Sonar S8786).
+function bracketedSegments(title: string): string[] {
+    const segments: string[] = []
+    for (const [open, close] of [
+        ['(', ')'],
+        ['[', ']'],
+    ]) {
+        let start = title.indexOf(open)
+        while (start >= 0) {
+            const end = title.indexOf(close, start + 1)
+            if (end < 0) break
+            segments.push(title.slice(start + 1, end))
+            start = title.indexOf(open, end + 1)
+        }
+    }
+    return segments
+}
 
 /**
  * True when a remix marker sits in a structured position: inside (...)/[...]
@@ -69,7 +87,7 @@ const BRACKETED_RE = /[([]([^)\]]*)[)\]]/g
  * the song's own name, not a version tag.
  */
 function hasRemixMarker(title: string): boolean {
-    const segments = Array.from(title.matchAll(BRACKETED_RE), (m) => m[1])
+    const segments = bracketedSegments(title)
     for (const sep of [' - ', ' – ', ' — ']) {
         const idx = title.lastIndexOf(sep)
         if (idx > 0) segments.push(title.slice(idx + sep.length))
