@@ -528,6 +528,9 @@ describe('implicit feedback', () => {
             'setArtistFeedback keeps accents and replaces the legacy row (%s)',
             async (feedback) => {
                 const service = new RecommendationFeedbackService(30)
+                mockUserArtistPreference.findMany.mockResolvedValueOnce([
+                    { artistKey: 'bjrk', artistName: 'Björk' },
+                ])
 
                 await service.setArtistFeedback(
                     'guild-1',
@@ -536,6 +539,7 @@ describe('implicit feedback', () => {
                     feedback,
                 )
 
+                expect(mockTransaction).toHaveBeenCalledTimes(1)
                 expect(
                     mockUserArtistPreference.deleteMany,
                 ).toHaveBeenCalledWith({
@@ -560,6 +564,23 @@ describe('implicit feedback', () => {
             },
         )
 
+        it('setArtistFeedback keeps a different artist stored under the ASCII key', async () => {
+            const service = new RecommendationFeedbackService(30)
+            mockUserArtistPreference.findMany.mockResolvedValueOnce([
+                { artistKey: 'bjrk', artistName: 'Bjrk' },
+            ])
+
+            await service.setArtistFeedback(
+                'guild-1',
+                'user-1',
+                'Björk',
+                'block',
+            )
+
+            expect(mockUserArtistPreference.deleteMany).not.toHaveBeenCalled()
+            expect(mockUserArtistPreference.upsert).toHaveBeenCalledTimes(1)
+        })
+
         it('setArtistFeedback skips the legacy cleanup for ASCII names', async () => {
             const service = new RecommendationFeedbackService(30)
 
@@ -575,6 +596,10 @@ describe('implicit feedback', () => {
 
         it('removeArtistFeedback deletes both key forms for accented names', async () => {
             const service = new RecommendationFeedbackService(30)
+
+            mockUserArtistPreference.findMany.mockResolvedValueOnce([
+                { artistKey: 'bjrk', artistName: 'Björk' },
+            ])
 
             await service.removeArtistFeedback('guild-1', 'user-1', 'Björk')
 

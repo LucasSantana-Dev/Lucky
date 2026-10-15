@@ -11,7 +11,10 @@ import {
 } from '@lucky/shared/utils'
 import { withTimeout } from '@lucky/shared/utils/async'
 import { TtlCache } from '@lucky/shared/utils/cache'
-import { artistKeyVariants } from '@lucky/shared/utils/artistKey'
+import {
+    artistKeyVariants,
+    staleLegacyKeys,
+} from '@lucky/shared/utils/artistKey'
 import { spotifyLinkService } from '@lucky/shared/services'
 import { POPULAR_ARTISTS } from '../constants/popularArtists'
 import { AppError } from '../errors/AppError'
@@ -461,26 +464,38 @@ export class ArtistSuggestionService {
 
     // Route handlers — handle validation and return responses or throw errors
 
-    // Resolves the stored key and drops a pre-Unicode row for the same
-    // artist, so one row per artist remains and a stale block cannot outlive
-    // a newer prefer. Returns '' when the name has no letters or digits.
-    private async resolveArtistKey(
+    // Stored key first, then legacy (pre-Unicode) candidates from both the
+    // sent key and the artist name. Empty when the name has no letters.
+    private keyVariants(artistKey: string, artistName: string): string[] {
+        const variants = artistKeyVariants(artistKey || artistName)
+        if (variants.length === 0) return []
+        return [...new Set([...variants, ...artistKeyVariants(artistName)])]
+    }
+
+    // One read for every legacy candidate in the request. A legacy row is
+    // replaced only when its own artistName normalizes to the new key, so an
+    // unrelated artist whose key equals the ASCII form is left alone.
+    private async legacyCleanup(
         db: ReturnType<typeof getPrismaClient>,
         discordUserId: string,
         guildId: string,
-        name: string,
-    ): Promise<string> {
-        const [artistKey = '', ...legacyKeys] = artistKeyVariants(name)
-        if (legacyKeys.length > 0) {
-            await db.userArtistPreference.deleteMany({
-                where: {
-                    discordUserId,
-                    guildId,
-                    artistKey: { in: legacyKeys },
-                },
-            })
-        }
-        return artistKey
+        variantsList: string[][],
+    ) {
+        const legacyKeys = variantsList.flatMap((v) => v.slice(1))
+        if (legacyKeys.length === 0) return []
+        const rows = await db.userArtistPreference.findMany({
+            where: { discordUserId, guildId, artistKey: { in: legacyKeys } },
+            select: { artistKey: true, artistName: true },
+        })
+        const stale = variantsList.flatMap(([key]) =>
+            staleLegacyKeys(rows, key ?? ''),
+        )
+        if (stale.length === 0) return []
+        return [
+            db.userArtistPreference.deleteMany({
+                where: { discordUserId, guildId, artistKey: { in: stale } },
+            }),
+        ]
     }
 
     async handleGetSuggestions(
@@ -593,17 +608,18 @@ export class ArtistSuggestionService {
 
         const { guildId, artistName, spotifyId, imageUrl, preference } =
             parsed.data
-        const db = getPrismaClient()
-        const artistKey = await this.resolveArtistKey(
-            db,
-            discordUserId,
-            guildId,
-            parsed.data.artistKey || artistName,
-        )
+        const variants = this.keyVariants(parsed.data.artistKey, artistName)
+        const [artistKey] = variants
         if (!artistKey) {
             throw AppError.badRequest('Artist key is empty after normalization')
         }
-        return db.userArtistPreference.upsert({
+        const db = getPrismaClient()
+        // Cleanup and upsert commit together, so a failed upsert keeps the
+        // legacy row.
+        const cleanup = await this.legacyCleanup(db, discordUserId, guildId, [
+            variants,
+        ])
+        const upsert = db.userArtistPreference.upsert({
             where: {
                 discordUserId_guildId_artistKey: {
                     discordUserId,
@@ -622,6 +638,8 @@ export class ArtistSuggestionService {
                 preference,
             },
         })
+        const results = await db.$transaction([...cleanup, upsert])
+        return results[results.length - 1]
     }
 
     async handleBatchSavePreferences(
@@ -651,17 +669,21 @@ export class ArtistSuggestionService {
         }
 
         const { guildId, items } = parsed.data
+        const resolved = items
+            .map((item) => ({
+                item,
+                variants: this.keyVariants(item.artistKey, item.artistName),
+            }))
+            .filter(({ variants }) => variants.length > 0)
         const db = getPrismaClient()
-        const results: unknown[] = []
-        for (const item of items) {
-            const artistKey = await this.resolveArtistKey(
-                db,
-                discordUserId,
-                guildId,
-                item.artistKey || item.artistName,
-            )
-            if (!artistKey) continue
-            const pref = await db.userArtistPreference.upsert({
+        const cleanup = await this.legacyCleanup(
+            db,
+            discordUserId,
+            guildId,
+            resolved.map(({ variants }) => variants),
+        )
+        const upserts = resolved.map(({ item, variants: [artistKey = ''] }) =>
+            db.userArtistPreference.upsert({
                 where: {
                     discordUserId_guildId_artistKey: {
                         discordUserId,
@@ -684,10 +706,10 @@ export class ArtistSuggestionService {
                     imageUrl: item.imageUrl,
                     preference: item.preference,
                 },
-            })
-            results.push(pref)
-        }
-        return results
+            }),
+        )
+        const results = await db.$transaction([...cleanup, ...upserts])
+        return results.slice(cleanup.length)
     }
 
     async handleDeletePreferredArtist(

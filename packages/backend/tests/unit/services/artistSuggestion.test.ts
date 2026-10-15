@@ -45,6 +45,9 @@ describe('ArtistSuggestionService', () => {
         jest.clearAllMocks()
 
         mockPrisma = {
+            $transaction: jest.fn(async (ops: Promise<unknown>[]) =>
+                Promise.all(ops),
+            ),
             userArtistPreference: {
                 findMany: jest.fn(),
                 upsert: jest.fn(),
@@ -447,6 +450,11 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('keeps accents in the key and drops the legacy ASCII row', async () => {
+            mockPrisma.userArtistPreference.findMany.mockResolvedValueOnce([
+                { artistKey: 'bjrk', artistName: 'Björk' },
+                { artistKey: 'bjrk2', artistName: 'Someone Else' },
+            ])
+
             await service.handleSavePreferredArtist('user_123', {
                 guildId: 'guild_1',
                 artistKey: 'björk',
@@ -467,6 +475,24 @@ describe('ArtistSuggestionService', () => {
                 mockPrisma.userArtistPreference.upsert.mock.calls[0][0].where
                     .discordUserId_guildId_artistKey.artistKey,
             ).toBe('björk')
+            expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+        })
+
+        test('keeps a different artist stored under the ASCII key', async () => {
+            mockPrisma.userArtistPreference.findMany.mockResolvedValueOnce([
+                { artistKey: 'bjrk', artistName: 'Bjrk' },
+            ])
+
+            await service.handleSavePreferredArtist('user_123', {
+                guildId: 'guild_1',
+                artistKey: 'björk',
+                artistName: 'Björk',
+            })
+
+            expect(
+                mockPrisma.userArtistPreference.deleteMany,
+            ).not.toHaveBeenCalled()
+            expect(mockPrisma.userArtistPreference.upsert).toHaveBeenCalled()
         })
 
         test('should throw 400 when the name has no letters or digits', async () => {
@@ -527,6 +553,58 @@ describe('ArtistSuggestionService', () => {
             })
 
             expect(mockPrisma.userArtistPreference.upsert).toHaveBeenCalled()
+        })
+    })
+
+    describe('handleBatchSavePreferences legacy keys', () => {
+        test('replaces legacy rows in one transaction and skips empty keys', async () => {
+            mockPrisma.userArtistPreference.findMany.mockResolvedValueOnce([
+                { artistKey: 'bjrk', artistName: 'Björk' },
+            ])
+            mockPrisma.userArtistPreference.deleteMany.mockResolvedValue({
+                count: 1,
+            })
+            mockPrisma.userArtistPreference.upsert.mockResolvedValue({
+                artistKey: 'björk',
+            })
+
+            const results = await service.handleBatchSavePreferences(
+                'user_123',
+                {
+                    guildId: 'guild_1',
+                    items: [
+                        {
+                            artistId: 'a1',
+                            artistKey: 'björk',
+                            artistName: 'Björk',
+                            imageUrl: null,
+                            preference: 'block',
+                        },
+                        {
+                            artistId: 'a2',
+                            artistKey: '!!!',
+                            artistName: '!!!',
+                            imageUrl: null,
+                            preference: 'prefer',
+                        },
+                    ],
+                },
+            )
+
+            expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+            expect(
+                mockPrisma.userArtistPreference.deleteMany,
+            ).toHaveBeenCalledWith({
+                where: {
+                    discordUserId: 'user_123',
+                    guildId: 'guild_1',
+                    artistKey: { in: ['bjrk'] },
+                },
+            })
+            expect(
+                mockPrisma.userArtistPreference.upsert,
+            ).toHaveBeenCalledTimes(1)
+            expect(results).toEqual([{ artistKey: 'björk' }])
         })
     })
 

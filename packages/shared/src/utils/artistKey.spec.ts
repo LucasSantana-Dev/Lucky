@@ -4,6 +4,7 @@ import {
     hasArtistKey,
     legacyArtistKey,
     normalizeArtistKey,
+    staleLegacyKeys,
 } from './artistKey'
 
 describe('artistKey', () => {
@@ -19,6 +20,27 @@ describe('artistKey', () => {
 
     it('matches NFC and NFD spellings of the same name', () => {
         expect(normalizeArtistKey('Björk')).toBe(normalizeArtistKey('Björk'))
+    })
+
+    it('keeps combining marks that NFKC does not compose', () => {
+        expect(normalizeArtistKey('कु')).not.toBe(normalizeArtistKey('क'))
+    })
+
+    it('derives the legacy key from the raw and the normalized spelling', () => {
+        expect(artistKeyVariants('Bjo\u0308rk')).toEqual([
+            'björk',
+            'bjork',
+            'bjrk',
+        ])
+    })
+
+    it('only treats legacy rows of the same artist as stale', () => {
+        const rows = [
+            { artistKey: 'bjrk', artistName: 'Björk' },
+            { artistKey: 'bjork', artistName: 'Bjork' },
+            { artistKey: 'björk', artistName: 'Björk' },
+        ]
+        expect(staleLegacyKeys(rows, 'björk')).toEqual(['bjrk'])
     })
 
     it('keeps the pre-Unicode ASCII rule for legacy rows', () => {

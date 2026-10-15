@@ -403,7 +403,10 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         signals.push('genre family drift')
     }
 
-    if (hasArtistKey(preferredArtistKeys, candidateAuthor)) {
+    if (
+        hasArtistKey(preferredArtistKeys, candidateAuthor) ||
+        hasArtistKey(preferredArtistKeys, candidateArtist)
+    ) {
         score += SCORE_PREFERRED_ARTIST
         signals.push('preferred artist')
     }

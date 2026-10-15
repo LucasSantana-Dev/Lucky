@@ -12,12 +12,12 @@ import EmptyState from '@/components/ui/EmptyState'
 import { cn } from '@/lib/utils'
 
 // Mirrors normalizeArtistKey in @lucky/shared/utils/artistKey (the backend
-// re-normalizes whatever key is sent): Unicode letters and digits are kept.
+// re-normalizes whatever key is sent): Unicode letters, marks and digits are kept.
 function normalizeArtistKey(name: string): string {
     return name
         .normalize('NFKC')
         .toLowerCase()
-        .replace(/[^\p{L}\p{N}]+/gu, '')
+        .replace(/[^\p{L}\p{M}\p{N}]+/gu, '')
 }
 
 interface ArtistTileProps {
