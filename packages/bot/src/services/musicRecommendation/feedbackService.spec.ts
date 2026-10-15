@@ -179,8 +179,16 @@ describe('RecommendationFeedbackService', () => {
             const artistKey2 = `artist2_${feedback}`
 
             mockUserArtistPreference.findMany.mockResolvedValueOnce([
-                { artistKey: artistKey1, preference: feedback },
-                { artistKey: artistKey2, preference: feedback },
+                {
+                    artistKey: artistKey1,
+                    artistName: 'A',
+                    preference: feedback,
+                },
+                {
+                    artistKey: artistKey2,
+                    artistName: 'B',
+                    preference: feedback,
+                },
             ])
 
             const result = await (
@@ -222,7 +230,7 @@ describe('RecommendationFeedbackService', () => {
                 where: expect.objectContaining({
                     discordUserId: 'user-1',
                     guildId: 'guild-1',
-                    artistKey: expect.any(String),
+                    artistKey: { in: ['taylorswift'] },
                 }),
             }),
         )
@@ -524,12 +532,100 @@ describe('implicit feedback', () => {
             )
         })
 
+        it.each(['prefer', 'block'] as const)(
+            'setArtistFeedback keeps accents and replaces the legacy row (%s)',
+            async (feedback) => {
+                const service = new RecommendationFeedbackService(30)
+                mockUserArtistPreference.findMany.mockResolvedValueOnce([
+                    { artistKey: 'bjrk', artistName: 'Björk' },
+                ])
+
+                await service.setArtistFeedback(
+                    'guild-1',
+                    'user-1',
+                    'Björk',
+                    feedback,
+                )
+
+                expect(mockTransaction).toHaveBeenCalledTimes(1)
+                expect(
+                    mockUserArtistPreference.deleteMany,
+                ).toHaveBeenCalledWith({
+                    where: {
+                        discordUserId: 'user-1',
+                        guildId: 'guild-1',
+                        artistKey: { in: ['bjrk'] },
+                    },
+                })
+                expect(mockUserArtistPreference.upsert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        where: {
+                            discordUserId_guildId_artistKey: {
+                                discordUserId: 'user-1',
+                                guildId: 'guild-1',
+                                artistKey: 'björk',
+                            },
+                        },
+                        update: { preference: feedback },
+                    }),
+                )
+            },
+        )
+
+        it('setArtistFeedback keeps a different artist stored under the ASCII key', async () => {
+            const service = new RecommendationFeedbackService(30)
+            mockUserArtistPreference.findMany.mockResolvedValueOnce([
+                { artistKey: 'bjrk', artistName: 'Bjrk' },
+            ])
+
+            await service.setArtistFeedback(
+                'guild-1',
+                'user-1',
+                'Björk',
+                'block',
+            )
+
+            expect(mockUserArtistPreference.deleteMany).not.toHaveBeenCalled()
+            expect(mockUserArtistPreference.upsert).toHaveBeenCalledTimes(1)
+        })
+
+        it('setArtistFeedback skips the legacy cleanup for ASCII names', async () => {
+            const service = new RecommendationFeedbackService(30)
+
+            await service.setArtistFeedback(
+                'guild-1',
+                'user-1',
+                'Taylor Swift',
+                'prefer',
+            )
+
+            expect(mockUserArtistPreference.deleteMany).not.toHaveBeenCalled()
+        })
+
+        it('removeArtistFeedback deletes both key forms for accented names', async () => {
+            const service = new RecommendationFeedbackService(30)
+
+            mockUserArtistPreference.findMany.mockResolvedValueOnce([
+                { artistKey: 'bjrk', artistName: 'Björk' },
+            ])
+
+            await service.removeArtistFeedback('guild-1', 'user-1', 'Björk')
+
+            expect(mockUserArtistPreference.deleteMany).toHaveBeenCalledWith({
+                where: {
+                    discordUserId: 'user-1',
+                    guildId: 'guild-1',
+                    artistKey: { in: ['björk', 'bjrk'] },
+                },
+            })
+        })
+
         it('getPreferredArtistKeys queries Postgres only', async () => {
             const service = new RecommendationFeedbackService(30)
 
             mockUserArtistPreference.findMany.mockResolvedValueOnce([
-                { artistKey: 'artist1', preference: 'prefer' },
-                { artistKey: 'artist2', preference: 'prefer' },
+                { artistKey: 'artist1', artistName: 'X', preference: 'prefer' },
+                { artistKey: 'artist2', artistName: 'X', preference: 'prefer' },
             ])
 
             const result = await service.getPreferredArtistKeys(
@@ -555,7 +651,7 @@ describe('implicit feedback', () => {
             const service = new RecommendationFeedbackService(30)
 
             mockUserArtistPreference.findMany.mockResolvedValueOnce([
-                { artistKey: 'blocked1', preference: 'block' },
+                { artistKey: 'blocked1', artistName: 'X', preference: 'block' },
             ])
 
             const result = await service.getBlockedArtistKeys(
@@ -571,6 +667,28 @@ describe('implicit feedback', () => {
                         guildId: 'guild-1',
                         preference: 'block',
                     }),
+                }),
+            )
+        })
+
+        it('maps legacy rows to the current key and keeps distinct artists apart', async () => {
+            const service = new RecommendationFeedbackService(30)
+
+            mockUserArtistPreference.findMany.mockResolvedValueOnce([
+                { artistKey: 'bjork', artistName: 'Bjo\u0308rk' },
+                { artistKey: 'bjork', artistName: 'Bjork' },
+                { artistKey: 'bjrk', artistName: 'Björk - Topic' },
+            ])
+
+            const result = await service.getBlockedArtistKeys(
+                'guild-1',
+                'user-1',
+            )
+
+            expect([...result].sort()).toEqual(['bjork', 'björk'])
+            expect(mockUserArtistPreference.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    select: { artistKey: true, artistName: true },
                 }),
             )
         })

@@ -89,6 +89,25 @@ describe('candidateScorer', () => {
             expect(result.signals).toContain('preferred artist')
         })
 
+        it('blocks and prefers an accented artist by its Unicode key', () => {
+            const key = 'björk'
+            const base = {
+                candidate: createTrack({ author: 'Björk' }),
+                currentTrack: createTrack(),
+                recentArtists: new Set<string>(),
+            }
+            const blocked = calculateRecommendationScore({
+                ...base,
+                blockedArtistKeys: new Set([key]),
+            })
+            const preferred = calculateRecommendationScore({
+                ...base,
+                preferredArtistKeys: new Set([key]),
+            })
+            expect(blocked.score).toBe(-Infinity)
+            expect(preferred.signals).toContain('preferred artist')
+        })
+
         it('rejects high-weight dislikes', () => {
             const result = calculateRecommendationScore({
                 candidate: createTrack({
