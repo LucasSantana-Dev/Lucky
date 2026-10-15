@@ -2,7 +2,7 @@ import type { Track } from 'discord-player'
 import type { SessionMood } from './sessionMood'
 import type { RecommendationSignal } from './recommendationBasis.js'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
-import { primaryArtist } from '../../../utils/music/trackNormalization'
+import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import { detectSpanishMarkers } from '../../../utils/music/languageHeuristics'
 import { normalizeText, normalizeTrackKey } from './scoringUtils'
 
@@ -294,8 +294,8 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     // Compare on the first credited artist: "Michael Jackson, Steve Aoki" is
     // still Michael Jackson, so a co-credit does not dodge the same-artist
     // penalty or earn session novelty.
-    const currentArtist = primaryArtist(currentTrack.author).toLowerCase()
-    const candidateArtist = primaryArtist(candidate.author).toLowerCase()
+    const currentArtist = primaryArtistKey(currentTrack.author)
+    const candidateArtist = primaryArtistKey(candidate.author)
     const candidateArtistKey = normalizeText(cleanAuthor(candidate.author))
 
     if (
@@ -432,7 +432,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     }
 
     const deepDiveArtist = sessionMood?.deepDiveArtist
-        ? primaryArtist(sessionMood.deepDiveArtist).toLowerCase()
+        ? primaryArtistKey(sessionMood.deepDiveArtist)
         : null
     const isDeepDive =
         deepDiveArtist !== null && candidateArtist === deepDiveArtist

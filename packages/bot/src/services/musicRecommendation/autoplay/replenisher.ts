@@ -40,7 +40,7 @@ import { collectLastFmCandidates } from './lastFmSeeder'
 import { collectSeedSimilarCandidates } from './seedSimilarityCollector'
 import { serializeBasis } from './recommendationBasis'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
-import { primaryArtist } from '../../../utils/music/trackNormalization'
+import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import {
     collectBroadFallbackCandidates,
@@ -837,14 +837,13 @@ export async function selectAndRerankCandidates(
         basis: import('./recommendationBasis').RecommendationBasis
     }[]
 > {
-    const seedArtistKey = primaryArtist(currentTrack.author).toLowerCase()
+    const seedArtistKey = primaryArtistKey(currentTrack.author)
     // When the user is deep-diving an artist (3+ tracks in last 8), relax
     // the per-artist cap for that artist so autoplay follows their intent.
     const deepDiveKey = sessionMood.deepDiveArtist
+    // Same key as the scorer's deep-dive check, so score and cap agree.
     const isDeepDiveSeed =
-        !!deepDiveKey &&
-        (primaryArtist(deepDiveKey).toLowerCase() === seedArtistKey ||
-            currentTrack.author.toLowerCase().includes(deepDiveKey))
+        !!deepDiveKey && primaryArtistKey(deepDiveKey) === seedArtistKey
     const effectiveMaxPerArtist = isDeepDiveSeed ? 5 : MAX_TRACKS_PER_ARTIST
     const selected = interleaveByArtist(
         selectDiverseCandidates(
@@ -1028,7 +1027,7 @@ function buildRecentArtists(
     return new Set<string>(
         [currentTrack.author, ...historyTracks.map((track) => track.author)]
             .filter(Boolean)
-            .map((artist) => primaryArtist(artist).toLowerCase()),
+            .map((artist) => primaryArtistKey(artist)),
     )
 }
 
@@ -1051,7 +1050,7 @@ function buildRecentArtistIndices(
     const limit = Math.min(allTracks.length, RECENCY_WINDOW_TRACKS)
     for (let i = 0; i < limit; i++) {
         const author = allTracks[i].author
-        const artist = author ? primaryArtist(author).toLowerCase() : ''
+        const artist = author ? primaryArtistKey(author) : ''
         if (artist && !seenArtists.has(artist)) {
             indices.set(artist, i)
             seenArtists.add(artist)

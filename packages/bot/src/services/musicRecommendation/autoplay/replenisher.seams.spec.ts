@@ -924,7 +924,7 @@ describe('replenisher seam functions', () => {
             expect(callArgs[2]).toBe(5)
         })
 
-        it('relaxes max-per-artist when the deep dive is a co-credit of the seed artist', async () => {
+        it('relaxes max-per-artist when the deep dive is a "feat." credit of the seed artist', async () => {
             const { selectDiverseCandidates } = require('./diversitySelector')
             const { interleaveByArtist } = require('../candidateFallback')
             selectDiverseCandidates.mockClear()
@@ -935,7 +935,7 @@ describe('replenisher seam functions', () => {
                 new Map(),
                 2,
                 {
-                    deepDiveArtist: 'michael jackson, steve aoki',
+                    deepDiveArtist: 'michael jackson feat. steve aoki',
                     preferLong: false,
                     preferShort: false,
                     restless: false,

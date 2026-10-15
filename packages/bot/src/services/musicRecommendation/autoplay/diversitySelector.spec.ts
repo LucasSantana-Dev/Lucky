@@ -421,6 +421,30 @@ describe('diversitySelector', () => {
                 'Kiss',
             ])
         })
+
+        test.each([
+            'Michael Jackson feat. Steve Aoki',
+            'Michael Jackson ft. Steve Aoki',
+            'Michael Jackson; Steve Aoki',
+        ])('counts "%s" against the seed artist cap', (author) => {
+            const pick = (by: string, title: string, score: number) => ({
+                track: { author: by, title, source: 'youtube' } as Track,
+                score,
+                basis: { source: 'spotify-rec' as const, signals: [] },
+            })
+            const candidates = new Map([
+                ['a', pick(author, 'Thriller', 0.9)],
+                ['b', pick('Michael Jackson', 'Beat It', 0.8)],
+            ])
+            const selected = selectDiverseCandidates(
+                candidates,
+                3,
+                2,
+                5,
+                'michael jackson',
+            )
+            expect(selected.map((c) => c.track.title)).toEqual(['Thriller'])
+        })
     })
 
     describe('same-album soft penalty', () => {
