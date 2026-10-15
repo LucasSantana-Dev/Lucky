@@ -47,6 +47,14 @@ const SCORE_REPLAY_COUNT_BOOST = 0.15
 // vetoes (-Infinity) or override provenance-aware ordering.
 const SCORE_RECENCY_DECAY_MAX = -0.15
 export const RECENCY_WINDOW_TRACKS = 10
+// Unrequested remix penalty: a remix credited to "Artist, Remixer" dodges the
+// same-artist penalty (-0.35) and picks up session novelty (+0.15), so it led
+// the original by ~0.5 in prod. Must outweigh that gap.
+const SCORE_UNREQUESTED_REMIX = -0.6
+// Remix-family markers only. Official cuts ("Single Edit", "Single Mix",
+// "Remaster") are left alone.
+const REMIX_MARKER_RE =
+    /\b(?:remix(?:ed)?|rmx|bootleg|mashup|nightcore|sped\s{0,3}up|speed\s{0,3}up|slowed|8d\s{0,3}audio|bass\s{0,3}boosted|(?:extended|club|vip|dub)\s{0,3}mix)\b/i
 // Genre families dense/cohesive enough that a cross-family jump reads as drift.
 // Used both for the cross-family penalty and the untagged-candidate fail-closed
 // guard. Kept deliberately narrow (pop/soul are too broad to fail closed on).
@@ -568,6 +576,14 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     ) {
         score += SCORE_FREQUENT_ARTIST
         signals.push('version variant')
+    }
+
+    if (
+        REMIX_MARKER_RE.test(candidate.title ?? '') &&
+        !REMIX_MARKER_RE.test(currentTrack.title ?? '')
+    ) {
+        score += SCORE_UNREQUESTED_REMIX
+        signals.push('unrequested remix')
     }
 
     if (

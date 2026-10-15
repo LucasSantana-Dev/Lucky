@@ -613,6 +613,74 @@ describe('candidateScorer', () => {
         })
     })
 
+    describe('unrequested remix penalty', () => {
+        function score(title: string, author: string, seed: Track) {
+            return calculateRecommendationScore({
+                candidate: createTrack({ title, author }),
+                currentTrack: seed,
+                recentArtists: new Set(),
+            })
+        }
+
+        // Prod 2026-10-15: autoplay queued these remixes over the originals.
+        it.each([
+            [
+                createTrack({
+                    title: 'Billie Jean',
+                    author: 'Michael Jackson',
+                }),
+                ['Thriller', 'Michael Jackson'],
+                [
+                    'Thriller (Steve Aoki Midnight Hour Remix)',
+                    'Michael Jackson, Steve Aoki',
+                ],
+            ],
+            [
+                createTrack({
+                    title: "Baby's On Fire",
+                    author: 'Die Antwoord',
+                }),
+                ['I Fink U Freeky', 'Die Antwoord'],
+                [
+                    "I FINK YOU FREEKY - GOD'S DEATH TRAP REMIX",
+                    'Die Antwoord, G.O.D.',
+                ],
+            ],
+            [
+                createTrack({ title: 'Luxury', author: 'Azealia Banks' }),
+                ['Liquorice', 'Azealia Banks'],
+                ['luxury - sped up + reverb', 'pearl, fast forward >>'],
+            ],
+        ])('ranks the original above its remix', (seed, original, remix) => {
+            const orig = score(original[0], original[1], seed)
+            const mix = score(remix[0], remix[1], seed)
+            expect(orig.score).toBeGreaterThan(mix.score)
+            expect(mix.signals).toContain('unrequested remix')
+            expect(orig.signals).not.toContain('unrequested remix')
+        })
+
+        it('keeps remixes when the seed itself is a remix', () => {
+            const seed = createTrack({
+                title: 'Bad Girls - Switch Remix',
+                author: 'M.I.A.',
+            })
+            const result = score('Bad (feat. Rihanna) - Remix', 'Wale', seed)
+            expect(result.signals).not.toContain('unrequested remix')
+        })
+
+        it('does not treat official edits or remasters as remixes', () => {
+            const seed = createTrack({ title: 'Beat It' })
+            for (const title of [
+                'Purple Rain - 7" Single Edit; 2017 Remaster',
+                'Take on Me - 1985 Single Mix; 2015 Remaster',
+            ]) {
+                expect(score(title, 'Prince', seed).signals).not.toContain(
+                    'unrequested remix',
+                )
+            }
+        })
+    })
+
     describe('recency-decay penalty (diversity decay)', () => {
         const candidateArtist = 'Recent Band'
         const candidateKey = candidateArtist.toLowerCase()

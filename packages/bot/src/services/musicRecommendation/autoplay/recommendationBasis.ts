@@ -37,6 +37,7 @@ export type RecommendationSignal =
     | 'spotify preferred'
     | 'genre family drift'
     | 'version variant'
+    | 'unrequested remix'
     | 'low quality upload'
     | 'discovery boost'
     | 'energy match'
