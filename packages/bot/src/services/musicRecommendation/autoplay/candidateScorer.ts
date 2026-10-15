@@ -47,6 +47,52 @@ const SCORE_REPLAY_COUNT_BOOST = 0.15
 // vetoes (-Infinity) or override provenance-aware ordering.
 const SCORE_RECENCY_DECAY_MAX = -0.15
 export const RECENCY_WINDOW_TRACKS = 10
+// Unrequested remix penalty: a remix credited to "Artist, Remixer" dodges the
+// same-artist penalty (-0.35) and picks up session novelty (+0.15), so it led
+// the original by ~0.5 in prod. Must outweigh that gap.
+const SCORE_UNREQUESTED_REMIX = -0.6
+// Remix-family markers only. Official cuts ("Single Edit", "Single Mix",
+// "Remaster") are left alone.
+const REMIX_MARKERS: readonly RegExp[] = [
+    /\bre-?mix(?:e[ds])?\b/i,
+    /\b(?:rmx|bootleg|mashup|nightcore|reverb|slowed)\b/i,
+    /\bsp(?:e|ee)d[\s-]{0,3}up\b/i,
+    /\b(?:8d[\s-]{0,3}audio|bass[\s-]{0,3}boosted)\b/i,
+    /\b(?:extended|club|vip|dub)[\s-]{0,3}mix\b/i,
+]
+
+// Contents of each (...) and [...] group. indexOf scan, not a regex: an
+// unclosed bracket made the regex backtrack (Sonar S8786).
+function bracketedSegments(title: string): string[] {
+    const segments: string[] = []
+    for (const [open, close] of [
+        ['(', ')'],
+        ['[', ']'],
+    ]) {
+        let start = title.indexOf(open)
+        while (start >= 0) {
+            const end = title.indexOf(close, start + 1)
+            if (end < 0) break
+            segments.push(title.slice(start + 1, end))
+            start = title.indexOf(open, end + 1)
+        }
+    }
+    return segments
+}
+
+/**
+ * True when a remix marker sits in a structured position: inside (...)/[...]
+ * or in the final " - " suffix. A bare title like "Speed Up" or "Remix" is
+ * the song's own name, not a version tag.
+ */
+function hasRemixMarker(title: string): boolean {
+    const segments = bracketedSegments(title)
+    for (const sep of [' - ', ' – ', ' — ']) {
+        const idx = title.lastIndexOf(sep)
+        if (idx > 0) segments.push(title.slice(idx + sep.length))
+    }
+    return segments.some((s) => REMIX_MARKERS.some((re) => re.test(s)))
+}
 // Genre families dense/cohesive enough that a cross-family jump reads as drift.
 // Used both for the cross-family penalty and the untagged-candidate fail-closed
 // guard. Kept deliberately narrow (pop/soul are too broad to fail closed on).
@@ -568,6 +614,14 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     ) {
         score += SCORE_FREQUENT_ARTIST
         signals.push('version variant')
+    }
+
+    if (
+        hasRemixMarker(candidate.title ?? '') &&
+        !hasRemixMarker(currentTrack.title ?? '')
+    ) {
+        score += SCORE_UNREQUESTED_REMIX
+        signals.push('unrequested remix')
     }
 
     if (
