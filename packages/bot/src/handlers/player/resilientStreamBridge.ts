@@ -17,7 +17,13 @@ import {
 } from '../../utils/monitoring/sentry'
 import { isHost } from '../../utils/general/urlHost'
 import { playStageSeconds } from '../../utils/monitoring/prometheus'
-import { streamViaYtDlp, streamViaYtDlpSearch } from './ytdlpProcess'
+import { searchYtDlpCandidates, streamViaYtDlp } from './ytdlpProcess'
+import {
+    pickYouTubeCandidate,
+    youtubeWatchUrl,
+    type RejectedYouTubeCandidate,
+    type ScoredYouTubeCandidate,
+} from './youtubeSearchMatcher'
 import {
     BridgeExhaustedError,
     isReportedBridgeExhausted,
@@ -129,6 +135,53 @@ async function attemptYtDlpUrl(
     }
 }
 
+type SearchOutcome =
+    | { stream: Readable; pick: ScoredYouTubeCandidate }
+    | { stream: null; rejected: RejectedYouTubeCandidate[] }
+
+// Lists the top hits, plays the best one that passes validation, and never
+// plays an unvalidated hit: no match returns the rejected list instead.
+async function streamValidatedSearchHit(
+    query: string,
+    cleanedTitle: string,
+    cleanedAuthor: string,
+    track: BridgeTrack,
+): Promise<SearchOutcome> {
+    const candidates = await searchYtDlpCandidates(query)
+    const { pick, rejected } = pickYouTubeCandidate(
+        {
+            title: cleanedTitle,
+            author: cleanedAuthor,
+            sourceTitle: track.title,
+            duration: track.duration,
+        },
+        candidates,
+    )
+    if (!pick) return { stream: null, rejected }
+    const stream = await streamViaYtDlp(youtubeWatchUrl(pick.id))
+    return { stream, pick }
+}
+
+function describePick(pick: ScoredYouTubeCandidate) {
+    return {
+        videoId: pick.id,
+        channel: pick.channel,
+        videoDurationSec: pick.durationSec,
+        score: Number(pick.score.toFixed(2)),
+    }
+}
+
+// An empty result keeps the 'empty' class it had before validation existed;
+// hits that all failed validation get their own class.
+function noteNoValidatedHit(
+    track: BridgeTrack,
+    rejected: RejectedYouTubeCandidate[],
+): void {
+    if (!firstYouTubeFailure.has(track)) {
+        firstYouTubeFailure.set(track, rejected.length ? 'no_match' : 'empty')
+    }
+}
+
 async function attemptYtDlpSearch(
     cleanedTitle: string,
     cleanedAuthor: string,
@@ -137,7 +190,29 @@ async function attemptYtDlpSearch(
     const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
     const startedAt = Date.now()
     try {
-        const stream = await streamViaYtDlpSearch(ytQuery)
+        const outcome = await streamValidatedSearchHit(
+            ytQuery,
+            cleanedTitle,
+            cleanedAuthor,
+            track,
+        )
+        if (!outcome.stream) {
+            const durationMs = observeStage('ytdlp_search', startedAt, 'fail')
+            noteNoValidatedHit(track, outcome.rejected)
+            warnLog({
+                message: outcome.rejected.length
+                    ? 'Bridge: no validated YouTube search hit, retrying with a broader query'
+                    : 'Bridge: yt-dlp YouTube search returned nothing, retrying with a broader query',
+                data: {
+                    query: ytQuery,
+                    cleanedTitle,
+                    trackDuration: track.duration,
+                    rejected: outcome.rejected,
+                    durationMs,
+                },
+            })
+            return attemptBroadYtDlpSearch(cleanedTitle, cleanedAuthor, track)
+        }
         const durationMs = observeStage('ytdlp_search', startedAt, 'ok')
         recordYtDlpSuccess()
         addBreadcrumb(
@@ -151,10 +226,11 @@ async function attemptYtDlpSearch(
             data: {
                 query: ytQuery,
                 title: cleanedTitle,
+                ...describePick(outcome.pick),
                 durationMs,
             },
         })
-        return stream
+        return outcome.stream
     } catch (ytSearchError) {
         const durationMs = observeStage('ytdlp_search', startedAt, 'fail')
         recordYtDlpFailure(ytSearchError)
@@ -216,7 +292,31 @@ async function attemptBroadYtDlpSearch(
     broadSearchTried.add(track)
     const startedAt = Date.now()
     try {
-        const stream = await streamViaYtDlpSearch(broadQuery)
+        const outcome = await streamValidatedSearchHit(
+            broadQuery,
+            cleanedTitle,
+            cleanedAuthor,
+            track,
+        )
+        if (!outcome.stream) {
+            const durationMs = observeStage(
+                'ytdlp_search_broad',
+                startedAt,
+                'fail',
+            )
+            warnLog({
+                message:
+                    'Bridge: no validated YouTube broad search hit, falling back to SoundCloud',
+                data: {
+                    query: broadQuery,
+                    cleanedTitle,
+                    trackDuration: track.duration,
+                    rejected: outcome.rejected,
+                    durationMs,
+                },
+            })
+            return null
+        }
         const durationMs = observeStage('ytdlp_search_broad', startedAt, 'ok')
         recordYtDlpSuccess()
         addBreadcrumb(
@@ -226,9 +326,14 @@ async function attemptBroadYtDlpSearch(
         )
         infoLog({
             message: 'Bridge: streamed via yt-dlp broad YouTube search retry',
-            data: { query: broadQuery, title: cleanedTitle, durationMs },
+            data: {
+                query: broadQuery,
+                title: cleanedTitle,
+                ...describePick(outcome.pick),
+                durationMs,
+            },
         })
-        return stream
+        return outcome.stream
     } catch (broadError) {
         const durationMs = observeStage('ytdlp_search_broad', startedAt, 'fail')
         recordYtDlpFailure(broadError)

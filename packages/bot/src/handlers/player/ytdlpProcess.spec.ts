@@ -27,8 +27,10 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 import {
+    searchYtDlpCandidates,
     streamViaYtDlp,
     streamViaYtDlpSearch,
+    YTDLP_SEARCH_RESOLVE_TIMEOUT_MS,
     YTDLP_STREAM_START_TIMEOUT_MS,
     __resetYtdlpCookiesLogStateForTests,
 } from './ytdlpProcess'
@@ -397,6 +399,116 @@ describe('streamViaYtDlpSearch', () => {
 })
 
 // ---------------------------------------------------------------------------
+// searchYtDlpCandidates
+// ---------------------------------------------------------------------------
+
+describe('searchYtDlpCandidates', () => {
+    function procPrinting(stdout: string, code = 0, stderr = '') {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValueOnce(proc)
+        setImmediate(() => {
+            if (stdout) proc.stdout.emit('data', Buffer.from(stdout))
+            if (stderr) proc.stderr.emit('data', Buffer.from(stderr))
+            proc.emit('close', code)
+        })
+        return proc
+    }
+
+    beforeEach(() => {
+        mockSpawn.mockReset()
+    })
+
+    it.each(['', '   '])('rejects on empty/whitespace: %p', async (query) => {
+        await expect(searchYtDlpCandidates(query)).rejects.toThrow(
+            'yt-dlp search: empty query',
+        )
+        expect(mockSpawn).not.toHaveBeenCalled()
+    })
+
+    it('runs a flat ytsearch5 that prints one JSON line per hit', async () => {
+        procPrinting('')
+        await searchYtDlpCandidates('some song')
+        const args = mockSpawn.mock.calls[0][1] as string[]
+        expect(args).toContain('--flat-playlist')
+        expect(args).not.toContain('-o')
+        expect(args.at(-1)).toBe('ytsearch5:some song')
+    })
+
+    it('parses id, title, channel and duration of each hit', async () => {
+        procPrinting(
+            [
+                '{"id": "a1", "title": "Song", "channel": "Artist - Topic", "duration": 201}',
+                '{"id": "b2", "title": "Song (Live)", "channel": "Radio X", "duration": null}',
+                'not json',
+                '{"title": "no id"}',
+                '',
+            ].join('\n'),
+        )
+        await expect(searchYtDlpCandidates('song')).resolves.toEqual([
+            {
+                id: 'a1',
+                title: 'Song',
+                channel: 'Artist - Topic',
+                durationSec: 201,
+            },
+            {
+                id: 'b2',
+                title: 'Song (Live)',
+                channel: 'Radio X',
+                durationSec: null,
+            },
+        ])
+    })
+
+    it('resolves [] when the search has no hits', async () => {
+        procPrinting('')
+        await expect(searchYtDlpCandidates('nothing')).resolves.toEqual([])
+    })
+
+    it('rejects with the first stderr line on a non-zero exit', async () => {
+        procPrinting('', 1, 'ERROR: HTTP Error 403: Forbidden\nmore')
+        await expect(searchYtDlpCandidates('song')).rejects.toThrow(
+            'yt-dlp exited with code 1 - ERROR: HTTP Error 403: Forbidden',
+        )
+    })
+
+    it('rejects instead of resolving partial output when killed by a signal', async () => {
+        const proc = makeFakeProc()
+        mockSpawn.mockReturnValueOnce(proc)
+        setImmediate(() => {
+            proc.stdout.emit(
+                'data',
+                Buffer.from('{"id": "a1", "title": "Song", "duration": 201}\n'),
+            )
+            proc.emit('close', null, 'SIGKILL')
+        })
+        await expect(searchYtDlpCandidates('song')).rejects.toThrow(
+            'yt-dlp exited with signal SIGKILL',
+        )
+    })
+
+    it('kills the process and rejects as a timeout past its budget', async () => {
+        jest.useFakeTimers()
+        try {
+            const proc = makeFakeProc()
+            mockSpawn.mockReturnValueOnce(proc)
+            const pending = searchYtDlpCandidates('slow')
+            jest.advanceTimersByTime(YTDLP_SEARCH_RESOLVE_TIMEOUT_MS)
+            await expect(pending).rejects.toThrow('timed out')
+            expect(proc.kill).toHaveBeenCalled()
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    it('keeps the search inside the stream-start budget', () => {
+        expect(YTDLP_SEARCH_RESOLVE_TIMEOUT_MS).toBeLessThan(
+            YTDLP_STREAM_START_TIMEOUT_MS,
+        )
+    })
+})
+
+// ---------------------------------------------------------------------------
 // HOSTED_YOUTUBE_ENABLED = false (#2475 follow-up)
 // ---------------------------------------------------------------------------
 
@@ -425,6 +537,14 @@ describe('HOSTED_YOUTUBE_ENABLED = false', () => {
 
     it('streamViaYtDlpSearch rejects without spawning yt-dlp', async () => {
         await expect(streamViaYtDlpSearch('some song')).rejects.toThrow(
+            'YouTube disabled',
+        )
+        expect(mockSpawn).not.toHaveBeenCalled()
+    })
+
+    it('searchYtDlpCandidates rejects without spawning yt-dlp', async () => {
+        mockSpawn.mockClear()
+        await expect(searchYtDlpCandidates('some song')).rejects.toThrow(
             'YouTube disabled',
         )
         expect(mockSpawn).not.toHaveBeenCalled()
