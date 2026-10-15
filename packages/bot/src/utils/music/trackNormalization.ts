@@ -14,13 +14,13 @@ export function primaryArtist(author: string): string {
     return stripFeaturing(cleanAuthor(author).split(',')[0] ?? '').trim()
 }
 
-const EXTRA_CREDIT_RE = /;|\s(?:feat\.|ft\.|featuring\s)/i
+const EXTRA_CREDIT_RE = /;|\s\(?(?:feat\.|ft\.|(?:feat|ft|featuring)\s)/i
 
 /**
  * Lowercased artist identity for same-artist checks and per-artist caps.
- * Also cuts "feat." / "ft." / "featuring" / ";" credits, which
- * `primaryArtist` keeps: that one feeds `normalizeTrackKey`, and changing it
- * would orphan stored vote keys.
+ * Also cuts "feat." / "ft." / "featuring" / ";" credits, bare or in
+ * parentheses, which `primaryArtist` keeps: that one feeds
+ * `normalizeTrackKey`, and changing it would orphan stored vote keys.
  */
 export function primaryArtistKey(author: string): string {
     const primary = primaryArtist(author)

@@ -86,6 +86,9 @@ describe('primaryArtistKey', () => {
         ['Michael Jackson ft. Steve Aoki', 'michael jackson'],
         ['Michael Jackson featuring Steve Aoki', 'michael jackson'],
         ['Michael Jackson; Steve Aoki', 'michael jackson'],
+        ['Michael Jackson (feat. Steve Aoki)', 'michael jackson'],
+        ['Michael Jackson (ft Steve Aoki)', 'michael jackson'],
+        ['Daft Punk', 'daft punk'],
     ])('keys %s as %s', (author, expected) => {
         expect(primaryArtistKey(author)).toBe(expected)
     })
