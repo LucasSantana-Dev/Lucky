@@ -6,7 +6,6 @@ import {
     cleanTitle,
     cleanAuthor,
 } from '../../../utils/music/searchQueryCleaner'
-import { primaryArtist } from '../../../utils/music/trackNormalization'
 import { calculateStringSimilarity } from '../../../utils/music/duplicateDetection/similarityChecker'
 import { markAndRecordAutoplayTrack } from './queueMarkers'
 import { extractYouTubeVideoId } from './scoringUtils'
@@ -317,8 +316,7 @@ export function selectDiverseCandidates(
     const selectedAlbums = new Set<string>()
 
     for (const candidate of sortedCandidates) {
-        // Primary artist, so "Artist, Remixer" shares the cap with "Artist".
-        const artistKey = primaryArtist(candidate.track.author).toLowerCase()
+        const artistKey = candidate.track.author.toLowerCase()
         const sourceKey = (
             trackSource(candidate.track) ?? 'unknown'
         ).toLowerCase()

@@ -41,7 +41,6 @@ import { collectLastFmCandidates } from './lastFmSeeder'
 import { collectSeedSimilarCandidates } from './seedSimilarityCollector'
 import { serializeBasis } from './recommendationBasis'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
-import { primaryArtist } from '../../../utils/music/trackNormalization'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import {
     collectBroadFallbackCandidates,
@@ -848,12 +847,12 @@ export async function selectAndRerankCandidates(
         basis: import('./recommendationBasis').RecommendationBasis
     }[]
 > {
-    const seedArtistKey = primaryArtist(currentTrack.author).toLowerCase()
+    const seedArtistKey = currentTrack.author.toLowerCase()
     // When the user is deep-diving an artist (3+ tracks in last 8), relax
     // the per-artist cap for that artist so autoplay follows their intent.
     const deepDiveKey = sessionMood.deepDiveArtist
     const effectiveMaxPerArtist =
-        deepDiveKey && currentTrack.author.toLowerCase().includes(deepDiveKey)
+        deepDiveKey && seedArtistKey.includes(deepDiveKey)
             ? 5
             : MAX_TRACKS_PER_ARTIST
     const selected = interleaveByArtist(
@@ -1038,12 +1037,12 @@ function buildRecentArtists(
     return new Set<string>(
         [currentTrack.author, ...historyTracks.map((track) => track.author)]
             .filter(Boolean)
-            .map((artist) => primaryArtist(artist).toLowerCase()),
+            .map((artist) => artist.toLowerCase()),
     )
 }
 
 /**
- * Build a map of primary artist names (lowercased) to their queue position (0 = most recent)
+ * Build a map of artist names (lowercased) to their queue position (0 = most recent)
  * for recency-decay scoring. Only positions within RECENCY_WINDOW_TRACKS matter —
  * the scorer's decay factor clamps to zero past the window — so iteration stops
  * there, keeping the map bounded regardless of how much history is fetched upstream.
@@ -1060,8 +1059,7 @@ function buildRecentArtistIndices(
     // most-recent position. Stop at the decay window — later positions score 0.
     const limit = Math.min(allTracks.length, RECENCY_WINDOW_TRACKS)
     for (let i = 0; i < limit; i++) {
-        const author = allTracks[i].author
-        const artist = author ? primaryArtist(author).toLowerCase() : ''
+        const artist = allTracks[i].author?.toLowerCase()
         if (artist && !seenArtists.has(artist)) {
             indices.set(artist, i)
             seenArtists.add(artist)

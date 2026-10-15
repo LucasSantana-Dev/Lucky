@@ -397,32 +397,6 @@ describe('diversitySelector', () => {
         })
     })
 
-    describe('per-artist cap with co-credits', () => {
-        test('counts "Artist, Remixer" against the seed artist cap', () => {
-            const pick = (author: string, title: string, score: number) => ({
-                track: { author, title, source: 'youtube' } as Track,
-                score,
-                basis: { source: 'spotify-rec' as const, signals: [] },
-            })
-            const candidates = new Map([
-                ['a', pick('Michael Jackson, Steve Aoki', 'Thriller', 0.9)],
-                ['b', pick('Michael Jackson', 'Beat It', 0.8)],
-                ['c', pick('Prince', 'Kiss', 0.5)],
-            ])
-            const selected = selectDiverseCandidates(
-                candidates,
-                3,
-                2,
-                5,
-                'michael jackson',
-            )
-            expect(selected.map((c) => c.track.title)).toEqual([
-                'Thriller',
-                'Kiss',
-            ])
-        })
-    })
-
     describe('same-album soft penalty', () => {
         function makeCandidate(
             title: string,
