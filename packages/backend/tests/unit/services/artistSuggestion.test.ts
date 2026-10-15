@@ -49,6 +49,7 @@ describe('ArtistSuggestionService', () => {
                 findMany: jest.fn(),
                 upsert: jest.fn(),
                 delete: jest.fn(),
+                deleteMany: jest.fn(),
             },
         }
         ;(getPrismaClient as jest.Mock).mockReturnValue(mockPrisma)
@@ -440,6 +441,48 @@ describe('ArtistSuggestionService', () => {
             })
 
             expect(mockPrisma.userArtistPreference.upsert).toHaveBeenCalled()
+            expect(
+                mockPrisma.userArtistPreference.deleteMany,
+            ).not.toHaveBeenCalled()
+        })
+
+        test('keeps accents in the key and drops the legacy ASCII row', async () => {
+            await service.handleSavePreferredArtist('user_123', {
+                guildId: 'guild_1',
+                artistKey: 'björk',
+                artistName: 'Björk',
+                preference: 'block',
+            })
+
+            expect(
+                mockPrisma.userArtistPreference.deleteMany,
+            ).toHaveBeenCalledWith({
+                where: {
+                    discordUserId: 'user_123',
+                    guildId: 'guild_1',
+                    artistKey: { in: ['bjrk'] },
+                },
+            })
+            expect(
+                mockPrisma.userArtistPreference.upsert.mock.calls[0][0].where
+                    .discordUserId_guildId_artistKey.artistKey,
+            ).toBe('björk')
+        })
+
+        test('should throw 400 when the name has no letters or digits', async () => {
+            const error = await service
+                .handleSavePreferredArtist('user_123', {
+                    guildId: 'guild_1',
+                    artistKey: '!!!',
+                    artistName: '!!!',
+                })
+                .catch((e) => e)
+
+            expect(error).toBeInstanceOf(AppError)
+            expect(error.statusCode).toBe(400)
+            expect(
+                mockPrisma.userArtistPreference.upsert,
+            ).not.toHaveBeenCalled()
         })
     })
 

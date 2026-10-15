@@ -11,6 +11,7 @@ import {
 } from '@lucky/shared/utils'
 import { withTimeout } from '@lucky/shared/utils/async'
 import { TtlCache } from '@lucky/shared/utils/cache'
+import { artistKeyVariants } from '@lucky/shared/utils/artistKey'
 import { spotifyLinkService } from '@lucky/shared/services'
 import { POPULAR_ARTISTS } from '../constants/popularArtists'
 import { AppError } from '../errors/AppError'
@@ -227,7 +228,7 @@ export class ArtistSuggestionService {
     /**
      * Fetch user's top artists from Spotify API across multiple time ranges.
      */
-    // eslint-disable-next-line complexity
+
     private async fetchSpotifyTopArtists(
         accessToken: string,
     ): Promise<SpotifyArtist[]> {
@@ -460,8 +461,26 @@ export class ArtistSuggestionService {
 
     // Route handlers — handle validation and return responses or throw errors
 
-    private normalizeArtistKey(name: string): string {
-        return name.toLowerCase().replace(/[^a-z0-9]/g, '')
+    // Resolves the stored key and drops a pre-Unicode row for the same
+    // artist, so one row per artist remains and a stale block cannot outlive
+    // a newer prefer. Returns '' when the name has no letters or digits.
+    private async resolveArtistKey(
+        db: ReturnType<typeof getPrismaClient>,
+        discordUserId: string,
+        guildId: string,
+        name: string,
+    ): Promise<string> {
+        const [artistKey = '', ...legacyKeys] = artistKeyVariants(name)
+        if (legacyKeys.length > 0) {
+            await db.userArtistPreference.deleteMany({
+                where: {
+                    discordUserId,
+                    guildId,
+                    artistKey: { in: legacyKeys },
+                },
+            })
+        }
+        return artistKey
     }
 
     async handleGetSuggestions(
@@ -574,10 +593,16 @@ export class ArtistSuggestionService {
 
         const { guildId, artistName, spotifyId, imageUrl, preference } =
             parsed.data
-        const artistKey = this.normalizeArtistKey(
+        const db = getPrismaClient()
+        const artistKey = await this.resolveArtistKey(
+            db,
+            discordUserId,
+            guildId,
             parsed.data.artistKey || artistName,
         )
-        const db = getPrismaClient()
+        if (!artistKey) {
+            throw AppError.badRequest('Artist key is empty after normalization')
+        }
         return db.userArtistPreference.upsert({
             where: {
                 discordUserId_guildId_artistKey: {
@@ -629,9 +654,13 @@ export class ArtistSuggestionService {
         const db = getPrismaClient()
         const results: unknown[] = []
         for (const item of items) {
-            const artistKey = this.normalizeArtistKey(
+            const artistKey = await this.resolveArtistKey(
+                db,
+                discordUserId,
+                guildId,
                 item.artistKey || item.artistName,
             )
+            if (!artistKey) continue
             const pref = await db.userArtistPreference.upsert({
                 where: {
                     discordUserId_guildId_artistKey: {

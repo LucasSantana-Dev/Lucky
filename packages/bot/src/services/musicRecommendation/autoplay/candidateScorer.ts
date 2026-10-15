@@ -5,6 +5,7 @@ import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
 import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import { detectSpanishMarkers } from '../../../utils/music/languageHeuristics'
 import { normalizeText, normalizeTrackKey } from './scoringUtils'
+import { hasArtistKey } from '@lucky/shared/utils/artistKey'
 
 const SCORE_SAME_ARTIST = 0.3
 const SCORE_POPULAR_ARTIST = 0.2
@@ -307,11 +308,13 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     // penalty or earn session novelty.
     const currentArtist = primaryArtistKey(currentTrack.author)
     const candidateArtist = primaryArtistKey(candidate.author)
-    const candidateArtistKey = normalizeText(cleanAuthor(candidate.author))
+    const candidateAuthor = cleanAuthor(candidate.author)
+    const candidateArtistKey = normalizeText(candidateAuthor)
 
+    // Stored keys follow the shared artist key rule (legacy ASCII rows too).
     if (
-        blockedArtistKeys.has(candidateArtistKey) ||
-        blockedArtistKeys.has(normalizeText(candidateArtist))
+        hasArtistKey(blockedArtistKeys, candidateAuthor) ||
+        hasArtistKey(blockedArtistKeys, candidateArtist)
     ) {
         return { score: -Infinity, signals: [] }
     }
@@ -400,7 +403,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         signals.push('genre family drift')
     }
 
-    if (preferredArtistKeys.has(candidateArtistKey)) {
+    if (hasArtistKey(preferredArtistKeys, candidateAuthor)) {
         score += SCORE_PREFERRED_ARTIST
         signals.push('preferred artist')
     }

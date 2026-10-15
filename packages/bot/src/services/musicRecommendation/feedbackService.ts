@@ -1,6 +1,7 @@
 import { errorLog, getPrismaClient, telemetryLog } from '@lucky/shared/utils'
 import { parseIntEnv } from '@lucky/shared/utils/env'
 import { assertDefined } from '@lucky/shared/utils/guards'
+import { artistKeyVariants } from '@lucky/shared/utils/artistKey'
 import { cleanAuthor } from '../../utils/music/searchQueryCleaner'
 import { normalizeTrackKey } from '../../utils/music/trackNormalization'
 
@@ -292,14 +293,6 @@ export class RecommendationFeedbackService {
         }
     }
 
-    private normalizeArtistKey(artistName: string): string {
-        const cleaned = cleanAuthor(artistName)
-        return cleaned
-            .toLowerCase()
-            .replaceAll(/[^a-z0-9]+/g, '')
-            .trim()
-    }
-
     private async getArtistPreferencesByType(
         guildId: string,
         userId: string | undefined,
@@ -332,10 +325,24 @@ export class RecommendationFeedbackService {
         feedback: ArtistFeedback,
     ): Promise<void> {
         try {
-            const artistKey = this.normalizeArtistKey(artistName)
+            const [artistKey, ...legacyKeys] = artistKeyVariants(
+                cleanAuthor(artistName),
+            )
             if (!artistKey) return
 
             const db = getPrismaClient()
+
+            // Drop a pre-Unicode row for the same artist so a stale block
+            // cannot outlive a newer prefer (lookups match both keys).
+            if (legacyKeys.length > 0) {
+                await db.userArtistPreference.deleteMany({
+                    where: {
+                        discordUserId: userId,
+                        guildId,
+                        artistKey: { in: legacyKeys },
+                    },
+                })
+            }
 
             // Upsert into userArtistPreference (unified Postgres store)
             await db.userArtistPreference.upsert({
@@ -370,8 +377,8 @@ export class RecommendationFeedbackService {
         artistName: string,
     ): Promise<void> {
         try {
-            const artistKey = this.normalizeArtistKey(artistName)
-            if (!artistKey) return
+            const artistKeys = artistKeyVariants(cleanAuthor(artistName))
+            if (artistKeys.length === 0) return
 
             const db = getPrismaClient()
 
@@ -379,7 +386,7 @@ export class RecommendationFeedbackService {
                 where: {
                     discordUserId: userId,
                     guildId,
-                    artistKey,
+                    artistKey: { in: artistKeys },
                 },
             })
         } catch (error) {

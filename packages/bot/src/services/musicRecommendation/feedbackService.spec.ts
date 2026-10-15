@@ -222,7 +222,7 @@ describe('RecommendationFeedbackService', () => {
                 where: expect.objectContaining({
                     discordUserId: 'user-1',
                     guildId: 'guild-1',
-                    artistKey: expect.any(String),
+                    artistKey: { in: ['taylorswift'] },
                 }),
             }),
         )
@@ -522,6 +522,69 @@ describe('implicit feedback', () => {
                     }),
                 }),
             )
+        })
+
+        it.each(['prefer', 'block'] as const)(
+            'setArtistFeedback keeps accents and replaces the legacy row (%s)',
+            async (feedback) => {
+                const service = new RecommendationFeedbackService(30)
+
+                await service.setArtistFeedback(
+                    'guild-1',
+                    'user-1',
+                    'Björk',
+                    feedback,
+                )
+
+                expect(
+                    mockUserArtistPreference.deleteMany,
+                ).toHaveBeenCalledWith({
+                    where: {
+                        discordUserId: 'user-1',
+                        guildId: 'guild-1',
+                        artistKey: { in: ['bjrk'] },
+                    },
+                })
+                expect(mockUserArtistPreference.upsert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        where: {
+                            discordUserId_guildId_artistKey: {
+                                discordUserId: 'user-1',
+                                guildId: 'guild-1',
+                                artistKey: 'björk',
+                            },
+                        },
+                        update: { preference: feedback },
+                    }),
+                )
+            },
+        )
+
+        it('setArtistFeedback skips the legacy cleanup for ASCII names', async () => {
+            const service = new RecommendationFeedbackService(30)
+
+            await service.setArtistFeedback(
+                'guild-1',
+                'user-1',
+                'Taylor Swift',
+                'prefer',
+            )
+
+            expect(mockUserArtistPreference.deleteMany).not.toHaveBeenCalled()
+        })
+
+        it('removeArtistFeedback deletes both key forms for accented names', async () => {
+            const service = new RecommendationFeedbackService(30)
+
+            await service.removeArtistFeedback('guild-1', 'user-1', 'Björk')
+
+            expect(mockUserArtistPreference.deleteMany).toHaveBeenCalledWith({
+                where: {
+                    discordUserId: 'user-1',
+                    guildId: 'guild-1',
+                    artistKey: { in: ['björk', 'bjrk'] },
+                },
+            })
         })
 
         it('getPreferredArtistKeys queries Postgres only', async () => {
