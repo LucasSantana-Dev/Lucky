@@ -36,7 +36,7 @@ export const isYouTubeUrl = (value: string): boolean =>
     /^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\/.+/.test(value)
 
 export const isSpotifyUrl = (value: string): boolean =>
-    /https?:\/\/(open\.)?spotify\.com\/(track|playlist|album)\/[a-zA-Z0-9]+/.test(
+    /^https?:\/\/(open\.)?spotify\.com\/(track|playlist|album)\/[a-zA-Z0-9]+/.test(
         value,
     )
 

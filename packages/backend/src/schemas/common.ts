@@ -1,9 +1,13 @@
 import { z } from 'zod'
 
-export const snowflakeId = z.string().regex(/^\d{17,20}$/)
+const SNOWFLAKE_PATTERN = /^\d{17,20}$/
 
-export const isSnowflakeId = (value: string): boolean =>
-    snowflakeId.safeParse(value).success
+export const snowflakeId = z.string().regex(SNOWFLAKE_PATTERN)
+
+// Plain anchored regex test (not zod) so static analysis sees it as a
+// sanitizer for Discord API URLs built from these ids.
+export const isSnowflakeId = (value: unknown): value is string =>
+    typeof value === 'string' && SNOWFLAKE_PATTERN.test(value)
 
 export const guildIdParam = z.object({
     guildId: snowflakeId,
