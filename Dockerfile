@@ -34,6 +34,9 @@ FROM node:${NODE_VERSION} AS base-runtime
 # libexpat is pulled in as a python3 dependency; upgrade only that package
 # to the current index to close CVE-2026-76641 / CVE-2026-66046
 # (libexpat < 2.8.4-r0) without floating the rest of the digest-pinned base.
+# Same targeted upgrade for the base image's openssl (libssl3/libcrypto3
+# < 3.5.8-r0, CVE-2026-14456 and siblings) and zlib (< 1.3.2-r1,
+# CVE-2026-85091). production-backend repeats it (it does not FROM here).
 # yt-dlp-ejs ships the scripts yt-dlp runs (with the node runtime the bot
 # passes via --js-runtimes) to solve YouTube's signature and n challenges;
 # without it yt-dlp skips solving and formats can go missing (#2664). yt-dlp
@@ -45,7 +48,7 @@ RUN apk add --no-cache \
     ffmpeg \
     opus \
     opus-tools \
-    && apk upgrade --no-cache libexpat \
+    && apk upgrade --no-cache libexpat libssl3 libcrypto3 zlib \
     && python3 -m venv /opt/ytdlp \
     && /opt/ytdlp/bin/pip install --no-cache-dir --upgrade pip 'yt-dlp[default]' \
     && ln -s /opt/ytdlp/bin/yt-dlp /usr/local/bin/yt-dlp \
@@ -285,6 +288,15 @@ COPY package.json package-lock.json ./
 ARG COMMIT_SHA
 ENV COMMIT_SHA=$COMMIT_SHA
 
+# Nothing in the runtime image calls npm or npx: the CMD below and
+# scripts/deploy*.sh run the Prisma CLI straight from node_modules/.bin
+# (prisma is a production dependency). The npm bundled with the image carries
+# its own copies of undici, tar, ip-address, brace-expansion and
+# postcss-selector-parser that Trivy keeps flagging even on npm@latest, so the
+# production stages drop npm and npx entirely. The development stage keeps
+# them (it runs `npm ci` and `npm run dev`).
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+
 USER bot
 
 # Gateway readiness via /healthz — returns 200 when client.isReady(), 503 otherwise.
@@ -292,7 +304,7 @@ USER bot
 HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=3 \
     CMD node -e "require('http').get('http://127.0.0.1:9091/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
-CMD ["sh", "-c", "npx prisma migrate deploy --config prisma/prisma.config.ts && node packages/bot/dist/index.js"]
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy --config prisma/prisma.config.ts && node packages/bot/dist/index.js"]
 
 # Production stage — backend (slim runtime, no media tools).
 # Derives directly from node:${NODE_VERSION} instead of a no-op intermediate
@@ -328,7 +340,12 @@ COPY --from=source-copied /app/prisma ./prisma
 # (#1734/#1735); backend needs the same copy + chown, it just never got it.
 COPY --from=source-copied /app/node_modules/@prisma ./node_modules/@prisma
 
-RUN addgroup -g 1001 -S nodejs && \
+# Base image openssl/zlib CVEs (see base-runtime) and no npm/npx at runtime
+# (see production-bot): scripts/deploy*.sh run migrations through
+# node_modules/.bin/prisma in this image.
+RUN apk upgrade --no-cache libssl3 libcrypto3 zlib && \
+    rm -rf /var/cache/apk/* /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx && \
+    addgroup -g 1001 -S nodejs && \
     adduser -S backend -u 1001 -G nodejs && \
     chown -R backend:nodejs /app/packages/backend/dist /app/prisma /app/node_modules/@prisma
 
