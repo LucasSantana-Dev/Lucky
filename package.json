@@ -127,7 +127,7 @@
     "overrides": {
         "file-type": "$file-type",
         "brace-expansion": "5.0.12",
-        "handlebars": "4.7.9",
+        "handlebars": "4.7.10",
         "path-to-regexp": "8.4.2",
         "fast-xml-parser": ">=5.5.6",
         "tar": "7.5.22",
