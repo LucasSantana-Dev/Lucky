@@ -4,7 +4,6 @@ import {
     navigateToServers,
     navigateToDashboard,
     navigateToFeatures,
-    toggleFeature,
 } from '../helpers/page-helpers'
 import { MOCK_FEATURES } from '../fixtures/test-data'
 
@@ -75,7 +74,6 @@ test.describe('Page Performance', () => {
     test('feature toggle performance', async ({ page }) => {
         await navigateToFeatures(page)
 
-        const firstFeature = MOCK_FEATURES[0]
         const featureCard = page.locator('[class*="card"]').first()
         const switchButton = featureCard.locator('[role="switch"]').first()
 

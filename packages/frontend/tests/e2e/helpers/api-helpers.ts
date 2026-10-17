@@ -2,8 +2,6 @@ import { Page } from '@playwright/test'
 import {
     MOCK_API_RESPONSES,
     MOCK_GUILDS,
-    MOCK_FEATURES,
-    MOCK_GLOBAL_TOGGLES,
     MOCK_SERVER_TOGGLES,
 } from '../fixtures/test-data'
 

@@ -34,11 +34,6 @@ test.describe('Responsive Design', () => {
         await page.setViewportSize({ width: 375, height: 667 })
         await navigateToDashboard(page)
 
-        const sidebar = getSidebar(page)
-        const initialVisible = await sidebar
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
-
         const mobileMenuButton = getMobileMenuButton(page)
         const menuVisible = await mobileMenuButton
             .isVisible({ timeout: 3000 })
@@ -47,10 +42,6 @@ test.describe('Responsive Design', () => {
         if (menuVisible) {
             await mobileMenuButton.click()
             await page.waitForTimeout(500)
-
-            const afterClickVisible = await sidebar
-                .isVisible({ timeout: 2000 })
-                .catch(() => false)
         }
     })
 
@@ -64,11 +55,6 @@ test.describe('Responsive Design', () => {
         for (const viewport of viewports) {
             await page.setViewportSize(viewport)
             await navigateToServers(page)
-
-            const serverGrid = page.locator('[class*="grid"]').first()
-            const isVisible = await serverGrid
-                .isVisible({ timeout: 3000 })
-                .catch(() => false)
         }
     })
 
@@ -82,11 +68,6 @@ test.describe('Responsive Design', () => {
         for (const viewport of viewports) {
             await page.setViewportSize(viewport)
             await navigateToFeatures(page)
-
-            const featureCard = page.locator('[class*="card"]').first()
-            const isVisible = await featureCard
-                .isVisible({ timeout: 3000 })
-                .catch(() => false)
         }
     })
 
