@@ -64,4 +64,26 @@ describe('RoleService - guildId validation', () => {
         ).rejects.toThrow('Invalid Discord guild id')
         expect(fetchSpy).not.toHaveBeenCalled()
     })
+
+    test('updateGuildRole rejects a non-snowflake roleId without calling fetch', async () => {
+        const fetchSpy = jest.fn()
+        global.fetch = fetchSpy as unknown as typeof fetch
+
+        await expect(
+            roleService.updateGuildRole('111111111111111111', '1/../../x', {
+                name: 'test',
+            }),
+        ).rejects.toThrow('Invalid Discord role id')
+        expect(fetchSpy).not.toHaveBeenCalled()
+    })
+
+    test('deleteGuildRole rejects a non-snowflake roleId without calling fetch', async () => {
+        const fetchSpy = jest.fn()
+        global.fetch = fetchSpy as unknown as typeof fetch
+
+        await expect(
+            roleService.deleteGuildRole('111111111111111111', '1/../../x'),
+        ).rejects.toThrow('Invalid Discord role id')
+        expect(fetchSpy).not.toHaveBeenCalled()
+    })
 })
