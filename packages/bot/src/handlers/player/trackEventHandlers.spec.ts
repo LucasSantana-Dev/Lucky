@@ -264,11 +264,11 @@ describe('trackHandlers autoplay replenishment', () => {
         const handlers = setupHandlers()
         const queue = createQueue(QueueRepeatMode.OFF)
         const order: string[] = []
-        sendNowPlayingEmbedMock.mockImplementation(async () => {
+        sendNowPlayingEmbedMock.mockImplementationOnce(async () => {
             await Promise.resolve()
             order.push('handlePlayerStart')
         })
-        prefetchNextSpotifyTrackMock.mockImplementation(async () => {
+        prefetchNextSpotifyTrackMock.mockImplementationOnce(async () => {
             order.push('prefetch')
         })
 
@@ -281,7 +281,7 @@ describe('trackHandlers autoplay replenishment', () => {
 
     it('does not wait for the prefetch before playerStart resolves', async () => {
         const handlers = setupHandlers()
-        prefetchNextSpotifyTrackMock.mockReturnValue(new Promise(() => {}))
+        prefetchNextSpotifyTrackMock.mockReturnValueOnce(new Promise(() => {}))
 
         await expect(
             handlers.playerStart(
