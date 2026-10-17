@@ -108,66 +108,66 @@ export class RedisClient implements IRedisClient {
     }
 
     async get(key: string): Promise<string | null> {
-        const result = await (this.operations?.get(key) ?? null)
+        const result = (await this.operations?.get(key)) ?? null
         if (result !== null) this.hits++
         else this.misses++
         return result
     }
 
     async set(key: string, value: string, ttl?: number): Promise<boolean> {
-        return this.operations?.set(key, value, ttl) ?? false
+        return (await this.operations?.set(key, value, ttl)) ?? false
     }
 
     async del(key: string): Promise<boolean> {
-        return this.operations?.del(key) ?? false
+        return (await this.operations?.del(key)) ?? false
     }
 
     async exists(key: string): Promise<boolean> {
-        return this.operations?.exists(key) ?? false
+        return (await this.operations?.exists(key)) ?? false
     }
 
     async expire(key: string, seconds: number): Promise<boolean> {
-        return this.operations?.expire(key, seconds) ?? false
+        return (await this.operations?.expire(key, seconds)) ?? false
     }
 
     async keys(pattern: string): Promise<string[]> {
-        return this.operations?.keys(pattern) ?? []
+        return (await this.operations?.keys(pattern)) ?? []
     }
 
     async setex(key: string, seconds: number, value: string): Promise<boolean> {
-        return this.operations?.setex(key, seconds, value) ?? false
+        return (await this.operations?.setex(key, seconds, value)) ?? false
     }
 
     async lpush(key: string, ...values: string[]): Promise<number> {
-        return this.operations?.lpush(key, ...values) ?? 0
+        return (await this.operations?.lpush(key, ...values)) ?? 0
     }
 
     async sadd(key: string, ...members: string[]): Promise<number> {
-        return this.operations?.sadd(key, ...members) ?? 0
+        return (await this.operations?.sadd(key, ...members)) ?? 0
     }
 
     async srem(key: string, ...members: string[]): Promise<number> {
-        return this.operations?.srem(key, ...members) ?? 0
+        return (await this.operations?.srem(key, ...members)) ?? 0
     }
 
     async smembers(key: string): Promise<string[]> {
-        return this.operations?.smembers(key) ?? []
+        return (await this.operations?.smembers(key)) ?? []
     }
 
     async lrange(key: string, start: number, stop: number): Promise<string[]> {
-        return this.operations?.lrange(key, start, stop) ?? []
+        return (await this.operations?.lrange(key, start, stop)) ?? []
     }
 
     async llen(key: string): Promise<number> {
-        return this.operations?.llen(key) ?? 0
+        return (await this.operations?.llen(key)) ?? 0
     }
 
     async lindex(key: string, index: number): Promise<string | null> {
-        return this.operations?.lindex(key, index) ?? null
+        return (await this.operations?.lindex(key, index)) ?? null
     }
 
     async ltrim(key: string, start: number, stop: number): Promise<boolean> {
-        return this.operations?.ltrim(key, start, stop) ?? false
+        return (await this.operations?.ltrim(key, start, stop)) ?? false
     }
 
     async setNxPx(key: string, value: string, ttlMs: number): Promise<boolean> {
@@ -213,10 +213,10 @@ export class RedisClient implements IRedisClient {
     }
 
     async ttl(key: string): Promise<number> {
-        return this.operations?.ttl(key) ?? -2
+        return (await this.operations?.ttl(key)) ?? -2
     }
 
     async shutdown(): Promise<void> {
-        return this.operations?.shutdown() ?? Promise.resolve()
+        await this.operations?.shutdown()
     }
 }
