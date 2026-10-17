@@ -8,6 +8,7 @@ import {
     getGenreFamilies,
     RECENCY_WINDOW_TRACKS,
 } from './candidateScorer'
+import { buildArtistFeedbackWeights, normalizeTrackKey } from './scoringUtils'
 import type { SessionMood } from './sessionMood'
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -86,6 +87,25 @@ describe('candidateScorer', () => {
             })
             expect(result.score).toBeGreaterThan(1)
             expect(result.signals).toContain('preferred artist')
+        })
+
+        it('blocks and prefers an accented artist by its Unicode key', () => {
+            const key = 'björk'
+            const base = {
+                candidate: createTrack({ author: 'Björk' }),
+                currentTrack: createTrack(),
+                recentArtists: new Set<string>(),
+            }
+            const blocked = calculateRecommendationScore({
+                ...base,
+                blockedArtistKeys: new Set([key]),
+            })
+            const preferred = calculateRecommendationScore({
+                ...base,
+                preferredArtistKeys: new Set([key]),
+            })
+            expect(blocked.score).toBe(-Infinity)
+            expect(preferred.signals).toContain('preferred artist')
         })
 
         it('rejects high-weight dislikes', () => {
@@ -610,6 +630,258 @@ describe('candidateScorer', () => {
                 implicitDislikeKeys: new Set(['skippedsong::testartist']),
             })
             expect(result.signals).not.toContain('implicit dislike')
+        })
+    })
+
+    describe('unrequested remix penalty', () => {
+        function score(title: string, author: string, seed: Track) {
+            return calculateRecommendationScore({
+                candidate: createTrack({ title, author }),
+                currentTrack: seed,
+                recentArtists: new Set(),
+            })
+        }
+
+        // Prod 2026-10-15: autoplay queued these remixes over the originals.
+        it.each([
+            [
+                createTrack({
+                    title: 'Billie Jean',
+                    author: 'Michael Jackson',
+                }),
+                ['Thriller', 'Michael Jackson'],
+                [
+                    'Thriller (Steve Aoki Midnight Hour Remix)',
+                    'Michael Jackson, Steve Aoki',
+                ],
+            ],
+            [
+                createTrack({
+                    title: "Baby's On Fire",
+                    author: 'Die Antwoord',
+                }),
+                ['I Fink U Freeky', 'Die Antwoord'],
+                [
+                    "I FINK YOU FREEKY - GOD'S DEATH TRAP REMIX",
+                    'Die Antwoord, G.O.D.',
+                ],
+            ],
+            [
+                createTrack({ title: 'Luxury', author: 'Azealia Banks' }),
+                ['Liquorice', 'Azealia Banks'],
+                ['luxury - sped up + reverb', 'pearl, fast forward >>'],
+            ],
+        ])('ranks the original above its remix', (seed, original, remix) => {
+            const orig = score(original[0], original[1], seed)
+            const mix = score(remix[0], remix[1], seed)
+            expect(orig.score).toBeGreaterThan(mix.score)
+            expect(mix.signals).toContain('unrequested remix')
+            expect(orig.signals).not.toContain('unrequested remix')
+        })
+
+        it('keeps remixes when the seed itself is a remix', () => {
+            const seed = createTrack({
+                title: 'Bad Girls - Switch Remix',
+                author: 'M.I.A.',
+            })
+            const result = score('Bad (feat. Rihanna) - Remix', 'Wale', seed)
+            expect(result.signals).not.toContain('unrequested remix')
+        })
+
+        it('does not treat official edits or remasters as remixes', () => {
+            const seed = createTrack({ title: 'Beat It' })
+            for (const title of [
+                'Purple Rain - 7" Single Edit; 2017 Remaster',
+                'Take on Me - 1985 Single Mix; 2015 Remaster',
+            ]) {
+                expect(score(title, 'Prince', seed).signals).not.toContain(
+                    'unrequested remix',
+                )
+            }
+        })
+
+        it.each([
+            'Song - Sped-Up',
+            'Song (Club-Mix)',
+            'Song - Reverb',
+            'Song (The Remixes)',
+            'Song - Re-Mix',
+        ])('penalizes hyphenated and reverb markers: %s', (title) => {
+            const seed = createTrack({ title: 'Beat It' })
+            expect(score(title, 'Other', seed).signals).toContain(
+                'unrequested remix',
+            )
+        })
+
+        it('ignores marker words that are the song name itself', () => {
+            const seed = createTrack({ title: 'Remix' })
+            expect(score('Speed Up', 'Other', seed).signals).not.toContain(
+                'unrequested remix',
+            )
+            expect(score('Thriller (Remix)', 'Other', seed).signals).toContain(
+                'unrequested remix',
+            )
+        })
+    })
+
+    describe('co-credited artist', () => {
+        // Prod 2026-10-15: "Michael Jackson, Steve Aoki" counted as a new
+        // artist on a Michael Jackson seed, so it dodged the same-artist
+        // penalty and picked up session novelty.
+        it.each([
+            ['Billie Jean', 'Michael Jackson', 'Michael Jackson, Steve Aoki'],
+            ["Baby's On Fire", 'Die Antwoord', 'Die Antwoord, G.O.D.'],
+        ])(
+            'gives "%s" by %s the same-artist treatment for %s',
+            (seedTitle, artist, coCredit) => {
+                const seed = createTrack({ title: seedTitle, author: artist })
+                const score = (author: string) =>
+                    calculateRecommendationScore({
+                        candidate: createTrack({ title: 'Thriller', author }),
+                        currentTrack: seed,
+                        recentArtists: new Set(),
+                    })
+                const solo = score(artist)
+                const credited = score(coCredit)
+                expect(credited.score).toBeCloseTo(solo.score)
+                expect(credited.signals).not.toContain('session novelty')
+            },
+        )
+
+        it('blocks a co-credit of a blocked artist', () => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack({
+                    title: 'Thriller',
+                    author: 'Michael Jackson, Steve Aoki',
+                }),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                blockedArtistKeys: new Set(['michaeljackson']),
+            })
+            expect(result.score).toBe(-Infinity)
+        })
+
+        it('treats a co-credit of a recent artist as recent', () => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack({
+                    title: 'Thriller',
+                    author: 'Michael Jackson, Steve Aoki',
+                }),
+                currentTrack: createTrack({
+                    title: 'Rich Girl',
+                    author: 'Die Antwoord',
+                }),
+                recentArtists: new Set(['michael jackson']),
+                recentArtistIndices: new Map([['michael jackson', 1]]),
+            })
+            expect(result.signals).not.toContain('session novelty')
+            expect(result.signals).toContain('recency decay')
+        })
+    })
+
+    describe('artist-level feedback', () => {
+        // Owner report 2026-10-15: thumbs up/down never showed in later
+        // autoplay picks. The voted song sits in the last-150 history
+        // exclusion, so its exact-key weight never meets a candidate.
+        const seed = createTrack({ title: 'Take On Me', author: 'a-ha' })
+        const sameArtist = createTrack({
+            title: 'Beat It',
+            author: 'Michael Jackson',
+        })
+        const unrelated = createTrack({ title: 'Africa', author: 'Toto' })
+        const votes = (...titles: string[]) =>
+            new Map(
+                titles.map((t) => [normalizeTrackKey(t, 'Michael Jackson'), 1]),
+            )
+        const score = (
+            candidate: Track,
+            feedback: {
+                likedWeights?: Map<string, number>
+                dislikedWeights?: Map<string, number>
+            },
+        ) =>
+            calculateRecommendationScore({
+                candidate,
+                currentTrack: seed,
+                recentArtists: new Set(),
+                ...feedback,
+                likedArtistWeights: buildArtistFeedbackWeights(
+                    feedback.likedWeights ?? new Map(),
+                ),
+                dislikedArtistWeights: buildArtistFeedbackWeights(
+                    feedback.dislikedWeights ?? new Map(),
+                ),
+            })
+
+        it('a like on one song lifts the same artist over an equal unrelated candidate', () => {
+            const likedWeights = votes('Billie Jean')
+            const liked = score(sameArtist, { likedWeights })
+            const other = score(unrelated, { likedWeights })
+            expect(liked.score).toBeGreaterThan(other.score)
+            expect(liked.signals).toContain('liked artist track')
+            expect(other.signals).not.toContain('liked artist track')
+        })
+
+        it('matches a co-credited candidate on the voted primary artist', () => {
+            const result = score(
+                createTrack({
+                    title: 'Thriller',
+                    author: 'Michael Jackson, Steve Aoki',
+                }),
+                { likedWeights: votes('Billie Jean') },
+            )
+            expect(result.signals).toContain('liked artist track')
+        })
+
+        it('caps the liked-artist boost', () => {
+            const base = score(sameArtist, {})
+            const many = score(sameArtist, {
+                likedWeights: votes(
+                    'Billie Jean',
+                    'Thriller',
+                    'Bad',
+                    'Smooth Criminal',
+                ),
+            })
+            expect(many.score - base.score).toBeCloseTo(0.4)
+        })
+
+        it('a dislike on one song demotes the same artist below an equal unrelated candidate', () => {
+            const dislikedWeights = votes('Billie Jean')
+            const disliked = score(sameArtist, { dislikedWeights })
+            const other = score(unrelated, { dislikedWeights })
+            expect(disliked.score).toBeLessThan(other.score)
+            expect(disliked.score).toBeGreaterThan(-Infinity)
+            expect(disliked.signals).toContain('disliked artist')
+        })
+
+        it('two disliked songs of an artist weigh more than one', () => {
+            const one = score(sameArtist, {
+                dislikedWeights: votes('Billie Jean'),
+            })
+            const two = score(sameArtist, {
+                dislikedWeights: votes('Billie Jean', 'Thriller'),
+            })
+            expect(two.score).toBeLessThan(one.score)
+            expect(two.score).toBeGreaterThan(-Infinity)
+        })
+
+        it('buildArtistFeedbackWeights sums per primary artist and caps at 2', () => {
+            const weights = buildArtistFeedbackWeights(
+                new Map([
+                    [normalizeTrackKey('Billie Jean', 'Michael Jackson'), 0.9],
+                    [
+                        normalizeTrackKey('Bad', 'Michael Jackson, Steve Aoki'),
+                        0.4,
+                    ],
+                    [normalizeTrackKey('Thriller', 'Michael Jackson'), 1],
+                    [normalizeTrackKey('Africa', 'Toto'), 0.15],
+                    ['', 1],
+                ]),
+            )
+            expect(weights.get('michaeljackson')).toBe(2)
+            expect(weights.get('toto')).toBe(0.15)
+            expect(weights.size).toBe(2)
         })
     })
 
