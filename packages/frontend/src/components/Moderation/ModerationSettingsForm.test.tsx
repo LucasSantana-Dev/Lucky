@@ -50,7 +50,12 @@ const settings = {
     requireReason: true,
 }
 
-function setup(override: Record<string, unknown> = {}) {
+const defaultRoles = [
+    { id: 'r1', name: 'Mods', color: 0, position: 2 },
+    { id: 'r2', name: 'Muted', color: 0, position: 1 },
+]
+
+function setup(override: Record<string, unknown> = {}, roles = defaultRoles) {
     vi.mocked(api.guilds.getChannels).mockResolvedValue({
         data: {
             channels: [
@@ -60,12 +65,7 @@ function setup(override: Record<string, unknown> = {}) {
         },
     } as any)
     vi.mocked(api.guilds.getRoles).mockResolvedValue({
-        data: {
-            roles: [
-                { id: 'r1', name: 'Mods', color: 0, position: 2 },
-                { id: 'r2', name: 'Muted', color: 0, position: 1 },
-            ],
-        },
+        data: { roles },
     } as any)
     vi.mocked(api.moderation.getSettings).mockResolvedValue({
         data: { settings: { ...settings, ...override } },
@@ -342,19 +342,9 @@ describe('ModerationSettingsForm', () => {
             color: 0,
             position: i,
         }))
-        setup({ modRoleIds: roles.slice(0, 50).map((r) => r.id) })
-        vi.mocked(api.guilds.getRoles).mockResolvedValue({
-            data: { roles },
-        } as any)
-        render(
-            <I18nextProvider i18n={i18n}>
-                <ModerationSettingsForm guildId='g1' />
-            </I18nextProvider>,
-        )
-        expect(
-            (await screen.findAllByText('Role limit hint')).length,
-        ).toBeGreaterThan(0)
-        expect(screen.getAllByLabelText('Role 51')[0]).toBeDisabled()
-        expect(screen.getAllByLabelText('Role 0')[0]).toBeEnabled()
+        setup({ modRoleIds: roles.slice(0, 50).map((r) => r.id) }, roles)
+        expect(await screen.findByLabelText('Role 51')).toBeDisabled()
+        expect(screen.getByLabelText('Role 0')).toBeEnabled()
+        expect(screen.getByText('Role limit hint')).toBeInTheDocument()
     })
 })
