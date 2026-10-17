@@ -320,26 +320,20 @@ def negocio():
         desc="Fonte real do stream de cada faixa (YouTube, SoundCloud...).")
 
     b.row("Gatilhos YouTube-off")
-    b.add("gauge", "WAG esta semana vs limite 100", [sql(WAG_7D)],
-          w=8, h=7, min_val=0, max_val=100,
+    b.add("gauge", "WAG (7 dias) vs limite 100", [sql(WAG_7D)],
+          w=12, h=7, min_val=0, max_val=100,
           th=thresholds((GREEN, 0), (ORANGE, 70), (RED, 90)),
           options={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
                    "orientation": "auto", "showThresholdLabels": True, "showThresholdMarkers": True},
-          desc="WAG ≥ 100 em qualquer semana aciona o desligamento do YouTube (decisão 2026-12-20). "
+          desc="WAG (janela móvel de 7 dias) ≥ 100 aciona o desligamento do YouTube (decisão 2026-12-20). "
                "Laranja a 70 (70 % do limite), vermelho a 90.")
     b.add("gauge", "Servidores vs limite 1.000", [prom('max(lucky_bot_guilds_total{state="active"})', instant=True)],
-          w=8, h=7, min_val=0, max_val=1000,
+          w=12, h=7, min_val=0, max_val=1000,
           th=thresholds((GREEN, 0), (ORANGE, 700), (RED, 900)),
           options={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
                    "orientation": "auto", "showThresholdLabels": True, "showThresholdMarkers": True},
           desc="1.000 servidores ativos aciona o desligamento do YouTube (decisão 2026-12-20). "
                "Laranja a 700 (70 % do limite), vermelho a 900.")
-    b.add("piechart", "Áudio por fonte (período)", [loki(
-        'sum by (fonte) (count_over_time({container_name="lucky-bot"} |= `"msg":"track_stream_source"` '
-        '| regexp `"source":"(?P<fonte>[^"]+)"` [$__range]))', "{{fonte}}", instant=True)],
-        w=8, h=7, options={"legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]},
-                           "pieType": "donut", "reduceOptions": {"calcs": ["lastNotNull"], "values": True}},
-        desc="Proporção do áudio por provedor. Fique atento à fatia do YouTube à medida que o WAG cresce.")
     return b
 
 

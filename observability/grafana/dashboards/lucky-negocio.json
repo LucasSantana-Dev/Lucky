@@ -1233,12 +1233,12 @@
         },
         {
             "type": "gauge",
-            "title": "WAG esta semana vs limite 100",
-            "description": "WAG ≥ 100 em qualquer semana aciona o desligamento do YouTube (decisão 2026-12-20). Laranja a 70 (70 % do limite), vermelho a 90.",
+            "title": "WAG (7 dias) vs limite 100",
+            "description": "WAG (janela móvel de 7 dias) ≥ 100 aciona o desligamento do YouTube (decisão 2026-12-20). Laranja a 70 (70 % do limite), vermelho a 90.",
             "gridPos": {
                 "x": 0,
                 "y": 51,
-                "w": 8,
+                "w": 12,
                 "h": 7
             },
             "datasource": {
@@ -1302,9 +1302,9 @@
             "title": "Servidores vs limite 1.000",
             "description": "1.000 servidores ativos aciona o desligamento do YouTube (decisão 2026-12-20). Laranja a 700 (70 % do limite), vermelho a 900.",
             "gridPos": {
-                "x": 8,
+                "x": 12,
                 "y": 51,
-                "w": 8,
+                "w": 12,
                 "h": 7
             },
             "datasource": {
@@ -1362,50 +1362,6 @@
                 "showThresholdMarkers": true
             },
             "id": 28
-        },
-        {
-            "type": "piechart",
-            "title": "Áudio por fonte (período)",
-            "description": "Proporção do áudio por provedor. Fique atento à fatia do YouTube à medida que o WAG cresce.",
-            "gridPos": {
-                "x": 16,
-                "y": 51,
-                "w": 8,
-                "h": 7
-            },
-            "datasource": {
-                "type": "loki",
-                "uid": "${ds_loki}"
-            },
-            "targets": [
-                {
-                    "datasource": {
-                        "type": "loki",
-                        "uid": "${ds_loki}"
-                    },
-                    "expr": "sum by (fonte) (count_over_time({container_name=\"lucky-bot\"} |= `\"msg\":\"track_stream_source\"` | regexp `\"source\":\"(?P<fonte>[^\"]+)\"` [$__range]))",
-                    "legendFormat": "{{fonte}}",
-                    "queryType": "instant",
-                    "refId": "A"
-                }
-            ],
-            "fieldConfig": {
-                "defaults": {},
-                "overrides": []
-            },
-            "options": {
-                "legend": {
-                    "displayMode": "table",
-                    "placement": "right",
-                    "values": ["value", "percent"]
-                },
-                "pieType": "donut",
-                "reduceOptions": {
-                    "calcs": ["lastNotNull"],
-                    "values": true
-                }
-            },
-            "id": 29
         }
     ]
 }
