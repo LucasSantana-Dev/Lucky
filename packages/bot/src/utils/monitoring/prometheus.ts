@@ -250,6 +250,11 @@ export const spotifyCacheTotal = new Counter<'result'>({
     labelNames: ['result'],
     registers: [registry],
 })
+// Export every result at 0 from boot so the first hit/miss/negative after each
+// deploy has an increase().
+for (const result of ['hit', 'miss', 'negative']) {
+    spotifyCacheTotal.labels(result).inc(0)
+}
 
 /**
  * Render the registry as Prometheus text exposition format.

@@ -7,37 +7,65 @@ import {
 } from '../../utils/music/searchQueryCleaner'
 import { isHost } from '../../utils/general/urlHost'
 import { isYtDlpBlocked } from './ytdlpBlockBreaker'
-import { resolveYtDlpSearchUrl } from './ytdlpProcess'
+import { searchYtDlpCandidates } from './ytdlpProcess'
+import { pickYouTubeCandidate, youtubeWatchUrl } from './youtubeSearchMatcher'
 import {
     getSpotifySource,
+    isNegativeEntry,
     setSpotifySource,
-    setSpotifySourceNegative,
 } from './spotifySourceCache'
+
+// Spotify URL -> in-flight prefetch. playerStart can fire for the same next
+// track more than once (replays, quick skips), and each prefetch spawns
+// yt-dlp, so a concurrent call for the same track joins the running one.
+const inFlight = new Map<string, Promise<void>>()
 
 /**
  * When a track starts playing, peek at the next track in queue. If it is a
  * Spotify track that is not yet cached, resolve its YouTube URL in the
  * background so the cache is warm before playback reaches it.
  *
- * Called fire-and-forget from the `playerStart` event handler; all errors are
- * swallowed so a prefetch failure never affects the current track.
+ * Called fire-and-forget from the `playerStart` event handler; every error is
+ * swallowed so a prefetch failure never affects the current track and never
+ * becomes an unhandled rejection.
+ *
+ * Prefetch only ever writes positive entries. A failure here (timeout,
+ * sign-in wall, kill switch) says nothing about whether the track can be
+ * played, so it must not poison the cache with a negative entry that makes
+ * playback skip YouTube for 5 minutes.
  */
 export async function prefetchNextSpotifyTrack(
     queue: GuildQueue,
 ): Promise<void> {
-    if (isYtDlpBlocked()) return
-
-    let nextTrack
     try {
-        nextTrack = queue.tracks.at(0)
-    } catch {
-        return
+        if (isYtDlpBlocked()) return
+
+        const nextTrack = queue.tracks.at(0)
+        if (!nextTrack) return
+
+        const spotifyUrl = nextTrack.url
+        if (!spotifyUrl || !isHost(spotifyUrl, 'open.spotify.com')) return
+
+        const running = inFlight.get(spotifyUrl)
+        if (running) return running
+
+        const task = resolveAndCache(spotifyUrl, nextTrack).finally(() => {
+            inFlight.delete(spotifyUrl)
+        })
+        inFlight.set(spotifyUrl, task)
+        await task
+    } catch (error) {
+        warnLog({
+            message: 'Prefetch: unexpected failure',
+            data: { error: (error as Error).message },
+        })
     }
-    if (!nextTrack) return
+}
 
-    const spotifyUrl = nextTrack.url
-    if (!spotifyUrl || !isHost(spotifyUrl, 'open.spotify.com')) return
-
+async function resolveAndCache(
+    spotifyUrl: string,
+    nextTrack: { title: string; author: string; duration?: string },
+): Promise<void> {
     const already = await getSpotifySource(spotifyUrl).catch(() => null)
     if (already !== null) return // already cached (positive or negative)
 
@@ -46,14 +74,34 @@ export async function prefetchNextSpotifyTrack(
     const ytQuery = `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`
 
     try {
-        const youtubeUrl = await resolveYtDlpSearchUrl(ytQuery)
-        await setSpotifySource(spotifyUrl, youtubeUrl)
+        const candidates = await searchYtDlpCandidates(ytQuery)
+        const { pick } = pickYouTubeCandidate(
+            {
+                title: cleanedTitle,
+                author: cleanedAuthor,
+                sourceTitle: nextTrack.title,
+                duration: nextTrack.duration,
+            },
+            candidates,
+        )
+        if (!pick) {
+            debugLog({
+                message: 'Prefetch: no validated YouTube hit for next track',
+                data: { title: nextTrack.title, cleanedTitle },
+            })
+            return
+        }
+
+        // Playback may have cached a result while the search ran.
+        const current = await getSpotifySource(spotifyUrl).catch(() => null)
+        if (current !== null && !isNegativeEntry(current)) return
+
+        await setSpotifySource(spotifyUrl, youtubeWatchUrl(pick.id))
         debugLog({
             message: 'Prefetch: cached YouTube URL for next Spotify track',
-            data: { title: nextTrack.title, cleanedTitle },
+            data: { title: nextTrack.title, cleanedTitle, videoId: pick.id },
         })
     } catch (error) {
-        await setSpotifySourceNegative(spotifyUrl).catch(() => undefined)
         warnLog({
             message: 'Prefetch: failed to resolve next Spotify track',
             data: {

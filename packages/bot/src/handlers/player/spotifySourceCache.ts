@@ -5,6 +5,9 @@ const L1_MAX_SIZE = 500
 const L1_TTL_MS = 4 * 60 * 60 * 1000 // 4 h
 const REDIS_POSITIVE_TTL_S = 24 * 60 * 60 // 24 h
 const REDIS_NEGATIVE_TTL_S = 5 * 60 // 5 min
+// L1 negatives expire with the Redis negative TTL: a failed lookup must not
+// stay pinned in memory for hours after Redis already forgot it.
+const L1_NEGATIVE_TTL_MS = REDIS_NEGATIVE_TTL_S * 1000
 const REDIS_PREFIX = 'lucky:spotify_src:'
 
 // Stored in both L1 and Redis to mark a Spotify track that couldn't be
@@ -43,12 +46,14 @@ function l1Get(key: string): string | null {
 }
 
 function l1Set(key: string, value: string): void {
+    // Delete first so overwriting an existing key never evicts another entry.
+    l1.delete(key)
     if (l1.size >= L1_MAX_SIZE) {
         const oldest = l1.keys().next().value
         if (oldest !== undefined) l1.delete(oldest)
     }
-    l1.delete(key)
-    l1.set(key, { value, expiresAt: Date.now() + L1_TTL_MS })
+    const ttlMs = isNegativeEntry(value) ? L1_NEGATIVE_TTL_MS : L1_TTL_MS
+    l1.set(key, { value, expiresAt: Date.now() + ttlMs })
 }
 
 export function isNegativeEntry(value: string): boolean {
