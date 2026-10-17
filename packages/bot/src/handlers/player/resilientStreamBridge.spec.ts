@@ -17,9 +17,25 @@ const mockStreamViaYtDlp = jest.fn()
 const mockSearchYtDlpCandidates = jest.fn()
 const mockStampFallbackStage = jest.fn()
 const mockObserve = jest.fn()
+const mockSpotifyCacheInc = jest.fn()
+const mockGetSpotifySource = jest.fn()
+const mockSetSpotifySource = jest.fn()
+const mockSetSpotifySourceNegative = jest.fn()
 
 jest.mock('../../utils/monitoring/prometheus', () => ({
     playStageSeconds: { observe: (...args: unknown[]) => mockObserve(...args) },
+    spotifyCacheTotal: {
+        inc: (...args: unknown[]) => mockSpotifyCacheInc(...args),
+    },
+}))
+
+const NEGATIVE_SENTINEL = '__negative__'
+jest.mock('./spotifySourceCache', () => ({
+    getSpotifySource: (...args: unknown[]) => mockGetSpotifySource(...args),
+    setSpotifySource: (...args: unknown[]) => mockSetSpotifySource(...args),
+    setSpotifySourceNegative: (...args: unknown[]) =>
+        mockSetSpotifySourceNegative(...args),
+    isNegativeEntry: (v: unknown) => v === NEGATIVE_SENTINEL,
 }))
 
 jest.mock('./soundcloudMatcher', () => ({
@@ -91,6 +107,12 @@ import {
     createResilientStream,
     streamSpotifyTrackViaBridge,
 } from './resilientStreamBridge'
+
+// Suite-wide: every test starts as a Spotify cache miss unless it says
+// otherwise. clearAllMocks in the describe-level hooks keeps this default.
+beforeEach(() => {
+    mockGetSpotifySource.mockResolvedValue(null)
+})
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -736,6 +758,208 @@ describe('yt-dlp block breaker wiring (#2653)', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Spotify source cache
+// ---------------------------------------------------------------------------
+
+describe('Spotify source cache', () => {
+    const spotifyUrl = 'https://open.spotify.com/track/abc'
+    const cachedYtUrl = 'https://www.youtube.com/watch?v=cached99'
+    const spotifyTrack = () => makeTrack({ url: spotifyUrl })
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockCleanTitle.mockReturnValue('Test Track')
+        mockCleanAuthor.mockReturnValue('Test Artist')
+        mockCleanSearchQuery.mockReturnValue('test track test artist')
+        mockExtractSongCore.mockReturnValue(null)
+        mockIsAvailable.mockReturnValue(true)
+    })
+
+    it('streams the cached YouTube URL directly on a cache hit, skipping search', async () => {
+        mockGetSpotifySource.mockResolvedValueOnce(cachedYtUrl)
+        mockStreamViaYtDlp.mockResolvedValueOnce(fakeStream)
+
+        const result = await createResilientStream(spotifyTrack())
+
+        expect(result).toBe(fakeStream)
+        expect(mockStreamViaYtDlp).toHaveBeenCalledWith(cachedYtUrl)
+        expect(mockSearchYtDlpCandidates).not.toHaveBeenCalled()
+        expect(mockSpotifyCacheInc).toHaveBeenCalledWith({ result: 'hit' })
+    })
+
+    it('falls through to search when the cached URL stream fails', async () => {
+        mockGetSpotifySource.mockResolvedValueOnce(cachedYtUrl)
+        mockStreamViaYtDlp
+            .mockRejectedValueOnce(new Error('stale'))
+            .mockResolvedValueOnce(fakeStream)
+        mockSearchYtDlpCandidates.mockResolvedValueOnce([hit()])
+
+        const result = await createResilientStream(spotifyTrack())
+
+        expect(result).toBe(fakeStream)
+        expect(mockSearchYtDlpCandidates).toHaveBeenCalledTimes(1)
+        // The stale key is overwritten by the fresh hit, not left behind.
+        expect(mockSetSpotifySource).toHaveBeenCalledTimes(1)
+        expect(mockSetSpotifySource).toHaveBeenCalledWith(
+            spotifyUrl,
+            'https://www.youtube.com/watch?v=vid123',
+        )
+        expect(mockSetSpotifySourceNegative).not.toHaveBeenCalled()
+    })
+
+    it('records a stale cached URL failure like the normal path', async () => {
+        const error = new Error('HTTP Error 403: Forbidden')
+        mockGetSpotifySource.mockResolvedValueOnce(cachedYtUrl)
+        mockStreamViaYtDlp
+            .mockRejectedValueOnce(error)
+            .mockResolvedValueOnce(fakeStream)
+        mockSearchYtDlpCandidates.mockResolvedValueOnce([hit()])
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockRecordYtDlpFailure).toHaveBeenCalledWith(error)
+        expect(mockAddBreadcrumb).toHaveBeenCalledWith(
+            'YouTube extraction failed via cached Spotify source',
+            'music.youtube-extraction',
+            'warning',
+            expect.objectContaining({ error: 'HTTP Error 403: Forbidden' }),
+        )
+    })
+
+    it('keeps the cached-URL failure class for the exhausted event', async () => {
+        mockGetSpotifySource.mockResolvedValueOnce(cachedYtUrl)
+        mockStreamViaYtDlp.mockRejectedValueOnce(
+            new Error('HTTP Error 403: Forbidden'),
+        )
+        mockSearchYtDlpCandidates.mockResolvedValue([])
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
+
+        await expect(createResilientStream(spotifyTrack())).rejects.toThrow(
+            'Bridge exhausted',
+        )
+
+        expect(mockCaptureMessage).toHaveBeenCalledWith(
+            'YouTube extraction exhausted all fallback stages',
+            'warning',
+            expect.any(Object),
+            expect.objectContaining({ failure_class: 'forbidden' }),
+            ['youtube-extraction-exhausted', 'forbidden'],
+        )
+    })
+
+    it('observes a cache hit under the ytdlp_search stage', async () => {
+        mockGetSpotifySource.mockResolvedValueOnce(cachedYtUrl)
+        mockStreamViaYtDlp.mockResolvedValueOnce(fakeStream)
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockObserve.mock.calls.map((c) => c[0])).toEqual([
+            { stage: 'ytdlp_search', outcome: 'ok' },
+            { stage: 'bridge_total', outcome: 'ok' },
+        ])
+        expect(mockRecordYtDlpSuccess).toHaveBeenCalledTimes(1)
+    })
+
+    it('observes a failed cache hit as a ytdlp_search failure', async () => {
+        mockGetSpotifySource.mockResolvedValueOnce(cachedYtUrl)
+        mockStreamViaYtDlp
+            .mockRejectedValueOnce(new Error('stale'))
+            .mockResolvedValueOnce(fakeStream)
+        mockSearchYtDlpCandidates.mockResolvedValueOnce([hit()])
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockObserve.mock.calls.map((c) => c[0])).toEqual([
+            { stage: 'ytdlp_search', outcome: 'fail' },
+            { stage: 'ytdlp_search', outcome: 'ok' },
+            { stage: 'bridge_total', outcome: 'ok' },
+        ])
+    })
+
+    it('writes a negative entry when the stale URL and the fresh search both fail', async () => {
+        mockGetSpotifySource.mockResolvedValueOnce(cachedYtUrl)
+        mockStreamViaYtDlp.mockRejectedValueOnce(new Error('stale'))
+        mockSearchYtDlpCandidates.mockResolvedValue([])
+        mockStreamViaSoundCloud.mockResolvedValueOnce(fakeStream)
+
+        const result = await createResilientStream(spotifyTrack())
+
+        expect(result).toBe(fakeStream)
+        expect(mockSetSpotifySourceNegative).toHaveBeenCalledTimes(1)
+        expect(mockSetSpotifySourceNegative).toHaveBeenCalledWith(spotifyUrl)
+        expect(mockSetSpotifySource).not.toHaveBeenCalled()
+    })
+
+    it('does not write a negative entry on a plain cache miss that finds nothing', async () => {
+        mockSearchYtDlpCandidates.mockResolvedValue([])
+        mockStreamViaSoundCloud.mockResolvedValueOnce(fakeStream)
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockSetSpotifySourceNegative).not.toHaveBeenCalled()
+    })
+
+    it('skips the fresh search and keeps the entry when the kill switch rejects the cached URL', async () => {
+        mockGetSpotifySource.mockResolvedValueOnce(cachedYtUrl)
+        mockStreamViaYtDlp.mockRejectedValueOnce(
+            new Error('yt-dlp: YouTube disabled (HOSTED_YOUTUBE_ENABLED)'),
+        )
+        mockStreamViaSoundCloud.mockResolvedValueOnce(fakeStream)
+
+        const result = await createResilientStream(spotifyTrack())
+
+        expect(result).toBe(fakeStream)
+        expect(mockSearchYtDlpCandidates).not.toHaveBeenCalled()
+        expect(mockSetSpotifySource).not.toHaveBeenCalled()
+        expect(mockSetSpotifySourceNegative).not.toHaveBeenCalled()
+        expect(mockStreamViaSoundCloud).toHaveBeenCalledTimes(1)
+    })
+
+    it('skips yt-dlp and goes to SoundCloud on a negative cache entry', async () => {
+        mockGetSpotifySource.mockResolvedValueOnce(NEGATIVE_SENTINEL)
+        mockStreamViaSoundCloud.mockResolvedValueOnce(fakeStream)
+
+        const result = await createResilientStream(spotifyTrack())
+
+        expect(result).toBe(fakeStream)
+        expect(mockSearchYtDlpCandidates).not.toHaveBeenCalled()
+        expect(mockStreamViaYtDlp).not.toHaveBeenCalled()
+        expect(mockSpotifyCacheInc).toHaveBeenCalledWith({ result: 'negative' })
+    })
+
+    it('stores the resolved YouTube URL in the cache after a successful search', async () => {
+        mockSearchYtDlpCandidates.mockResolvedValueOnce([hit({ id: 'vid123' })])
+        mockStreamViaYtDlp.mockResolvedValueOnce(fakeStream)
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockSetSpotifySource).toHaveBeenCalledWith(
+            spotifyUrl,
+            'https://www.youtube.com/watch?v=vid123',
+        )
+    })
+
+    it('does not call setSpotifySource when the search finds no candidate', async () => {
+        mockSearchYtDlpCandidates.mockResolvedValueOnce([])
+        mockStreamViaSoundCloud.mockResolvedValueOnce(fakeStream)
+        mockIsAvailable.mockReturnValue(true)
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockSetSpotifySource).not.toHaveBeenCalled()
+    })
+
+    it('increments the miss counter on a cache miss', async () => {
+        mockSearchYtDlpCandidates.mockResolvedValueOnce([hit()])
+        mockStreamViaYtDlp.mockResolvedValueOnce(fakeStream)
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockSpotifyCacheInc).toHaveBeenCalledWith({ result: 'miss' })
+    })
+})
+
+// ---------------------------------------------------------------------------
 // Broad YouTube search retry on an empty result (LUCKY-79)
 // ---------------------------------------------------------------------------
 
@@ -781,6 +1005,53 @@ describe('empty YouTube search retry', () => {
             { stage: 'ytdlp_search_broad', outcome: 'ok' },
             { stage: 'bridge_total', outcome: 'ok' },
         ])
+    })
+
+    it('caches the broad search hit for the Spotify track', async () => {
+        mockSearchYtDlpCandidates
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([
+                hit({
+                    id: 'broad77',
+                    title: 'Tempo',
+                    channel: 'Nerissima - Topic',
+                }),
+            ])
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockSetSpotifySource).toHaveBeenCalledTimes(1)
+        expect(mockSetSpotifySource).toHaveBeenCalledWith(
+            'https://open.spotify.com/track/123',
+            'https://www.youtube.com/watch?v=broad77',
+        )
+    })
+
+    it('caches the broad hit after a validated search that rejected every candidate', async () => {
+        mockSearchYtDlpCandidates
+            .mockResolvedValueOnce([hit({ title: 'Something Else Entirely' })])
+            .mockResolvedValueOnce([
+                hit({
+                    id: 'broad88',
+                    title: 'Tempo',
+                    channel: 'Nerissima - Topic',
+                }),
+            ])
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockSetSpotifySource).toHaveBeenCalledWith(
+            'https://open.spotify.com/track/123',
+            'https://www.youtube.com/watch?v=broad88',
+        )
+    })
+
+    it('caches nothing when the broad retry is empty too', async () => {
+        mockSearchYtDlpCandidates.mockResolvedValue([])
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockSetSpotifySource).not.toHaveBeenCalled()
     })
 
     it('falls back to SoundCloud when the broad retry is empty too', async () => {

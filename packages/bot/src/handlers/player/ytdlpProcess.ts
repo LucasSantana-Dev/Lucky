@@ -128,6 +128,12 @@ function ytdlpCookiesArgs(): string[] {
 // above that measured p100.
 export const YTDLP_STREAM_START_TIMEOUT_MS = 8_000
 
+// ytsearch adds a YouTube search round-trip on top of the audio stream start.
+// Its total observed p95 sits below the direct-URL p100, so a shorter budget
+// lets the bridge fail faster on degraded YouTube without cutting healthy
+// resolutions (#2742).
+export const YTDLP_SEARCH_STREAM_TIMEOUT_MS = 7_000
+
 // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-positioning.md
 // point 3): this is the layer that actually spawns yt-dlp against YouTube, so
 // the kill switch is enforced here rather than only at the extractor
@@ -138,7 +144,10 @@ export const YTDLP_STREAM_START_TIMEOUT_MS = 8_000
 // single check covers both the URL and search entry points. Scoped to actual
 // YouTube targets (isYoutubeYtDlpTarget) so the allowlisted SoundCloud path
 // through this same function keeps working when YouTube is disabled.
-export function streamViaYtDlp(url: string): Promise<Readable> {
+export function streamViaYtDlp(
+    url: string,
+    timeoutMs = YTDLP_STREAM_START_TIMEOUT_MS,
+): Promise<Readable> {
     if (isYoutubeYtDlpTarget(url) && !isHostedYoutubeEnabled()) {
         return Promise.reject(
             new Error('yt-dlp: YouTube disabled (HOSTED_YOUTUBE_ENABLED)'),
@@ -164,17 +173,17 @@ export function streamViaYtDlp(url: string): Promise<Readable> {
     // throw. A failure of the retry itself propagates as is. The retry runs
     // inside this function, so the block breaker (recordYtDlpFailure in the
     // bridge) only sees a 403 that also failed the retry.
-    return spawnYtDlp(url, []).catch((error: unknown) => {
+    return spawnYtDlp(url, [], timeoutMs).catch((error: unknown) => {
         if (classifyYtDlpFailure(error) === 'forbidden') {
             infoLog({
                 message: 'Bridge: yt-dlp got HTTP 403, retrying once',
                 data: { retry: 'forbidden' },
             })
-            return spawnYtDlp(url, [])
+            return spawnYtDlp(url, [], timeoutMs)
         }
         const cookiesArgs = needsSignIn(error) ? ytdlpCookiesArgs() : []
         if (cookiesArgs.length === 0) throw error
-        return spawnYtDlp(url, cookiesArgs)
+        return spawnYtDlp(url, cookiesArgs, timeoutMs)
     })
 }
 
@@ -189,7 +198,11 @@ function needsSignIn(error: unknown): boolean {
     )
 }
 
-function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
+function spawnYtDlp(
+    url: string,
+    cookiesArgs: string[],
+    timeoutMs = YTDLP_STREAM_START_TIMEOUT_MS,
+): Promise<Readable> {
     return new Promise<Readable>((resolve, reject) => {
         // HLS sources (SoundCloud AAC) make yt-dlp write fragment .part
         // files (`--Frag1.part`) to the cwd even with `-o -`. The container's
@@ -227,7 +240,7 @@ function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
         const timeout = setTimeout(() => {
             proc.kill()
             reject(new Error('yt-dlp: timed out waiting for stream start'))
-        }, YTDLP_STREAM_START_TIMEOUT_MS)
+        }, timeoutMs)
 
         const stderrChunks: Buffer[] = []
         assertDefined(proc.stderr, 'stderr guaranteed by stdio config').on(
@@ -284,7 +297,7 @@ function spawnYtDlp(url: string, cookiesArgs: string[]): Promise<Readable> {
 export function streamViaYtDlpSearch(query: string): Promise<Readable> {
     if (!query.trim())
         return Promise.reject(new Error('yt-dlp search: empty query'))
-    return streamViaYtDlp(`ytsearch1:${query}`)
+    return streamViaYtDlp(`ytsearch1:${query}`, YTDLP_SEARCH_STREAM_TIMEOUT_MS)
 }
 
 export type YtSearchCandidate = {
