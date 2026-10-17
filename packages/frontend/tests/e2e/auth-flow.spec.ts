@@ -1,17 +1,11 @@
 import { test, expect } from '@playwright/test'
 import {
-    waitForAuth,
     clearSession,
-    verifyOAuthRedirect,
     verifySessionCookie,
     interceptAuthRequests,
 } from './helpers/auth-helpers'
 import { mockAuthStatus } from './helpers/api-helpers'
-import {
-    MOCK_OAUTH_STATE,
-    MOCK_AUTH_CODE,
-    MOCK_DISCORD_USER,
-} from './fixtures/test-data'
+import { MOCK_DISCORD_USER } from './fixtures/test-data'
 
 test.describe('OAuth Login Flow', () => {
     test.beforeEach(async ({ page }) => {
@@ -62,11 +56,13 @@ test.describe('OAuth Login Flow', () => {
             }
         } else {
             await page
-                .waitForURL(/discord\.com/, { timeout: 5000 })
+                .waitForURL((url) => url.hostname === 'discord.com', {
+                    timeout: 5000,
+                })
                 .catch(() => null)
-            const currentUrl = page.url()
-            if (currentUrl.includes('discord.com')) {
-                expect(currentUrl).toContain('discord.com/api/oauth2/authorize')
+            const currentUrl = new URL(page.url())
+            if (currentUrl.hostname === 'discord.com') {
+                expect(currentUrl.pathname).toBe('/api/oauth2/authorize')
             }
         }
     })
