@@ -1,10 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { setupMockApiResponses } from './helpers/api-helpers'
-import {
-    navigateToDashboard,
-    waitForDashboard,
-    selectServer,
-} from './helpers/page-helpers'
+import { navigateToDashboard, waitForDashboard } from './helpers/page-helpers'
 import { getServerSelector } from './helpers/ui-helpers'
 import { MOCK_API_RESPONSES, MOCK_GUILDS } from './fixtures/test-data'
 

@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test'
-import { setupMockApiResponses } from './helpers/api-helpers'
 import {
     navigateToServers,
     navigateToDashboard,
@@ -114,11 +113,6 @@ test.describe('Error Handling', () => {
         if (isVisible) {
             await switchButton.click()
             await page.waitForTimeout(1000)
-
-            const errorToast = page.locator('text=/Failed|Error/i').first()
-            const toastVisible = await errorToast
-                .isVisible({ timeout: 3000 })
-                .catch(() => false)
         }
     })
 
