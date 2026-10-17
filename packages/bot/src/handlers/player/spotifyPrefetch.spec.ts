@@ -27,6 +27,7 @@ jest.mock('./spotifySourceCache', () => ({
     getSpotifySource: (...args: unknown[]) => mockGetSpotifySource(...args),
     setSpotifySource: (...args: unknown[]) => mockSetSpotifySource(...args),
     isNegativeEntry: (value: string) => value === '__neg__',
+    normalizeCacheKey: (url: string) => url.replace(/\?si=[^&]*$/, ''),
 }))
 jest.mock('../../utils/music/searchQueryCleaner', () => ({
     cleanTitle: (...args: unknown[]) => mockCleanTitle(...args),
@@ -228,7 +229,67 @@ describe('prefetchNextSpotifyTrack', () => {
         await expect(
             prefetchNextSpotifyTrack(makeQueue(makeTrack())),
         ).resolves.toBeUndefined()
+
+        // The write was attempted exactly once, with the validated pick.
+        expect(mockSetSpotifySource).toHaveBeenCalledTimes(1)
+        expect(mockSetSpotifySource).toHaveBeenCalledWith(
+            spotifyUrl,
+            'https://www.youtube.com/watch?v=new123',
+        )
         expect(mockWarnLog).toHaveBeenCalledTimes(1)
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Prefetch: failed to resolve next Spotify track',
+                data: expect.objectContaining({ error: 'cache down' }),
+            }),
+        )
+        // The failure is not turned into a negative cache entry.
+        expect(mockDebugLog).not.toHaveBeenCalled()
+    })
+
+    it('dedupes share links that differ only in ?si=', async () => {
+        let release: (value: unknown[]) => void = () => undefined
+        mockSearchYtDlpCandidates.mockReturnValue(
+            new Promise((resolve) => {
+                release = resolve
+            }),
+        )
+
+        const first = prefetchNextSpotifyTrack(makeQueue(makeTrack()))
+        const second = prefetchNextSpotifyTrack(
+            makeQueue(makeTrack(`${spotifyUrl}?si=abc123`)),
+        )
+        await new Promise((resolve) => setImmediate(resolve))
+        release(candidates)
+        await Promise.all([first, second])
+
+        expect(mockSearchYtDlpCandidates).toHaveBeenCalledTimes(1)
+        expect(mockSetSpotifySource).toHaveBeenCalledTimes(1)
+    })
+
+    it('logs and swallows a rejection of the in-flight task for a joining caller', async () => {
+        // cleanTitle runs inside the shared task but outside its own
+        // try/catch, so the task promise rejects.
+        mockCleanTitle.mockImplementation(() => {
+            throw new Error('cleaner broke')
+        })
+
+        const first = prefetchNextSpotifyTrack(makeQueue(makeTrack()))
+        const second = prefetchNextSpotifyTrack(makeQueue(makeTrack()))
+
+        await expect(Promise.all([first, second])).resolves.toEqual([
+            undefined,
+            undefined,
+        ])
+        expect(mockSearchYtDlpCandidates).not.toHaveBeenCalled()
+        expect(mockSetSpotifySource).not.toHaveBeenCalled()
+        expect(mockWarnLog).toHaveBeenCalledTimes(2)
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Prefetch: unexpected failure',
+                data: { error: 'cleaner broke' },
+            }),
+        )
     })
 
     it('runs one search for concurrent prefetches of the same track', async () => {

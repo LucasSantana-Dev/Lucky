@@ -12,10 +12,11 @@ import { pickYouTubeCandidate, youtubeWatchUrl } from './youtubeSearchMatcher'
 import {
     getSpotifySource,
     isNegativeEntry,
+    normalizeCacheKey,
     setSpotifySource,
 } from './spotifySourceCache'
 
-// Spotify URL -> in-flight prefetch. playerStart can fire for the same next
+// Cache key (Spotify URL without `?si=`) -> in-flight prefetch. playerStart can fire for the same next
 // track more than once (replays, quick skips), and each prefetch spawns
 // yt-dlp, so a concurrent call for the same track joins the running one.
 const inFlight = new Map<string, Promise<void>>()
@@ -46,13 +47,18 @@ export async function prefetchNextSpotifyTrack(
         const spotifyUrl = nextTrack.url
         if (!spotifyUrl || !isHost(spotifyUrl, 'open.spotify.com')) return
 
-        const running = inFlight.get(spotifyUrl)
-        if (running) return running
+        // Same key the cache uses, so share links that differ only in `?si=`
+        // join one prefetch.
+        const key = normalizeCacheKey(spotifyUrl)
+        const running = inFlight.get(key)
+        // Awaited inside the try so a rejection of the shared task is logged
+        // here instead of escaping to the fire-and-forget caller.
+        if (running) return await running
 
         const task = resolveAndCache(spotifyUrl, nextTrack).finally(() => {
-            inFlight.delete(spotifyUrl)
+            inFlight.delete(key)
         })
-        inFlight.set(spotifyUrl, task)
+        inFlight.set(key, task)
         await task
     } catch (error) {
         warnLog({

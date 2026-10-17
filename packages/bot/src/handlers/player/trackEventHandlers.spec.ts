@@ -37,6 +37,12 @@ const errorLogMock = jest.fn()
 const warnLogMock = jest.fn()
 const setReplenishSuppressedMock = jest.fn()
 const recordImplicitFeedbackMock = jest.fn()
+const prefetchNextSpotifyTrackMock = jest.fn()
+
+jest.mock('./spotifyPrefetch', () => ({
+    prefetchNextSpotifyTrack: (...args: unknown[]) =>
+        prefetchNextSpotifyTrackMock(...args),
+}))
 
 jest.mock('discord-player', () => ({
     QueueRepeatMode: {
@@ -252,6 +258,37 @@ describe('trackHandlers autoplay replenishment', () => {
             guildId: 'guild-1',
             source: 'soundcloud-bridge',
         })
+    })
+
+    it('prefetches the next Spotify track only after handlePlayerStart finished', async () => {
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.OFF)
+        const order: string[] = []
+        sendNowPlayingEmbedMock.mockImplementation(async () => {
+            await Promise.resolve()
+            order.push('handlePlayerStart')
+        })
+        prefetchNextSpotifyTrackMock.mockImplementation(async () => {
+            order.push('prefetch')
+        })
+
+        await handlers.playerStart(queue, createTrack())
+
+        expect(prefetchNextSpotifyTrackMock).toHaveBeenCalledTimes(1)
+        expect(prefetchNextSpotifyTrackMock).toHaveBeenCalledWith(queue)
+        expect(order).toEqual(['handlePlayerStart', 'prefetch'])
+    })
+
+    it('does not wait for the prefetch before playerStart resolves', async () => {
+        const handlers = setupHandlers()
+        prefetchNextSpotifyTrackMock.mockReturnValue(new Promise(() => {}))
+
+        await expect(
+            handlers.playerStart(
+                createQueue(QueueRepeatMode.OFF),
+                createTrack(),
+            ),
+        ).resolves.toBeUndefined()
     })
 
     it('does not record feedback on playerFinish when track played < 80%', async () => {
@@ -1340,7 +1377,7 @@ describe('track history when a queue is deleted mid-play', () => {
         )
     })
 
-    it('does not record a different guild\'s play on delete', async () => {
+    it("does not record a different guild's play on delete", async () => {
         const handlers = setupHandlers()
         const track = { ...createTrack('guild-a-track'), durationMS: 200_000 }
         const guildA = makeQueue('guild-a')

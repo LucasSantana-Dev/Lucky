@@ -22,7 +22,7 @@ const l1 = new Map<string, L1Entry>()
 
 // Strip Spotify's `?si=` affiliate/tracking param so the same track resolves
 // to the same cache key regardless of how the link was shared.
-function normalizeCacheKey(spotifyUrl: string): string {
+export function normalizeCacheKey(spotifyUrl: string): string {
     try {
         const u = new URL(spotifyUrl)
         u.searchParams.delete('si')
