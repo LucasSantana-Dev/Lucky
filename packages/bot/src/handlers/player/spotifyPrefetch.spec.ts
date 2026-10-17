@@ -1,10 +1,10 @@
 import { jest } from '@jest/globals'
 
 const mockIsYtDlpBlocked = jest.fn(() => false)
-const mockResolveYtDlpSearchUrl = jest.fn()
+const mockSearchYtDlpCandidates = jest.fn()
+const mockPickYouTubeCandidate = jest.fn()
 const mockGetSpotifySource = jest.fn()
 const mockSetSpotifySource = jest.fn()
-const mockSetSpotifySourceNegative = jest.fn()
 const mockCleanTitle = jest.fn()
 const mockCleanAuthor = jest.fn()
 const mockCleanSearchQuery = jest.fn()
@@ -15,14 +15,18 @@ jest.mock('./ytdlpBlockBreaker', () => ({
     isYtDlpBlocked: () => mockIsYtDlpBlocked(),
 }))
 jest.mock('./ytdlpProcess', () => ({
-    resolveYtDlpSearchUrl: (...args: unknown[]) =>
-        mockResolveYtDlpSearchUrl(...args),
+    searchYtDlpCandidates: (...args: unknown[]) =>
+        mockSearchYtDlpCandidates(...args),
+}))
+jest.mock('./youtubeSearchMatcher', () => ({
+    pickYouTubeCandidate: (...args: unknown[]) =>
+        mockPickYouTubeCandidate(...args),
+    youtubeWatchUrl: (id: string) => `https://www.youtube.com/watch?v=${id}`,
 }))
 jest.mock('./spotifySourceCache', () => ({
     getSpotifySource: (...args: unknown[]) => mockGetSpotifySource(...args),
     setSpotifySource: (...args: unknown[]) => mockSetSpotifySource(...args),
-    setSpotifySourceNegative: (...args: unknown[]) =>
-        mockSetSpotifySourceNegative(...args),
+    isNegativeEntry: (value: string) => value === '__neg__',
 }))
 jest.mock('../../utils/music/searchQueryCleaner', () => ({
     cleanTitle: (...args: unknown[]) => mockCleanTitle(...args),
@@ -50,13 +54,22 @@ function makeTrack(url = 'https://open.spotify.com/track/abc') {
 }
 
 describe('prefetchNextSpotifyTrack', () => {
+    const spotifyUrl = 'https://open.spotify.com/track/abc'
+    const candidates = [{ id: 'new123', title: 'Test', channel: 'Artist' }]
+
     beforeEach(() => {
         jest.clearAllMocks()
         mockIsYtDlpBlocked.mockReturnValue(false)
         mockGetSpotifySource.mockResolvedValue(null)
+        mockSetSpotifySource.mockResolvedValue(undefined)
         mockCleanTitle.mockReturnValue('Test')
         mockCleanAuthor.mockReturnValue('Artist')
         mockCleanSearchQuery.mockReturnValue('test artist')
+        mockSearchYtDlpCandidates.mockResolvedValue(candidates)
+        mockPickYouTubeCandidate.mockReturnValue({
+            pick: { id: 'new123', score: 1 },
+            rejected: [],
+        })
     })
 
     it('returns early when yt-dlp is blocked', async () => {
@@ -65,6 +78,7 @@ describe('prefetchNextSpotifyTrack', () => {
         await prefetchNextSpotifyTrack(makeQueue(makeTrack()))
 
         expect(mockGetSpotifySource).not.toHaveBeenCalled()
+        expect(mockSearchYtDlpCandidates).not.toHaveBeenCalled()
     })
 
     it('returns early when there is no next track', async () => {
@@ -73,7 +87,7 @@ describe('prefetchNextSpotifyTrack', () => {
         expect(mockGetSpotifySource).not.toHaveBeenCalled()
     })
 
-    it('returns early when queue.tracks.at throws', async () => {
+    it('swallows a throwing queue.tracks.at without a lookup', async () => {
         const queue = {
             tracks: {
                 at: jest.fn(() => {
@@ -83,6 +97,13 @@ describe('prefetchNextSpotifyTrack', () => {
         } as unknown as import('discord-player').GuildQueue
 
         await expect(prefetchNextSpotifyTrack(queue)).resolves.toBeUndefined()
+        expect(mockGetSpotifySource).not.toHaveBeenCalled()
+        expect(mockSearchYtDlpCandidates).not.toHaveBeenCalled()
+    })
+
+    it('returns early when the next track has no url', async () => {
+        await prefetchNextSpotifyTrack(makeQueue(makeTrack('')))
+
         expect(mockGetSpotifySource).not.toHaveBeenCalled()
     })
 
@@ -101,43 +122,140 @@ describe('prefetchNextSpotifyTrack', () => {
 
         await prefetchNextSpotifyTrack(makeQueue(makeTrack()))
 
-        expect(mockResolveYtDlpSearchUrl).not.toHaveBeenCalled()
+        expect(mockSearchYtDlpCandidates).not.toHaveBeenCalled()
+        expect(mockSetSpotifySource).not.toHaveBeenCalled()
     })
 
-    it('resolves and caches the YouTube URL for an uncached Spotify track', async () => {
-        const ytUrl = 'https://www.youtube.com/watch?v=new123'
-        mockResolveYtDlpSearchUrl.mockResolvedValueOnce(ytUrl)
-        mockSetSpotifySource.mockResolvedValueOnce(undefined)
+    it('treats a failing cache read as a miss', async () => {
+        mockGetSpotifySource.mockRejectedValue(new Error('redis down'))
 
         await prefetchNextSpotifyTrack(makeQueue(makeTrack()))
 
+        expect(mockSearchYtDlpCandidates).toHaveBeenCalledTimes(1)
         expect(mockSetSpotifySource).toHaveBeenCalledWith(
-            'https://open.spotify.com/track/abc',
-            ytUrl,
+            spotifyUrl,
+            'https://www.youtube.com/watch?v=new123',
         )
-        expect(mockDebugLog).toHaveBeenCalled()
     })
 
-    it('stores a negative entry and logs a warning when resolution fails', async () => {
-        mockResolveYtDlpSearchUrl.mockRejectedValueOnce(new Error('timeout'))
-        mockSetSpotifySourceNegative.mockResolvedValueOnce(undefined)
+    it('caches the validated pick, not the raw first hit', async () => {
+        const first = { id: 'radio99', title: 'Test (Radio Edit)' }
+        const second = { id: 'new123', title: 'Test' }
+        mockSearchYtDlpCandidates.mockResolvedValue([first, second])
+        mockPickYouTubeCandidate.mockReturnValue({
+            pick: { ...second, score: 0.9 },
+            rejected: [{ ...first, reason: 'marker' }],
+        })
+
+        await prefetchNextSpotifyTrack(
+            makeQueue({ ...makeTrack(), title: 'Test', duration: '3:20' }),
+        )
+
+        expect(mockSearchYtDlpCandidates).toHaveBeenCalledTimes(1)
+        expect(mockSearchYtDlpCandidates).toHaveBeenCalledWith(
+            'test artist official audio',
+        )
+        expect(mockPickYouTubeCandidate).toHaveBeenCalledWith(
+            {
+                title: 'Test',
+                author: 'Artist',
+                sourceTitle: 'Test',
+                duration: '3:20',
+            },
+            [first, second],
+        )
+        expect(mockSetSpotifySource).toHaveBeenCalledTimes(1)
+        expect(mockSetSpotifySource).toHaveBeenCalledWith(
+            spotifyUrl,
+            'https://www.youtube.com/watch?v=new123',
+        )
+        expect(mockDebugLog).toHaveBeenCalledTimes(1)
+    })
+
+    it('writes nothing when no candidate passes validation', async () => {
+        mockPickYouTubeCandidate.mockReturnValue({ pick: null, rejected: [] })
 
         await prefetchNextSpotifyTrack(makeQueue(makeTrack()))
 
-        expect(mockSetSpotifySourceNegative).toHaveBeenCalledWith(
-            'https://open.spotify.com/track/abc',
-        )
-        expect(mockWarnLog).toHaveBeenCalled()
+        expect(mockSetSpotifySource).not.toHaveBeenCalled()
+        expect(mockDebugLog).toHaveBeenCalledTimes(1)
+        expect(mockWarnLog).not.toHaveBeenCalled()
     })
 
-    it('does not throw when setSpotifySourceNegative rejects', async () => {
-        mockResolveYtDlpSearchUrl.mockRejectedValueOnce(new Error('boom'))
-        mockSetSpotifySourceNegative.mockRejectedValueOnce(
-            new Error('cache down'),
-        )
+    it('never writes a negative entry and logs a warning when the search fails', async () => {
+        mockSearchYtDlpCandidates.mockRejectedValueOnce(new Error('timeout'))
 
         await expect(
             prefetchNextSpotifyTrack(makeQueue(makeTrack())),
         ).resolves.toBeUndefined()
+
+        expect(mockSetSpotifySource).not.toHaveBeenCalled()
+        expect(mockWarnLog).toHaveBeenCalledTimes(1)
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({ error: 'timeout' }),
+            }),
+        )
+    })
+
+    it('does not overwrite a positive entry written while the search ran', async () => {
+        mockGetSpotifySource
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce('https://www.youtube.com/watch?v=playback')
+
+        await prefetchNextSpotifyTrack(makeQueue(makeTrack()))
+
+        expect(mockGetSpotifySource).toHaveBeenCalledTimes(2)
+        expect(mockSetSpotifySource).not.toHaveBeenCalled()
+    })
+
+    it('replaces a negative entry written while the search ran', async () => {
+        mockGetSpotifySource
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce('__neg__')
+
+        await prefetchNextSpotifyTrack(makeQueue(makeTrack()))
+
+        expect(mockSetSpotifySource).toHaveBeenCalledWith(
+            spotifyUrl,
+            'https://www.youtube.com/watch?v=new123',
+        )
+    })
+
+    it('does not throw when the final cache write rejects', async () => {
+        mockSetSpotifySource.mockRejectedValueOnce(new Error('cache down'))
+
+        await expect(
+            prefetchNextSpotifyTrack(makeQueue(makeTrack())),
+        ).resolves.toBeUndefined()
+        expect(mockWarnLog).toHaveBeenCalledTimes(1)
+    })
+
+    it('runs one search for concurrent prefetches of the same track', async () => {
+        let release: (value: unknown[]) => void = () => undefined
+        mockSearchYtDlpCandidates.mockReturnValue(
+            new Promise((resolve) => {
+                release = resolve
+            }),
+        )
+
+        const first = prefetchNextSpotifyTrack(makeQueue(makeTrack()))
+        const second = prefetchNextSpotifyTrack(makeQueue(makeTrack()))
+        await new Promise((resolve) => setImmediate(resolve))
+        release(candidates)
+        await Promise.all([first, second])
+
+        expect(mockSearchYtDlpCandidates).toHaveBeenCalledTimes(1)
+        expect(mockSetSpotifySource).toHaveBeenCalledTimes(1)
+    })
+
+    it('allows a new prefetch of the same track once the first settled', async () => {
+        mockSearchYtDlpCandidates.mockRejectedValueOnce(new Error('timeout'))
+
+        await prefetchNextSpotifyTrack(makeQueue(makeTrack()))
+        await prefetchNextSpotifyTrack(makeQueue(makeTrack()))
+
+        expect(mockSearchYtDlpCandidates).toHaveBeenCalledTimes(2)
+        expect(mockSetSpotifySource).toHaveBeenCalledTimes(1)
     })
 })
