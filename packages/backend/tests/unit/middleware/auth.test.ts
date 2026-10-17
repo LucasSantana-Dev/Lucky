@@ -6,10 +6,7 @@ import {
     createMockResponse,
     createMockNext,
 } from '../../fixtures/test-helpers'
-import {
-    MOCK_SESSION_DATA,
-    MOCK_EXPIRED_SESSION_DATA,
-} from '../../fixtures/mock-data'
+import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {

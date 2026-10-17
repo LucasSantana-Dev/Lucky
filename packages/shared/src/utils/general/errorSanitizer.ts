@@ -12,7 +12,7 @@ export function sanitizeErrorMessage(error: unknown): string {
         errorMessage = error.message
     } else if (typeof error === 'string') {
         errorMessage = error
-    } else if (typeof error === 'object' && error !== null) {
+    } else if (typeof error === 'object') {
         errorMessage = JSON.stringify(error)
     } else {
         errorMessage = String(error)

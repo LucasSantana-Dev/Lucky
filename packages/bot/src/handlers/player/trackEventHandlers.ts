@@ -70,8 +70,11 @@ export const setupTrackHandlers = ({
     player.events.on('playerStart', async (queue: GuildQueue, track: Track) => {
         clearIdleTimer(queue.guild.id)
         clearVotes(queue.guild.id)
-        void prefetchNextSpotifyTrack(queue)
         await handlePlayerStart(queue, track, client)
+        // After handlePlayerStart: it can replenish an empty autoplay queue,
+        // and the prefetch peeks at the next track. The prefetch never throws,
+        // so firing it without awaiting cannot affect playback.
+        void prefetchNextSpotifyTrack(queue)
     })
     player.events.on(
         'playerFinish',

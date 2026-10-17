@@ -417,7 +417,6 @@ describe('Music State Routes', () => {
 
             const server = app.listen(0, () => {
                 const port = (server.address() as AddressInfo).port
-                let initialHeartbeat = true
 
                 let fallback: NodeJS.Timeout
                 const { finish } = createSseTestFinish(server, done)

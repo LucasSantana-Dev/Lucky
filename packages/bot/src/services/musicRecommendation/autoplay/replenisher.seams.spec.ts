@@ -923,6 +923,33 @@ describe('replenisher seam functions', () => {
             const callArgs = selectDiverseCandidates.mock.calls[0]
             expect(callArgs[2]).toBe(5)
         })
+
+        it('relaxes max-per-artist when the deep dive is a "feat." credit of the seed artist', async () => {
+            const { selectDiverseCandidates } = require('./diversitySelector')
+            const { interleaveByArtist } = require('../candidateFallback')
+            selectDiverseCandidates.mockClear()
+            selectDiverseCandidates.mockReturnValue([])
+            interleaveByArtist.mockImplementation((tracks: any[]) => tracks)
+
+            await selectAndRerankCandidates(
+                new Map(),
+                2,
+                {
+                    deepDiveArtist: 'michael jackson feat. steve aoki',
+                    preferLong: false,
+                    preferShort: false,
+                    restless: false,
+                    dominantLocale: null,
+                },
+                createTrack({ author: 'Michael Jackson' }),
+                'similar',
+                null,
+            )
+
+            const callArgs = selectDiverseCandidates.mock.calls[0]
+            expect(callArgs[2]).toBe(5)
+            expect(callArgs[4]).toBe('michael jackson')
+        })
     })
 
     describe('enqueueAndFinalize', () => {

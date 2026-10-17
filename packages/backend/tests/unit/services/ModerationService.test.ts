@@ -52,7 +52,6 @@ describe('ModerationService', () => {
     const GUILD_A = '111111111111111111'
     const GUILD_B = '222222222222222222'
     const USER_A = '333333333333333333'
-    const USER_B = '444444444444444444'
     const MOD_A = '555555555555555555'
 
     beforeEach(() => {

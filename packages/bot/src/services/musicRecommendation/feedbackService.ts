@@ -1,6 +1,12 @@
 import { errorLog, getPrismaClient, telemetryLog } from '@lucky/shared/utils'
 import { parseIntEnv } from '@lucky/shared/utils/env'
 import { assertDefined } from '@lucky/shared/utils/guards'
+import {
+    artistKeyVariants,
+    lookupArtistKey,
+    normalizeArtistKey,
+    staleLegacyKeys,
+} from '@lucky/shared/utils/artistKey'
 import { cleanAuthor } from '../../utils/music/searchQueryCleaner'
 import { normalizeTrackKey } from '../../utils/music/trackNormalization'
 
@@ -292,12 +298,26 @@ export class RecommendationFeedbackService {
         }
     }
 
-    private normalizeArtistKey(artistName: string): string {
-        const cleaned = cleanAuthor(artistName)
-        return cleaned
-            .toLowerCase()
-            .replaceAll(/[^a-z0-9]+/g, '')
-            .trim()
+    // Legacy (pre-Unicode) keys stored for this same artist, checked against
+    // each row's own artistName so a different artist is never matched.
+    private async findStaleLegacyKeys(
+        guildId: string,
+        userId: string,
+        artistKey: string,
+        legacyKeys: string[],
+    ): Promise<string[]> {
+        if (legacyKeys.length === 0) return []
+        const rows = await getPrismaClient().userArtistPreference.findMany({
+            where: {
+                discordUserId: userId,
+                guildId,
+                artistKey: { in: legacyKeys },
+            },
+            select: { artistKey: true, artistName: true },
+        })
+        return staleLegacyKeys(rows, artistKey, (name) =>
+            normalizeArtistKey(cleanAuthor(name)),
+        )
     }
 
     private async getArtistPreferencesByType(
@@ -311,10 +331,10 @@ export class RecommendationFeedbackService {
             const db = getPrismaClient()
             const prefs = await db.userArtistPreference.findMany({
                 where: { discordUserId: userId, guildId, preference },
-                select: { artistKey: true },
+                select: { artistKey: true, artistName: true },
                 take: 5000,
             })
-            return new Set(prefs.map((p) => p.artistKey))
+            return new Set(prefs.map((p) => lookupArtistKey(p, cleanAuthor)))
         } catch (error) {
             errorLog({
                 message: `Failed to load ${preference} artist keys`,
@@ -332,13 +352,37 @@ export class RecommendationFeedbackService {
         feedback: ArtistFeedback,
     ): Promise<void> {
         try {
-            const artistKey = this.normalizeArtistKey(artistName)
+            const [artistKey, ...legacyKeys] = artistKeyVariants(
+                cleanAuthor(artistName),
+            )
             if (!artistKey) return
 
             const db = getPrismaClient()
+            const stale = await this.findStaleLegacyKeys(
+                guildId,
+                userId,
+                artistKey,
+                legacyKeys,
+            )
+
+            // Replace a pre-Unicode row for the same artist in the same
+            // transaction, so a stale block cannot outlive a newer prefer and
+            // a failed upsert keeps the old row.
+            const cleanup =
+                stale.length > 0
+                    ? [
+                          db.userArtistPreference.deleteMany({
+                              where: {
+                                  discordUserId: userId,
+                                  guildId,
+                                  artistKey: { in: stale },
+                              },
+                          }),
+                      ]
+                    : []
 
             // Upsert into userArtistPreference (unified Postgres store)
-            await db.userArtistPreference.upsert({
+            const upsert = db.userArtistPreference.upsert({
                 where: {
                     discordUserId_guildId_artistKey: {
                         discordUserId: userId,
@@ -355,6 +399,7 @@ export class RecommendationFeedbackService {
                     preference: feedback,
                 },
             })
+            await db.$transaction([...cleanup, upsert])
         } catch (error) {
             errorLog({
                 message: 'Failed to store artist feedback',
@@ -370,16 +415,22 @@ export class RecommendationFeedbackService {
         artistName: string,
     ): Promise<void> {
         try {
-            const artistKey = this.normalizeArtistKey(artistName)
+            const [artistKey, ...legacyKeys] = artistKeyVariants(
+                cleanAuthor(artistName),
+            )
             if (!artistKey) return
 
-            const db = getPrismaClient()
-
-            await db.userArtistPreference.deleteMany({
+            const stale = await this.findStaleLegacyKeys(
+                guildId,
+                userId,
+                artistKey,
+                legacyKeys,
+            )
+            await getPrismaClient().userArtistPreference.deleteMany({
                 where: {
                     discordUserId: userId,
                     guildId,
-                    artistKey,
+                    artistKey: { in: [artistKey, ...stale] },
                 },
             })
         } catch (error) {

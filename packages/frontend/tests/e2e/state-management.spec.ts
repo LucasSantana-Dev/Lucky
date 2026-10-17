@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { setupMockApiResponses } from './helpers/api-helpers'
 import { navigateToDashboard, navigateToFeatures } from './helpers/page-helpers'
-import { MOCK_GUILDS } from './fixtures/test-data'
 
 test.describe('State Management', () => {
     test.beforeEach(async ({ page }) => {
@@ -30,11 +29,6 @@ test.describe('State Management', () => {
 
     test('features state updates correctly', async ({ page }) => {
         await navigateToFeatures(page)
-
-        const featureCard = page.locator('[class*="card"]').first()
-        const isVisible = await featureCard
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
     })
 
     test('state persists across page reloads', async ({ page }) => {

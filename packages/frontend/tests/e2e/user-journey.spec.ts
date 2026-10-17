@@ -5,7 +5,7 @@ import {
     navigateToDashboard,
     navigateToFeatures,
 } from './helpers/page-helpers'
-import { getManageButton } from './helpers/ui-helpers'
+
 import { MOCK_GUILDS } from './fixtures/test-data'
 
 test.describe('User Journey', () => {
@@ -137,10 +137,5 @@ test.describe('User Journey', () => {
 
         await page.reload()
         await page.waitForLoadState('domcontentloaded')
-
-        const serverName = page.locator(`text=${MOCK_GUILDS[0].name}`)
-        const isVisible = await serverName
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
     })
 })

@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    jest,
+} from '@jest/globals'
 
 const mockRedisGet = jest.fn()
 const mockRedisSet = jest.fn()
@@ -32,6 +39,10 @@ let _urlCounter = 0
 function freshUrl(): string {
     return `https://open.spotify.com/track/test-${++_urlCounter}`
 }
+
+afterEach(() => {
+    jest.useRealTimers()
+})
 
 beforeEach(() => {
     jest.clearAllMocks()
@@ -193,5 +204,131 @@ describe('getSpotifySourceCacheL1Stats', () => {
         await setSpotifySource(freshUrl(), YT_URL)
         const after = getSpotifySourceCacheL1Stats().size
         expect(after).toBe(before + 1)
+    })
+})
+
+describe('L1 expiry', () => {
+    const FIVE_MIN_MS = 5 * 60 * 1000
+    const FOUR_HOURS_MS = 4 * 60 * 60 * 1000
+
+    it('keeps a positive entry for 4 h then falls through to Redis', async () => {
+        jest.useFakeTimers()
+        const url = freshUrl()
+        await setSpotifySource(url, YT_URL)
+
+        jest.advanceTimersByTime(FOUR_HOURS_MS)
+        expect(await getSpotifySource(url)).toBe(YT_URL)
+        expect(mockRedisGet).not.toHaveBeenCalled()
+
+        jest.advanceTimersByTime(1)
+        expect(await getSpotifySource(url)).toBeNull()
+        expect(mockRedisGet).toHaveBeenCalledTimes(1)
+    })
+
+    it('expires a negative entry from L1 after 5 min, like Redis', async () => {
+        jest.useFakeTimers()
+        const url = freshUrl()
+        await setSpotifySourceNegative(url)
+
+        jest.advanceTimersByTime(FIVE_MIN_MS)
+        expect(await getSpotifySource(url)).toBe(NEGATIVE_SENTINEL)
+        expect(mockRedisGet).not.toHaveBeenCalled()
+
+        jest.advanceTimersByTime(1)
+        expect(await getSpotifySource(url)).toBeNull()
+        expect(mockRedisGet).toHaveBeenCalledTimes(1)
+    })
+
+    it('hydrates a negative Redis value into L1 with the 5 min TTL', async () => {
+        jest.useFakeTimers()
+        const url = freshUrl()
+        mockRedisGet.mockResolvedValueOnce(NEGATIVE_SENTINEL)
+        expect(await getSpotifySource(url)).toBe(NEGATIVE_SENTINEL)
+
+        jest.advanceTimersByTime(FIVE_MIN_MS)
+        expect(await getSpotifySource(url)).toBe(NEGATIVE_SENTINEL)
+        expect(mockRedisGet).toHaveBeenCalledTimes(1)
+
+        jest.advanceTimersByTime(1)
+        expect(await getSpotifySource(url)).toBeNull()
+        expect(mockRedisGet).toHaveBeenCalledTimes(2)
+    })
+
+    it('hydrates a positive Redis value into L1 with the 4 h TTL', async () => {
+        jest.useFakeTimers()
+        const url = freshUrl()
+        mockRedisGet.mockResolvedValueOnce(YT_URL)
+        expect(await getSpotifySource(url)).toBe(YT_URL)
+
+        jest.advanceTimersByTime(FOUR_HOURS_MS)
+        expect(await getSpotifySource(url)).toBe(YT_URL)
+        expect(mockRedisGet).toHaveBeenCalledTimes(1)
+    })
+
+    it('replaces a negative L1 entry with a positive one on overwrite', async () => {
+        jest.useFakeTimers()
+        const url = freshUrl()
+        await setSpotifySourceNegative(url)
+        await setSpotifySource(url, YT_URL)
+
+        jest.advanceTimersByTime(FIVE_MIN_MS + 1)
+        expect(await getSpotifySource(url)).toBe(YT_URL)
+        expect(mockRedisGet).not.toHaveBeenCalled()
+    })
+})
+
+describe('L1 capacity', () => {
+    it('evicts the oldest entry at 500 and keeps the size bounded', async () => {
+        // Fill to the cap so earlier tests' leftovers do not matter.
+        const { maxSize } = getSpotifySourceCacheL1Stats()
+        const first = freshUrl()
+        await setSpotifySource(first, YT_URL)
+        for (let i = 0; i < maxSize; i++) {
+            await setSpotifySource(freshUrl(), YT_URL)
+        }
+
+        expect(getSpotifySourceCacheL1Stats().size).toBe(maxSize)
+        mockRedisGet.mockClear()
+        expect(await getSpotifySource(first)).toBeNull()
+        expect(mockRedisGet).toHaveBeenCalledTimes(1)
+    })
+
+    it('overwriting an existing key at capacity evicts nothing else', async () => {
+        const { maxSize } = getSpotifySourceCacheL1Stats()
+        const urls: string[] = []
+        for (let i = 0; i < maxSize; i++) {
+            const url = freshUrl()
+            urls.push(url)
+            await setSpotifySource(url, YT_URL)
+        }
+        const oldest = urls[0]
+        const newest = urls[urls.length - 1]
+        expect(getSpotifySourceCacheL1Stats().size).toBe(maxSize)
+
+        // Rewriting the newest key must not push the oldest one out.
+        await setSpotifySource(newest, 'https://www.youtube.com/watch?v=new')
+
+        expect(getSpotifySourceCacheL1Stats().size).toBe(maxSize)
+        mockRedisGet.mockClear()
+        expect(await getSpotifySource(oldest)).toBe(YT_URL)
+        expect(mockRedisGet).not.toHaveBeenCalled()
+        expect(await getSpotifySource(newest)).toBe(
+            'https://www.youtube.com/watch?v=new',
+        )
+    })
+
+    it('refreshes recency on read so a read entry survives eviction', async () => {
+        const { maxSize } = getSpotifySourceCacheL1Stats()
+        const keep = freshUrl()
+        await setSpotifySource(keep, YT_URL)
+        for (let i = 0; i < maxSize - 1; i++) {
+            await setSpotifySource(freshUrl(), YT_URL)
+        }
+        await getSpotifySource(keep) // now most recently used
+        await setSpotifySource(freshUrl(), YT_URL) // forces one eviction
+
+        mockRedisGet.mockClear()
+        expect(await getSpotifySource(keep)).toBe(YT_URL)
+        expect(mockRedisGet).not.toHaveBeenCalled()
     })
 })

@@ -11,6 +11,8 @@ jest.mock('./searchQueryCleaner', () => ({
 import {
     normalizeText,
     normalizeTrackKey,
+    primaryArtist,
+    primaryArtistKey,
     getGenreFamilies,
     calculateGenreFamilyPenalty,
 } from './trackNormalization'
@@ -69,5 +71,34 @@ describe('calculateGenreFamilyPenalty', () => {
         { current: ['pop'], candidate: ['jazz'], expected: -0.3 },
     ])('penalty %p/%p → %p', ({ current, candidate, expected }) => {
         expect(calculateGenreFamilyPenalty(current, candidate)).toBe(expected)
+    })
+})
+
+describe('primaryArtistKey', () => {
+    beforeEach(() => {
+        cleanAuthorMock.mockImplementation((author: unknown) => author)
+    })
+
+    it.each([
+        ['Michael Jackson', 'michael jackson'],
+        ['Michael Jackson, Steve Aoki', 'michael jackson'],
+        ['Michael Jackson feat. Steve Aoki', 'michael jackson'],
+        ['Michael Jackson ft. Steve Aoki', 'michael jackson'],
+        ['Michael Jackson featuring Steve Aoki', 'michael jackson'],
+        ['Michael Jackson; Steve Aoki', 'michael jackson'],
+        ['Michael Jackson (feat. Steve Aoki)', 'michael jackson'],
+        ['Michael Jackson (ft Steve Aoki)', 'michael jackson'],
+        ['Daft Punk', 'daft punk'],
+    ])('keys %s as %s', (author, expected) => {
+        expect(primaryArtistKey(author)).toBe(expected)
+    })
+
+    it('leaves primaryArtist, and so stored vote keys, unchanged', () => {
+        expect(primaryArtist('Michael Jackson feat. Steve Aoki')).toBe(
+            'Michael Jackson feat. Steve Aoki',
+        )
+        expect(primaryArtist('Michael Jackson; Steve Aoki')).toBe(
+            'Michael Jackson; Steve Aoki',
+        )
     })
 })

@@ -2,8 +2,10 @@ import type { Track } from 'discord-player'
 import type { SessionMood } from './sessionMood'
 import type { RecommendationSignal } from './recommendationBasis.js'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
+import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import { detectSpanishMarkers } from '../../../utils/music/languageHeuristics'
 import { normalizeText, normalizeTrackKey } from './scoringUtils'
+import { hasArtistKey } from '@lucky/shared/utils/artistKey'
 
 const SCORE_SAME_ARTIST = 0.3
 const SCORE_POPULAR_ARTIST = 0.2
@@ -24,6 +26,12 @@ const SCORE_GENRE_TAG_MAX = 0.2
 const SCORE_GENRE_TAG_PER_MATCH = 0.05
 const SCORE_LIKED_ARTIST_WEIGHT = 0.2
 const SCORE_LIKED_ARTIST_TEMPO = 0.1
+// Artist-level feedback: a vote on one song nudges the artist's other songs.
+// Weights are summed per artist (capped at 2 upstream), so two dislikes hit
+// harder than one. Never a hard block: blockedArtistKeys covers that.
+const SCORE_LIKED_ARTIST_TRACK = 0.25
+const SCORE_LIKED_ARTIST_TRACK_MAX = 0.4
+const SCORE_DISLIKED_ARTIST = -0.3
 const DURATION_RATIO_TIGHT_LOW = 0.8
 const DURATION_RATIO_TIGHT_HIGH = 1.2
 const DURATION_RATIO_LOOSE_LOW = 0.7
@@ -47,6 +55,52 @@ const SCORE_REPLAY_COUNT_BOOST = 0.15
 // vetoes (-Infinity) or override provenance-aware ordering.
 const SCORE_RECENCY_DECAY_MAX = -0.15
 export const RECENCY_WINDOW_TRACKS = 10
+// Unrequested remix penalty: a remix credited to "Artist, Remixer" dodges the
+// same-artist penalty (-0.35) and picks up session novelty (+0.15), so it led
+// the original by ~0.5 in prod. Must outweigh that gap.
+const SCORE_UNREQUESTED_REMIX = -0.6
+// Remix-family markers only. Official cuts ("Single Edit", "Single Mix",
+// "Remaster") are left alone.
+const REMIX_MARKERS: readonly RegExp[] = [
+    /\bre-?mix(?:e[ds])?\b/i,
+    /\b(?:rmx|bootleg|mashup|nightcore|reverb|slowed)\b/i,
+    /\bsp(?:e|ee)d[\s-]{0,3}up\b/i,
+    /\b(?:8d[\s-]{0,3}audio|bass[\s-]{0,3}boosted)\b/i,
+    /\b(?:extended|club|vip|dub)[\s-]{0,3}mix\b/i,
+]
+
+// Contents of each (...) and [...] group. indexOf scan, not a regex: an
+// unclosed bracket made the regex backtrack (Sonar S8786).
+function bracketedSegments(title: string): string[] {
+    const segments: string[] = []
+    for (const [open, close] of [
+        ['(', ')'],
+        ['[', ']'],
+    ]) {
+        let start = title.indexOf(open)
+        while (start >= 0) {
+            const end = title.indexOf(close, start + 1)
+            if (end < 0) break
+            segments.push(title.slice(start + 1, end))
+            start = title.indexOf(open, end + 1)
+        }
+    }
+    return segments
+}
+
+/**
+ * True when a remix marker sits in a structured position: inside (...)/[...]
+ * or in the final " - " suffix. A bare title like "Speed Up" or "Remix" is
+ * the song's own name, not a version tag.
+ */
+function hasRemixMarker(title: string): boolean {
+    const segments = bracketedSegments(title)
+    for (const sep of [' - ', ' – ', ' — ']) {
+        const idx = title.lastIndexOf(sep)
+        if (idx > 0) segments.push(title.slice(idx + sep.length))
+    }
+    return segments.some((s) => REMIX_MARKERS.some((re) => re.test(s)))
+}
 // Genre families dense/cohesive enough that a cross-family jump reads as drift.
 // Used both for the cross-family penalty and the untagged-candidate fail-closed
 // guard. Kept deliberately narrow (pop/soul are too broad to fail closed on).
@@ -174,6 +228,9 @@ export interface ScoringContext {
     implicitDislikeKeys?: Set<string>
     implicitLikeKeys?: Set<string>
     dislikedWeights?: Map<string, number>
+    /** Summed like/dislike weights keyed by normalized primary artist. */
+    likedArtistWeights?: Map<string, number>
+    dislikedArtistWeights?: Map<string, number>
     sessionMood?: SessionMood | null
     skipNoveltyBoost?: boolean
     /**
@@ -221,6 +278,8 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         implicitDislikeKeys = new Set(),
         implicitLikeKeys = new Set(),
         dislikedWeights = new Map<string, number>(),
+        likedArtistWeights = new Map<string, number>(),
+        dislikedArtistWeights = new Map<string, number>(),
         sessionMood = null,
         skipNoveltyBoost = false,
         seedDerived = false,
@@ -244,11 +303,20 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     const sessionHasStrongFamily = Array.from(referenceFamilies).some((f) =>
         STRONG_GENRE_FAMILIES.includes(f),
     )
-    const currentArtist = currentTrack.author.toLowerCase()
-    const candidateArtist = candidate.author.toLowerCase()
-    const candidateArtistKey = normalizeText(cleanAuthor(candidate.author))
+    // Compare on the first credited artist: "Michael Jackson, Steve Aoki" is
+    // still Michael Jackson, so a co-credit does not dodge the same-artist
+    // penalty or earn session novelty.
+    const currentArtist = primaryArtistKey(currentTrack.author)
+    const candidateArtist = primaryArtistKey(candidate.author)
+    const candidateAuthor = cleanAuthor(candidate.author)
+    const candidateArtistKey = normalizeText(candidateAuthor)
 
-    if (blockedArtistKeys.has(candidateArtistKey)) {
+    // Key sets come from lookupArtistKey, so legacy ASCII rows already map
+    // to the current key here.
+    if (
+        hasArtistKey(blockedArtistKeys, candidateAuthor) ||
+        hasArtistKey(blockedArtistKeys, candidateArtist)
+    ) {
         return { score: -Infinity, signals: [] }
     }
 
@@ -336,7 +404,10 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         signals.push('genre family drift')
     }
 
-    if (preferredArtistKeys.has(candidateArtistKey)) {
+    if (
+        hasArtistKey(preferredArtistKeys, candidateAuthor) ||
+        hasArtistKey(preferredArtistKeys, candidateArtist)
+    ) {
         score += SCORE_PREFERRED_ARTIST
         signals.push('preferred artist')
     }
@@ -369,6 +440,22 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         signals.push('old dislike')
     }
 
+    // Same "<title>::<primaryartist>" key the vote was stored under.
+    const candidateVoteArtist = candidateKey.split('::')[1] ?? ''
+    const likedArtistWeight = likedArtistWeights.get(candidateVoteArtist)
+    if (likedArtistWeight !== undefined) {
+        score += Math.min(
+            SCORE_LIKED_ARTIST_TRACK_MAX,
+            SCORE_LIKED_ARTIST_TRACK * likedArtistWeight,
+        )
+        signals.push('liked artist track')
+    }
+    const dislikedArtistWeight = dislikedArtistWeights.get(candidateVoteArtist)
+    if (dislikedArtistWeight !== undefined) {
+        score += SCORE_DISLIKED_ARTIST * dislikedArtistWeight
+        signals.push('disliked artist')
+    }
+
     if (implicitDislikeKeys.has(candidateKey)) {
         score += SCORE_IMPLICIT_DISLIKE
         signals.push('implicit dislike')
@@ -379,7 +466,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     }
 
     const deepDiveArtist = sessionMood?.deepDiveArtist
-        ? cleanAuthor(sessionMood.deepDiveArtist).toLowerCase()
+        ? primaryArtistKey(sessionMood.deepDiveArtist)
         : null
     const isDeepDive =
         deepDiveArtist !== null && candidateArtist === deepDiveArtist
@@ -451,10 +538,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
 
     if (sessionMood) {
         const durationMs = candidate.durationMS ?? 0
-        if (
-            sessionMood.deepDiveArtist &&
-            candidateArtist === sessionMood.deepDiveArtist
-        ) {
+        if (isDeepDive) {
             score += SCORE_DURATION_MATCH
             signals.push('deep dive')
         }
@@ -514,7 +598,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     // cross-genre on un-vetted sources) and respects provenance-aware guards.
     if (
         replayFrequentTrackIds.has(candidate.id) ||
-        replayFrequentArtists.has(candidateArtist)
+        replayFrequentArtists.has(candidate.author.toLowerCase())
     ) {
         score += SCORE_REPLAY_COUNT_BOOST
         signals.push('replay frequent')
@@ -568,6 +652,14 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     ) {
         score += SCORE_FREQUENT_ARTIST
         signals.push('version variant')
+    }
+
+    if (
+        hasRemixMarker(candidate.title ?? '') &&
+        !hasRemixMarker(currentTrack.title ?? '')
+    ) {
+        score += SCORE_UNREQUESTED_REMIX
+        signals.push('unrequested remix')
     }
 
     if (

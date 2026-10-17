@@ -40,6 +40,7 @@ import {
 import {
     getSpotifySource,
     setSpotifySource,
+    setSpotifySourceNegative,
     isNegativeEntry,
 } from './spotifySourceCache'
 import {
@@ -220,7 +221,12 @@ async function attemptYtDlpSearch(
                     durationMs,
                 },
             })
-            return attemptBroadYtDlpSearch(cleanedTitle, cleanedAuthor, track)
+            return attemptBroadYtDlpSearch(
+                cleanedTitle,
+                cleanedAuthor,
+                track,
+                cacheSpotifyUrl,
+            )
         }
         const durationMs = observeStage('ytdlp_search', startedAt, 'ok')
         recordYtDlpSuccess()
@@ -275,7 +281,12 @@ async function attemptYtDlpSearch(
         // all (LUCKY-79). Only an empty result is worth one broader retry;
         // 403, bot-check and timeout keep the existing flow.
         if (isEmpty) {
-            return attemptBroadYtDlpSearch(cleanedTitle, cleanedAuthor, track)
+            return attemptBroadYtDlpSearch(
+                cleanedTitle,
+                cleanedAuthor,
+                track,
+                cacheSpotifyUrl,
+            )
         }
         return null
     }
@@ -301,6 +312,7 @@ async function attemptBroadYtDlpSearch(
     cleanedTitle: string,
     cleanedAuthor: string,
     track: BridgeTrack,
+    cacheSpotifyUrl?: string,
 ): Promise<Readable | null> {
     const broadQuery = buildBroadYtQuery(cleanedTitle, cleanedAuthor)
     if (!broadQuery) return null
@@ -334,6 +346,12 @@ async function attemptBroadYtDlpSearch(
         }
         const durationMs = observeStage('ytdlp_search_broad', startedAt, 'ok')
         recordYtDlpSuccess()
+        if (cacheSpotifyUrl) {
+            void setSpotifySource(
+                cacheSpotifyUrl,
+                youtubeWatchUrl(outcome.pick.id),
+            )
+        }
         addBreadcrumb(
             'YouTube broad search stream resolved after empty result',
             'music.youtube-extraction',
@@ -372,6 +390,53 @@ async function attemptBroadYtDlpSearch(
             },
         })
         return null
+    }
+}
+
+// The cached YouTube URL for a Spotify track. Metrics, breaker and failure
+// class follow the normal search path so cache hits are not invisible.
+// `killSwitch` marks a HOSTED_YOUTUBE_ENABLED rejection: the cache entry is
+// still good and a fresh search would be rejected the same way, so the caller
+// goes straight to SoundCloud.
+async function attemptCachedSpotifySource(
+    cachedUrl: string,
+    track: BridgeTrack,
+    cleanedTitle: string,
+): Promise<{ stream: Readable | null; killSwitch: boolean }> {
+    const startedAt = Date.now()
+    try {
+        const stream = await streamViaYtDlp(cachedUrl)
+        const durationMs = observeStage('ytdlp_search', startedAt, 'ok')
+        recordYtDlpSuccess()
+        infoLog({
+            message: 'Bridge: Spotify cache hit - streamed via cached URL',
+            data: { cleanedTitle, durationMs },
+        })
+        return { stream, killSwitch: false }
+    } catch (error) {
+        const durationMs = observeStage('ytdlp_search', startedAt, 'fail')
+        recordYtDlpFailure(error)
+        addBreadcrumb(
+            'YouTube extraction failed via cached Spotify source',
+            'music.youtube-extraction',
+            'warning',
+            { error: scrubUrls((error as Error).message) },
+        )
+        noteFirstYouTubeFailure(track, error)
+        const killSwitch = (error as Error).message.includes(
+            'HOSTED_YOUTUBE_ENABLED',
+        )
+        warnLog({
+            message: killSwitch
+                ? 'Bridge: Spotify cache hit but YouTube is disabled - skipping to SoundCloud'
+                : 'Bridge: Spotify cache hit but stream failed - searching fresh',
+            data: {
+                error: (error as Error).message,
+                cleanedTitle,
+                durationMs,
+            },
+        })
+        return { stream: null, killSwitch }
     }
 }
 
@@ -686,6 +751,8 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     if (!ytDlpBlocked && isSpotifyUrl) {
         const spotifyUrl = track.url as string
         const cached = await getSpotifySource(spotifyUrl).catch(() => null)
+        let staleCache = false
+        let skipFreshSearch = false
         if (cached !== null) {
             if (isNegativeEntry(cached)) {
                 spotifyCacheTotal.inc({ result: 'negative' })
@@ -696,28 +763,19 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
                 })
             } else {
                 spotifyCacheTotal.inc({ result: 'hit' })
-                try {
-                    const stream = await streamViaYtDlp(cached)
-                    recordYtDlpSuccess()
-                    infoLog({
-                        message:
-                            'Bridge: Spotify cache hit — streamed via cached URL',
-                        data: { cleanedTitle },
-                    })
-                    return stream
-                } catch {
-                    // Cached URL is stale; fall through to a fresh search.
-                    warnLog({
-                        message:
-                            'Bridge: Spotify cache hit but stream failed — searching fresh',
-                        data: { cleanedTitle },
-                    })
-                }
+                const hit = await attemptCachedSpotifySource(
+                    cached,
+                    track,
+                    cleanedTitle,
+                )
+                if (hit.stream) return hit.stream
+                staleCache = !hit.killSwitch
+                skipFreshSearch = hit.killSwitch
             }
         } else {
             spotifyCacheTotal.inc({ result: 'miss' })
         }
-        if (cached === null || !isNegativeEntry(cached)) {
+        if (!skipFreshSearch && (cached === null || !isNegativeEntry(cached))) {
             const stream = await attemptYtDlpSearch(
                 cleanedTitle,
                 cleanedAuthor,
@@ -725,6 +783,10 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
                 spotifyUrl,
             )
             if (stream) return stream
+            // The cached URL no longer streams and a fresh search found
+            // nothing either: remember that for 5 min instead of paying for
+            // the same two failures on every replay.
+            if (staleCache) await setSpotifySourceNegative(spotifyUrl)
         }
         youtubeStages = broadSearchTried.has(track)
             ? ['yt-dlp-search', 'yt-dlp-search-broad']
