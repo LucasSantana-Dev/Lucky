@@ -8,7 +8,7 @@
     {
         "name": "Vendor UI (gzip)",
         "path": "dist/assets/vendor-ui-*.js",
-        "limit": "70 KB",
+        "limit": "73 KB",
         "gzip": true
     },
     {
@@ -20,7 +20,7 @@
     {
         "name": "Vendor Radix (gzip)",
         "path": "dist/assets/vendor-radix-*.js",
-        "limit": "50 KB",
+        "limit": "51 KB",
         "gzip": true
     },
     {

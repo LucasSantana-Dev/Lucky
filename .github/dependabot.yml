@@ -28,6 +28,12 @@ updates:
           - "yt-dlp"
           - "youtube-dl-exec"
           - "play-dl"
+    ignore:
+      # react-hook-form 7.90.0 breaks handleSubmit in the MusicConfig tests
+      # (onSubmit is never called). Held at 7.89.0 until a fixed release.
+      - dependency-name: "react-hook-form"
+        versions:
+          - "7.90.0"
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
