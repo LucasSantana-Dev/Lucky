@@ -113,10 +113,10 @@ export class LyricsService {
         return (
             query
                 // Remove common suffixes
-                // No leading \s* in these patterns: it made them quadratic
-                // on long whitespace runs (ReDoS). Whitespace is collapsed below.
-                .replace(/\([^)]*\)/g, ' ') // Remove parentheses content
-                .replace(/\[[^\]]*\]/g, ' ') // Remove brackets content
+                // No leading \s* and no nested opener in the classes: either made
+                // these quadratic on long runs (ReDoS). Whitespace is collapsed below.
+                .replace(/\([^()]*\)/g, ' ') // Remove parentheses content
+                .replace(/\[[^[\]]*\]/g, ' ') // Remove brackets content
                 .replace(
                     /-\s*(official|audio|video|lyric|music|mv|hd|4k).*$/i,
                     '',
