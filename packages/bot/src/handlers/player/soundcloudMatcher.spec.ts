@@ -607,4 +607,24 @@ describe('streamViaSoundCloud – client id refresh', () => {
         )
         expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
     })
+
+    it('does not refresh the client id when the call times out', async () => {
+        jest.useFakeTimers()
+        try {
+            mockSearch.mockReturnValue(new Promise(() => {}))
+
+            const pending = streamViaSoundCloud('song name', '3:30')
+            const assertion = expect(pending).rejects.toThrow(
+                'play-dl search timed out after 8000ms',
+            )
+            await jest.advanceTimersByTimeAsync(8_000)
+            await assertion
+
+            // Bounded by the single search budget: no scrape, no second attempt.
+            expect(mockGetFreeClientID).not.toHaveBeenCalled()
+            expect(mockSearch).toHaveBeenCalledTimes(1)
+        } finally {
+            jest.useRealTimers()
+        }
+    })
 })
