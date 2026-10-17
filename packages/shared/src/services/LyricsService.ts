@@ -136,13 +136,12 @@ export class LyricsService {
      * Clean search query by removing common suffixes and special characters
      */
     private cleanSearchQuery(query: string): string {
+        const stripped = stripBracketedAnnotations(query)
+        // Cut at the first common suffix (exec + slice, since `.*$` is ReDoS-prone)
+        const suffix =
+            /-\s*(?:official|audio|video|lyric|music|mv|hd|4k)/i.exec(stripped)
         return (
-            stripBracketedAnnotations(query)
-                // Remove common suffixes
-                .replace(
-                    /-\s*(official|audio|video|lyric|music|mv|hd|4k).*$/i,
-                    '',
-                )
+            (suffix ? stripped.slice(0, suffix.index) : stripped)
                 // Remove special characters but keep spaces and hyphens
                 .replace(/[^\w\s-]/g, '')
                 .replace(/\s+/g, ' ')
