@@ -92,7 +92,7 @@ jest.mock('discord.js', () => {
     }
 })
 
-import { debugLog, infoLog, errorLog } from '@lucky/shared/utils'
+import { debugLog, errorLog } from '@lucky/shared/utils'
 import { config } from '@lucky/shared/config'
 
 describe('service', () => {

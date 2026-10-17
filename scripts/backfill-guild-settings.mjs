@@ -98,7 +98,7 @@ async function main() {
                 }
                 const data = pickSettings(blob)
                 if (DRY_RUN) {
-                    console.log(`[dry] ${guildId}: would upsert`, Object.keys(data))
+                    console.log('[dry] %s: would upsert', guildId, Object.keys(data))
                     continue
                 }
                 await prisma.guildSettings.upsert({

@@ -1,13 +1,7 @@
 import { jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import { QueryType } from 'discord-player'
-import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
-import {
-    collectSpotifyRecommendationCandidates,
-    searchSeedCandidates,
-} from './spotifyRecommender'
-import type { SessionMood } from './sessionMood'
-import type { AutoplayContext } from './autoplayContext'
+import { searchSeedCandidates } from './spotifyRecommender'
 
 const warnLogMock = jest.fn()
 
@@ -58,31 +52,6 @@ function createMockQueue(overrides: Partial<GuildQueue> = {}): GuildQueue {
         },
         ...overrides,
     } as unknown as GuildQueue
-}
-
-function createAutoplayContext(
-    overrides: Partial<AutoplayContext> = {},
-): AutoplayContext {
-    const queue = createMockQueue()
-    const currentTrack = createTrack()
-    return {
-        queue,
-        excludedUrls: new Set(),
-        excludedKeys: new Set(),
-        dislikedWeights: new Map(),
-        likedWeights: new Map(),
-        preferredArtistKeys: new Set(),
-        blockedArtistKeys: new Set(),
-        currentTrack,
-        recentArtists: new Set(),
-        autoplayMode: 'similar',
-        artistFrequency: new Map(),
-        implicitDislikeKeys: new Set(),
-        implicitLikeKeys: new Set(),
-        sessionMood: null,
-        genreContext: {},
-        ...overrides,
-    }
 }
 
 describe('spotifyRecommender', () => {
