@@ -391,9 +391,6 @@ describe('batchJobWorker', () => {
         })
 
         it('re-throws when checkpoint fails', async () => {
-            const progressCapture = {
-                fn: null as ((p: unknown) => Promise<void>) | null,
-            }
             const captureExecute = jest
                 .fn()
                 .mockImplementation(

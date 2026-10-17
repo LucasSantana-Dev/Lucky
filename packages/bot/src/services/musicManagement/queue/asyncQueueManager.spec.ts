@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import { describe, test, expect, jest } from '@jest/globals'
 import { AsyncQueueManager } from './asyncQueueManager'
 
 jest.mock('@lucky/shared/utils', () => ({

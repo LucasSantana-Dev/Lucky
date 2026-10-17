@@ -270,7 +270,7 @@ describe('twitch/token', () => {
             }
             fetchSpy.mockResolvedValue(mockResponse as any)
 
-            const token = await getTwitchUserAccessToken()
+            await getTwitchUserAccessToken()
 
             // Should attempt refresh when cache is cleared
             expect(fetchSpy).toHaveBeenCalled()

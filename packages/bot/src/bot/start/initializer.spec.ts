@@ -251,7 +251,6 @@ describe('BotInitializer', () => {
 
         it('returns cached client if already initialized', async () => {
             const firstResult = await initializer.initializeBot()
-            const firstClientCallCount = createClientMock.mock.calls.length
             jest.clearAllMocks()
 
             const secondResult = await initializer.initializeBot()
