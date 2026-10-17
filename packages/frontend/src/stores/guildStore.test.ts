@@ -151,20 +151,39 @@ describe('guildStore', () => {
 
         test('should keep the newer in-flight fetch when an older one settles', async () => {
             let resolveFirst!: (value: never) => void
+            let resolveSecond!: (value: never) => void
             vi.mocked(api.guilds.list)
                 .mockImplementationOnce(
                     () => new Promise((resolve) => (resolveFirst = resolve)),
                 )
-                .mockResolvedValueOnce({
-                    data: { guilds: [mockGuild({ botAdded: false })] },
-                } as never)
+                .mockImplementationOnce(
+                    () => new Promise((resolve) => (resolveSecond = resolve)),
+                )
+            const newerGuilds = [mockGuild({ id: '2', botAdded: false })]
 
             const first = useGuildStore.getState().fetchGuilds()
             const second = useGuildStore.getState().fetchGuilds(true)
             resolveFirst({ data: { guilds: [] } } as never)
-            await Promise.all([first, second])
+            await first
 
+            // The second fetch is still loading, so a plain call must join it.
+            useGuildStore.setState({ isLoading: true })
+            let thirdSettled = false
+            const third = useGuildStore
+                .getState()
+                .fetchGuilds()
+                .then(() => {
+                    thirdSettled = true
+                })
+            await Promise.resolve()
+            expect(thirdSettled).toBe(false)
+
+            resolveSecond({ data: { guilds: newerGuilds } } as never)
+            await Promise.all([second, third])
+
+            expect(thirdSettled).toBe(true)
             expect(api.guilds.list).toHaveBeenCalledTimes(2)
+            expect(useGuildStore.getState().guilds).toEqual(newerGuilds)
             expect(useGuildStore.getState().isLoading).toBe(false)
         })
 
