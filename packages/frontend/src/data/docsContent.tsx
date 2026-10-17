@@ -748,7 +748,8 @@ docker compose up -d <service>`}</code>
                     To preview migrations before they run, exec into the backend
                     container:{' '}
                     <code>
-                        docker compose exec backend npx prisma migrate status
+                        docker compose exec backend node_modules/.bin/prisma
+                        migrate status --config prisma/prisma.config.ts
                     </code>
                     {''}.
                 </p>
