@@ -69,7 +69,7 @@
         "@playwright/test": "^1.63.0",
         "@resvg/resvg-js": "^2.6.2",
         "@sentry/vite-plugin": "^5.4.0",
-        "@size-limit/file": "^13.0.3",
+        "@size-limit/file": "^14.1.0",
         "@tailwindcss/postcss": "^4.3.3",
         "@testing-library/dom": "^10.4.2",
         "@testing-library/jest-dom": "^7.0.0",
