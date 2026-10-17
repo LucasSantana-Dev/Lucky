@@ -14,6 +14,30 @@ export interface LyricsError {
 }
 
 /**
+ * Remove balanced (...) and [...] groups, nested ones included, in one linear
+ * pass (a regex here was either ReDoS-prone or missed nesting). An unclosed
+ * opener keeps the rest of the text as-is.
+ */
+export function stripBracketedAnnotations(text: string): string {
+    let out = ''
+    let depth = 0
+    let groupStart = 0
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i]
+        if (ch === '(' || ch === '[') {
+            if (depth === 0) groupStart = i
+            depth++
+        } else if ((ch === ')' || ch === ']') && depth > 0) {
+            depth--
+            if (depth === 0) out += ' '
+        } else if (depth === 0) {
+            out += ch
+        }
+    }
+    return depth > 0 ? out + text.slice(groupStart) : out
+}
+
+/**
  * Service for fetching song lyrics from multiple sources
  * Uses free APIs without authentication requirements
  */
@@ -111,12 +135,8 @@ export class LyricsService {
      */
     private cleanSearchQuery(query: string): string {
         return (
-            query
+            stripBracketedAnnotations(query)
                 // Remove common suffixes
-                // No leading \s* and no nested opener in the classes: either made
-                // these quadratic on long runs (ReDoS). Whitespace is collapsed below.
-                .replace(/\([^()]*\)/g, ' ') // Remove parentheses content
-                .replace(/\[[^[\]]*\]/g, ' ') // Remove brackets content
                 .replace(
                     /-\s*(official|audio|video|lyric|music|mv|hd|4k).*$/i,
                     '',
