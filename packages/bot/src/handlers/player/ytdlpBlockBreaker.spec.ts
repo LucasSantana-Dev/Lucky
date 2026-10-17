@@ -53,7 +53,6 @@ describe('ytdlpBlockBreaker (#2653)', () => {
         ],
         [AGE_GATE.message, 'other'],
         ['yt-dlp exited without output (code 0)', 'empty'],
-        ['yt-dlp URL resolve failed (code 1) - ERROR: no results', 'empty'],
         ['yt-dlp: timed out waiting for stream start', 'timeout'],
         ['yt-dlp: timed out resolving URL', 'timeout'],
         ['yt-dlp: domain not in allowlist: example.com', 'other'],
@@ -111,20 +110,6 @@ describe('ytdlpBlockBreaker (#2653)', () => {
 
         recordYtDlpFailure(
             new Error('yt-dlp exited without output (code 0)'),
-            2_000,
-        )
-        expect(isYtDlpBlocked(2_000)).toBe(true)
-    })
-
-    it('URL resolve failure (empty) counts toward the streak (#2742)', () => {
-        recordYtDlpFailure(
-            new Error('yt-dlp URL resolve failed (code 1)'),
-            1_000,
-        )
-        expect(isYtDlpBlocked(1_000)).toBe(false)
-
-        recordYtDlpFailure(
-            new Error('yt-dlp URL resolve failed (code 1)'),
             2_000,
         )
         expect(isYtDlpBlocked(2_000)).toBe(true)

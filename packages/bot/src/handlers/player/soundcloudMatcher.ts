@@ -60,6 +60,12 @@ export function __resetSoundCloudRefreshStateForTests(): void {
     lastRefreshAt = 0
 }
 
+function isTimeoutError(error: unknown): boolean {
+    return (
+        error instanceof Error && /timed out after \d+ms$/.test(error.message)
+    )
+}
+
 /**
  * Runs a play-dl network call; on failure refreshes the client id once and
  * retries. Only the play-dl calls are wrapped: the "no results" and "no
@@ -82,6 +88,13 @@ async function withClientIdRetry<T>(
         // a genuinely stale token is fixed by the first refresh, and everything
         // failing after it rethrows untouched.
         if (Date.now() - lastRefreshAt < REFRESH_COOLDOWN_MS) throw error
+
+        // A timeout is a slow network, not a stale token (a stale token is
+        // rejected fast). Refreshing and retrying would stack another 10s
+        // scrape and a second timed attempt on top of the budget the caller
+        // already spent, so surface it as is. withTimeout is local, so its
+        // message format is ours to rely on.
+        if (isTimeoutError(error)) throw error
 
         warnLog({
             message: `SoundCloud: ${label} failed, refreshing client ID and retrying once`,
