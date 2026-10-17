@@ -81,7 +81,8 @@ class Board:
         self.y += 1
 
     def add(self, ptype, title, targets, w=6, h=6, desc="", unit=None, th=None, options=None,
-            no_value=None, decimals=None, mappings=None, custom=None, overrides=None, transformations=None, ds=None):
+            no_value=None, decimals=None, mappings=None, custom=None, overrides=None, transformations=None, ds=None,
+            min_val=None, max_val=None):
         defaults = {}
         if unit:
             defaults["unit"] = unit
@@ -96,6 +97,10 @@ class Board:
             defaults["mappings"] = mappings
         if custom:
             defaults["custom"] = custom
+        if min_val is not None:
+            defaults["min"] = min_val
+        if max_val is not None:
+            defaults["max"] = max_val
         for i, t in enumerate(targets):
             t["refId"] = chr(65 + i)
         panel = {
@@ -313,6 +318,22 @@ def negocio():
         w=8, h=7, options={"legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]},
                            "pieType": "donut", "reduceOptions": {"calcs": ["lastNotNull"], "values": True}},
         desc="Fonte real do stream de cada faixa (YouTube, SoundCloud...).")
+
+    b.row("Gatilhos YouTube-off")
+    b.add("gauge", "WAG (7 dias) vs limite 100", [sql(WAG_7D)],
+          w=12, h=7, min_val=0, max_val=100,
+          th=thresholds((GREEN, 0), (ORANGE, 70), (RED, 90)),
+          options={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
+                   "orientation": "auto", "showThresholdLabels": True, "showThresholdMarkers": True},
+          desc="WAG (janela móvel de 7 dias) ≥ 100 aciona o desligamento do YouTube (decisão 2026-12-20). "
+               "Laranja a 70 (70 % do limite), vermelho a 90.")
+    b.add("gauge", "Servidores vs limite 1.000", [prom('max(lucky_bot_guilds_total{state="active"})', instant=True)],
+          w=12, h=7, min_val=0, max_val=1000,
+          th=thresholds((GREEN, 0), (ORANGE, 700), (RED, 900)),
+          options={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
+                   "orientation": "auto", "showThresholdLabels": True, "showThresholdMarkers": True},
+          desc="1.000 servidores ativos aciona o desligamento do YouTube (decisão 2026-12-20). "
+               "Laranja a 700 (70 % do limite), vermelho a 900.")
     return b
 
 
