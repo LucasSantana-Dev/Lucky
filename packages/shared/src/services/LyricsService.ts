@@ -16,9 +16,11 @@ export interface LyricsError {
 /**
  * Remove balanced (...) and [...] groups, nested ones included, in one linear
  * pass (a regex here was either ReDoS-prone or missed nesting). An unclosed
- * opener keeps the rest of the text as-is.
+ * opener keeps the rest of the text as-is. Non-strings (e.g. a repeated query
+ * param parsed as an array) yield '' instead of being iterated.
  */
 export function stripBracketedAnnotations(text: string): string {
+    if (typeof text !== 'string') return ''
     let out = ''
     let depth = 0
     let groupStart = 0

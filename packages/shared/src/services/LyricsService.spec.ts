@@ -25,6 +25,12 @@ describe('stripBracketedAnnotations', () => {
         expect(stripBracketedAnnotations('Song) Title')).toBe('Song) Title')
     })
 
+    it('returns empty for a non-string input', () => {
+        expect(
+            stripBracketedAnnotations(['(a)', 'b'] as unknown as string),
+        ).toBe('')
+    })
+
     it('stays linear on long runs of openers', () => {
         const start = Date.now()
         stripBracketedAnnotations('('.repeat(200_000))
