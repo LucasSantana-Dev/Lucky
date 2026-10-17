@@ -52,9 +52,11 @@ describe('LyricsService cleanSearchQuery', () => {
     })
 
     it('stays linear on repeated suffix markers', () => {
+        // A non-final newline makes the old `.*$` fail and retry at every
+        // marker (quadratic, ~3 s here); the exec + slice version is instant.
+        const input = '-mv' + '-4k'.repeat(50_000) + '\nx'
         const start = Date.now()
-        clean('-mv' + '-4k'.repeat(100_000))
-        clean('a' + '- '.repeat(100_000))
+        expect(clean(input)).toBe('')
         expect(Date.now() - start).toBeLessThan(500)
     })
 })
