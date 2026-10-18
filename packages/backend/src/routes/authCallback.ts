@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express'
 import { timingSafeEqual } from 'node:crypto'
-import { debugLog, errorLog, telemetryLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, telemetryLog, warnLog } from '@lucky/shared/utils'
 import { parseAddState } from '@lucky/shared/constants'
 import { discordOAuthService } from '../services/DiscordOAuthService'
 import { recordGuildJoinSource } from '../services/guildJoinSourceService'
@@ -28,18 +28,49 @@ export async function handleOAuthCallback(
         }
 
         // Landing add flow (#2750): `state=src.<source>`, scope `bot`. Not a
-        // login, so it never touches the session. The code is not used.
+        // login, so it never touches the session. The query `guild_id` is
+        // attacker controlled, so the code is exchanged with Discord and the
+        // guild id is taken from the token response; a forged request has no
+        // valid code and records nothing.
         const addSource = parseAddState(state)
         if (addSource !== null) {
             try {
-                const recorded = await recordGuildJoinSource(
-                    req.query.guild_id,
-                    addSource,
-                )
-                debugLog({
-                    message: 'Landing add callback',
-                    data: { source: addSource, recorded },
-                })
+                if (!code || typeof code !== 'string') {
+                    warnLog({
+                        message: 'Landing add callback without a code',
+                        data: { source: addSource },
+                    })
+                } else {
+                    const tokenData =
+                        await discordOAuthService.exchangeCodeForToken(
+                            code,
+                            getOAuthRedirectUri(req),
+                        )
+                    const guildId = tokenData.guild?.id
+                    if (!guildId) {
+                        warnLog({
+                            message:
+                                'Landing add callback: token response has no guild',
+                            data: { source: addSource },
+                        })
+                    } else {
+                        const recorded = await recordGuildJoinSource(
+                            guildId,
+                            addSource,
+                        )
+                        if (!recorded) {
+                            warnLog({
+                                message:
+                                    'Landing add callback: invalid guild id from Discord',
+                                data: { source: addSource },
+                            })
+                        }
+                        debugLog({
+                            message: 'Landing add callback',
+                            data: { source: addSource, recorded },
+                        })
+                    }
+                }
             } catch (e) {
                 errorLog({
                     message: 'Failed to record guild join source',

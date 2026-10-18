@@ -42,8 +42,20 @@ describe('landing source attribution (#2750)', () => {
     let app: express.Express
     let table: ReturnType<typeof fakeTable>
 
+    const exchange = discordOAuthService.exchangeCodeForToken as jest.Mock
+
     beforeEach(() => {
         table = fakeTable()
+        exchange.mockReset()
+        // Default: Discord accepts the code and reports the guild the bot joined.
+        exchange.mockImplementation(async () => ({
+            access_token: 'a',
+            token_type: 'Bearer',
+            expires_in: 1,
+            refresh_token: 'r',
+            scope: 'bot',
+            guild: { id: GUILD_ID },
+        }))
         ;(getPrismaClient as jest.Mock).mockReturnValue({
             guildJoinSource: { upsert: table.upsert },
         })
@@ -53,24 +65,24 @@ describe('landing source attribution (#2750)', () => {
         app.get('/api/auth/callback', handleOAuthCallback)
     })
 
-    test('a test add with state=src.test lands in the table with its guild id', async () => {
+    test('an add with state=src.landing lands in the table with its guild id', async () => {
         const res = await request(app)
             .get('/api/auth/callback')
-            .query({ code: 'x', state: 'src.test', guild_id: GUILD_ID })
+            .query({ code: 'x', state: 'src.landing', guild_id: GUILD_ID })
 
         expect(res.status).toBe(302)
         expect(table.rows.get(GUILD_ID)).toMatchObject({
             guildDiscordId: GUILD_ID,
-            source: 'test',
+            source: 'landing',
         })
-        // Not a login: the code is never exchanged.
-        expect(discordOAuthService.exchangeCodeForToken).not.toHaveBeenCalled()
+        expect(exchange).toHaveBeenCalledWith('x', expect.any(String))
     })
 
     test('an unknown source is stored as the fallback, never as typed', async () => {
         await request(app)
             .get('/api/auth/callback')
             .query({
+                code: 'x',
                 state: 'src.<script>alert(1)</script>',
                 guild_id: GUILD_ID,
             })
@@ -81,33 +93,94 @@ describe('landing source attribution (#2750)', () => {
     test('an oversized state is capped to the fallback', async () => {
         await request(app)
             .get('/api/auth/callback')
-            .query({ state: `src.${'a'.repeat(5000)}`, guild_id: GUILD_ID })
+            .query({ code: 'x', state: `src.${'a'.repeat(5000)}`, guild_id: GUILD_ID })
             .expect(302)
         expect(table.rows.get(GUILD_ID)?.source).toBe('unknown')
     })
 
-    test('a guild_id that is not a snowflake writes nothing', async () => {
+    test('a guild id that is not a snowflake writes nothing', async () => {
+        exchange.mockResolvedValueOnce({
+            access_token: 'a',
+            token_type: 'Bearer',
+            expires_in: 1,
+            refresh_token: 'r',
+            scope: 'bot',
+            guild: { id: "1' OR '1'='1" },
+        })
         const res = await request(app)
             .get('/api/auth/callback')
-            .query({ state: 'src.test', guild_id: "1' OR '1'='1" })
+            .query({ code: 'x', state: 'src.landing' })
         expect(res.status).toBe(302)
+        expect(table.upsert).not.toHaveBeenCalled()
+    })
+
+    test('a forged request without a code writes nothing', async () => {
+        const res = await request(app)
+            .get('/api/auth/callback')
+            .query({ state: 'src.topgg', guild_id: GUILD_ID })
+        expect(res.status).toBe(302)
+        expect(res.headers.location).toContain('added=1')
+        expect(exchange).not.toHaveBeenCalled()
+        expect(table.upsert).not.toHaveBeenCalled()
+    })
+
+    test('a code Discord rejects writes nothing and still redirects', async () => {
+        exchange.mockRejectedValueOnce(new Error('invalid_grant'))
+        const res = await request(app)
+            .get('/api/auth/callback')
+            .query({ code: 'forged', state: 'src.topgg', guild_id: GUILD_ID })
+        expect(res.status).toBe(302)
+        expect(res.headers.location).toContain('added=1')
+        expect(table.upsert).not.toHaveBeenCalled()
+    })
+
+    test('the guild id comes from the token response, not the query', async () => {
+        const real = '987654321098765432'
+        exchange.mockResolvedValueOnce({
+            access_token: 'a',
+            token_type: 'Bearer',
+            expires_in: 1,
+            refresh_token: 'r',
+            scope: 'bot',
+            guild: { id: real },
+        })
+        await request(app)
+            .get('/api/auth/callback')
+            .query({ code: 'x', state: 'src.topgg', guild_id: GUILD_ID })
+            .expect(302)
+        expect(table.rows.get(real)?.source).toBe('topgg')
+        expect(table.rows.has(GUILD_ID)).toBe(false)
+    })
+
+    test('a token response without a guild writes nothing', async () => {
+        exchange.mockResolvedValueOnce({
+            access_token: 'a',
+            token_type: 'Bearer',
+            expires_in: 1,
+            refresh_token: 'r',
+            scope: 'bot',
+        })
+        await request(app)
+            .get('/api/auth/callback')
+            .query({ code: 'x', state: 'src.topgg', guild_id: GUILD_ID })
+            .expect(302)
         expect(table.upsert).not.toHaveBeenCalled()
     })
 
     test('the first source for a guild wins', async () => {
         await request(app)
             .get('/api/auth/callback')
-            .query({ state: 'src.topgg', guild_id: GUILD_ID })
+            .query({ code: 'x', state: 'src.topgg', guild_id: GUILD_ID })
         await request(app)
             .get('/api/auth/callback')
-            .query({ state: 'src.meta', guild_id: GUILD_ID })
+            .query({ code: 'x', state: 'src.meta', guild_id: GUILD_ID })
         expect(table.rows.get(GUILD_ID)?.source).toBe('topgg')
     })
 
     test('the redirect never reflects state or source', async () => {
         const res = await request(app)
             .get('/api/auth/callback')
-            .query({ state: 'src.<b>evil</b>', guild_id: GUILD_ID })
+            .query({ code: 'x', state: 'src.<b>evil</b>', guild_id: GUILD_ID })
         expect(res.headers.location).not.toContain('evil')
         expect(res.text).not.toContain('evil')
     })
@@ -116,7 +189,7 @@ describe('landing source attribution (#2750)', () => {
         table.upsert.mockRejectedValueOnce(new Error('db down'))
         const res = await request(app)
             .get('/api/auth/callback')
-            .query({ state: 'src.test', guild_id: GUILD_ID })
+            .query({ code: 'x', state: 'src.landing', guild_id: GUILD_ID })
         expect(res.status).toBe(302)
     })
 

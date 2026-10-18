@@ -56,7 +56,6 @@ export const LANDING_SOURCES = [
     'botsgg',
     'meta',
     'landing',
-    'test',
 ] as const
 
 export type LandingSource = (typeof LANDING_SOURCES)[number]

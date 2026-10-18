@@ -40,6 +40,8 @@ interface TokenResponse {
     expires_in: number
     refresh_token: string
     scope: string
+    /** Present when the `bot` scope was granted: the guild the bot was added to. */
+    guild?: { id: string }
 }
 
 // Zod validation schemas for Discord API responses
@@ -49,6 +51,7 @@ const tokenResponseSchema = z.object({
     expires_in: z.number().int().positive(),
     refresh_token: z.string().min(1),
     scope: z.string().min(1),
+    guild: z.object({ id: z.string().min(1) }).optional(),
 })
 
 const discordUserSchema = z.object({
