@@ -120,7 +120,10 @@ jest.mock('../workers/batchJobWorker', () => ({
     stopBatchJobWorker: () => Promise.resolve(),
 }))
 
+const recordActivationEventMock = jest.fn(async (..._args: unknown[]) => true)
 jest.mock('@lucky/shared/services', () => ({
+    recordActivationEvent: (...args: unknown[]) =>
+        recordActivationEventMock(...args),
     reactionRolesService: {
         handleButtonInteraction: (...args: unknown[]) =>
             handleButtonInteractionMock(...args),
@@ -1199,6 +1202,10 @@ describe('eventHandler', () => {
                     delivered: true,
                     reason: 'ok',
                 })
+                expect(recordActivationEventMock).toHaveBeenCalledWith(
+                    'g-onboard',
+                    'onboarding_delivered',
+                )
             })
 
             it('skips onboarding when the bot cannot post (no throw), and logs delivered:false', async () => {
@@ -1229,6 +1236,85 @@ describe('eventHandler', () => {
                     delivered: false,
                     reason: 'no_postable_channel',
                 })
+                expect(recordActivationEventMock).toHaveBeenCalledWith(
+                    'g-nopost',
+                    'onboarding_failed',
+                    'no_postable_channel',
+                )
+            })
+
+            it('still delivers onboarding when recording the activation event rejects', async () => {
+                recordActivationEventMock.mockRejectedValueOnce(
+                    new Error('db down'),
+                )
+                const { client, onMock } = createMockClient()
+                client.guilds = { cache: { size: 5 } } as any
+                const sendMock = jest
+                    .fn<() => Promise<void>>()
+                    .mockResolvedValue(undefined)
+                const systemChannel = {
+                    type: ChannelType.GuildText,
+                    send: sendMock,
+                    permissionsFor: jest.fn(() => ({ has: () => true })),
+                }
+
+                handleEvents(client as unknown as never)
+                getGuildCreateHandler(onMock)?.({
+                    id: 'g-rec-fail',
+                    name: 'Rec Fail Guild',
+                    memberCount: 9,
+                    members: { me: { id: 'bot' } },
+                    systemChannel,
+                    channels: { cache: { find: () => undefined } },
+                })
+
+                await new Promise<void>((resolve) => setImmediate(resolve))
+
+                expect(sendMock).toHaveBeenCalledTimes(1)
+                expect(errorLogMock).not.toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        message: 'Error sending onboarding message',
+                    }),
+                )
+            })
+
+            it('records onboarding_failed with missing_permissions on a Discord 50013', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = { cache: { size: 5 } } as any
+                const sendMock = jest
+                    .fn<() => Promise<void>>()
+                    .mockRejectedValue(
+                        Object.assign(new Error('Missing Permissions'), {
+                            code: 50013,
+                        }),
+                    )
+                const systemChannel = {
+                    type: ChannelType.GuildText,
+                    send: sendMock,
+                    permissionsFor: jest.fn(() => ({ has: () => true })),
+                }
+
+                handleEvents(client as unknown as never)
+                getGuildCreateHandler(onMock)?.({
+                    id: 'g-perm',
+                    name: 'Perm Guild',
+                    memberCount: 9,
+                    members: { me: { id: 'bot' } },
+                    systemChannel,
+                    channels: { cache: { find: () => undefined } },
+                })
+
+                await new Promise<void>((resolve) => setImmediate(resolve))
+
+                expect(recordActivationEventMock).toHaveBeenCalledWith(
+                    'g-perm',
+                    'onboarding_failed',
+                    'missing_permissions',
+                )
+                expect(recordActivationEventMock).not.toHaveBeenCalledWith(
+                    'g-perm',
+                    'onboarding_delivered',
+                )
             })
 
             it('logs delivered:false with reason send_failed when channel.send rejects', async () => {
@@ -1260,6 +1346,11 @@ describe('eventHandler', () => {
                     delivered: false,
                     reason: 'send_failed',
                 })
+                expect(recordActivationEventMock).toHaveBeenCalledWith(
+                    'g-send-fail',
+                    'onboarding_failed',
+                    'Error',
+                )
                 // The rejection still surfaces to the existing error-log path.
                 expect(errorLogMock).toHaveBeenCalledWith(
                     expect.objectContaining({

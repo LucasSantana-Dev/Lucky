@@ -141,6 +141,25 @@ model GuildJoinSource {
   @@map("guild_join_sources")
 }
 
+/// Activation funnel events (onboarding delivery, station clicks, recap
+/// auto-enable). Append-only, no relation to Guild: rows must survive a guild
+/// removal so the funnel keeps counting guilds that left.
+model ActivationEvent {
+  id             Int      @id @default(autoincrement())
+  guildDiscordId String
+  /// Free-form String on purpose (no enum, avoids enum migrations). Values are
+  /// restricted by the CHECK constraint activation_events_kind_check in
+  /// migration 20261018170000_activation_events; keep it in sync with
+  /// ACTIVATION_EVENT_KINDS (packages/shared/src/constants/invite.ts).
+  kind           String
+  reason         String?
+  occurredAt     DateTime @default(now())
+
+  @@index([kind, occurredAt])
+  @@index([guildDiscordId])
+  @@map("activation_events")
+}
+
 model GuildFeatureToggle {
   id      String  @id @default(cuid())
   guildId String

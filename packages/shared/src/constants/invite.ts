@@ -108,3 +108,16 @@ export function buildBotAddUrl(
     const state = `${ADD_STATE_PREFIX}${normalizeLandingSource(source)}`
     return `${buildBotInviteUrl(clientId)}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}`
 }
+
+/**
+ * Activation funnel event kinds (`activation_events.kind`). A closed list so
+ * the table only ever holds the steps the business dashboard reads.
+ */
+export const ACTIVATION_EVENT_KINDS = [
+    'onboarding_delivered',
+    'onboarding_failed',
+    'station_click',
+    'recap_auto_enabled',
+] as const
+
+export type ActivationEventKind = (typeof ACTIVATION_EVENT_KINDS)[number]
