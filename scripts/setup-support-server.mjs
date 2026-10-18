@@ -473,9 +473,9 @@ async function main() {
             '       requires them again, so grant them once more before re-running.',
         )
         console.log(
-            '       Only the invite set (3173504) is meant to persist, per',
+            '       Only the invite set (3197952) is meant to persist, per',
         )
-        console.log('       decisions/2026-06-18-invite-permission-scope.md.')
+        console.log('       packages/shared/src/constants/invite.ts.')
         console.log(
             '    2. If this is a new server, create a permanent invite:',
         )

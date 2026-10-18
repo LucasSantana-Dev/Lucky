@@ -21,6 +21,10 @@ mockGetBotPresenceActivities.mockReturnValue([
     { type: ActivityType.Playing, template: '/help • {commandCount} commands' },
 ])
 
+jest.mock('@lucky/shared/utils', () => ({
+    warnLog: jest.fn(),
+}))
+
 jest.mock('../../utils/presenceStatus', () => ({
     getBotPresenceStatus: mockGetBotPresenceStatus,
     getBotPresenceRotationIntervalMs: mockGetBotPresenceRotationIntervalMs,
@@ -51,9 +55,7 @@ function createMockClient(overrides?: Partial<CustomClient>): CustomClient {
                 values: () => [],
             },
         },
-        commands: {
-            size: 0,
-        },
+        commands: new Map(),
         user: null,
         player: null,
     }
@@ -350,7 +352,7 @@ describe('presence', () => {
             const client = createMockClient({
                 user: { setPresence },
                 guilds: { cache: { size: 5, values: () => [] } },
-                commands: { size: 30 },
+                commands: new Map(),
             } as any)
 
             const result = setPresenceActivity(client, 0)
@@ -359,12 +361,37 @@ describe('presence', () => {
             expect(result).toBe(1)
         })
 
+        // #2736: the picker on a normal server only has the hosted set.
+        it('counts only the commands a normal server can see', () => {
+            const setPresence = jest.fn()
+            const client = createMockClient({
+                user: { setPresence },
+                guilds: { cache: { size: 5, values: () => [] } },
+                commands: new Map([
+                    ['play', {}],
+                    ['ban', {}],
+                ]),
+            } as any)
+
+            setPresenceActivity(client, 4)
+
+            expect(setPresence).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    activities: [
+                        expect.objectContaining({
+                            name: '/help • 1 commands',
+                        }),
+                    ],
+                }),
+            )
+        })
+
         it('should handle index wraparound correctly', () => {
             const setPresence = jest.fn()
             const client = createMockClient({
                 user: { setPresence },
                 guilds: { cache: { size: 5, values: () => [] } },
-                commands: { size: 30 },
+                commands: new Map(),
             } as any)
 
             const result1 = setPresenceActivity(client, -1)
@@ -389,7 +416,7 @@ describe('presence', () => {
             const client = createMockClient({
                 user: { setPresence: jest.fn() },
                 guilds: { cache: { size: 5, values: () => [] } },
-                commands: { size: 30 },
+                commands: new Map(),
             } as any)
 
             const controls = startPresenceRotation(client)
@@ -409,7 +436,7 @@ describe('presence', () => {
             const client = createMockClient({
                 user: { setPresence },
                 guilds: { cache: { size: 5, values: () => [] } },
-                commands: { size: 30 },
+                commands: new Map(),
             } as any)
 
             const controls = startPresenceRotation(client)

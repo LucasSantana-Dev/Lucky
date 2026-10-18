@@ -1,4 +1,11 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
+import {
+    describe,
+    test,
+    expect,
+    jest,
+    beforeEach,
+    afterEach,
+} from '@jest/globals'
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
@@ -80,9 +87,22 @@ function makeSelectInteraction(selected: string, ownerId = 'u1') {
     }
 }
 
+const originalMusicOnly = process.env.HOSTED_MUSIC_ONLY_COMMANDS
+
 beforeEach(() => {
     interactionReply.mockClear().mockResolvedValue(undefined)
     ;(errorLog as jest.Mock).mockClear()
+    // Most cases use made-up command names; the hosted filter (#2736) has
+    // its own describe below.
+    process.env.HOSTED_MUSIC_ONLY_COMMANDS = 'false'
+})
+
+afterEach(() => {
+    if (originalMusicOnly === undefined) {
+        delete process.env.HOSTED_MUSIC_ONLY_COMMANDS
+    } else {
+        process.env.HOSTED_MUSIC_ONLY_COMMANDS = originalMusicOnly
+    }
 })
 
 describe('/help', () => {
@@ -307,5 +327,35 @@ describe('/help', () => {
             content: { embeds?: unknown[] }
         }
         expect(Array.isArray(call.content.embeds)).toBe(true)
+    })
+})
+
+describe('/help on the hosted bot (#2736)', () => {
+    beforeEach(() => {
+        delete process.env.HOSTED_MUSIC_ONLY_COMMANDS
+    })
+
+    test('offers no category whose commands are not registered here', async () => {
+        const client = makeClient([
+            makeCommand('play', 'Play music', 'music'),
+            makeCommand('ban', 'Ban a user', 'general'),
+        ])
+        const interaction = { ...makeInteraction(), guildId: '2' } as never
+
+        await helpCommand.execute({ client: client as never, interaction })
+
+        const call = interactionReply.mock.calls[0][0] as {
+            content: {
+                components: Array<{
+                    components: Array<{
+                        options: Array<{ data: { value: string } }>
+                    }>
+                }>
+            }
+        }
+        const values = call.content.components[0].components[0].options.map(
+            (o) => o.data.value,
+        )
+        expect(values).toEqual(['music'])
     })
 })

@@ -6,6 +6,10 @@ import { config } from '@lucky/shared/config'
 import type Command from '../../models/Command'
 import type ContextMenuCommand from '../../models/ContextMenuCommand'
 import { startPresenceRotation } from './presence'
+import {
+    getFullCommandsGuildIds,
+    splitCommandsForRegistration,
+} from '../../config/hostedCommands'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { recapScheduler } from '../../services/recap/recapScheduler'
@@ -100,12 +104,42 @@ export async function startClient({
                 // slash commands at all until the next redeploy. That is what
                 // failed the Top.gg review (#1885): their verification bot
                 // joined after boot and found an empty command list.
+                // The hosted bot registers only the music set globally (#2736).
+                const { global, guildOnly } =
+                    splitCommandsForRegistration(commandsData)
                 await rest.put(Routes.applicationCommands(CLIENT_ID), {
-                    body: commandsData,
+                    body: global,
                 })
                 infoLog({
-                    message: `Global commands registered: ${commandsData.length}`,
+                    message: `Global commands registered: ${global.length}`,
                 })
+
+                // The rest goes only to the guilds the operator lists. These
+                // are explicit ids, not the ready-time cache, so the #1885
+                // failure (new servers with no commands) cannot come back.
+                if (guildOnly.length > 0) {
+                    for (const guildId of getFullCommandsGuildIds()) {
+                        try {
+                            await rest.put(
+                                Routes.applicationGuildCommands(
+                                    CLIENT_ID,
+                                    guildId,
+                                ),
+                                { body: guildOnly },
+                            )
+                            infoLog({
+                                message: `Guild commands registered: ${guildOnly.length}`,
+                                data: { guildId },
+                            })
+                        } catch (error) {
+                            errorLog({
+                                message: 'Error registering guild commands:',
+                                error,
+                                data: { guildId },
+                            })
+                        }
+                    }
+                }
 
                 // Guild-scoped copies written by earlier versions are NOT
                 // cleared here on purpose. Ordering the two REST calls does not

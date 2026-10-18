@@ -17,18 +17,19 @@ import {
 } from '../../../utils/command/commandCategory'
 import { EMBED_COLORS } from '../../../utils/general/embeds'
 import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
+import { isCommandAvailableInGuild } from '../../../config/hostedCommands'
 
 // The hosted bot leads with music (decisions/2026-09-27-music-first-
-// positioning.md point 2): moderation, giveaways, logs and Twitch
-// are still functional if invoked directly, just not surfaced by default
-// here. Automod now only covers spam detection (text filters were removed
-// with the MessageContent intent, #2714). The select menu below keeps every other
-// category one click away.
+// positioning.md point 2) and registers only the music set (#2736), so help
+// lists only the commands this guild can actually run. Guilds with the full
+// set (FULL_COMMANDS_GUILD_IDS) or a self-hosted copy see every category,
+// one click away in the select menu below.
 const DEFAULT_HELP_CATEGORY = 'music'
 export const HELP_CATEGORY_SELECT_ID = 'help_category_select'
 
 function buildCategoryCommands(
     commands: Map<string, Command>,
+    guildId: string | null | undefined,
 ): Record<string, string[]> {
     const categories = getAllCategories()
     const categoryCommands: Record<string, string[]> = {}
@@ -38,6 +39,7 @@ function buildCategoryCommands(
     })
 
     Array.from(commands.values()).forEach((command: Command) => {
+        if (!isCommandAvailableInGuild(command.data.name, guildId)) return
         const category = getCommandCategory(command)
         const commandData = command.data
         categoryCommands[category].push(
@@ -211,16 +213,24 @@ async function handleHelpError(
 /** One row letting the reader jump to any other command category. */
 function buildCategorySelectRow(
     activeKey: string,
+    categoryCommands: Record<string, string[]>,
 ): ActionRowBuilder<StringSelectMenuBuilder> {
+    // Only categories with at least one command this guild can run.
     const select = new StringSelectMenuBuilder()
         .setCustomId(HELP_CATEGORY_SELECT_ID)
         .setPlaceholder('Browse another command category')
         .addOptions(
-            getAllCategories().map(({ key, label }) => ({
-                label,
-                value: key,
-                default: key === activeKey,
-            })),
+            getAllCategories()
+                .filter(
+                    ({ key }) =>
+                        key === activeKey ||
+                        (categoryCommands[key]?.length ?? 0) > 0,
+                )
+                .map(({ key, label }) => ({
+                    label,
+                    value: key,
+                    default: key === activeKey,
+                })),
         )
 
     return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select)
@@ -233,14 +243,20 @@ export default new Command({
     category: 'general',
     execute: async ({ client, interaction }) => {
         try {
-            const categoryCommands = buildCategoryCommands(client.commands)
+            const categoryCommands = buildCategoryCommands(
+                client.commands,
+                interaction.guildId,
+            )
             const embeds = createHelpEmbeds(
                 categoryCommands,
                 client,
                 interaction,
                 [DEFAULT_HELP_CATEGORY],
             )
-            const row = buildCategorySelectRow(DEFAULT_HELP_CATEGORY)
+            const row = buildCategorySelectRow(
+                DEFAULT_HELP_CATEGORY,
+                categoryCommands,
+            )
 
             debugLog({ message: 'Help command: Sending embed response' })
             // interactionReply edits the deferred reply on the first call and
@@ -296,11 +312,14 @@ export async function handleHelpCategorySelect(
         }
 
         const selected = interaction.values[0]
-        const categoryCommands = buildCategoryCommands(client.commands)
+        const categoryCommands = buildCategoryCommands(
+            client.commands,
+            interaction.guildId,
+        )
         const embeds = createHelpEmbeds(categoryCommands, client, interaction, [
             selected,
         ])
-        const row = buildCategorySelectRow(selected)
+        const row = buildCategorySelectRow(selected, categoryCommands)
 
         await interaction.update({
             embeds: [embeds[0]],
