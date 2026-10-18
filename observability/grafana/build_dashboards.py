@@ -315,18 +315,19 @@ def negocio():
         f"EXISTS (SELECT 1 FROM activation_events a WHERE a.\"guildDiscordId\" = j.g AND a.kind = 'onboarding_delivered' AND a.\"occurredAt\" >= j.t - interval '5 minutes' {ev_bound}) AS delivered, "
         f"EXISTS (SELECT 1 FROM activation_events a WHERE a.\"guildDiscordId\" = j.g AND a.kind = 'station_click' AND a.\"occurredAt\" >= j.t - interval '5 minutes' {ev_bound}) AS clicked, "
         "EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') "
-        f"AND NOT {trimmed} AS heard, "
+        f"AS heard, {trimmed} AS h1_trimmed, "
         "(SELECT count(*) FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND least(j.t + interval '7 days', coalesce(j.next_t, 'infinity'::timestamp))) >= 5 AS plays5, "
         "(EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days' AND th.\"playedAt\" < coalesce(j.next_t, 'infinity'::timestamp)) "
         "OR EXISTS (SELECT 1 FROM command_events ce WHERE ce.\"guildId\" = j.g AND ce.\"occurredAt\" >= j.t + interval '7 days' AND ce.\"occurredAt\" < coalesce(j.next_t, 'infinity'::timestamp))) AS d8, "
         "j.t <= now() - interval '1 hour' AS el1, j.t <= now() - interval '7 days' AS el7, j.t <= now() - interval '8 days' AS el8 "
         "FROM joins j), "
-        "f AS (SELECT g, delivered, delivered AND clicked AS clicked, heard, heard AND plays5 AS plays5, heard AND plays5 AND d8 AS d8, el1, el7, el8 FROM f0) ")
+        "f AS (SELECT g, delivered, delivered AND clicked AS clicked, heard, heard AND plays5 AS plays5, heard AND plays5 AND d8 AS d8, h1_trimmed, el1, el7, el8 FROM f0) ")
     b.add("bargauge", "Funil de ativação por guilda (período)", [sql(funnel_base +
         "SELECT '1. Entraram' AS \"Etapa\", count(*) AS \"Guildas\" FROM f "
         "UNION ALL SELECT '2. Onboarding entregue', count(*) FILTER (WHERE delivered) FROM f "
         "UNION ALL SELECT '3. Clicou na estação', count(*) FILTER (WHERE clicked) FROM f "
         "UNION ALL SELECT '4. Tocou na 1ª hora', count(*) FILTER (WHERE el1 AND heard) FROM f "
+        "UNION ALL SELECT '4b. 1ª hora desconhecida (histórico cortado)', count(*) FILTER (WHERE el1 AND h1_trimmed) FROM f "
         "UNION ALL SELECT '5. 5+ faixas em 7 dias', count(*) FILTER (WHERE el7 AND plays5) FROM f "
         "UNION ALL SELECT '6. Ativa no dia 8', count(*) FILTER (WHERE el8 AND d8) FROM f "
         "ORDER BY 1")], w=14, h=9, th=thresholds(("blue", 0)),
@@ -339,7 +340,8 @@ def negocio():
              "a 5 com mais de 7 dias e a 6 com mais de 8 dias; entradas mais recentes ficam fora do numerador dessas etapas "
              "(mas contam na etapa 1), então as etapas 4 a 6 sobem conforme as entradas amadurecem. "
              "Eventos e plays só valem até a próxima entrada contada da mesma guilda. "
-             "Guildas com histórico cortado pelo limite de 100 faixas de track_history (mesma regra h1_trimmed de scripts/music-first-gates.sql) ficam fora das etapas 4 a 6. "
+             "A etapa 1 continua igual a 'Entraram (período)'. A etapa 4b conta guildas elegíveis cujo histórico foi cortado pelo limite de 100 faixas de track_history (regra h1_trimmed de scripts/music-first-gates.sql): "
+             "elas podem ter tocado na 1ª hora, mas as primeiras linhas se perderam. A taxa da 1ª hora é etapa 4 / (etapa 1 elegível menos etapa 4b), como no gate. "
              "Etapas 2 e 3 vêm de activation_events, que só existe a partir do deploy desta instrumentação.")
     b.stat("Tempo até o primeiro áudio", sql(
         f"WITH {COUNTED_JOINS}, cj AS (SELECT g, t, lead(t) OVER (PARTITION BY g ORDER BY t) AS next_t FROM counted_joins), "
