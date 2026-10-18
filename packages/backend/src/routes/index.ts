@@ -33,6 +33,7 @@ import { setupMetricsRoute } from './metrics'
 import { setupStatsRoutes } from './stats'
 import { setupForumsRoutes } from './forums'
 import { setupInviteRoute } from './invite'
+import { setupAddRoute } from './add'
 import { setupSupportRoutes } from './support'
 import { setupSecurityRoutes } from './security'
 import { setupBatchJobRoutes } from './batchJobs'
@@ -111,6 +112,7 @@ const routeSetups = [
 
 export function setupRoutes(app: Express): void {
     setupInviteRoute(app)
+    setupAddRoute(app)
     setupHealthRoutes(app)
     setupMetricsRoute(app)
     setupStatsRoutes(app)

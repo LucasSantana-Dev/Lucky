@@ -3,6 +3,9 @@ import {
     BOT_CLIENT_ID,
     BOT_INVITE_PERMISSIONS,
     buildBotInviteUrl,
+    buildBotAddUrl,
+    normalizeLandingSource,
+    parseAddState,
 } from './invite'
 
 // Discord permission bits, for readable assertions.
@@ -88,5 +91,47 @@ describe('buildBotInviteUrl', () => {
 
     it('accepts a fork client id', () => {
         expect(buildBotInviteUrl('123')).toContain('client_id=123')
+    })
+})
+
+describe('landing source attribution (#2750)', () => {
+    it('accepts allowlisted sources, case-insensitively', () => {
+        expect(normalizeLandingSource('topgg')).toBe('topgg')
+        expect(normalizeLandingSource(' TopGG ')).toBe('topgg')
+        expect(normalizeLandingSource('test')).toBe('test')
+    })
+
+    it('collapses anything else to the fallback', () => {
+        for (const raw of [
+            '',
+            'evil',
+            '<script>',
+            'a'.repeat(500),
+            42,
+            undefined,
+            ['topgg'],
+        ]) {
+            expect(normalizeLandingSource(raw)).toBe('unknown')
+        }
+    })
+
+    it('parses only add-flow states', () => {
+        expect(parseAddState('src.meta')).toBe('meta')
+        expect(parseAddState('src.nope')).toBe('unknown')
+        expect(parseAddState('a'.repeat(64))).toBeNull()
+        expect(parseAddState(undefined)).toBeNull()
+    })
+
+    it('builds the add URL with unchanged permissions, code flow and state', () => {
+        const url = new URL(
+            buildBotAddUrl('meta', 'https://x.test/api/auth/callback'),
+        )
+        expect(url.searchParams.get('permissions')).toBe(BOT_INVITE_PERMISSIONS)
+        expect(url.searchParams.get('response_type')).toBe('code')
+        expect(url.searchParams.get('state')).toBe('src.meta')
+        expect(url.searchParams.get('redirect_uri')).toBe(
+            'https://x.test/api/auth/callback',
+        )
+        expect(url.searchParams.get('scope')).toBe('bot applications.commands')
     })
 })

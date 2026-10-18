@@ -259,6 +259,17 @@ def negocio():
         "count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g)) AS \"Já tocaram\" "
         f"FROM joins j WHERE j.g NOT IN {EXCL} GROUP BY 1 ORDER BY 1 DESC")], w=12, h=8)
 
+    b.add("table", "Entradas e 1ª hora por origem (28 dias)", [sql(
+        "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events "
+        "WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days') "
+        "SELECT coalesce(s.source, 'sem origem') AS \"Origem\", count(*) AS \"Entraram\", "
+        "count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g "
+        "AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour')) AS \"Tocaram na 1ª hora\" "
+        "FROM joins j LEFT JOIN guild_join_sources s ON s.\"guildDiscordId\" = j.g "
+        f"WHERE j.g NOT IN {EXCL} GROUP BY 1 ORDER BY 2 DESC")], w=12, h=8,
+        desc="Origem vem do parâmetro state do OAuth de /add (topgg, discordbotlist, botsgg, meta, landing, test). "
+             "Guildas sem origem entraram por outro link. Só joins com origem gravada desde #2750.")
+
     b.row("Uso")
     b.add("timeseries", "Faixas tocadas por dia", [sql(
         "SELECT date_trunc('day', \"playedAt\") AS time, "

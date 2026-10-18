@@ -1,7 +1,9 @@
 import type { Request, Response } from 'express'
 import { timingSafeEqual } from 'node:crypto'
 import { debugLog, errorLog, telemetryLog } from '@lucky/shared/utils'
+import { parseAddState } from '@lucky/shared/constants'
 import { discordOAuthService } from '../services/DiscordOAuthService'
+import { recordGuildJoinSource } from '../services/guildJoinSourceService'
 import { sessionService } from '../services/SessionService'
 import { getPrimaryFrontendUrl } from '../utils/frontendOrigin'
 import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
@@ -22,6 +24,29 @@ export async function handleOAuthCallback(
             res.redirect(
                 `${frontendUrl}/?error=auth_failed&message=${encodeURIComponent(String(error))}`,
             )
+            return
+        }
+
+        // Landing add flow (#2750): `state=src.<source>`, scope `bot`. Not a
+        // login, so it never touches the session. The code is not used.
+        const addSource = parseAddState(state)
+        if (addSource !== null) {
+            try {
+                const recorded = await recordGuildJoinSource(
+                    req.query.guild_id,
+                    addSource,
+                )
+                debugLog({
+                    message: 'Landing add callback',
+                    data: { source: addSource, recorded },
+                })
+            } catch (e) {
+                errorLog({
+                    message: 'Failed to record guild join source',
+                    error: e,
+                })
+            }
+            res.redirect(`${frontendUrl}/?added=1`)
             return
         }
 
