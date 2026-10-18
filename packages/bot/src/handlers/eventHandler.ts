@@ -162,7 +162,7 @@ async function sendOnboardingMessage(guild: Guild): Promise<void> {
             guild.id,
             'onboarding_failed',
             'no_postable_channel',
-        )
+        ).catch(() => undefined)
         return
     }
     const t = await translatorForInteraction({ guildId: guild.id, guild })
@@ -176,7 +176,9 @@ async function sendOnboardingMessage(guild: Guild): Promise<void> {
             delivered: true,
             reason: 'ok',
         })
-        void recordActivationEvent(guild.id, 'onboarding_delivered')
+        void recordActivationEvent(guild.id, 'onboarding_delivered').catch(
+            () => undefined,
+        )
     } catch (error) {
         telemetryLog('onboarding', {
             guildId: guild.id,
@@ -187,7 +189,7 @@ async function sendOnboardingMessage(guild: Guild): Promise<void> {
             guild.id,
             'onboarding_failed',
             activationFailureReason(error),
-        )
+        ).catch(() => undefined)
         throw error
     }
 }

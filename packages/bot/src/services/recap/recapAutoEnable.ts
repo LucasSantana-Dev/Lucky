@@ -43,7 +43,9 @@ export async function maybeAutoEnableRecap(
             message: 'recap: enabled on first play',
             data: { guildId: guild.id, channelId: target.channel.id },
         })
-        void recordActivationEvent(guild.id, 'recap_auto_enabled')
+        void recordActivationEvent(guild.id, 'recap_auto_enabled').catch(
+            () => undefined,
+        )
     }
 }
 

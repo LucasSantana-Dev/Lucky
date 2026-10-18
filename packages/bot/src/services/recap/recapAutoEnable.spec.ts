@@ -12,7 +12,7 @@ jest.mock('./recapScheduler', () => ({
 jest.mock('./recapStore', () => ({
     autoEnableRecap: (...a: unknown[]) => autoEnableRecapMock(...a),
 }))
-const recordActivationEventMock = jest.fn()
+const recordActivationEventMock = jest.fn(async (..._args: unknown[]) => true)
 jest.mock('@lucky/shared/services', () => ({
     recordActivationEvent: (...a: unknown[]) => recordActivationEventMock(...a),
 }))

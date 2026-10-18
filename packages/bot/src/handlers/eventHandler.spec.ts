@@ -120,7 +120,7 @@ jest.mock('../workers/batchJobWorker', () => ({
     stopBatchJobWorker: () => Promise.resolve(),
 }))
 
-const recordActivationEventMock = jest.fn()
+const recordActivationEventMock = jest.fn(async (..._args: unknown[]) => true)
 jest.mock('@lucky/shared/services', () => ({
     recordActivationEvent: (...args: unknown[]) =>
         recordActivationEventMock(...args),
@@ -1240,6 +1240,41 @@ describe('eventHandler', () => {
                     'g-nopost',
                     'onboarding_failed',
                     'no_postable_channel',
+                )
+            })
+
+            it('still delivers onboarding when recording the activation event rejects', async () => {
+                recordActivationEventMock.mockRejectedValueOnce(
+                    new Error('db down'),
+                )
+                const { client, onMock } = createMockClient()
+                client.guilds = { cache: { size: 5 } } as any
+                const sendMock = jest
+                    .fn<() => Promise<void>>()
+                    .mockResolvedValue(undefined)
+                const systemChannel = {
+                    type: ChannelType.GuildText,
+                    send: sendMock,
+                    permissionsFor: jest.fn(() => ({ has: () => true })),
+                }
+
+                handleEvents(client as unknown as never)
+                getGuildCreateHandler(onMock)?.({
+                    id: 'g-rec-fail',
+                    name: 'Rec Fail Guild',
+                    memberCount: 9,
+                    members: { me: { id: 'bot' } },
+                    systemChannel,
+                    channels: { cache: { find: () => undefined } },
+                })
+
+                await new Promise<void>((resolve) => setImmediate(resolve))
+
+                expect(sendMock).toHaveBeenCalledTimes(1)
+                expect(errorLogMock).not.toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        message: 'Error sending onboarding message',
+                    }),
                 )
             })
 

@@ -82,7 +82,7 @@ function logStationClick(data: {
         data.guildId,
         'station_click',
         `${data.genre}:${data.reason}`,
-    )
+    ).catch(() => undefined)
 }
 
 export async function handleOnboardingStationButton(
