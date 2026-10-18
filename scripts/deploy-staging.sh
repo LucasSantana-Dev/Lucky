@@ -113,7 +113,7 @@ done
 
 log "Running database migrations (staging DB)..."
 if ! dc run --rm --no-deps backend \
-    sh -lc "npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma"; then
+    sh -lc "node_modules/.bin/prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma"; then
     log "ERROR: MIGRATION_FAILED"
     exit 1
 fi

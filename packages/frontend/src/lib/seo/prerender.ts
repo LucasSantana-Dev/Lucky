@@ -21,13 +21,24 @@ export function escText(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+const META_TAG = /<meta\b[^>]*>/gi
+
+function metaHasAttr(tag: string, attr: string, key: string): boolean {
+    const normalized = tag.toLowerCase().replace(/\s+/g, ' ')
+    const pair = `${attr}=`.toLowerCase()
+    const value = key.toLowerCase()
+    return (
+        normalized.includes(` ${pair}"${value}"`) ||
+        normalized.includes(` ${pair}'${value}'`)
+    )
+}
+
 /**
  * Replace (or insert before `</head>`) a `<meta {attr}="{key}" content="…">` tag,
  * tolerant of attribute order in the built HTML.
  *
- * `attr` and `key` are TRUSTED hardcoded literals from the call site (not user
- * input), so only `content` is escaped; `key` is regex-escaped purely for a safe
- * match, not for security.
+ * Matching uses a fixed `<meta ...>` pattern and a plain attribute lookup, so no
+ * regex is ever built from `attr`/`key`. Only `content` is escaped.
  */
 export function setMeta(
     html: string,
@@ -36,16 +47,12 @@ export function setMeta(
     content: string,
 ): string {
     const tag = `<meta ${attr}="${key}" content="${escAttr(content)}" />`
-    // `attr`/`key` are trusted hardcoded literals (not user input) and the pattern
-    // has no nested quantifiers, so this is ReDoS-safe.
-    // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
-    const re = new RegExp(
-        `<meta[^>]*\\b${attr}=["']${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["'][^>]*>`,
-        'i',
-    )
+    const existing = html
+        .match(META_TAG)
+        ?.find((t) => metaHasAttr(t, attr, key))
     // Function replacers: `tag`/content may contain `$` and `replace`'s string form
     // would treat `$&`, `$$`, `$n` as patterns. A function replacer emits it literally.
-    if (re.test(html)) return html.replace(re, () => tag)
+    if (existing) return html.replace(existing, () => tag)
     return html.replace('</head>', () => `    ${tag}\n  </head>`)
 }
 

@@ -383,6 +383,9 @@ class RoleService {
         if (!isSnowflakeId(guildId)) {
             throw new Error('Invalid Discord guild id')
         }
+        if (!isSnowflakeId(roleId)) {
+            throw new Error('Invalid Discord role id')
+        }
 
         const guild = await getServableGuild(guildId)
 
@@ -405,6 +408,9 @@ class RoleService {
     async deleteGuildRole(guildId: string, roleId: string): Promise<void> {
         if (!isSnowflakeId(guildId)) {
             throw new Error('Invalid Discord guild id')
+        }
+        if (!isSnowflakeId(roleId)) {
+            throw new Error('Invalid Discord role id')
         }
 
         const guild = await getServableGuild(guildId)

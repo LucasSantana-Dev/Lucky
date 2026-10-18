@@ -121,6 +121,7 @@ function createInteraction(
         guildId: 'guild-1',
         guild: { members: { me: { id: 'bot-id' } } },
         channel: { id: 'channel-1' },
+        channelId: 'channel-1',
         user: { id: 'user-1' },
         member: { voice: { channel: createVoiceChannel(true) } },
         client: { player: { play: playMock } },
@@ -137,22 +138,15 @@ describe('createOnboardingStationRow', () => {
         translatorForInteractionMock.mockResolvedValue((key: string) => key)
     })
 
-    it('builds one button per genre with a station_ prefixed customId', async () => {
+    it('builds a single play button with station_play customId', async () => {
         const row = (await createOnboardingStationRow({
             id: 'guild-1',
             preferredLocale: 'en-US',
         })) as unknown as { components: { setCustomId: jest.Mock }[] }
 
-        expect(row.components).toHaveLength(4)
-        const customIds = row.components.map(
-            (button) => button.setCustomId.mock.calls[0][0],
-        )
-        expect(customIds).toEqual([
-            'station_lofi',
-            'station_gaming',
-            'station_pop',
-            'station_brMix',
-        ])
+        expect(row.components).toHaveLength(1)
+        const customId = row.components[0].setCustomId.mock.calls[0][0]
+        expect(customId).toBe('station_play')
     })
 })
 
@@ -260,6 +254,11 @@ describe('handleOnboardingStationButton', () => {
             track: { title: 'Fake Track' },
             hadQueueBeforePlay: false,
             isPlaylist: false,
+            // #2738: a station click counts as the guild's first play.
+            recapTarget: {
+                guild: { members: { me: { id: 'bot-id' } } },
+                channelId: 'channel-1',
+            },
         })
 
         expect(createSuccessEmbedMock).toHaveBeenCalledWith(

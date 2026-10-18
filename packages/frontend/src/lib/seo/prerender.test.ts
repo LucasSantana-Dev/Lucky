@@ -32,12 +32,10 @@ function getCanonical(html: string): string | null {
     return html.match(/<link rel="canonical" href="([^"]*)"/)?.[1] ?? null
 }
 function getMeta(html: string, attr: string, key: string): string | null {
-    return (
-        html.match(
-            // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
-            new RegExp(`<meta ${attr}="${key}" content="([^"]*)"`),
-        )?.[1] ?? null
-    )
+    for (const m of html.matchAll(/<meta (\w+)="([^"]*)" content="([^"]*)"/g)) {
+        if (m[1] === attr && m[2] === key) return m[3] ?? null
+    }
+    return null
 }
 
 describe('renderRouteHtml', () => {

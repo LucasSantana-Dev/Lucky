@@ -5,6 +5,7 @@ import { MusicSessionSnapshotService } from './sessionSnapshots'
 
 jest.mock('@lucky/shared/utils', () => ({
     getPrismaClient: jest.fn(),
+    getDbNull: jest.fn(() => 'DB_NULL'),
     debugLog: jest.fn(),
     errorLog: jest.fn(),
     infoLog: jest.fn(),
@@ -25,6 +26,7 @@ const mockFindUnique = jest.fn<any>()
 const mockFindMany = jest.fn<any>()
 const mockDeleteMany = jest.fn<any>()
 const mockCreate = jest.fn<any>()
+const mockUpsert = jest.fn<any>()
 
 /** Builds a `music_session_snapshots` row for mock returns. */
 function snapshotRow(overrides: Record<string, unknown> = {}) {
@@ -94,16 +96,18 @@ describe('MusicSessionSnapshotService', () => {
                 findMany: mockFindMany,
                 deleteMany: mockDeleteMany,
                 create: mockCreate,
+                upsert: mockUpsert,
             },
         } as any)
         mockFindUnique.mockResolvedValue(null)
         mockFindMany.mockResolvedValue([])
         mockDeleteMany.mockResolvedValue({ count: 1 })
         mockCreate.mockResolvedValue(snapshotRow())
+        mockUpsert.mockResolvedValue(snapshotRow())
     })
 
     describe('saveSnapshot', () => {
-        it('overwrites the guild snapshot (delete + create) and returns it', async () => {
+        it('overwrites the guild snapshot with one atomic upsert and returns it', async () => {
             const service = new MusicSessionSnapshotService()
             const queue = {
                 guild: { id: 'guild-1' },
@@ -131,17 +135,97 @@ describe('MusicSessionSnapshotService', () => {
             const result = await service.saveSnapshot(queue)
 
             expect(result).not.toBeNull()
-            expect(mockDeleteMany).toHaveBeenCalledWith({
+            expect(mockDeleteMany).not.toHaveBeenCalled()
+            expect(mockCreate).not.toHaveBeenCalled()
+            expect(mockUpsert).toHaveBeenCalledWith({
                 where: { guildId: 'guild-1' },
-            })
-            expect(mockCreate).toHaveBeenCalledWith({
-                data: expect.objectContaining({
+                create: expect.objectContaining({
                     guildId: 'guild-1',
                     voiceChannelId: 'channel-1',
                     sessionSnapshotId: expect.any(String),
                     upcomingTracks: expect.any(Array),
+                    currentTrack: expect.objectContaining({
+                        title: 'Now Song',
+                    }),
+                }),
+                update: expect.objectContaining({
+                    voiceChannelId: 'channel-1',
+                    savedAt: expect.any(Date),
+                    currentTrack: expect.objectContaining({
+                        title: 'Now Song',
+                    }),
                 }),
             })
+        })
+
+        it('writes DbNull when currentTrack is cleared, and restore reads it as no current track', async () => {
+            const service = new MusicSessionSnapshotService()
+            const queue = {
+                guild: { id: 'guild-1' },
+                currentTrack: null,
+                tracks: {
+                    toArray: () => [
+                        {
+                            title: 'Next Song',
+                            author: 'Next Artist',
+                            url: 'https://example.com/next',
+                            duration: '2:40',
+                            source: 'youtube',
+                        },
+                    ],
+                },
+                channel: { id: 'channel-1' },
+            } as unknown as GuildQueue
+
+            const saved = await service.saveSnapshot(queue)
+
+            expect(saved?.currentTrack).toBeNull()
+            const args = mockUpsert.mock.calls[0][0]
+            expect(args.update.currentTrack).toBe('DB_NULL')
+            expect(args.create.currentTrack).toBe('DB_NULL')
+
+            // A stored SQL NULL comes back from Prisma as null.
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({ currentTrack: null }),
+            )
+            const read = await service.getSnapshot('guild-1')
+            expect(read?.currentTrack).toBeNull()
+        })
+
+        it('resolves concurrent saves for one guild without throwing; the later write wins', async () => {
+            const stored = new Map<string, any>()
+            mockUpsert.mockImplementation(async (args: any) => {
+                // yield so both saves are in flight before either lands
+                await new Promise((r) => setImmediate(r))
+                stored.set(args.where.guildId, args.update)
+                return snapshotRow()
+            })
+            const makeQueue = (title: string) =>
+                ({
+                    guild: { id: 'guild-1' },
+                    currentTrack: {
+                        title,
+                        author: 'a',
+                        url: `https://example.com/${title}`,
+                        duration: '1:00',
+                        source: 'youtube',
+                    },
+                    tracks: { toArray: () => [] },
+                    channel: { id: 'channel-1' },
+                }) as unknown as GuildQueue
+            const service = new MusicSessionSnapshotService()
+
+            const first = service.saveSnapshot(makeQueue('first'))
+            const second = service.saveSnapshot(makeQueue('second'))
+            const [a, b] = await Promise.all([first, second])
+
+            expect(a).not.toBeNull()
+            expect(b).not.toBeNull()
+            expect(mockUpsert).toHaveBeenCalledTimes(2)
+            expect(stored.get('guild-1').currentTrack.title).toBe('second')
+            expect(stored.get('guild-1').sessionSnapshotId).toBe(
+                b?.sessionSnapshotId,
+            )
         })
 
         it('returns null when queue is empty and does not write', async () => {
@@ -155,11 +239,11 @@ describe('MusicSessionSnapshotService', () => {
             const result = await service.saveSnapshot(queue)
 
             expect(result).toBeNull()
-            expect(mockCreate).not.toHaveBeenCalled()
+            expect(mockUpsert).not.toHaveBeenCalled()
         })
 
-        it('returns null on create error', async () => {
-            mockCreate.mockRejectedValueOnce(new Error('db down'))
+        it('returns null on upsert error', async () => {
+            mockUpsert.mockRejectedValueOnce(new Error('db down'))
             const service = new MusicSessionSnapshotService()
             const queue = {
                 guild: { id: 'guild-err' },
@@ -176,13 +260,13 @@ describe('MusicSessionSnapshotService', () => {
             expect(await service.saveSnapshot(queue)).toBeNull()
         })
 
-        it('surfaces the Prisma error code + meta when the create fails', async () => {
-            mockCreate.mockRejectedValueOnce({
+        it('surfaces the Prisma error code + meta when the upsert fails', async () => {
+            mockUpsert.mockRejectedValueOnce({
                 name: 'PrismaClientKnownRequestError',
                 code: 'P2003',
                 meta: { field_name: 'guildId' },
                 message:
-                    'Invalid `prisma.musicSessionSnapshot.create()` invocation:',
+                    'Invalid `prisma.musicSessionSnapshot.upsert()` invocation:',
             })
             const service = new MusicSessionSnapshotService()
             const queue = {

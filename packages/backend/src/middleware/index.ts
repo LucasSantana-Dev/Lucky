@@ -47,6 +47,16 @@ export function setupMiddleware(app: Express): void {
                         'blob:',
                         'https://cdn.discordapp.com',
                         'https://cdn.discord.com',
+                        // Track cover art in the dashboard queue (LUCKY-7B); same
+                        // hosts as COVER_HOSTS in the bot's recapCovers.ts.
+                        'https://i.ytimg.com',
+                        'https://img.youtube.com',
+                        'https://i.scdn.co',
+                        'https://mosaic.scdn.co',
+                        'https://image-cdn-ak.spotifycdn.com',
+                        'https://image-cdn-fa.spotifycdn.com',
+                        'https://*.sndcdn.com',
+                        'https://*.mzstatic.com',
                     ],
                     'connect-src': [
                         "'self'",

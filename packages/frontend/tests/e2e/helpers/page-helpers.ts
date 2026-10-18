@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test'
+import { Page } from '@playwright/test'
 
 export async function navigateToServers(page: Page): Promise<void> {
     await page.goto('/servers')

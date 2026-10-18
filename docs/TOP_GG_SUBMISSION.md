@@ -31,27 +31,16 @@ permissions granted for the run and revoked after; usage is in their headers.
 
 **Note on the invite URL** — do not hardcode a `permissions=` integer here. `https://lucky.lucassantana.tech/invite` redirects to Discord via the backend, which builds the URL from `BOT_INVITE_PERMISSIONS` in `packages/shared/src/constants/invite.ts`, and logs the `utm_*` parameters on the way through so directory clicks are attributable.
 
-The curated set is `3173504` — View Audit Log, View Channels, Send Messages, Manage Messages, Embed Links, Connect, Speak — per `decisions/2026-06-18-invite-permission-scope.md`. **Never Administrator.** High-alarm permissions (Ban/Kick/ManageRoles/ManageChannels/ManageGuild/ModerateMembers) are escalated on demand rather than requested up front.
+The set is `3197952`: View Channels, Send Messages, Embed Links, Attach Files (the weekly recap card), Connect, Speak. It is music-only since #2736 (amendment 1 of `decisions/2026-10-18-music-first-business-review-amendments.md`); Manage Messages and View Audit Log from `decisions/2026-06-18-invite-permission-scope.md` were dropped. **Never Administrator.** High-alarm permissions (Ban/Kick/ManageRoles/ManageChannels/ManageGuild/ModerateMembers) are escalated on demand rather than requested up front.
 
 _Historical note:_ this file previously specified `36970496` and described it as ten permissions summing to 37022784, which is neither that integer nor a set the bot could work with. The real `36970496` is Manage Messages, Use External Emojis, Connect, Speak, Use Voice Activity — with **no** View Channels and **no** Send Messages, so a bot invited with it could not read or post in a channel. It also claimed the README used `permissions=8` (Administrator); that was removed in #1889.
 
 ## 2. Headline (140 char cap)
 
-Live copy since 2026-10-01 (#2472). The pitch follows
-`decisions/2026-09-27-music-first-positioning.md`: taste learning first, audio
-sources never named, self-hosting not promoted.
-
-```text
-Lucky learns your server's taste and keeps the call playing, no DJ needed. Smart autoplay, Spotify links, and every feature free.
-```
-
-Character count: 129.
-
-### Next headline: lead with the weekly recap
-
-`decisions/2026-10-07-pitch-leads-with-weekly-recap.md` switches the lead to the
-weekly recap. Paste this **only once `/recap` is live in production** (#2678);
-the listing must not promise a feature the bot lacks.
+Live copy since 2026-10-18 (#2472). The pitch follows
+`decisions/2026-10-07-pitch-leads-with-weekly-recap.md`: the weekly recap leads,
+audio sources are never named, self-hosting is not promoted, and the listing
+never promises a feature the bot lacks.
 
 ```text
 Every Sunday, Lucky shows your server what it listened to, and keeps the call playing in between. Smart autoplay, all free.
@@ -69,54 +58,24 @@ Character count: 135.
 
 ## 3. Long description (Markdown supported)
 
-```markdown
-**Lucky learns your server's taste and keeps the call playing, no DJ needed.**
+Live copy since 2026-10-18, pasted together with the headline (§2). Same rules.
+It names `/recap channel` and the 👍 / 👎 now-playing buttons (#2687), both live
+in production.
 
-Queue a couple of songs and Lucky takes it from there. Autoplay picks what comes next from what your server actually plays, skips and likes, instead of looping a static playlist.
-
-**What you get**
-
-- 🎶 Smart autoplay that adapts to your server. Use 👍 / 👎 on a track to steer it
-- 📻 One-click station to get music going the moment Lucky joins
-- 🟢 Spotify search and links: paste a track, album or playlist
-- 🎧 Last.fm scrobbling for everyone who links an account
-- 💾 Save a session and restore the queue later
-- 📝 Lyrics for the song that is playing
-- 🖥️ Web dashboard with music controls and server settings
-
-**Free, for real**
-Every feature is free. No premium tier, no paywall on volume, filters or playlists.
-
-**Light on permissions**
-Lucky never asks for Administrator. The invite uses a short, curated permission list.
-
-**Get started**
-
-1. Invite Lucky: https://lucky.lucassantana.tech/invite
-2. Join a voice channel and type `/play` with a song name or a Spotify link
-3. Questions or ideas? Join the support server: https://discord.gg/f2rxBWvqeR
-
-Made in Brazil. Open source under the ISC license: https://github.com/LucasSantana-Dev/Lucky
-```
-
-**Known gap in the live copy:** the 👍 / 👎 line describes buttons that did not
-exist until #2687 (before it, thumbs was only `/recommendation feedback`). It is
-accurate once #2687 is deployed; until then it overpromises.
-
-### Next long description: lead with the weekly recap
-
-Paste together with the next headline (§2), **only once `/recap` is live in
-production and the 👍 / 👎 now-playing buttons are live (#2687)**. Same rules:
-audio sources never named, self-hosting not promoted.
+**Known gap in the live copy:** the headline and the long description promise a
+recap every Sunday, but the scheduler skips a week with fewer than 5 plays
+(`RECAP_MIN_PLAYS` in `packages/bot/src/services/recap/recapScheduler.ts`). A
+quiet server gets no recap that week. Changing the copy or the threshold is an
+owner call.
 
 ```markdown
 **Your server's week in music, every Sunday.**
 
-Lucky keeps the call playing with autoplay that learns from what your server plays, skips and likes. Every Sunday it posts a recap in the channel you pick: the songs and artists your server played most, how long you listened, and how much came from autoplay. It never says who played what.
+Lucky keeps the call playing with autoplay that learns from what your server plays, skips and likes. Every Sunday it posts a recap in the channel where you first played music: the songs and artists your server played most, how long you listened, and how much came from autoplay. It never says who played what.
 
 **What you get**
 
-- 📅 A weekly recap every Sunday: turn it on with `/recap channel`
+- 📅 A weekly recap every Sunday, on from your first play and off in one click
 - 🎶 Smart autoplay that adapts to your server. Rate the song playing with 👍 / 👎 to steer it
 - 📻 One-click station to get music going the moment Lucky joins
 - 🟢 Spotify search and links: paste a track, album or playlist
@@ -135,7 +94,7 @@ Lucky never asks for Administrator. The invite uses a short, curated permission 
 
 1. Invite Lucky: https://lucky.lucassantana.tech/invite
 2. Join a voice channel and type `/play` with a song name or a Spotify link
-3. Pick a channel for the weekly recap with `/recap channel`
+3. The weekly recap starts in that text channel, if Lucky can post there. Move it with `/recap channel`, or stop it with the button on the recap
 4. Questions or ideas? Join the support server: https://discord.gg/f2rxBWvqeR
 
 Made in Brazil. Open source under the ISC license: https://github.com/LucasSantana-Dev/Lucky
@@ -146,11 +105,11 @@ pt-BR variant (for a later test, same rule):
 ```markdown
 **A semana musical do seu servidor, todo domingo.**
 
-A Lucky mantém a call tocando com um autoplay que aprende com o que o seu servidor toca, pula e curte. Todo domingo ela posta um resumo no canal que você escolher: as músicas e os artistas mais tocados, quanto tempo vocês ouviram e quanto veio do autoplay. Ela nunca diz quem tocou o quê.
+A Lucky mantém a call tocando com um autoplay que aprende com o que o seu servidor toca, pula e curte. Todo domingo ela posta um resumo no canal onde vocês tocaram música pela primeira vez: as músicas e os artistas mais tocados, quanto tempo vocês ouviram e quanto veio do autoplay. Ela nunca diz quem tocou o quê.
 
 **O que você ganha**
 
-- 📅 Um resumo semanal todo domingo: ative com `/recap channel`
+- 📅 Um resumo semanal todo domingo, ligado desde a primeira música e desligado com um clique
 - 🎶 Autoplay que se adapta ao seu servidor. Avalie a música que está tocando com 👍 / 👎 para guiar
 - 📻 Estação com um clique para a música começar assim que a Lucky entra
 - 🟢 Busca e links do Spotify: cole uma música, um álbum ou uma playlist
@@ -169,7 +128,7 @@ A Lucky nunca pede Administrador. O convite usa uma lista curta e escolhida de p
 
 1. Convide a Lucky: https://lucky.lucassantana.tech/invite
 2. Entre num canal de voz e digite `/play` com o nome de uma música ou um link do Spotify
-3. Escolha um canal para o resumo semanal com `/recap channel`
+3. O resumo semanal começa nesse canal de texto, se a Lucky puder postar nele. Mude com `/recap channel`, ou desligue pelo botão no resumo
 4. Dúvidas ou ideias? Entre no servidor de suporte: https://discord.gg/f2rxBWvqeR
 
 Feita no Brasil. Código aberto sob a licença ISC: https://github.com/LucasSantana-Dev/Lucky
@@ -291,11 +250,10 @@ Done:
 - [x] Vote webhook live: votes are received since 2026-09-26
 - [x] `YouTube` category removed (§4)
 - [x] Draft a pt-BR description variant (#2472): see §2 and §3
+- [x] Recap headline and long description pasted on the dashboard (§2, §3)
 
 Open:
 
-- [ ] When `/recap` is live in production and #2687 is deployed, paste the next
-      headline and long description (§2, §3) on the top.gg dashboard
 - [ ] Re-run the thumbs positioning check 28 days after #2687 deploys
       (`decisions/2026-10-07-pitch-leads-with-weekly-recap.md`)
 - [ ] Revisit imagery under the dashboard's `Appearance` section

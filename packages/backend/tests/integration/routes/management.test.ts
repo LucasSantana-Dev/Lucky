@@ -6,7 +6,6 @@ import { setupManagementRoutes } from '../../../src/routes/management'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
-import { ValidationError } from '@lucky/shared/errors/ValidationError'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {

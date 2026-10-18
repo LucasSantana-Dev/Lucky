@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { setupMockApiResponses, mockToggleUpdate } from './helpers/api-helpers'
-import { navigateToFeatures, toggleFeature } from './helpers/page-helpers'
-import { getFeatureCard, verifyToast } from './helpers/ui-helpers'
+import { navigateToFeatures } from './helpers/page-helpers'
+import { getFeatureCard } from './helpers/ui-helpers'
 import { MOCK_FEATURES } from './fixtures/test-data'
 
 test.describe('Feature Toggles', () => {
@@ -11,13 +11,6 @@ test.describe('Feature Toggles', () => {
 
     test('lists all available features', async ({ page }) => {
         await navigateToFeatures(page)
-
-        for (const feature of MOCK_FEATURES) {
-            const featureCard = getFeatureCard(page, feature.name)
-            const isVisible = await featureCard
-                .isVisible({ timeout: 3000 })
-                .catch(() => false)
-        }
     })
 
     test('toggles individual features', async ({ page }) => {
@@ -111,11 +104,6 @@ test.describe('Feature Toggles', () => {
         if (isVisible) {
             await switchButton.click()
             await page.waitForTimeout(1000)
-
-            const errorToast = page.locator('text=/Failed|Error/i').first()
-            const toastVisible = await errorToast
-                .isVisible({ timeout: 3000 })
-                .catch(() => false)
         }
     })
 
@@ -149,20 +137,11 @@ test.describe('Feature Toggles', () => {
             .catch(() => false)
 
         if (isVisible) {
-            const initialState = await switchButton.getAttribute('aria-checked')
             await switchButton.click()
             await page.waitForTimeout(1000)
 
             await page.reload()
             await page.waitForLoadState('domcontentloaded')
-
-            const reloadedCard = getFeatureCard(page, firstFeature.name)
-            const reloadedSwitch = reloadedCard
-                .locator('[role="switch"]')
-                .first()
-            const reloadedVisible = await reloadedSwitch
-                .isVisible({ timeout: 3000 })
-                .catch(() => false)
         }
     })
 
@@ -187,21 +166,5 @@ test.describe('Feature Toggles', () => {
 
     test('feature descriptions display', async ({ page }) => {
         await navigateToFeatures(page)
-
-        const firstFeature = MOCK_FEATURES[0]
-        const featureCard = getFeatureCard(page, firstFeature.name)
-
-        const isVisible = await featureCard
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            const description = featureCard.locator(
-                `text=${firstFeature.description}`,
-            )
-            const descVisible = await description
-                .isVisible({ timeout: 2000 })
-                .catch(() => false)
-        }
     })
 })

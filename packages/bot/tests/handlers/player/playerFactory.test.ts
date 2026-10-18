@@ -50,6 +50,12 @@ jest.mock(
         },
     }),
 )
+jest.mock('../../../src/handlers/player/spotifySourceCache', () => ({
+    getSpotifySource: jest.fn().mockResolvedValue(null),
+    setSpotifySource: jest.fn().mockResolvedValue(undefined),
+    setSpotifySourceNegative: jest.fn().mockResolvedValue(undefined),
+    isNegativeEntry: jest.fn().mockReturnValue(false),
+}))
 
 describe('playerFactory', () => {
     beforeEach(() => {

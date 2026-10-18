@@ -5,8 +5,9 @@ import { isExtractorDegraded, setExtractorDegraded } from './extractorHealth'
 // days at a time, and every play paid 4-10 s waiting for that failure before
 // the SoundCloud fallback (#2653). Two 403s with no successful stream between
 // them and less than FORBIDDEN_WINDOW_MS apart open this breaker, and the
-// bridge skips yt-dlp for the cooldown. Other failure types neither count nor
-// break the streak. The window outlasts the cooldown, so a 403 on the first
+// bridge skips yt-dlp for the cooldown. 'forbidden', 'botcheck', 'timeout' and
+// 'empty' all count toward the streak (repeated hangs or no-output results
+// mean YouTube is degraded, #2742); only 'other' neither counts nor breaks it. The window outlasts the cooldown, so a 403 on the first
 // play after it reopens the breaker while the block lasts, but a lone
 // per-video 403 long after the last one does not. A success closes it. Kept
 // apart from providerHealthService on purpose: that one also orders search
@@ -63,7 +64,10 @@ function markBreakerDegraded(): void {
 export function recordYtDlpFailure(error: unknown, now = Date.now()): void {
     const type = classifyYtDlpFailure(error)
     extractionFailuresTotal.inc({ type })
-    if (type !== 'forbidden' && type !== 'botcheck') return
+    // 'forbidden' and 'botcheck' are access-denial signals.
+    // 'timeout' and 'empty' also count: repeated hangs or no-output results
+    // indicate YouTube is degraded, not per-track issues (#2742).
+    if (type === 'other') return
     if (now - lastForbiddenAt >= FORBIDDEN_WINDOW_MS) consecutiveForbidden = 0
     lastForbiddenAt = now
     consecutiveForbidden += 1

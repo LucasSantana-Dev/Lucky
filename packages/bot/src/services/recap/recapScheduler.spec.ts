@@ -175,6 +175,25 @@ describe('RecapScheduler (#2678)', () => {
         )
     })
 
+    // #2738: the recap is on by default, so every post can turn it off.
+    it.each([
+        ['text', undefined],
+        ['card', ATTACH_PERMS],
+    ])('a %s recap carries the off button', async (_kind, perms) => {
+        getWeeklyRecapMock.mockResolvedValue(recap(12))
+        const { client, send } = makeClient('text', perms ? { perms } : {})
+
+        await runTick(client)
+
+        const [row] = send.mock.calls[0][0].components
+        expect(row.toJSON().components).toEqual([
+            expect.objectContaining({
+                custom_id: 'recap_off',
+                label: 'music.recap.offButton',
+            }),
+        ])
+    })
+
     it('claims a quiet week without posting, so it is not re-read hourly', async () => {
         getWeeklyRecapMock.mockResolvedValue(recap(4))
         const { client, send } = makeClient('text')

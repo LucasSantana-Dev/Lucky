@@ -50,9 +50,12 @@ jest.mock('../../../src/middleware/rateLimit', () => ({
 }))
 
 jest.mock('../../../src/middleware/validate', () => ({
-    validateBody: (schema: any) => (_req: any, _res: any, next: any) => next?.(),
-    validateQuery: (schema: any) => (_req: any, _res: any, next: any) => next?.(),
-    validateParams: (schema: any) => (_req: any, _res: any, next: any) => next?.(),
+    validateBody: (schema: any) => (_req: any, _res: any, next: any) =>
+        next?.(),
+    validateQuery: (schema: any) => (_req: any, _res: any, next: any) =>
+        next?.(),
+    validateParams: (schema: any) => (_req: any, _res: any, next: any) =>
+        next?.(),
 }))
 
 jest.mock('../../../src/middleware/auth', () => ({
@@ -263,7 +266,6 @@ describe('Artists Routes', () => {
             fetchSpy.mockRestore()
         })
 
-
         test('should use updated fallback cache key (v2) for 150-artist set', async () => {
             const req = createMockRequest({
                 user: { id: 'discord-123' },
@@ -294,7 +296,6 @@ describe('Artists Routes', () => {
 
             fetchSpy.mockRestore()
         })
-
     })
 
     describe('GET /api/artists/search', () => {
@@ -322,7 +323,6 @@ describe('Artists Routes', () => {
                 artists: [mockArtist],
             })
         })
-
     })
 
     describe('GET /api/artists/:artistId/related', () => {
@@ -351,7 +351,6 @@ describe('Artists Routes', () => {
                 artists: [mockArtist],
             })
         })
-
     })
 
     describe('GET /api/users/me/preferred-artists', () => {
@@ -383,7 +382,6 @@ describe('Artists Routes', () => {
                 preferences: [mockPreference],
             })
         })
-
     })
 
     describe('POST /api/users/me/preferred-artists', () => {
@@ -402,7 +400,12 @@ describe('Artists Routes', () => {
             const res = createMockResponse()
 
             const mockDb = {
+                $transaction: jest.fn(async (ops: unknown[]) =>
+                    Promise.all(ops),
+                ),
                 userArtistPreference: {
+                    findMany: jest.fn().mockResolvedValue([]),
+                    deleteMany: jest.fn(),
                     upsert: jest.fn().mockResolvedValue(mockPreference),
                 },
             }
@@ -419,7 +422,6 @@ describe('Artists Routes', () => {
                 preference: mockPreference,
             })
         })
-
     })
 
     describe('PUT /api/artists/preferences/batch', () => {
@@ -449,7 +451,12 @@ describe('Artists Routes', () => {
             const res = createMockResponse()
 
             const mockDb = {
+                $transaction: jest.fn(async (ops: unknown[]) =>
+                    Promise.all(ops),
+                ),
                 userArtistPreference: {
+                    findMany: jest.fn().mockResolvedValue([]),
+                    deleteMany: jest.fn(),
                     upsert: jest.fn().mockResolvedValue(mockPreference),
                 },
             }
@@ -478,7 +485,12 @@ describe('Artists Routes', () => {
             const res = createMockResponse()
 
             const mockDb = {
+                $transaction: jest.fn(async (ops: unknown[]) =>
+                    Promise.all(ops),
+                ),
                 userArtistPreference: {
+                    findMany: jest.fn().mockResolvedValue([]),
+                    deleteMany: jest.fn(),
                     upsert: jest.fn(),
                 },
             }
@@ -495,7 +507,6 @@ describe('Artists Routes', () => {
                 preferences: [],
             })
         })
-
     })
 
     describe('DELETE /api/users/me/preferred-artists/:artistKey', () => {
@@ -523,6 +534,5 @@ describe('Artists Routes', () => {
             expect(mockDb.userArtistPreference.delete).toHaveBeenCalled()
             expect(res.json).toHaveBeenCalledWith({ success: true })
         })
-
     })
 })

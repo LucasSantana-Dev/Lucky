@@ -830,7 +830,7 @@ phase_end pg_wait
 log "Running database migrations..."
 phase_start migrate_deploy
 if ! docker_compose run --rm --no-deps backend \
-    sh -lc "npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma"; then
+    sh -lc "node_modules/.bin/prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma"; then
     log "ERROR: MIGRATION_FAILED (prisma migrate deploy)"
     notify 16711680 "Deploy Failed" "Database migration failed"
     exit 1
@@ -840,7 +840,7 @@ phase_end migrate_deploy
 log "Checking migration status..."
 phase_start migrate_status
 if ! docker_compose run --rm --no-deps backend \
-    sh -lc "npx prisma migrate status --config prisma/prisma.config.ts --schema prisma/schema.prisma"; then
+    sh -lc "node_modules/.bin/prisma migrate status --config prisma/prisma.config.ts --schema prisma/schema.prisma"; then
     log "ERROR: MIGRATION_FAILED (prisma migrate status)"
     notify 16711680 "Deploy Failed" "Database migration status guard failed"
     exit 1

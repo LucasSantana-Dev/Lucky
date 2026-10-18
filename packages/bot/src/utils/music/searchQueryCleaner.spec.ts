@@ -94,6 +94,23 @@ describe('cleanSearchQuery', () => {
     })
 })
 
+describe('cleanTitle — letra and legenda noise', () => {
+    it.each([
+        ['Pegame y decime Shirley [Letra]', 'Pegame y decime Shirley'],
+        ['Song Name (Legenda)', 'Song Name'],
+        ['Song Name [Letra en español]', 'Song Name'],
+    ])('strips the tag from %s', (input, expected) => {
+        expect(cleanTitle(input)).toBe(expected)
+    })
+
+    it.each(['La Letra', 'Legenda Viva', 'Song Name letra'])(
+        'keeps %s unchanged when the word is part of the title',
+        (input) => {
+            expect(cleanTitle(input)).toBe(input)
+        },
+    )
+})
+
 describe('cleanTitle — Brazilian noise', () => {
     it.each([
         ['strips (Tradução)', 'Beyoncé - Halo (Tradução)', 'Beyoncé - Halo'],

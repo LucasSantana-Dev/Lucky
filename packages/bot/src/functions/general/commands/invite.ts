@@ -1,9 +1,12 @@
 import { SlashCommandBuilder, EmbedBuilder } from '@discordjs/builders'
-import { PermissionFlagsBits } from 'discord.js'
 import Command from '../../../models/Command'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { TOP_GG_VOTE_URL, COLOR } from '@lucky/shared/constants'
+import {
+    BOT_INVITE_PERMISSIONS,
+    TOP_GG_VOTE_URL,
+    COLOR,
+} from '@lucky/shared/constants'
 
 /**
  * Build the OAuth2 invite URL for the bot using its application ID
@@ -13,22 +16,10 @@ function buildInviteUrl(
 ): string | null {
     if (!applicationId) return null
 
-    const permissions = [
-        PermissionFlagsBits.ViewChannel,
-        PermissionFlagsBits.SendMessages,
-        PermissionFlagsBits.EmbedLinks,
-        PermissionFlagsBits.Connect,
-        PermissionFlagsBits.Speak,
-    ]
-
-    const permissionBits = permissions.reduce((acc, perm) => acc | perm, 0n)
-    const permissionValue = permissionBits.toString()
-
+    // The same set as every other invite link (#2736).
     return `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(
         applicationId,
-    )}&permissions=${encodeURIComponent(
-        permissionValue,
-    )}&scope=bot%20applications.commands`
+    )}&permissions=${BOT_INVITE_PERMISSIONS}&scope=bot%20applications.commands`
 }
 
 export default new Command({

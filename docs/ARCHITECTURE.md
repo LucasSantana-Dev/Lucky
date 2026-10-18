@@ -63,7 +63,7 @@ Production serves through **three independent layers**, each with its own config
 | self-hosted `docker compose`  | the same nginx image, serving frontend + API together                                                               | `nginx/nginx.conf`                                |
 | preview deploys               | Vercel (legacy; production migrated off on 2026-06-25)                                                              | `vercel.json`                                     |
 
-**How to tell which layer answered a request.** Compare the CSP: `_headers` allows `https://static.cloudflareinsights.com` in `script-src` (Cloudflare injects that beacon); the other two do not.
+**How to tell which layer answered a request.** All three allow the Cloudflare beacon (`https://static.cloudflareinsights.com`) in `script-src`, so compare `report-uri` instead: `_headers` uses the absolute `https://lucky-api.lucassantana.tech/api/security/csp-report`, nginx and helmet the relative `/api/security/csp-report`. On `lucky-api`, nginx sets the CSP only in `location /` (the SPA); `/api/*` responses carry helmet's.
 
 ```bash
 curl -sD - -o /dev/null https://lucky.lucassantana.tech/ | grep -i content-security-policy

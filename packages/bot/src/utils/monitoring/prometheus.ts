@@ -170,12 +170,12 @@ export const commandDurationSeconds = new Histogram<'command'>({
 
 /**
  * Histogram: where /play spends its time, per stage. `stage` is one of
- * ytdlp_url|ytdlp_search|soundcloud_full|soundcloud_title|soundcloud_core|bridge_total and `outcome` is ok|fail.
+ * ytdlp_url|ytdlp_search|ytdlp_search_broad|soundcloud_full|soundcloud_title|soundcloud_core|bridge_total and `outcome` is ok|fail.
  * Bounded labels only: no guild, user, track or query values.
  */
 export const playStageSeconds = new Histogram<'stage' | 'outcome'>({
     name: 'lucky_bot_play_stage_seconds',
-    help: 'Duration in seconds of each /play stream bridge stage (ytdlp_url|ytdlp_search|soundcloud_full|soundcloud_title|soundcloud_core|bridge_total), by outcome (ok|fail).',
+    help: 'Duration in seconds of each /play stream bridge stage (ytdlp_url|ytdlp_search|ytdlp_search_broad|soundcloud_full|soundcloud_title|soundcloud_core|bridge_total), by outcome (ok|fail).',
     labelNames: ['stage', 'outcome'],
     buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 8, 12, 20, 30],
     registers: [registry],
@@ -237,6 +237,24 @@ export const extractionFailuresTotal = new Counter<'type'>({
     labelNames: ['type'],
     registers: [registry],
 })
+
+/**
+ * Counter: Spotify source cache lookups by result (hit|miss|negative).
+ * `hit` — resolved YouTube URL served from cache (L1 or Redis).
+ * `miss` — cache miss; yt-dlp search runs to resolve the source.
+ * `negative` — cached failure entry; falls through to SoundCloud immediately.
+ */
+export const spotifyCacheTotal = new Counter<'result'>({
+    name: 'lucky_bot_spotify_cache_total',
+    help: 'Spotify source cache lookups, by result (hit|miss|negative).',
+    labelNames: ['result'],
+    registers: [registry],
+})
+// Export every result at 0 from boot so the first hit/miss/negative after each
+// deploy has an increase().
+for (const result of ['hit', 'miss', 'negative']) {
+    spotifyCacheTotal.labels(result).inc(0)
+}
 
 /**
  * Render the registry as Prometheus text exposition format.

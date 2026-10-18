@@ -5,6 +5,7 @@ import {
     getBotPresenceRotationIntervalMs,
     getBotPresenceStatus,
 } from '../../utils/presenceStatus'
+import { isCommandAvailableInGuild } from '../../config/hostedCommands'
 
 type PresenceActivity = {
     type: ActivityType
@@ -119,7 +120,10 @@ export const setPresenceActivity = (
     const activities = buildPresenceActivities({
         guildCount: client.guilds.cache.size,
         memberCount: getTotalMemberCount(client),
-        commandCount: client.commands.size,
+        // What any server sees in its picker, not the full loaded set (#2736).
+        commandCount: [...client.commands.keys()].filter((name) =>
+            isCommandAvailableInGuild(name, null),
+        ).length,
         activeMusicSessions: getActiveMusicSessions(client),
     })
 

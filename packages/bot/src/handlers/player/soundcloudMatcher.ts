@@ -3,16 +3,20 @@ import type { Readable } from 'stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { withTimeout } from './withTimeout'
 import { hasVersionMarker } from '../../utils/music/searchQueryCleaner'
+import { streamViaYtDlp } from './ytdlpProcess'
 
 type SoundCloudSearchResult = {
     name: string
     url: string
+    permalink?: string
     durationInSec?: number
 }
 
 const TITLE_MATCH_THRESHOLD = 0.75
 const CLIENT_ID_TIMEOUT_MS = 10_000
 const REFRESH_COOLDOWN_MS = 60_000
+export const SOUNDCLOUD_SEARCH_TIMEOUT_MS = 8_000
+export const SOUNDCLOUD_STREAM_TIMEOUT_MS = 10_000
 
 /**
  * play-dl authenticates SoundCloud with an anonymous client id scraped from
@@ -56,6 +60,12 @@ export function __resetSoundCloudRefreshStateForTests(): void {
     lastRefreshAt = 0
 }
 
+function isTimeoutError(error: unknown): boolean {
+    return (
+        error instanceof Error && /timed out after \d+ms$/.test(error.message)
+    )
+}
+
 /**
  * Runs a play-dl network call; on failure refreshes the client id once and
  * retries. Only the play-dl calls are wrapped: the "no results" and "no
@@ -78,6 +88,13 @@ async function withClientIdRetry<T>(
         // a genuinely stale token is fixed by the first refresh, and everything
         // failing after it rethrows untouched.
         if (Date.now() - lastRefreshAt < REFRESH_COOLDOWN_MS) throw error
+
+        // A timeout is a slow network, not a stale token (a stale token is
+        // rejected fast). Refreshing and retrying would stack another 10s
+        // scrape and a second timed attempt on top of the budget the caller
+        // already spent, so surface it as is. withTimeout is local, so its
+        // message format is ours to rely on.
+        if (isTimeoutError(error)) throw error
 
         warnLog({
             message: `SoundCloud: ${label} failed, refreshing client ID and retrying once`,
@@ -103,10 +120,14 @@ export async function streamViaSoundCloud(
 
     const results = await withClientIdRetry(
         () =>
-            playdl.search(query, {
-                source: { soundcloud: 'tracks' },
-                limit: 5,
-            }),
+            withTimeout(
+                playdl.search(query, {
+                    source: { soundcloud: 'tracks' },
+                    limit: 5,
+                }),
+                SOUNDCLOUD_SEARCH_TIMEOUT_MS,
+                'play-dl search',
+            ),
         'search',
     )
 
@@ -116,15 +137,48 @@ export async function streamViaSoundCloud(
 
     const match = findMatchingSoundCloudResult(query, trackDuration, results)
     if (!match) {
+        warnLog({
+            message: 'SoundCloud: no validated match',
+            data: {
+                query,
+                trackDuration,
+                rejected: describeRejectedCandidates(
+                    query,
+                    trackDuration,
+                    results,
+                ),
+            },
+        })
         throw new Error(
             `SoundCloud: no validated match for "${query}" (title/duration mismatch)`,
         )
     }
 
+    // SoundCloud now lists an adaptive `abr_sq` HLS transcoding last, and
+    // play-dl 1.9.7 always streams the last HLS format, whose URL answers
+    // 404. The AAC formats before it are fMP4 segments, and play-dl drops
+    // their init segment (EXT-X-MAP), so ffmpeg cannot decode those either.
+    // yt-dlp handles both. play-dl stays as the fallback for mp3 tracks.
+    if (match.permalink) {
+        try {
+            return await streamViaYtDlp(match.permalink)
+        } catch (err) {
+            warnLog({
+                message: 'SoundCloud: yt-dlp stream failed, trying play-dl',
+                data: { track: match.name, error: (err as Error).message },
+            })
+        }
+    }
+
     let scStream: Awaited<ReturnType<typeof playdl.stream>>
     try {
         scStream = await withClientIdRetry(
-            () => playdl.stream(match.url),
+            () =>
+                withTimeout(
+                    playdl.stream(match.url),
+                    SOUNDCLOUD_STREAM_TIMEOUT_MS,
+                    'play-dl stream',
+                ),
             'stream',
         )
     } catch (err) {
@@ -213,8 +267,35 @@ export function findMatchingSoundCloudResult(
     }, pool[0]).result
 }
 
+function describeRejectedCandidates(
+    query: string,
+    trackDuration: string | undefined,
+    results: readonly SoundCloudSearchResult[],
+): { name: string; titleScore: number; durationDeltaSec: number | null }[] {
+    const tokens = normalizeForMatch(query).split(/ +/).filter(Boolean)
+    const trackSec = parseDurationString(trackDuration)
+    return results.slice(0, 5).map((result) => {
+        const resultNorm = normalizeForMatch(result.name)
+        const matched = tokens.filter((token) =>
+            resultNorm.includes(token),
+        ).length
+        return {
+            name: result.name,
+            titleScore: tokens.length
+                ? Number((matched / tokens.length).toFixed(2))
+                : 0,
+            durationDeltaSec:
+                trackSec !== null && result.durationInSec
+                    ? Math.abs(result.durationInSec - trackSec)
+                    : null,
+        }
+    })
+}
+
 function normalizeForMatch(value: string): string {
     return value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .replace(/[^a-z0-9 ]/g, '')
         .replace(/ {2,}/g, ' ') // NOSONAR: S5852 — bounded input, no catastrophic backtracking risk

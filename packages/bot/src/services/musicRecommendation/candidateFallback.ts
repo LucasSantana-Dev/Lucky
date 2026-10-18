@@ -35,6 +35,8 @@ export interface CandidateContext {
     recentArtists: Set<string>
     likedTrackKeys: Map<string, number>
     dislikedTrackKeys: Map<string, number>
+    likedArtistWeights?: Map<string, number>
+    dislikedArtistWeights?: Map<string, number>
     currentTrack: Track
     excludedUrls: Set<string>
     excludedKeys: Set<string>
@@ -74,6 +76,8 @@ function addGenreTrackCandidate(
         currentTrack: ctx.currentTrack,
         recentArtists: ctx.recentArtists,
         likedWeights: ctx.likedTrackKeys,
+        likedArtistWeights: ctx.likedArtistWeights,
+        dislikedArtistWeights: ctx.dislikedArtistWeights,
         preferredArtistKeys: ctx.preferredArtistKeys,
         blockedArtistKeys: ctx.blockedArtistKeys,
         autoplayMode: ctx.autoplayMode,
@@ -162,6 +166,8 @@ export async function collectBroadFallbackCandidates(
                     currentTrack: ctx.currentTrack,
                     recentArtists: ctx.recentArtists,
                     likedWeights: ctx.likedWeights,
+                    likedArtistWeights: ctx.likedArtistWeights,
+                    dislikedArtistWeights: ctx.dislikedArtistWeights,
                     preferredArtistKeys: ctx.preferredArtistKeys,
                     blockedArtistKeys: ctx.blockedArtistKeys,
                     autoplayMode: ctx.autoplayMode,

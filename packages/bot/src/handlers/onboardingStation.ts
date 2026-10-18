@@ -47,6 +47,7 @@ const STATION_GENRES: readonly StationGenre[] = [
     { id: 'gaming', query: 'gaming music mix', emoji: '🎮' },
     { id: 'pop', query: 'pop hits mix', emoji: '🎤' },
     { id: 'brMix', query: 'as mais tocadas no brasil hits mix', emoji: '🇧🇷' },
+    { id: 'play', query: 'popular music hits mix', emoji: '▶️' },
 ]
 
 type GuildLike = {
@@ -59,13 +60,10 @@ export async function createOnboardingStationRow(
 ): Promise<ActionRowBuilder<ButtonBuilder>> {
     const t = await translatorForInteraction({ guildId: guild.id, guild })
     return new ActionRowBuilder<ButtonBuilder>().addComponents(
-        ...STATION_GENRES.map((genre) =>
-            new ButtonBuilder()
-                .setCustomId(`${ONBOARDING_STATION_BUTTON_PREFIX}${genre.id}`)
-                .setLabel(t(`music.station.genres.${genre.id}`))
-                .setEmoji(genre.emoji)
-                .setStyle(ButtonStyle.Secondary),
-        ),
+        new ButtonBuilder()
+            .setCustomId(`${ONBOARDING_STATION_BUTTON_PREFIX}play`)
+            .setLabel(t('music.onboarding.playButton'))
+            .setStyle(ButtonStyle.Primary),
     )
 }
 
@@ -212,6 +210,14 @@ export async function handleOnboardingStationButton(
             track: result.track,
             hadQueueBeforePlay,
             isPlaylist: false,
+            // A station click is a first play too (#2738).
+            recapTarget:
+                interaction.guild && interaction.channelId
+                    ? {
+                          guild: interaction.guild,
+                          channelId: interaction.channelId,
+                      }
+                    : null,
         }).catch((backgroundOpsError: unknown) => {
             warnLog({
                 message: 'Onboarding station post-play background ops failed',

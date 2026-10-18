@@ -47,12 +47,18 @@
             "youtubeDisabledDescription": "YouTube isn't available on this bot right now. Try a Spotify or SoundCloud link, or just search by song and artist name."
         },
         "nowPlaying": "Now playing {{title}}, don't stop",
+        "onboarding": {
+            "title": "🎵 Thanks for adding Lucky!",
+            "description": "`/play <song or url>` — start music in your voice channel\n\nAfter the first song plays (from `/play` or the button below), Lucky posts a Sunday recap of the server's most-played tracks and artists in that text channel, if it can post there. A server admin can turn it off with the button on the recap or `/recap off`.",
+            "playButton": "▶ Start Listening"
+        },
         "station": {
             "genres": {
                 "lofi": "Lo-fi",
                 "gaming": "Gaming",
                 "pop": "Pop",
-                "brMix": "Brazilian Mix"
+                "brMix": "Brazilian Mix",
+                "play": "Popular Mix"
             },
             "notInVoiceTitle": "Join a voice channel",
             "notInVoiceDescription": "Join a voice channel first, then click a station again.",
@@ -89,6 +95,8 @@
             "topArtistsName": "Top artists",
             "enabled": "📅 The weekly recap will post in <#{{channel}}> every Sunday at 18:00 UTC.",
             "disabled": "🔕 Weekly recap turned off.",
+            "offButton": "Turn off weekly recap",
+            "offHint": "Admins can turn this off with the button below or /recap off",
             "alreadyOff": "The weekly recap is already off.",
             "notTextChannel": "❌ Pick a text channel for the recap.",
             "missingPermissions": "❌ I can't post in <#{{channel}}>. I need View Channel, Send Messages and Embed Links there.",

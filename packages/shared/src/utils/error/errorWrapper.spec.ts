@@ -17,7 +17,6 @@ import {
     logError,
 } from './errorWrapper'
 import { MusicError } from '../../types/errors/music'
-import { VALIDATION_ERROR_CODES } from '../../types/errors/validation'
 import { errorLog } from '../general/log'
 import { captureException } from '../monitoring'
 

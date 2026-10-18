@@ -14,6 +14,32 @@ export interface LyricsError {
 }
 
 /**
+ * Remove balanced (...) and [...] groups, nested ones included, in one linear
+ * pass (a regex here was either ReDoS-prone or missed nesting). An unclosed
+ * opener keeps the rest of the text as-is. Non-strings (e.g. a repeated query
+ * param parsed as an array) yield '' instead of being iterated.
+ */
+export function stripBracketedAnnotations(text: string): string {
+    if (typeof text !== 'string') return ''
+    let out = ''
+    let depth = 0
+    let groupStart = 0
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i]
+        if (ch === '(' || ch === '[') {
+            if (depth === 0) groupStart = i
+            depth++
+        } else if ((ch === ')' || ch === ']') && depth > 0) {
+            depth--
+            if (depth === 0) out += ' '
+        } else if (depth === 0) {
+            out += ch
+        }
+    }
+    return depth > 0 ? out + text.slice(groupStart) : out
+}
+
+/**
  * Service for fetching song lyrics from multiple sources
  * Uses free APIs without authentication requirements
  */
@@ -110,17 +136,15 @@ export class LyricsService {
      * Clean search query by removing common suffixes and special characters
      */
     private cleanSearchQuery(query: string): string {
+        const stripped = stripBracketedAnnotations(query)
+        // Cut at the first common suffix (exec + slice, since `.*$` is ReDoS-prone)
+        const suffix =
+            /-\s*(?:official|audio|video|lyric|music|mv|hd|4k)/i.exec(stripped)
         return (
-            query
-                // Remove common suffixes
-                .replace(/\s*\([^)]*\)\s*/g, '') // Remove parentheses content
-                .replace(/\s*\[[^\]]*\]\s*/g, '') // Remove brackets content
-                .replace(
-                    /\s*-\s*(official|audio|video|lyric|music|mv|hd|4k).*$/i,
-                    '',
-                )
+            (suffix ? stripped.slice(0, suffix.index) : stripped)
                 // Remove special characters but keep spaces and hyphens
                 .replace(/[^\w\s-]/g, '')
+                .replace(/\s+/g, ' ')
                 .trim()
         )
     }

@@ -11,6 +11,10 @@ import {
 } from '@lucky/shared/utils'
 import { withTimeout } from '@lucky/shared/utils/async'
 import { TtlCache } from '@lucky/shared/utils/cache'
+import {
+    artistKeyVariants,
+    staleLegacyKeys,
+} from '@lucky/shared/utils/artistKey'
 import { spotifyLinkService } from '@lucky/shared/services'
 import { POPULAR_ARTISTS } from '../constants/popularArtists'
 import { AppError } from '../errors/AppError'
@@ -60,6 +64,12 @@ export class ArtistSuggestionService {
     // ADRs (single-instance; revisit if Lucky scales out).
     private readonly userTopArtistsCache: TtlCache<SpotifyArtist[]>
     private readonly fallbackCache: TtlCache<SpotifyArtist[]>
+    // Last good popular list, kept past the TTL. Once the cache expires the
+    // refetch (~20 sequential Spotify searches) runs longer than the tier
+    // deadline, so the request served nothing and got a 503 (LUCKY-7C).
+    // Serve this copy and refresh in the background instead.
+    private staleFallback: SpotifyArtist[] = []
+    private fallbackRefresh: Promise<SpotifyArtist[]> | null = null
 
     constructor(config: ArtistSuggestionServiceConfig = {}) {
         const merged = { ...DEFAULT_CONFIG, ...config }
@@ -221,7 +231,7 @@ export class ArtistSuggestionService {
     /**
      * Fetch user's top artists from Spotify API across multiple time ranges.
      */
-    // eslint-disable-next-line complexity
+
     private async fetchSpotifyTopArtists(
         accessToken: string,
     ): Promise<SpotifyArtist[]> {
@@ -313,13 +323,20 @@ export class ArtistSuggestionService {
         suggestions: Map<string, ArtistSuggestion>,
     ): Promise<void> {
         try {
-            let fallback = this.fallbackCache.get(this.fallbackCacheKey) ?? []
+            let fallback = this.fallbackCache.get(this.fallbackCacheKey)
 
-            if (fallback.length === 0) {
-                fallback = await this.fetchPopularArtists()
-                if (fallback.length > 0) {
-                    this.fallbackCache.set(this.fallbackCacheKey, fallback)
-                }
+            if (!fallback && this.staleFallback.length > 0) {
+                fallback = this.staleFallback
+                this.refreshFallback().catch((error) => {
+                    errorLog({
+                        message: 'Failed to refresh popular artists fallback',
+                        error,
+                    })
+                })
+            }
+
+            if (!fallback) {
+                fallback = await this.refreshFallback()
             }
 
             for (const artist of fallback) {
@@ -334,6 +351,44 @@ export class ArtistSuggestionService {
                 error,
             })
         }
+    }
+
+    /**
+     * Refetch the popular list and store it. Concurrent callers share one
+     * in-flight fetch, so an expired cache costs one round of searches.
+     */
+    private refreshFallback(): Promise<SpotifyArtist[]> {
+        if (this.fallbackRefresh) return this.fallbackRefresh
+
+        // An empty or failed sweep re-arms the last good list for another TTL,
+        // so a Spotify outage costs one sweep per TTL, not one per request.
+        // A refresh dropped by resetCachesForTests writes nothing.
+        const store = (artists: SpotifyArtist[]): void => {
+            if (this.fallbackRefresh !== refresh) return
+            const list = artists.length > 0 ? artists : this.staleFallback
+            if (list.length > 0) {
+                this.fallbackCache.set(this.fallbackCacheKey, list)
+                this.staleFallback = list
+            }
+        }
+        const refresh: Promise<SpotifyArtist[]> = this.fetchPopularArtists()
+            .then(
+                (artists) => {
+                    store(artists)
+                    return artists
+                },
+                (error: unknown) => {
+                    store([])
+                    throw error
+                },
+            )
+            .finally(() => {
+                if (this.fallbackRefresh === refresh) {
+                    this.fallbackRefresh = null
+                }
+            })
+        this.fallbackRefresh = refresh
+        return refresh
     }
 
     /**
@@ -393,12 +448,7 @@ export class ArtistSuggestionService {
             // Populate the in-memory fallback cache at startup so the first
             // Discover request hits a warm cache instead of the ~20-call
             // Spotify search (which would otherwise blow the per-tier deadline).
-            const artists = await this.fetchPopularArtists()
-            if (artists.length === 0) {
-                return
-            }
-
-            this.fallbackCache.set(this.fallbackCacheKey, artists)
+            await this.refreshFallback()
         } catch (error) {
             errorLog({ message: 'Failed to prewarm suggestions cache', error })
         }
@@ -408,12 +458,44 @@ export class ArtistSuggestionService {
     resetCachesForTests(): void {
         this.userTopArtistsCache.clear()
         this.fallbackCache.clear()
+        this.staleFallback = []
+        this.fallbackRefresh = null
     }
 
     // Route handlers — handle validation and return responses or throw errors
 
-    private normalizeArtistKey(name: string): string {
-        return name.toLowerCase().replace(/[^a-z0-9]/g, '')
+    // Stored key first, then legacy (pre-Unicode) candidates from both the
+    // sent key and the artist name. Empty when the name has no letters.
+    private keyVariants(artistKey: string, artistName: string): string[] {
+        const variants = artistKeyVariants(artistKey || artistName)
+        if (variants.length === 0) return []
+        return [...new Set([...variants, ...artistKeyVariants(artistName)])]
+    }
+
+    // One read for every legacy candidate in the request. A legacy row is
+    // replaced only when its own artistName normalizes to the new key, so an
+    // unrelated artist whose key equals the ASCII form is left alone.
+    private async legacyCleanup(
+        db: ReturnType<typeof getPrismaClient>,
+        discordUserId: string,
+        guildId: string,
+        variantsList: string[][],
+    ) {
+        const legacyKeys = variantsList.flatMap((v) => v.slice(1))
+        if (legacyKeys.length === 0) return []
+        const rows = await db.userArtistPreference.findMany({
+            where: { discordUserId, guildId, artistKey: { in: legacyKeys } },
+            select: { artistKey: true, artistName: true },
+        })
+        const stale = variantsList.flatMap(([key]) =>
+            staleLegacyKeys(rows, key ?? ''),
+        )
+        if (stale.length === 0) return []
+        return [
+            db.userArtistPreference.deleteMany({
+                where: { discordUserId, guildId, artistKey: { in: stale } },
+            }),
+        ]
     }
 
     async handleGetSuggestions(
@@ -526,11 +608,18 @@ export class ArtistSuggestionService {
 
         const { guildId, artistName, spotifyId, imageUrl, preference } =
             parsed.data
-        const artistKey = this.normalizeArtistKey(
-            parsed.data.artistKey || artistName,
-        )
+        const variants = this.keyVariants(parsed.data.artistKey, artistName)
+        const [artistKey] = variants
+        if (!artistKey) {
+            throw AppError.badRequest('Artist key is empty after normalization')
+        }
         const db = getPrismaClient()
-        return db.userArtistPreference.upsert({
+        // Cleanup and upsert commit together, so a failed upsert keeps the
+        // legacy row.
+        const cleanup = await this.legacyCleanup(db, discordUserId, guildId, [
+            variants,
+        ])
+        const upsert = db.userArtistPreference.upsert({
             where: {
                 discordUserId_guildId_artistKey: {
                     discordUserId,
@@ -549,6 +638,8 @@ export class ArtistSuggestionService {
                 preference,
             },
         })
+        const results = await db.$transaction([...cleanup, upsert])
+        return results[results.length - 1]
     }
 
     async handleBatchSavePreferences(
@@ -578,13 +669,21 @@ export class ArtistSuggestionService {
         }
 
         const { guildId, items } = parsed.data
+        const resolved = items
+            .map((item) => ({
+                item,
+                variants: this.keyVariants(item.artistKey, item.artistName),
+            }))
+            .filter(({ variants }) => variants.length > 0)
         const db = getPrismaClient()
-        const results: unknown[] = []
-        for (const item of items) {
-            const artistKey = this.normalizeArtistKey(
-                item.artistKey || item.artistName,
-            )
-            const pref = await db.userArtistPreference.upsert({
+        const cleanup = await this.legacyCleanup(
+            db,
+            discordUserId,
+            guildId,
+            resolved.map(({ variants }) => variants),
+        )
+        const upserts = resolved.map(({ item, variants: [artistKey = ''] }) =>
+            db.userArtistPreference.upsert({
                 where: {
                     discordUserId_guildId_artistKey: {
                         discordUserId,
@@ -607,10 +706,10 @@ export class ArtistSuggestionService {
                     imageUrl: item.imageUrl,
                     preference: item.preference,
                 },
-            })
-            results.push(pref)
-        }
-        return results
+            }),
+        )
+        const results = await db.$transaction([...cleanup, ...upserts])
+        return results.slice(cleanup.length)
     }
 
     async handleDeletePreferredArtist(

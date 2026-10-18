@@ -15,6 +15,7 @@ vi.mock('@/services/api', () => ({
 }))
 
 import { api } from '@/services/api'
+import { ApiError } from '@/services/ApiError'
 
 const mockGuild = (overrides?: Partial<Guild>): Guild => ({
     id: '123456789012345678',
@@ -127,6 +128,63 @@ describe('guildStore', () => {
             expect(useGuildStore.getState().guilds).toEqual([])
             expect(useGuildStore.getState().isLoading).toBe(false)
             expect(useGuildStore.getState().hasFetchedGuilds).toBe(true)
+        })
+
+        test.each([
+            [401, 'auth'],
+            [403, 'forbidden'],
+            [0, 'network'],
+            [502, 'upstream'],
+        ])('should classify ApiError %i as %s', async (status, kind) => {
+            vi.mocked(api.guilds.list).mockRejectedValue(
+                new ApiError(status, 'failed'),
+            )
+
+            await useGuildStore.getState().fetchGuilds()
+
+            expect(useGuildStore.getState().guildLoadError).toEqual({
+                kind,
+                message: 'failed',
+                status,
+            })
+        })
+
+        test('should keep the newer in-flight fetch when an older one settles', async () => {
+            let resolveFirst!: (value: never) => void
+            let resolveSecond!: (value: never) => void
+            vi.mocked(api.guilds.list)
+                .mockImplementationOnce(
+                    () => new Promise((resolve) => (resolveFirst = resolve)),
+                )
+                .mockImplementationOnce(
+                    () => new Promise((resolve) => (resolveSecond = resolve)),
+                )
+            const newerGuilds = [mockGuild({ id: '2', botAdded: false })]
+
+            const first = useGuildStore.getState().fetchGuilds()
+            const second = useGuildStore.getState().fetchGuilds(true)
+            resolveFirst({ data: { guilds: [] } } as never)
+            await first
+
+            // The second fetch is still loading, so a plain call must join it.
+            useGuildStore.setState({ isLoading: true })
+            let thirdSettled = false
+            const third = useGuildStore
+                .getState()
+                .fetchGuilds()
+                .then(() => {
+                    thirdSettled = true
+                })
+            await Promise.resolve()
+            expect(thirdSettled).toBe(false)
+
+            resolveSecond({ data: { guilds: newerGuilds } } as never)
+            await Promise.all([second, third])
+
+            expect(thirdSettled).toBe(true)
+            expect(api.guilds.list).toHaveBeenCalledTimes(2)
+            expect(useGuildStore.getState().guilds).toEqual(newerGuilds)
+            expect(useGuildStore.getState().isLoading).toBe(false)
         })
 
         test('should re-sync selected guild by selectedGuildId after refresh', async () => {

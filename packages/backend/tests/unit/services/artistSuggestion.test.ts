@@ -45,10 +45,14 @@ describe('ArtistSuggestionService', () => {
         jest.clearAllMocks()
 
         mockPrisma = {
+            $transaction: jest.fn(async (ops: Promise<unknown>[]) =>
+                Promise.all(ops),
+            ),
             userArtistPreference: {
                 findMany: jest.fn(),
                 upsert: jest.fn(),
                 delete: jest.fn(),
+                deleteMany: jest.fn(),
             },
         }
         ;(getPrismaClient as jest.Mock).mockReturnValue(mockPrisma)
@@ -440,7 +444,75 @@ describe('ArtistSuggestionService', () => {
             })
 
             expect(mockPrisma.userArtistPreference.upsert).toHaveBeenCalled()
+            expect(
+                mockPrisma.userArtistPreference.deleteMany,
+            ).not.toHaveBeenCalled()
         })
+
+        test('keeps accents in the key and drops the legacy ASCII row', async () => {
+            mockPrisma.userArtistPreference.findMany.mockResolvedValueOnce([
+                { artistKey: 'bjrk', artistName: 'Björk' },
+                { artistKey: 'bjrk2', artistName: 'Someone Else' },
+            ])
+
+            await service.handleSavePreferredArtist('user_123', {
+                guildId: 'guild_1',
+                artistKey: 'björk',
+                artistName: 'Björk',
+                preference: 'block',
+            })
+
+            expect(
+                mockPrisma.userArtistPreference.deleteMany,
+            ).toHaveBeenCalledWith({
+                where: {
+                    discordUserId: 'user_123',
+                    guildId: 'guild_1',
+                    artistKey: { in: ['bjrk'] },
+                },
+            })
+            expect(
+                mockPrisma.userArtistPreference.upsert.mock.calls[0][0].where
+                    .discordUserId_guildId_artistKey.artistKey,
+            ).toBe('björk')
+            expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+        })
+
+        test('keeps a different artist stored under the ASCII key', async () => {
+            mockPrisma.userArtistPreference.findMany.mockResolvedValueOnce([
+                { artistKey: 'bjrk', artistName: 'Bjrk' },
+            ])
+
+            await service.handleSavePreferredArtist('user_123', {
+                guildId: 'guild_1',
+                artistKey: 'björk',
+                artistName: 'Björk',
+            })
+
+            expect(
+                mockPrisma.userArtistPreference.deleteMany,
+            ).not.toHaveBeenCalled()
+            expect(mockPrisma.userArtistPreference.upsert).toHaveBeenCalled()
+        })
+
+        test.each(['!!!', '\u0301\u0308'])(
+            'should throw 400 when the name %j has no letters or digits',
+            async (name) => {
+                const error = await service
+                    .handleSavePreferredArtist('user_123', {
+                        guildId: 'guild_1',
+                        artistKey: name,
+                        artistName: name,
+                    })
+                    .catch((e) => e)
+
+                expect(error).toBeInstanceOf(AppError)
+                expect(error.statusCode).toBe(400)
+                expect(
+                    mockPrisma.userArtistPreference.upsert,
+                ).not.toHaveBeenCalled()
+            },
+        )
     })
 
     describe('handleBatchSavePreferences', () => {
@@ -484,6 +556,58 @@ describe('ArtistSuggestionService', () => {
             })
 
             expect(mockPrisma.userArtistPreference.upsert).toHaveBeenCalled()
+        })
+    })
+
+    describe('handleBatchSavePreferences legacy keys', () => {
+        test('replaces legacy rows in one transaction and skips empty keys', async () => {
+            mockPrisma.userArtistPreference.findMany.mockResolvedValueOnce([
+                { artistKey: 'bjrk', artistName: 'Björk' },
+            ])
+            mockPrisma.userArtistPreference.deleteMany.mockResolvedValue({
+                count: 1,
+            })
+            mockPrisma.userArtistPreference.upsert.mockResolvedValue({
+                artistKey: 'björk',
+            })
+
+            const results = await service.handleBatchSavePreferences(
+                'user_123',
+                {
+                    guildId: 'guild_1',
+                    items: [
+                        {
+                            artistId: 'a1',
+                            artistKey: 'björk',
+                            artistName: 'Björk',
+                            imageUrl: null,
+                            preference: 'block',
+                        },
+                        {
+                            artistId: 'a2',
+                            artistKey: '!!!',
+                            artistName: '!!!',
+                            imageUrl: null,
+                            preference: 'prefer',
+                        },
+                    ],
+                },
+            )
+
+            expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1)
+            expect(
+                mockPrisma.userArtistPreference.deleteMany,
+            ).toHaveBeenCalledWith({
+                where: {
+                    discordUserId: 'user_123',
+                    guildId: 'guild_1',
+                    artistKey: { in: ['bjrk'] },
+                },
+            })
+            expect(
+                mockPrisma.userArtistPreference.upsert,
+            ).toHaveBeenCalledTimes(1)
+            expect(results).toEqual([{ artistKey: 'björk' }])
         })
     })
 
@@ -572,6 +696,99 @@ describe('ArtistSuggestionService', () => {
     })
 
     describe('cache behavior', () => {
+        test('serves the expired popular list while it refreshes in the background (LUCKY-7C)', async () => {
+            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            ;(getSpotifyClientToken as jest.Mock).mockResolvedValue('token_123')
+            mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
+            ;(
+                spotifyLinkService.getValidAccessToken as jest.Mock
+            ).mockResolvedValue(null)
+
+            const { searchSpotifyArtists } = await import('@lucky/shared/utils')
+            const search = searchSpotifyArtists as jest.Mock
+            search.mockResolvedValue([mockSpotifyArtist])
+            await service.prewarmCache()
+
+            const fresh = { ...mockSpotifyArtist, id: 'artist_fresh' }
+            let releaseRefresh: () => void = () => {}
+            const refreshGate = new Promise<void>((resolve) => {
+                releaseRefresh = resolve
+            })
+            search.mockImplementation(async () => {
+                await refreshGate
+                return [fresh]
+            })
+
+            const realNow = Date.now()
+            const nowSpy = jest
+                .spyOn(Date, 'now')
+                .mockReturnValue(realNow + 61_000)
+
+            try {
+                // Cache expired and the refetch is still pending: the old
+                // list comes back right away instead of an empty 503.
+                const stale = await service.getSuggestions('user_123')
+                expect(stale).toEqual([mockSpotifyArtist])
+
+                // A second request while refreshing shares the same fetch.
+                const callsDuringRefresh = search.mock.calls.length
+                await service.getSuggestions('user_123')
+                expect(search.mock.calls.length).toBe(callsDuringRefresh)
+
+                releaseRefresh()
+                await new Promise((resolve) => setImmediate(resolve))
+
+                const next = await service.getSuggestions('user_123')
+                expect(next).toContainEqual(
+                    expect.objectContaining({ id: 'artist_fresh' }),
+                )
+                expect(next).not.toContainEqual(
+                    expect.objectContaining({ id: 'artist_1' }),
+                )
+            } finally {
+                nowSpy.mockRestore()
+                // clearAllMocks keeps implementations; do not leak this one.
+                search.mockReset()
+            }
+        })
+
+        test('an empty refresh keeps serving the old list without sweeping again per request', async () => {
+            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            ;(getSpotifyClientToken as jest.Mock).mockResolvedValue('token_123')
+            mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
+            ;(
+                spotifyLinkService.getValidAccessToken as jest.Mock
+            ).mockResolvedValue(null)
+
+            const { searchSpotifyArtists } = await import('@lucky/shared/utils')
+            const search = searchSpotifyArtists as jest.Mock
+            search.mockResolvedValue([mockSpotifyArtist])
+            await service.prewarmCache()
+
+            const nowSpy = jest
+                .spyOn(Date, 'now')
+                .mockReturnValue(Date.now() + 61_000)
+            try {
+                // Spotify returns nothing: the sweep comes back empty.
+                search.mockResolvedValue([])
+                expect(await service.getSuggestions('user_123')).toEqual([
+                    mockSpotifyArtist,
+                ])
+                await new Promise((resolve) => setImmediate(resolve))
+                const callsAfterEmpty = search.mock.calls.length
+
+                // The old list was re-armed for another TTL, so the next
+                // request is served from cache with no new sweep.
+                expect(await service.getSuggestions('user_123')).toEqual([
+                    mockSpotifyArtist,
+                ])
+                expect(search.mock.calls.length).toBe(callsAfterEmpty)
+            } finally {
+                nowSpy.mockRestore()
+                search.mockReset()
+            }
+        })
+
         test('caches user top artists in-memory and skips refetch on repeat calls', async () => {
             ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
             mockPrisma.userArtistPreference.findMany.mockResolvedValue([])

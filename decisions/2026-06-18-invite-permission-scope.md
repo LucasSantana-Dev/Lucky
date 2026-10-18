@@ -3,6 +3,9 @@
 - Status: accepted-with-revisions (sequenced — #2 graceful checks ship BEFORE #1 the invite integer)
 - Date: 2026-06-18
 - Method: /research-and-decide (repo evidence → decision-critic Opus artifact-only → plan → ADR)
+- Amended by: `2026-10-18-music-first-business-review-amendments.md` (amendment 1, #2736): the
+  invite is music-only, `3197952` (View Channels, Send Messages, Embed Links, Attach Files,
+  Connect, Speak); Manage Messages and View Audit Log are no longer requested up front.
 
 ## Context
 

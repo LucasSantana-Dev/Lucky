@@ -8,12 +8,16 @@ const mockGetFreeClientID = jest.fn()
 const mockSetToken = jest.fn()
 const mockInfoLog = jest.fn()
 const mockWarnLog = jest.fn()
+const mockStreamViaYtDlp = jest.fn()
 
 jest.mock('play-dl', () => ({
     search: (...args: unknown[]) => mockSearch(...args),
     stream: (...args: unknown[]) => mockStream(...args),
     getFreeClientID: (...args: unknown[]) => mockGetFreeClientID(...args),
     setToken: (...args: unknown[]) => mockSetToken(...args),
+}))
+jest.mock('./ytdlpProcess', () => ({
+    streamViaYtDlp: (...args: unknown[]) => mockStreamViaYtDlp(...args),
 }))
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => mockInfoLog(...args),
@@ -146,6 +150,35 @@ describe('findMatchingSoundCloudResult – title matching', () => {
 // ---------------------------------------------------------------------------
 // findMatchingSoundCloudResult — duration matching
 // ---------------------------------------------------------------------------
+
+describe('findMatchingSoundCloudResult – accent folding', () => {
+    it.each([
+        ['Mirándote', 'Mirandote'],
+        ['Mirandote', 'Mirándote'],
+        ['Bésame', 'Besame'],
+        ['NO BATIDÃO', 'No Batidao'],
+        ['Cuéntame', 'CUENTAME'],
+    ])('matches query %s against result %s', (query, name) => {
+        const results = [makeResult(name)]
+        expect(findMatchingSoundCloudResult(query, undefined, results)).toBe(
+            results[0],
+        )
+    })
+
+    it('still rejects a clearly different title', () => {
+        const results = [makeResult('Completamente Diferente')]
+        expect(
+            findMatchingSoundCloudResult('Mirándote', undefined, results),
+        ).toBeUndefined()
+    })
+
+    it('still rejects a match more than 30 seconds off', () => {
+        const results = [makeResult('Mirandote', 400)]
+        expect(
+            findMatchingSoundCloudResult('Mirándote', '3:30', results),
+        ).toBeUndefined()
+    })
+})
 
 describe('findMatchingSoundCloudResult – duration matching', () => {
     it('accepts match within 30 seconds of track duration', () => {
@@ -339,6 +372,27 @@ describe('streamViaSoundCloud', () => {
         )
     })
 
+    it('logs rejected candidates when nothing validates', async () => {
+        mockSearch.mockResolvedValue([makeResult('Completely Different', 300)])
+        await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
+            'SoundCloud: no validated match for "song name" (title/duration mismatch)',
+        )
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'SoundCloud: no validated match',
+                data: expect.objectContaining({
+                    rejected: [
+                        {
+                            name: 'Completely Different',
+                            titleScore: 0,
+                            durationDeltaSec: 90,
+                        },
+                    ],
+                }),
+            }),
+        )
+    })
+
     it('returns the stream for a matching result', async () => {
         mockSearch.mockResolvedValue([makeResult('Song Name By Artist', 210)])
         const result = await streamViaSoundCloud('song name', '3:30')
@@ -350,6 +404,51 @@ describe('streamViaSoundCloud', () => {
         mockStream.mockRejectedValue(new Error('401 Unauthorized'))
         await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
             'SoundCloud: stream creation failed for "Song Name" — 401 Unauthorized',
+        )
+    })
+
+    it('streams the permalink via yt-dlp and skips play-dl', async () => {
+        const ytdlpReadable = new PassThrough()
+        mockStreamViaYtDlp.mockResolvedValue(ytdlpReadable)
+        mockSearch.mockResolvedValue([
+            {
+                ...makeResult('Song Name', 210),
+                permalink: 'https://soundcloud.com/artist/song-name',
+            },
+        ])
+
+        const result = await streamViaSoundCloud('song name', '3:30')
+
+        expect(result).toBe(ytdlpReadable)
+        expect(mockStreamViaYtDlp).toHaveBeenCalledWith(
+            'https://soundcloud.com/artist/song-name',
+        )
+        expect(mockStream).not.toHaveBeenCalled()
+    })
+
+    it('falls back to play-dl when yt-dlp fails', async () => {
+        mockStreamViaYtDlp.mockRejectedValue(
+            new Error('yt-dlp exited with code 1'),
+        )
+        mockSearch.mockResolvedValue([
+            {
+                ...makeResult('Song Name', 210),
+                permalink: 'https://soundcloud.com/artist/song-name',
+            },
+        ])
+
+        const result = await streamViaSoundCloud('song name', '3:30')
+
+        expect(result).toBe(fakeReadable)
+        expect(mockStream).toHaveBeenCalledTimes(1)
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'SoundCloud: yt-dlp stream failed, trying play-dl',
+                data: {
+                    track: 'Song Name',
+                    error: 'yt-dlp exited with code 1',
+                },
+            }),
         )
     })
 
@@ -507,5 +606,25 @@ describe('streamViaSoundCloud – client id refresh', () => {
             '401 Unauthorized',
         )
         expect(mockGetFreeClientID).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not refresh the client id when the call times out', async () => {
+        jest.useFakeTimers()
+        try {
+            mockSearch.mockReturnValue(new Promise(() => {}))
+
+            const pending = streamViaSoundCloud('song name', '3:30')
+            const assertion = expect(pending).rejects.toThrow(
+                'play-dl search timed out after 8000ms',
+            )
+            await jest.advanceTimersByTimeAsync(8_000)
+            await assertion
+
+            // Bounded by the single search budget: no scrape, no second attempt.
+            expect(mockGetFreeClientID).not.toHaveBeenCalled()
+            expect(mockSearch).toHaveBeenCalledTimes(1)
+        } finally {
+            jest.useRealTimers()
+        }
     })
 })

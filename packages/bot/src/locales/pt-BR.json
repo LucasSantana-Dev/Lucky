@@ -47,12 +47,18 @@
             "youtubeDisabledDescription": "O YouTube não está disponível neste bot no momento. Tente um link do Spotify ou SoundCloud, ou busque pelo nome da música e do artista."
         },
         "nowPlaying": "Tocando agora {{title}}, não pare",
+        "onboarding": {
+            "title": "🎵 Obrigado por adicionar o Lucky!",
+            "description": "`/play <música ou url>` — toque músicas no seu canal de voz\n\nDepois da primeira música (pelo `/play` ou pelo botão abaixo), Lucky publica nesse canal de texto um recap dominical das faixas e artistas mais tocados no servidor, se puder postar nele. Um administrador pode desligar pelo botão no recap ou com `/recap off`.",
+            "playButton": "▶ Ouvir Agora"
+        },
         "station": {
             "genres": {
                 "lofi": "Lo-fi",
                 "gaming": "Gaming",
                 "pop": "Pop",
-                "brMix": "Mix Brasileiro"
+                "brMix": "Mix Brasileiro",
+                "play": "Mix Popular"
             },
             "notInVoiceTitle": "Entre em um canal de voz",
             "notInVoiceDescription": "Entre em um canal de voz primeiro e clique na estação de novo.",
@@ -88,6 +94,8 @@
             "topArtistsName": "Artistas mais tocados",
             "enabled": "📅 O resumo semanal vai sair em <#{{channel}}> todo domingo às 18:00 UTC.",
             "disabled": "🔕 Resumo semanal desligado.",
+            "offButton": "Desligar resumo semanal",
+            "offHint": "Administradores podem desligar pelo botão abaixo ou com /recap off",
             "alreadyOff": "O resumo semanal já está desligado.",
             "notTextChannel": "❌ Escolha um canal de texto para o resumo.",
             "missingPermissions": "❌ Não consigo postar em <#{{channel}}>. Preciso de Ver canal, Enviar mensagens e Inserir links lá.",

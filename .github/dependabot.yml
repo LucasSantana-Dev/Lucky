@@ -10,9 +10,12 @@ updates:
     commit-message:
       prefix: "fix(deps)"
       prefix-development: "chore(deps-dev)"
+    # 7-day cooldown on every ecosystem: a freshly published version (the
+    # window where a hijacked release is usually caught and yanked) never
+    # reaches a PR. Security updates are not subject to cooldown.
     cooldown:
-      default-days: 3
-      semver-major-days: 7
+      default-days: 7
+      semver-major-days: 14
     groups:
       minor-patch:
         update-types:
@@ -28,13 +31,19 @@ updates:
           - "yt-dlp"
           - "youtube-dl-exec"
           - "play-dl"
+    ignore:
+      # react-hook-form 7.90.0 breaks handleSubmit in the MusicConfig tests
+      # (onSubmit is never called). Held at 7.89.0 until a fixed release.
+      - dependency-name: "react-hook-form"
+        versions:
+          - "7.90.0"
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
     cooldown:
-      default-days: 3
+      default-days: 7
     groups:
       minor-patch:
         update-types:
@@ -46,7 +55,7 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     cooldown:
-      default-days: 3
+      default-days: 7
     groups:
       minor-patch:
         update-types:
@@ -58,7 +67,7 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     cooldown:
-      default-days: 3
+      default-days: 7
     groups:
       minor-patch:
         update-types:
