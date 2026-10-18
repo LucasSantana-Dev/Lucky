@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.63.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.62.0...v2.63.0) (2026-10-18)
+
+
+### Features
+
+* **analytics:** activation funnel instrumentation ([#2854](https://github.com/LucasSantana-Dev/Lucky/issues/2854)) ([f6ffe20](https://github.com/LucasSantana-Dev/Lucky/commit/f6ffe204142e30cb54e8bc06cbff264c8a82dded))
+
+
+### Bug Fixes
+
+* **observability:** grafana-ro.sql refuses to run with empty or unset pw ([#2855](https://github.com/LucasSantana-Dev/Lucky/issues/2855)) ([30a6d77](https://github.com/LucasSantana-Dev/Lucky/commit/30a6d77c2c32f49e63b01779d105bd51d8456a36))
+* **observability:** pin Lucky dashboards to the Lucky Postgres datasource ([#2856](https://github.com/LucasSantana-Dev/Lucky/issues/2856)) ([650997a](https://github.com/LucasSantana-Dev/Lucky/commit/650997ab147280b70af96d8a0927cdd78e5757bd))
+
 ## [2.62.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.61.0...v2.62.0) (2026-10-18)
 
 
