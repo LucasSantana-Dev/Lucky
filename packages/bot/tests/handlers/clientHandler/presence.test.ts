@@ -1,4 +1,8 @@
 import { ActivityType } from 'discord.js'
+
+// presence.ts reads the hosted command filter, which logs through shared utils.
+jest.mock('@lucky/shared/utils', () => ({ warnLog: jest.fn() }))
+
 import {
     buildPresenceActivities,
     getActiveMusicSessions,
@@ -176,7 +180,7 @@ describe('bot presence', () => {
         const setPresence = jest.fn()
         const client = {
             user: { setPresence },
-            commands: { size: 10 },
+            commands: new Map(),
             guilds: {
                 cache: {
                     size: 2,
@@ -212,7 +216,7 @@ describe('bot presence', () => {
         const setPresence = jest.fn()
         const client = {
             user: { setPresence },
-            commands: { size: 3 },
+            commands: new Map(),
             guilds: {
                 cache: {
                     size: 1,
@@ -241,7 +245,7 @@ describe('bot presence', () => {
         const setPresence = jest.fn()
         const client = {
             user: { setPresence },
-            commands: { size: 3 },
+            commands: new Map(),
             guilds: {
                 cache: {
                     size: 1,
@@ -269,7 +273,7 @@ describe('bot presence', () => {
         const setPresence = jest.fn()
         const client = {
             user: { setPresence },
-            commands: { size: 10 },
+            commands: new Map(),
             guilds: {
                 cache: {
                     size: 1,
@@ -304,7 +308,7 @@ describe('bot presence', () => {
         const setPresence = jest.fn()
         const client = {
             user: { setPresence },
-            commands: { size: 10 },
+            commands: new Map(),
             guilds: {
                 cache: {
                     size: 1,
@@ -339,7 +343,7 @@ describe('bot presence', () => {
         const setPresence = jest.fn()
         const client = {
             user: { setPresence },
-            commands: { size: 10 },
+            commands: new Map(),
             guilds: {
                 cache: {
                     size: 1,
@@ -374,7 +378,7 @@ describe('bot presence', () => {
         const setPresence = jest.fn()
         const client = {
             user: { setPresence },
-            commands: { size: 10 },
+            commands: new Map(),
             guilds: {
                 cache: {
                     size: 1,
