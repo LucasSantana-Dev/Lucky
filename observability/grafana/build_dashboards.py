@@ -146,7 +146,8 @@ class Board:
         ds_vars = [
             ("ds_prometheus", "prometheus", "/^Prometheus$/"),
             ("ds_loki", "loki", ""),
-            ("ds_postgres", "grafana-postgresql-datasource", ""),
+            # Pinned by name: the homelab Grafana also has "CoJam Postgres", which sorts first.
+            ("ds_postgres", "grafana-postgresql-datasource", "/^Lucky Postgres$/"),
             ("ds_sentry", "grafana-sentry-datasource", ""),
         ]
         templating = [{"name": n, "type": "datasource", "query": q, "regex": r, "hide": 2, "refresh": 1,

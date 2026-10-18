@@ -42,7 +42,7 @@
                 "name": "ds_postgres",
                 "type": "datasource",
                 "query": "grafana-postgresql-datasource",
-                "regex": "",
+                "regex": "/^Lucky Postgres$/",
                 "hide": 2,
                 "refresh": 1,
                 "current": {},

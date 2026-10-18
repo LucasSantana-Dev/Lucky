@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.62.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.61.0...v2.62.0) (2026-10-18)
+
+
+### Features
+
+* **growth:** attribute guild adds to a landing source ([#2851](https://github.com/LucasSantana-Dev/Lucky/issues/2851)) ([9677e48](https://github.com/LucasSantana-Dev/Lucky/commit/9677e4824b7f14021ab2d454bfe353d008039d6a))
+
 ## [2.61.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.60.0...v2.61.0) (2026-10-18)
 
 
