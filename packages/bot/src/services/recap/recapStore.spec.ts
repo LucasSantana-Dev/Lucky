@@ -184,6 +184,55 @@ describe('recapStore (#2678)', () => {
             await expect(autoEnableRecap('g-1', 'c-1', NOW)).resolves.toBe(
                 false,
             )
+            // Only an undecided row is updated, and an existing row is never
+            // overwritten by the create fallback.
+            expect(prisma.guildSettings.updateMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({ recapDecidedAt: null }),
+                }),
+            )
+            expect(prisma.guildSettings.createMany).toHaveBeenCalledWith(
+                expect.objectContaining({ skipDuplicates: true }),
+            )
+            expect(prisma.guildSettings.upsert).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('an admin off marks the choice (#2738)', () => {
+        it('marks a guild that never had the recap on', async () => {
+            prisma.guildSettings.updateMany.mockResolvedValue({ count: 0 })
+
+            await expect(disableRecap('g-1', undefined, NOW)).resolves.toBe(
+                false,
+            )
+            expect(prisma.guildSettings.updateMany).toHaveBeenCalledWith({
+                where: { guildId: 'g-1', recapDecidedAt: null },
+                data: { recapDecidedAt: NOW },
+            })
+            expect(prisma.guildSettings.createMany).toHaveBeenCalledWith({
+                data: [{ guildId: 'g-1', recapDecidedAt: NOW }],
+                skipDuplicates: true,
+            })
+        })
+
+        it('keeps an earlier decision date', async () => {
+            prisma.guildSettings.updateMany
+                .mockResolvedValueOnce({ count: 1 })
+                .mockResolvedValueOnce({ count: 1 })
+
+            await expect(disableRecap('g-1', undefined, NOW)).resolves.toBe(
+                true,
+            )
+            expect(prisma.guildSettings.createMany).not.toHaveBeenCalled()
+        })
+
+        it('does not mark the choice on a scheduler cleanup', async () => {
+            prisma.guildSettings.updateMany.mockResolvedValue({ count: 1 })
+
+            await disableRecap('g-1', 'c-1', NOW)
+
+            expect(prisma.guildSettings.updateMany).toHaveBeenCalledTimes(1)
+            expect(prisma.guildSettings.createMany).not.toHaveBeenCalled()
         })
     })
 })

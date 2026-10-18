@@ -49,7 +49,7 @@
         "nowPlaying": "Tocando agora {{title}}, não pare",
         "onboarding": {
             "title": "🎵 Obrigado por adicionar o Lucky!",
-            "description": "`/play <música ou url>` — toque músicas no seu canal de voz\n\nDepois do primeiro `/play`, Lucky publica nesse canal um recap dominical das faixas e artistas mais tocados no servidor. Um administrador pode desligar pelo botão no recap ou com `/recap off`.",
+            "description": "`/play <música ou url>` — toque músicas no seu canal de voz\n\nDepois da primeira música (pelo `/play` ou pelo botão abaixo), Lucky publica nesse canal de texto um recap dominical das faixas e artistas mais tocados no servidor, se puder postar nele. Um administrador pode desligar pelo botão no recap ou com `/recap off`.",
             "playButton": "▶ Ouvir Agora"
         },
         "station": {

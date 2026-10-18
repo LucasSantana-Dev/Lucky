@@ -18,16 +18,25 @@ export async function maybeAutoEnableRecap(
     now: Date = new Date(),
 ): Promise<void> {
     if (tried.has(guild.id)) return
-    const target = await resolveRecapChannel(guild, channelId)
+    // Marked before any await, so overlapping plays try once. Unmarked again
+    // only when the channel is unusable or its check throws; a failing write
+    // stays marked, so it is logged once, not per play.
+    tried.add(guild.id)
+    let target: Awaited<ReturnType<typeof resolveRecapChannel>>
+    try {
+        target = await resolveRecapChannel(guild, channelId)
+    } catch (error) {
+        tried.delete(guild.id)
+        throw error
+    }
     if ('reason' in target) {
+        tried.delete(guild.id)
         debugLog({
             message: 'recap: play channel unusable, auto-enable skipped',
             data: { guildId: guild.id, channelId, reason: target.reason },
         })
         return
     }
-    // Marked before the write: a failing write is logged once, not per play.
-    tried.add(guild.id)
     if (await autoEnableRecap(guild.id, target.channel.id, now)) {
         infoLog({
             message: 'recap: enabled on first play',

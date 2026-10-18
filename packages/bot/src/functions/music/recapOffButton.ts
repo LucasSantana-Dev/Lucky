@@ -36,20 +36,18 @@ export async function handleRecapOffButton(
 ): Promise<void> {
     const guildId = interaction.guildId
     if (!guildId) return
+    // Ack first: a cold-guild locale lookup and the DB call can each outlast
+    // the 3s interaction window.
+    await interaction.deferUpdate()
     const t = await translatorForInteraction(interaction)
     const reply = (content: string) =>
         interaction.followUp({ content, flags: MessageFlags.Ephemeral })
 
     if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
-        await interaction.reply({
-            content: t('music.recap.needManageGuild'),
-            flags: MessageFlags.Ephemeral,
-        })
+        await reply(t('music.recap.needManageGuild'))
         return
     }
 
-    // Ack before the DB call so the 3s interaction window can't expire.
-    await interaction.deferUpdate()
     try {
         const wasOn = await disableRecap(guildId)
         if (wasOn) {

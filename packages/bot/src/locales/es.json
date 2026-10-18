@@ -49,7 +49,7 @@
         "nowPlaying": "Reproduciendo {{title}}, no pares",
         "onboarding": {
             "title": "🎵 ¡Gracias por agregar Lucky!",
-            "description": "`/play <canción o url>` — pon música en tu canal de voz\n\nTras el primer `/play`, Lucky publica en ese canal un resumen dominical de las canciones y artistas más escuchados del servidor. Un administrador puede desactivarlo con el botón del resumen o con `/recap off`.",
+            "description": "`/play <canción o url>` — pon música en tu canal de voz\n\nTras la primera canción (con `/play` o el botón de abajo), Lucky publica en ese canal de texto un resumen dominical de las canciones y artistas más escuchados del servidor, si puede publicar en él. Un administrador puede desactivarlo con el botón del resumen o con `/recap off`.",
             "playButton": "▶ Empezar a Escuchar"
         },
         "station": {

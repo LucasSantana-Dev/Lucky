@@ -5,7 +5,7 @@ exports[`buildOnboardingEmbed renders the English onboarding embed 1`] = `
   "color": 5793266,
   "description": "\`/play <song or url>\` — start music in your voice channel
 
-After your first \`/play\`, Lucky posts a Sunday recap of the server's most-played tracks and artists in that channel. A server admin can turn it off with the button on the recap or \`/recap off\`.",
+After the first song plays (from \`/play\` or the button below), Lucky posts a Sunday recap of the server's most-played tracks and artists in that text channel, if it can post there. A server admin can turn it off with the button on the recap or \`/recap off\`.",
   "footer": {
     "icon_url": undefined,
     "text": "Lucky",
@@ -19,7 +19,7 @@ exports[`buildOnboardingEmbed renders the es onboarding embed 1`] = `
   "color": 5793266,
   "description": "\`/play <canción o url>\` — pon música en tu canal de voz
 
-Tras el primer \`/play\`, Lucky publica en ese canal un resumen dominical de las canciones y artistas más escuchados del servidor. Un administrador puede desactivarlo con el botón del resumen o con \`/recap off\`.",
+Tras la primera canción (con \`/play\` o el botón de abajo), Lucky publica en ese canal de texto un resumen dominical de las canciones y artistas más escuchados del servidor, si puede publicar en él. Un administrador puede desactivarlo con el botón del resumen o con \`/recap off\`.",
   "footer": {
     "icon_url": undefined,
     "text": "Lucky",
@@ -33,7 +33,7 @@ exports[`buildOnboardingEmbed renders the pt-BR onboarding embed 1`] = `
   "color": 5793266,
   "description": "\`/play <música ou url>\` — toque músicas no seu canal de voz
 
-Depois do primeiro \`/play\`, Lucky publica nesse canal um recap dominical das faixas e artistas mais tocados no servidor. Um administrador pode desligar pelo botão no recap ou com \`/recap off\`.",
+Depois da primeira música (pelo \`/play\` ou pelo botão abaixo), Lucky publica nesse canal de texto um recap dominical das faixas e artistas mais tocados no servidor, se puder postar nele. Um administrador pode desligar pelo botão no recap ou com \`/recap off\`.",
   "footer": {
     "icon_url": undefined,
     "text": "Lucky",

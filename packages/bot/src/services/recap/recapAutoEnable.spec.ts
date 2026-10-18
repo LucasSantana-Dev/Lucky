@@ -65,6 +65,27 @@ describe('maybeAutoEnableRecap (#2738)', () => {
         expect(autoEnableRecapMock).toHaveBeenCalledTimes(1)
     })
 
+    it('tries once when two plays overlap', async () => {
+        await Promise.all([
+            maybeAutoEnableRecap(guild, 'c-1', NOW),
+            maybeAutoEnableRecap(guild, 'c-2', NOW),
+        ])
+
+        expect(resolveRecapChannelMock).toHaveBeenCalledTimes(1)
+        expect(autoEnableRecapMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('tries the next play when the channel check throws', async () => {
+        resolveRecapChannelMock.mockRejectedValueOnce(new Error('discord 503'))
+
+        await expect(maybeAutoEnableRecap(guild, 'c-1', NOW)).rejects.toThrow(
+            'discord 503',
+        )
+        await maybeAutoEnableRecap(guild, 'c-1', NOW)
+
+        expect(autoEnableRecapMock).toHaveBeenCalledTimes(1)
+    })
+
     it('skips a channel it cannot post in, and tries the next play', async () => {
         resolveRecapChannelMock.mockResolvedValueOnce({
             reason: 'missing_permissions',

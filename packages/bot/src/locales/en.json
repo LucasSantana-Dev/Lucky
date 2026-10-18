@@ -49,7 +49,7 @@
         "nowPlaying": "Now playing {{title}}, don't stop",
         "onboarding": {
             "title": "🎵 Thanks for adding Lucky!",
-            "description": "`/play <song or url>` — start music in your voice channel\n\nAfter your first `/play`, Lucky posts a Sunday recap of the server's most-played tracks and artists in that channel. A server admin can turn it off with the button on the recap or `/recap off`.",
+            "description": "`/play <song or url>` — start music in your voice channel\n\nAfter the first song plays (from `/play` or the button below), Lucky posts a Sunday recap of the server's most-played tracks and artists in that text channel, if it can post there. A server admin can turn it off with the button on the recap or `/recap off`.",
             "playButton": "▶ Start Listening"
         },
         "station": {

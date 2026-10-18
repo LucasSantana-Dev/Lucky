@@ -66,6 +66,10 @@ describe('recap off button (#2738)', () => {
         await handleRecapOffButton(interaction as unknown as ButtonInteraction)
 
         expect(disableRecapMock).toHaveBeenCalledWith('g-1')
+        // Acked before the DB call, so a slow write cannot expire the click.
+        expect(
+            interaction.deferUpdate.mock.invocationCallOrder[0],
+        ).toBeLessThan(disableRecapMock.mock.invocationCallOrder[0])
         expect(interaction.editReply).toHaveBeenCalledWith({ components: [] })
         expect(interaction.followUp).toHaveBeenCalledWith(
             ephemeral('music.recap.disabled'),
@@ -88,7 +92,8 @@ describe('recap off button (#2738)', () => {
 
         await handleRecapOffButton(interaction as unknown as ButtonInteraction)
 
-        expect(interaction.reply).toHaveBeenCalledWith(
+        expect(interaction.deferUpdate).toHaveBeenCalled()
+        expect(interaction.followUp).toHaveBeenCalledWith(
             ephemeral('music.recap.needManageGuild'),
         )
         expect(disableRecapMock).not.toHaveBeenCalled()
@@ -102,6 +107,7 @@ describe('recap off button (#2738)', () => {
         await handleRecapOffButton(interaction as unknown as ButtonInteraction)
 
         expect(errorLogMock).toHaveBeenCalled()
+        expect(interaction.deferUpdate).toHaveBeenCalled()
         expect(interaction.editReply).not.toHaveBeenCalled()
         expect(interaction.followUp).toHaveBeenCalledWith(
             ephemeral('music.recap.failed'),

@@ -78,15 +78,34 @@ export async function autoEnableRecap(
 /**
  * Opts a guild out. Returns false when it was not opted in. With `channelId`,
  * only clears that channel, so a channel picked meanwhile survives.
+ *
+ * Without `channelId` this is an admin's off (/recap off or the off button),
+ * so it also marks the choice as made, even when the recap was never on: a
+ * later /play must not turn it on (#2738). The scheduler always passes the
+ * channel it cleans up, and that cleanup is not a choice.
  */
 export async function disableRecap(
     guildId: string,
     channelId?: string,
+    now: Date = new Date(),
 ): Promise<boolean> {
-    const result = await getPrismaClient().guildSettings.updateMany({
+    const prisma = getPrismaClient()
+    const result = await prisma.guildSettings.updateMany({
         where: { guildId, recapChannelId: channelId ?? { not: null } },
         data: { recapChannelId: null },
     })
+    if (channelId === undefined) {
+        const marked = await prisma.guildSettings.updateMany({
+            where: { guildId, recapDecidedAt: null },
+            data: { recapDecidedAt: now },
+        })
+        if (marked.count === 0) {
+            await prisma.guildSettings.createMany({
+                data: [{ guildId, recapDecidedAt: now }],
+                skipDuplicates: true,
+            })
+        }
+    }
     return result.count > 0
 }
 

@@ -116,7 +116,7 @@ Lucky keeps the call playing with autoplay that learns from what your server pla
 
 **What you get**
 
-- 📅 A weekly recap every Sunday, on from your first `/play` and off in one click
+- 📅 A weekly recap every Sunday, on from your first play and off in one click
 - 🎶 Smart autoplay that adapts to your server. Rate the song playing with 👍 / 👎 to steer it
 - 📻 One-click station to get music going the moment Lucky joins
 - 🟢 Spotify search and links: paste a track, album or playlist
@@ -135,7 +135,7 @@ Lucky never asks for Administrator. The invite uses a short, curated permission 
 
 1. Invite Lucky: https://lucky.lucassantana.tech/invite
 2. Join a voice channel and type `/play` with a song name or a Spotify link
-3. The weekly recap starts in that channel. Move it with `/recap channel`, or stop it with the button on the recap
+3. The weekly recap starts in that text channel, if Lucky can post there. Move it with `/recap channel`, or stop it with the button on the recap
 4. Questions or ideas? Join the support server: https://discord.gg/f2rxBWvqeR
 
 Made in Brazil. Open source under the ISC license: https://github.com/LucasSantana-Dev/Lucky
@@ -150,7 +150,7 @@ A Lucky mantém a call tocando com um autoplay que aprende com o que o seu servi
 
 **O que você ganha**
 
-- 📅 Um resumo semanal todo domingo, ligado desde o primeiro `/play` e desligado com um clique
+- 📅 Um resumo semanal todo domingo, ligado desde a primeira música e desligado com um clique
 - 🎶 Autoplay que se adapta ao seu servidor. Avalie a música que está tocando com 👍 / 👎 para guiar
 - 📻 Estação com um clique para a música começar assim que a Lucky entra
 - 🟢 Busca e links do Spotify: cole uma música, um álbum ou uma playlist
@@ -169,7 +169,7 @@ A Lucky nunca pede Administrador. O convite usa uma lista curta e escolhida de p
 
 1. Convide a Lucky: https://lucky.lucassantana.tech/invite
 2. Entre num canal de voz e digite `/play` com o nome de uma música ou um link do Spotify
-3. O resumo semanal começa nesse canal. Mude com `/recap channel`, ou desligue pelo botão no resumo
+3. O resumo semanal começa nesse canal de texto, se a Lucky puder postar nele. Mude com `/recap channel`, ou desligue pelo botão no resumo
 4. Dúvidas ou ideias? Entre no servidor de suporte: https://discord.gg/f2rxBWvqeR
 
 Feita no Brasil. Código aberto sob a licença ISC: https://github.com/LucasSantana-Dev/Lucky
