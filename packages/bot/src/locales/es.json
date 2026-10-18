@@ -49,7 +49,7 @@
         "nowPlaying": "Reproduciendo {{title}}, no pares",
         "onboarding": {
             "title": "🎵 ¡Gracias por agregar Lucky!",
-            "description": "`/play <canción o url>` — pon música en tu canal de voz\n\nCuando está configurado, Lucky publica un resumen dominical de las canciones y artistas más escuchados del servidor. Un administrador puede activarlo con `/recap channel`.",
+            "description": "`/play <canción o url>` — pon música en tu canal de voz\n\nTras el primer `/play`, Lucky publica en ese canal un resumen dominical de las canciones y artistas más escuchados del servidor. Un administrador puede desactivarlo con el botón del resumen o con `/recap off`.",
             "playButton": "▶ Empezar a Escuchar"
         },
         "station": {
@@ -94,6 +94,8 @@
             "topArtistsName": "Artistas más escuchados",
             "enabled": "📅 El resumen semanal se publicará en <#{{channel}}> cada domingo a las 18:00 UTC.",
             "disabled": "🔕 Resumen semanal desactivado.",
+            "offButton": "Desactivar resumen semanal",
+            "offHint": "Los administradores pueden desactivarlo con el botón de abajo o con /recap off",
             "alreadyOff": "El resumen semanal ya está desactivado.",
             "notTextChannel": "❌ Elige un canal de texto para el resumen.",
             "missingPermissions": "❌ No puedo publicar en <#{{channel}}>. Necesito Ver canal, Enviar mensajes e Insertar enlaces allí.",

@@ -31,7 +31,7 @@
 
 ## What is Lucky?
 
-Lucky is a **free Discord music bot** that keeps the call going and remembers what your server plays. When enabled, it posts a Sunday recap of the week's most-played tracks (opt-in per server; weeks with fewer than five plays are skipped). Search by name or paste a Spotify link; smart autoplay keeps the queue running from your listening history. Add it in one click. Every feature is included, with no paywall and no premium tier.
+Lucky is a **free Discord music bot** that keeps the call going and remembers what your server plays. It posts a Sunday recap of the week's most-played tracks in the channel of the server's first `/play` (an admin can turn it off; weeks with fewer than five plays are skipped). Search by name or paste a Spotify link; smart autoplay keeps the queue running from your listening history. Add it in one click. Every feature is included, with no paywall and no premium tier.
 
 The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 
@@ -56,9 +56,9 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 - **Listening stats**: `/artist` and `/album` commands with Spotify integration
 
 ### Weekly Recap
-- **Weekly post**: when enabled, Lucky posts a recap every Sunday of the week's top tracks and artists (weeks with fewer than five plays are skipped)
+- **Weekly post**: from the first `/play`, Lucky posts a recap every Sunday of the week's top tracks and artists (weeks with fewer than five plays are skipped)
 - **Per-server**: each guild gets its own listening summary
-- **Opt-in**: `/recap channel #channel` to enable the Sunday post; `/recap off` to stop it (requires Manage Guild)
+- **On by default**: the recap starts in the channel of the server's first `/play`; `/recap channel #channel` moves it; the button on the recap or `/recap off` stops it, and a later `/play` does not turn it back on (requires Manage Guild)
 
 ### Engagement & Community
 - **Leveling system**: XP-based progression with role rewards

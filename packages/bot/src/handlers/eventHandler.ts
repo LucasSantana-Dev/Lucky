@@ -74,6 +74,10 @@ import {
     handleReminderStopButton,
     REMINDER_STOP_BUTTON_PREFIX,
 } from '../functions/general/reminderStopButton'
+import {
+    handleRecapOffButton,
+    RECAP_OFF_BUTTON_ID,
+} from '../functions/music/recapOffButton'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -378,6 +382,7 @@ function buttonFamily(id: string): string | null {
     if (id.startsWith(REMINDER_STOP_BUTTON_PREFIX)) {
         return 'reminder_stop_button'
     }
+    if (id === RECAP_OFF_BUTTON_ID) return 'recap_off_button'
     return 'reaction_role_button'
 }
 
@@ -480,6 +485,11 @@ async function routeButtonInteraction(
     // "Stop this reminder" button on a recurring reminder (#2619).
     if (id.startsWith(REMINDER_STOP_BUTTON_PREFIX)) {
         await handleReminderStopButton(interaction)
+        return
+    }
+    // "Turn off weekly recap" button on every recap (#2738).
+    if (id === RECAP_OFF_BUTTON_ID) {
+        await handleRecapOffButton(interaction)
         return
     }
     return reactionRolesService.handleButtonInteraction(interaction)

@@ -247,6 +247,10 @@ model GuildSettings {
   // a transient send failure clears it again so the week is retried.
   recapChannelId    String?
   recapLastPostedAt DateTime?
+  // #2738: when this guild's recap choice was made, by the first successful
+  // /play (which turns it on) or by /recap channel. Never cleared, so a guild
+  // that turned the recap off is not turned back on by its next /play.
+  recapDecidedAt    DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

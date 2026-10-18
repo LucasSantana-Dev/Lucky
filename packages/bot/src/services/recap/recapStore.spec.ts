@@ -5,6 +5,7 @@ const prisma = {
     guildSettings: {
         upsert: jest.fn<AnyFn>(),
         updateMany: jest.fn<AnyFn>(),
+        createMany: jest.fn<AnyFn>(),
         findMany: jest.fn<AnyFn>(),
         update: jest.fn<AnyFn>(),
     },
@@ -15,6 +16,7 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 import {
+    autoEnableRecap,
     claimRecapWeek,
     disableRecap,
     enableRecap,
@@ -38,8 +40,13 @@ describe('recapStore (#2678)', () => {
                 guildId: 'g-1',
                 recapChannelId: 'c-1',
                 recapLastPostedAt: NOW,
+                recapDecidedAt: NOW,
             },
-            update: { recapChannelId: 'c-1', recapLastPostedAt: NOW },
+            update: {
+                recapChannelId: 'c-1',
+                recapLastPostedAt: NOW,
+                recapDecidedAt: NOW,
+            },
         })
     })
 
@@ -133,6 +140,50 @@ describe('recapStore (#2678)', () => {
         expect(prisma.guildSettings.updateMany).toHaveBeenCalledWith({
             where: { guildId: 'g-1', recapLastPostedAt: NOW },
             data: { recapLastPostedAt: null },
+        })
+    })
+
+    describe('autoEnableRecap (#2738)', () => {
+        const enabled = {
+            recapChannelId: 'c-1',
+            recapLastPostedAt: NOW,
+            recapDecidedAt: NOW,
+        }
+
+        it('turns the recap on for an undecided guild', async () => {
+            prisma.guildSettings.updateMany.mockResolvedValue({ count: 1 })
+
+            await expect(autoEnableRecap('g-1', 'c-1', NOW)).resolves.toBe(true)
+            expect(prisma.guildSettings.updateMany).toHaveBeenCalledWith({
+                where: {
+                    guildId: 'g-1',
+                    recapDecidedAt: null,
+                    recapChannelId: null,
+                    recapLastPostedAt: null,
+                },
+                data: enabled,
+            })
+            expect(prisma.guildSettings.createMany).not.toHaveBeenCalled()
+        })
+
+        it('creates the settings row when the guild has none', async () => {
+            prisma.guildSettings.updateMany.mockResolvedValue({ count: 0 })
+            prisma.guildSettings.createMany.mockResolvedValue({ count: 1 })
+
+            await expect(autoEnableRecap('g-1', 'c-1', NOW)).resolves.toBe(true)
+            expect(prisma.guildSettings.createMany).toHaveBeenCalledWith({
+                data: [{ guildId: 'g-1', ...enabled }],
+                skipDuplicates: true,
+            })
+        })
+
+        it('leaves a guild that already chose alone', async () => {
+            prisma.guildSettings.updateMany.mockResolvedValue({ count: 0 })
+            prisma.guildSettings.createMany.mockResolvedValue({ count: 0 })
+
+            await expect(autoEnableRecap('g-1', 'c-1', NOW)).resolves.toBe(
+                false,
+            )
         })
     })
 })

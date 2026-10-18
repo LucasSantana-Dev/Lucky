@@ -8,6 +8,8 @@ import { getPrismaClient } from '@lucky/shared/utils'
  * Opts a guild in, or moves an opted-in guild to another channel. A new
  * opt-in stamps `recapLastPostedAt` with now so the first recap waits for the
  * next Sunday; a channel change keeps the stamp so a due week still posts.
+ * A new opt-in also marks the choice as made, so `autoEnableRecap` leaves the
+ * guild alone after a later /recap off.
  */
 export async function enableRecap(
     guildId: string,
@@ -22,9 +24,55 @@ export async function enableRecap(
     if (moved.count > 0) return
     await prisma.guildSettings.upsert({
         where: { guildId },
-        create: { guildId, recapChannelId: channelId, recapLastPostedAt: now },
-        update: { recapChannelId: channelId, recapLastPostedAt: now },
+        create: {
+            guildId,
+            recapChannelId: channelId,
+            recapLastPostedAt: now,
+            recapDecidedAt: now,
+        },
+        update: {
+            recapChannelId: channelId,
+            recapLastPostedAt: now,
+            recapDecidedAt: now,
+        },
     })
+}
+
+/**
+ * Turns the recap on in `channelId` on a guild's first successful /play
+ * (#2738). Only a guild that never made a recap choice is touched: one that
+ * opted in, or turned the recap off, keeps it. `recapLastPostedAt` is stamped
+ * like a new opt-in, so the first recap waits for the next Sunday. Returns
+ * whether the recap was turned on.
+ */
+export async function autoEnableRecap(
+    guildId: string,
+    channelId: string,
+    now: Date,
+): Promise<boolean> {
+    const prisma = getPrismaClient()
+    const data = {
+        recapChannelId: channelId,
+        recapLastPostedAt: now,
+        recapDecidedAt: now,
+    }
+    // A null recapLastPostedAt also covers guilds that opted in and out
+    // before recapDecidedAt existed.
+    const updated = await prisma.guildSettings.updateMany({
+        where: {
+            guildId,
+            recapDecidedAt: null,
+            recapChannelId: null,
+            recapLastPostedAt: null,
+        },
+        data,
+    })
+    if (updated.count > 0) return true
+    const created = await prisma.guildSettings.createMany({
+        data: [{ guildId, ...data }],
+        skipDuplicates: true,
+    })
+    return created.count > 0
 }
 
 /**
