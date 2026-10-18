@@ -343,7 +343,7 @@ Multiple admin IDs can be comma-separated: `DEVELOPER_USER_IDS=id1,id2,id3`
 4. **Run the gate**: `npm run verify` (lint + build + tests)
 5. **Open a PR** describing what changed and why
 
-CI runs the same gate on your PR, so a red check tells you what to fix. Automated reviewers (CodeRabbit, cubic, SonarCloud) will comment too; treat their comments as suggestions to weigh.
+CI runs the same gate on your PR, so a red check tells you what to fix. Automated reviewers (cubic, SonarCloud, and the on-demand `/claude-review`) will comment too; treat their comments as suggestions to weigh.
 
 **What to expect.** This is maintained alongside a full-time job, so review latency varies. Every PR gets read and gets a real answer; if something cannot be merged you will get the reasoning. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the repo-specific details that are easy to miss.
 
