@@ -42,7 +42,7 @@
                 "name": "ds_postgres",
                 "type": "datasource",
                 "query": "grafana-postgresql-datasource",
-                "regex": "",
+                "regex": "/^Lucky Postgres$/",
                 "hide": 2,
                 "refresh": 1,
                 "current": {},
@@ -602,7 +602,7 @@
             "title": "Entradas e 1ª hora por origem (28 dias)",
             "description": "Origem vem do parâmetro state do OAuth de /add (topgg, discordbotlist, botsgg, meta, landing, unknown). Joins anteriores a #2750 ou sem origem gravada aparecem como 'sem origem' (entraram por outro link ou antes do rastreio). Só entram joins com mais de 1 hora (a 1ª hora ainda não fechou para os mais novos).",
             "gridPos": {
-                "x": 0,
+                "x": 12,
                 "y": 16,
                 "w": 12,
                 "h": 8
@@ -629,7 +629,7 @@
                 "overrides": []
             },
             "options": {},
-            "id": 11
+            "id": 12
         },
         {
             "type": "row",
@@ -642,7 +642,7 @@
                 "w": 24,
                 "h": 1
             },
-            "id": 12
+            "id": 13
         },
         {
             "type": "timeseries",
@@ -696,7 +696,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 13
+            "id": 14
         },
         {
             "type": "timeseries",
@@ -749,7 +749,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 14
+            "id": 15
         },
         {
             "type": "table",
@@ -783,7 +783,7 @@
                 "overrides": []
             },
             "options": {},
-            "id": 15
+            "id": 16
         },
         {
             "type": "timeseries",
@@ -867,7 +867,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 16
+            "id": 17
         },
         {
             "type": "row",
@@ -880,7 +880,7 @@
                 "w": 24,
                 "h": 1
             },
-            "id": 17
+            "id": 18
         },
         {
             "type": "stat",
@@ -925,7 +925,7 @@
                 "graphMode": "none",
                 "textMode": "auto"
             },
-            "id": 18
+            "id": 19
         },
         {
             "type": "stat",
@@ -990,7 +990,7 @@
                 "graphMode": "none",
                 "textMode": "auto"
             },
-            "id": 19
+            "id": 20
         },
         {
             "type": "bargauge",
@@ -1055,7 +1055,7 @@
                     "values": true
                 }
             },
-            "id": 20
+            "id": 21
         },
         {
             "type": "row",
@@ -1068,7 +1068,7 @@
                 "w": 24,
                 "h": 1
             },
-            "id": 21
+            "id": 22
         },
         {
             "type": "stat",
@@ -1111,7 +1111,7 @@
                 "graphMode": "none",
                 "textMode": "auto"
             },
-            "id": 22
+            "id": 23
         },
         {
             "type": "stat",
@@ -1156,7 +1156,7 @@
                 "graphMode": "none",
                 "textMode": "auto"
             },
-            "id": 23
+            "id": 24
         },
         {
             "type": "stat",
@@ -1198,7 +1198,7 @@
                 "graphMode": "none",
                 "textMode": "auto"
             },
-            "id": 24
+            "id": 25
         },
         {
             "type": "stat",
@@ -1240,7 +1240,7 @@
                 "graphMode": "none",
                 "textMode": "auto"
             },
-            "id": 25
+            "id": 26
         },
         {
             "type": "piechart",
@@ -1284,7 +1284,7 @@
                     "values": true
                 }
             },
-            "id": 26
+            "id": 27
         },
         {
             "type": "row",
@@ -1297,7 +1297,7 @@
                 "w": 24,
                 "h": 1
             },
-            "id": 27
+            "id": 28
         },
         {
             "type": "gauge",
@@ -1363,7 +1363,7 @@
                 "showThresholdLabels": true,
                 "showThresholdMarkers": true
             },
-            "id": 28
+            "id": 29
         },
         {
             "type": "gauge",
@@ -1429,7 +1429,7 @@
                 "showThresholdLabels": true,
                 "showThresholdMarkers": true
             },
-            "id": 29
+            "id": 30
         }
     ]
 }
