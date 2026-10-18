@@ -12,6 +12,10 @@ jest.mock('./recapScheduler', () => ({
 jest.mock('./recapStore', () => ({
     autoEnableRecap: (...a: unknown[]) => autoEnableRecapMock(...a),
 }))
+const recordActivationEventMock = jest.fn()
+jest.mock('@lucky/shared/services', () => ({
+    recordActivationEvent: (...a: unknown[]) => recordActivationEventMock(...a),
+}))
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     infoLog: (...a: unknown[]) => infoLogMock(...a),
@@ -42,6 +46,19 @@ describe('maybeAutoEnableRecap (#2738)', () => {
         expect(resolveRecapChannelMock).toHaveBeenCalledWith(guild, 'c-1')
         expect(autoEnableRecapMock).toHaveBeenCalledWith('g-1', 'c-1', NOW)
         expect(infoLogMock).toHaveBeenCalledTimes(1)
+        expect(recordActivationEventMock).toHaveBeenCalledTimes(1)
+        expect(recordActivationEventMock).toHaveBeenCalledWith(
+            'g-1',
+            'recap_auto_enabled',
+        )
+    })
+
+    it('records nothing when the recap was already decided (false)', async () => {
+        autoEnableRecapMock.mockResolvedValue(false)
+
+        await maybeAutoEnableRecap(guild, 'c-1', NOW)
+
+        expect(recordActivationEventMock).not.toHaveBeenCalled()
     })
 
     it('tries a guild once per process', async () => {

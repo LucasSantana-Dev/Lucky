@@ -1,4 +1,5 @@
 import type { Guild } from 'discord.js'
+import { recordActivationEvent } from '@lucky/shared/services'
 import { debugLog, infoLog } from '@lucky/shared/utils'
 import { resolveRecapChannel } from './recapScheduler'
 import { autoEnableRecap } from './recapStore'
@@ -42,6 +43,7 @@ export async function maybeAutoEnableRecap(
             message: 'recap: enabled on first play',
             data: { guildId: guild.id, channelId: target.channel.id },
         })
+        void recordActivationEvent(guild.id, 'recap_auto_enabled')
     }
 }
 

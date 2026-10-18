@@ -11,7 +11,9 @@ export {
     LANDING_SOURCES,
     FALLBACK_LANDING_SOURCE,
     ADD_STATE_PREFIX,
+    ACTIVATION_EVENT_KINDS,
     type LandingSource,
+    type ActivationEventKind,
 } from './invite'
 export { SUPPORT_SERVER_INVITE_URL } from './support'
 export {
