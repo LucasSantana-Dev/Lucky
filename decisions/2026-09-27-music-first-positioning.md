@@ -7,7 +7,10 @@
 - Amends: `2026-05-23-lucky-oss-positioning.md` (the product pitch only; its repo-governance
   decisions stand)
 - Amended by: `2026-10-07-pitch-leads-with-weekly-recap.md` (decision 1: the positioning
-  check fired, so the pitch now leads with the weekly recap)
+  check fired, so the pitch now leads with the weekly recap);
+  `2026-10-18-music-first-business-review-amendments.md` (decisions 2, 5 and 6: music-only
+  hosted commands, opt-out recap, spend and uptime gates, early portfolio trigger; recruiting,
+  the pt-BR cohort split, Wrapped and the taste profile are cut)
 
 ## Context
 
