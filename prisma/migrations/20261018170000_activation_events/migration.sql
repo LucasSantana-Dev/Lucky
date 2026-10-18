@@ -1,4 +1,5 @@
 -- Activation funnel events (onboarding delivery, station clicks, recap auto-enable).
+-- Rows are pruned after 180 days by DatabaseService.cleanupOldData.
 -- Additive only: one new table, two indexes. No existing table or column is touched.
 
 -- CreateTable
@@ -9,7 +10,8 @@ CREATE TABLE IF NOT EXISTS "activation_events" (
     "reason" TEXT,
     "occurredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "activation_events_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "activation_events_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "activation_events_kind_check" CHECK ("kind" IN ('onboarding_delivered', 'onboarding_failed', 'station_click', 'recap_auto_enabled'))
 );
 
 -- CreateIndex

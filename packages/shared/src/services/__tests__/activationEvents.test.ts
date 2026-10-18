@@ -63,6 +63,18 @@ describe('recordActivationEvent', () => {
         expect(mockWarnLog).toHaveBeenCalledTimes(1)
     })
 
+    it('still resolves false when warnLog itself throws', async () => {
+        mockCreate.mockRejectedValue(new Error('db down'))
+        mockWarnLog.mockImplementationOnce(() => {
+            throw new Error('log down')
+        })
+        const spy = jest.spyOn(console, 'error').mockImplementation(() => {})
+        await expect(
+            recordActivationEvent(GUILD, 'onboarding_failed'),
+        ).resolves.toBe(false)
+        spy.mockRestore()
+    })
+
     it('returns false when the prisma client itself throws', async () => {
         mockClientThrows = true
         await expect(

@@ -18,6 +18,7 @@ const mockRateLimitDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockServerLogDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockUserFeedbackDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockCommandEventDeleteMany = jest.fn<(args?: any) => Promise<any>>()
+const mockActivationEventDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockGetPrismaClient = jest.fn<() => any>()
 
 jest.mock('../../utils/database/prismaClient', () => ({
@@ -77,10 +78,14 @@ describe('DatabaseService', () => {
             userFeedback: {
                 deleteMany: mockUserFeedbackDeleteMany,
             },
+            activationEvent: {
+                deleteMany: mockActivationEventDeleteMany,
+            },
         })
         mockServerLogDeleteMany.mockResolvedValue({ count: 0 })
         mockUserFeedbackDeleteMany.mockResolvedValue({ count: 0 })
         mockCommandEventDeleteMany.mockResolvedValue({ count: 0 })
+        mockActivationEventDeleteMany.mockResolvedValue({ count: 0 })
         service = new DatabaseService(TEST_CONFIG)
     })
 
@@ -816,6 +821,28 @@ describe('DatabaseService', () => {
             )
             expect(cutoff.getTime()).toBeLessThanOrEqual(
                 after - oneHundredEightyDaysMs + 1000,
+            )
+        })
+
+        it('deletes activation events older than 180 days and counts them', async () => {
+            mockActivationEventDeleteMany.mockResolvedValue({ count: 4 })
+
+            const before = Date.now()
+            const result = await service.cleanupOldData()
+
+            expect(result.isSuccess()).toBe(true)
+            expect(result.getData()).toBe(4)
+            expect(mockActivationEventDeleteMany).toHaveBeenCalledWith({
+                where: { occurredAt: { lt: expect.any(Date) } },
+            })
+            const cutoff = mockActivationEventDeleteMany.mock.calls[0]?.[0]
+                .where.occurredAt.lt as Date
+            const days180 = 180 * 24 * 60 * 60 * 1000
+            expect(cutoff.getTime()).toBeGreaterThanOrEqual(
+                before - days180 - 1000,
+            )
+            expect(cutoff.getTime()).toBeLessThanOrEqual(
+                Date.now() - days180 + 1000,
             )
         })
 

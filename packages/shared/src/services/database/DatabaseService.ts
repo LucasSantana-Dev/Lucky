@@ -4,7 +4,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { getPrismaClient } from '../../utils/database/prismaClient'
-import type { PrismaClient } from '@prisma/client'
+import type { PrismaClient } from '../../generated/prisma/client.js'
 import { Result } from '../../types/common/BaseResult'
 import { infoLog, errorLog } from '../../utils/general/log'
 import type {
@@ -593,7 +593,7 @@ export class DatabaseService {
     }
 
     /** Deletes track history, expired rate limit records, and server logs older than 30 days,
-     * user feedback (#2477) and command events (#2391) older than their own 180-day window. */
+     * user feedback (#2477), command events (#2391) and activation events older than their own 180-day window. */
     async cleanupOldData(): Promise<Result<number>> {
         return this.executeWithFallback(async () => {
             const thirtyDaysAgo = new Date(
@@ -609,6 +609,7 @@ export class DatabaseService {
                 serverLogs,
                 userFeedback,
                 commandEvents,
+                activationEvents,
             ] = await Promise.all([
                 this.prisma.trackHistory.deleteMany({
                     where: { playedAt: { lt: thirtyDaysAgo } },
@@ -625,6 +626,9 @@ export class DatabaseService {
                 this.prisma.commandEvent.deleteMany({
                     where: { occurredAt: { lt: oneHundredEightyDaysAgo } },
                 }),
+                this.prisma.activationEvent.deleteMany({
+                    where: { occurredAt: { lt: oneHundredEightyDaysAgo } },
+                }),
             ])
 
             return (
@@ -632,7 +636,8 @@ export class DatabaseService {
                 rateLimits.count +
                 serverLogs.count +
                 userFeedback.count +
-                commandEvents.count
+                commandEvents.count +
+                activationEvents.count
             )
         }, 'cleanup_old_data')
     }

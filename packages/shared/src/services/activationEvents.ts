@@ -27,11 +27,19 @@ export async function recordActivationEvent(
         })
         return true
     } catch (error) {
-        warnLog({
-            message: 'activation event insert failed',
-            error,
-            data: { guildId, kind },
-        })
+        try {
+            warnLog({
+                message: 'activation event insert failed',
+                error,
+                data: { guildId, kind },
+            })
+        } catch (logError) {
+            try {
+                console.error('activation event log failed', logError)
+            } catch {
+                // logging must never break the caller
+            }
+        }
         return false
     }
 }
