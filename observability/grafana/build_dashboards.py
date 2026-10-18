@@ -327,7 +327,7 @@ def negocio():
         "UNION ALL SELECT '2. Onboarding entregue', count(*) FILTER (WHERE delivered) FROM f "
         "UNION ALL SELECT '3. Clicou na estação', count(*) FILTER (WHERE clicked) FROM f "
         "UNION ALL SELECT '4. Tocou na 1ª hora', count(*) FILTER (WHERE el1 AND heard) FROM f "
-        "UNION ALL SELECT '4b. 1ª hora desconhecida (fora dos 30 dias)', count(*) FILTER (WHERE el1 AND h1_trimmed) FROM f "
+        "UNION ALL SELECT '4b. 1ª hora desconhecida (fora dos 30 dias)', count(*) FILTER (WHERE el1 AND NOT heard AND h1_trimmed) FROM f "
         "UNION ALL SELECT '5. 5+ faixas em 7 dias', count(*) FILTER (WHERE el7 AND plays5) FROM f "
         "UNION ALL SELECT '6. Ativa no dia 8', count(*) FILTER (WHERE el8 AND d8) FROM f "
         "ORDER BY 1")], w=14, h=9, th=thresholds(("blue", 0)),
