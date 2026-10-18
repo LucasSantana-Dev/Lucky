@@ -43,15 +43,15 @@ audio sources are never named, self-hosting is not promoted, and the listing
 never promises a feature the bot lacks.
 
 ```text
-Every week your server plays music, Lucky posts a Sunday recap of what it listened to. Smart autoplay keeps the call going. All free.
+Every week your server plays 5+ songs, Lucky posts a Sunday recap of what it listened to. Smart autoplay keeps the call going. All free.
 ```
 
-Character count: 133.
+Character count: 136.
 
 pt-BR variant (for a later test, same rule):
 
 ```text
-Toda semana em que o seu servidor toca música, a Lucky posta um resumo no domingo. Autoplay que aprende mantém a call tocando. Tudo grátis.
+Toda semana em que o servidor toca 5+ músicas, a Lucky posta um resumo no domingo. Autoplay que aprende mantém a call tocando. Tudo grátis.
 ```
 
 Character count: 139.
@@ -74,7 +74,7 @@ Lucky keeps the call playing with autoplay that learns from what your server pla
 
 **What you get**
 
-- 📅 A Sunday recap for every week your server plays music, on from your first play and off in one click
+- 📅 A Sunday recap for every week your server plays 5 or more songs, on from your first play and off in one click
 - 🎶 Smart autoplay that adapts to your server. Rate the song playing with 👍 / 👎 to steer it
 - 📻 One-click station to get music going the moment Lucky joins
 - 🟢 Spotify search and links: paste a track, album or playlist
@@ -108,7 +108,7 @@ A Lucky mantém a call tocando com um autoplay que aprende com o que o seu servi
 
 **O que você ganha**
 
-- 📅 Um resumo no domingo para cada semana em que o seu servidor toca música, ligado desde a primeira música e desligado com um clique
+- 📅 Um resumo no domingo para cada semana em que o seu servidor toca 5 músicas ou mais, ligado desde a primeira música e desligado com um clique
 - 🎶 Autoplay que se adapta ao seu servidor. Avalie a música que está tocando com 👍 / 👎 para guiar
 - 📻 Estação com um clique para a música começar assim que a Lucky entra
 - 🟢 Busca e links do Spotify: cole uma música, um álbum ou uma playlist
