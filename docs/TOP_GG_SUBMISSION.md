@@ -37,21 +37,10 @@ _Historical note:_ this file previously specified `36970496` and described it as
 
 ## 2. Headline (140 char cap)
 
-Live copy since 2026-10-01 (#2472). The pitch follows
-`decisions/2026-09-27-music-first-positioning.md`: taste learning first, audio
-sources never named, self-hosting not promoted.
-
-```text
-Lucky learns your server's taste and keeps the call playing, no DJ needed. Smart autoplay, Spotify links, and every feature free.
-```
-
-Character count: 129.
-
-### Next headline: lead with the weekly recap
-
-`decisions/2026-10-07-pitch-leads-with-weekly-recap.md` switches the lead to the
-weekly recap. Paste this **only once `/recap` is live in production** (#2678);
-the listing must not promise a feature the bot lacks.
+Live copy since 2026-10-18 (#2472). The pitch follows
+`decisions/2026-10-07-pitch-leads-with-weekly-recap.md`: the weekly recap leads,
+audio sources are never named, self-hosting is not promoted, and the listing
+never promises a feature the bot lacks.
 
 ```text
 Every Sunday, Lucky shows your server what it listened to, and keeps the call playing in between. Smart autoplay, all free.
@@ -69,45 +58,15 @@ Character count: 135.
 
 ## 3. Long description (Markdown supported)
 
-```markdown
-**Lucky learns your server's taste and keeps the call playing, no DJ needed.**
+Live copy since 2026-10-18, pasted together with the headline (§2). Same rules.
+It names `/recap channel` and the 👍 / 👎 now-playing buttons (#2687), both live
+in production.
 
-Queue a couple of songs and Lucky takes it from there. Autoplay picks what comes next from what your server actually plays, skips and likes, instead of looping a static playlist.
-
-**What you get**
-
-- 🎶 Smart autoplay that adapts to your server. Use 👍 / 👎 on a track to steer it
-- 📻 One-click station to get music going the moment Lucky joins
-- 🟢 Spotify search and links: paste a track, album or playlist
-- 🎧 Last.fm scrobbling for everyone who links an account
-- 💾 Save a session and restore the queue later
-- 📝 Lyrics for the song that is playing
-- 🖥️ Web dashboard with music controls and server settings
-
-**Free, for real**
-Every feature is free. No premium tier, no paywall on volume, filters or playlists.
-
-**Light on permissions**
-Lucky never asks for Administrator. The invite uses a short, curated permission list.
-
-**Get started**
-
-1. Invite Lucky: https://lucky.lucassantana.tech/invite
-2. Join a voice channel and type `/play` with a song name or a Spotify link
-3. Questions or ideas? Join the support server: https://discord.gg/f2rxBWvqeR
-
-Made in Brazil. Open source under the ISC license: https://github.com/LucasSantana-Dev/Lucky
-```
-
-**Known gap in the live copy:** the 👍 / 👎 line describes buttons that did not
-exist until #2687 (before it, thumbs was only `/recommendation feedback`). It is
-accurate once #2687 is deployed; until then it overpromises.
-
-### Next long description: lead with the weekly recap
-
-Paste together with the next headline (§2), **only once `/recap` is live in
-production and the 👍 / 👎 now-playing buttons are live (#2687)**. Same rules:
-audio sources never named, self-hosting not promoted.
+**Known gap in the live copy:** the headline and the long description promise a
+recap every Sunday, but the scheduler skips a week with fewer than 5 plays
+(`RECAP_MIN_PLAYS` in `packages/bot/src/services/recap/recapScheduler.ts`). A
+quiet server gets no recap that week. Changing the copy or the threshold is an
+owner call.
 
 ```markdown
 **Your server's week in music, every Sunday.**
@@ -291,11 +250,10 @@ Done:
 - [x] Vote webhook live: votes are received since 2026-09-26
 - [x] `YouTube` category removed (§4)
 - [x] Draft a pt-BR description variant (#2472): see §2 and §3
+- [x] Recap headline and long description pasted on the dashboard (§2, §3)
 
 Open:
 
-- [ ] When `/recap` is live in production and #2687 is deployed, paste the next
-      headline and long description (§2, §3) on the top.gg dashboard
 - [ ] Re-run the thumbs positioning check 28 days after #2687 deploys
       (`decisions/2026-10-07-pitch-leads-with-weekly-recap.md`)
 - [ ] Revisit imagery under the dashboard's `Appearance` section
