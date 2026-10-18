@@ -53,16 +53,31 @@ describe('hostedCommands', () => {
 
     describe('HOSTED_COMMAND_NAMES', () => {
         // The issue's target is about 15; the picker leak was about 90.
-        it('stays a short list', () => {
-            expect(HOSTED_COMMAND_NAMES.size).toBeLessThanOrEqual(20)
+        // Pinned in full so a new entry is a reviewed change, not a leak.
+        it('is exactly the music set', () => {
+            expect(HOSTED_COMMAND_NAMES).toEqual(
+                new Set([
+                    'play',
+                    'pause',
+                    'skip',
+                    'stop',
+                    'leave',
+                    'queue',
+                    'nowplaying',
+                    'shuffle',
+                    'repeat',
+                    'volume',
+                    'autoplay',
+                    'lyrics',
+                    'recap',
+                    'spotify',
+                    'lastfm',
+                    'help',
+                    'invite',
+                    'feedback',
+                ]),
+            )
         })
-
-        it.each(['play', 'skip', 'queue', 'recap', 'help'])(
-            'includes /%s',
-            (name) => {
-                expect(HOSTED_COMMAND_NAMES.has(name)).toBe(true)
-            },
-        )
 
         // A typo here would silently drop a command from the hosted picker.
         it.each([...HOSTED_COMMAND_NAMES])('/%s has a command file', (name) => {

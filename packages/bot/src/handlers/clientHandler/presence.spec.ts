@@ -363,6 +363,8 @@ describe('presence', () => {
 
         // #2736: the picker on a normal server only has the hosted set.
         it('counts only the commands a normal server can see', () => {
+            const original = process.env.HOSTED_MUSIC_ONLY_COMMANDS
+            process.env.HOSTED_MUSIC_ONLY_COMMANDS = 'true'
             const setPresence = jest.fn()
             const client = createMockClient({
                 user: { setPresence },
@@ -373,7 +375,15 @@ describe('presence', () => {
                 ]),
             } as any)
 
-            setPresenceActivity(client, 4)
+            try {
+                setPresenceActivity(client, 4)
+            } finally {
+                if (original === undefined) {
+                    delete process.env.HOSTED_MUSIC_ONLY_COMMANDS
+                } else {
+                    process.env.HOSTED_MUSIC_ONLY_COMMANDS = original
+                }
+            }
 
             expect(setPresence).toHaveBeenCalledWith(
                 expect.objectContaining({

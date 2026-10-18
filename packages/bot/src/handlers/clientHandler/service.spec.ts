@@ -317,9 +317,17 @@ describe('service', () => {
                     .put as jest.Mock
             }
 
+            const originalEnv = {
+                HOSTED_MUSIC_ONLY_COMMANDS:
+                    process.env.HOSTED_MUSIC_ONLY_COMMANDS,
+                FULL_COMMANDS_GUILD_IDS: process.env.FULL_COMMANDS_GUILD_IDS,
+            }
+
             afterEach(() => {
-                delete process.env.HOSTED_MUSIC_ONLY_COMMANDS
-                delete process.env.FULL_COMMANDS_GUILD_IDS
+                for (const [key, value] of Object.entries(originalEnv)) {
+                    if (value === undefined) delete process.env[key]
+                    else process.env[key] = value
+                }
             })
 
             it('registers the rest guild-scoped only in the listed guilds', async () => {

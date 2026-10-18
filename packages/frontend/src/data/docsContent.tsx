@@ -1582,8 +1582,8 @@ docker compose up -d <service>`}</code>
                         <strong>Embed Links.</strong> For rich responses.
                     </li>
                     <li>
-                        <strong>Attach Files.</strong> For the weekly recap
-                        card.
+                        <strong>Attach Files.</strong> Optional, for the weekly
+                        recap card. Without it the recap posts as text.
                     </li>
                     <li>
                         <strong>Connect / Speak.</strong> For voice channel
@@ -1592,9 +1592,10 @@ docker compose up -d <service>`}</code>
                 </ul>
                 <h2 id='principle'>Principle of least privilege</h2>
                 <p>
-                    The OAuth invite asks for what Lucky <em>requires</em>, not
-                    everything it <em>can</em> use. Moderation, auto-mod and
-                    reaction roles need more (Manage Messages, Kick / Ban /
+                    The OAuth invite asks for what music needs, not everything
+                    Lucky <em>can</em> use. Skip-reason reactions on the
+                    now-playing message need Add Reactions. Moderation, auto-mod
+                    and reaction roles need more (Manage Messages, Kick / Ban /
                     Moderate Members, Manage Roles); Lucky tells you which
                     permission is missing when a command needs it, and you grant
                     it to Lucky's role by hand.

@@ -215,7 +215,8 @@ function buildCategorySelectRow(
     activeKey: string,
     categoryCommands: Record<string, string[]>,
 ): ActionRowBuilder<StringSelectMenuBuilder> {
-    // Only categories with at least one command this guild can run.
+    // Categories with at least one command this guild can run, plus the
+    // active one, so the menu never ends up with zero options.
     const select = new StringSelectMenuBuilder()
         .setCustomId(HELP_CATEGORY_SELECT_ID)
         .setPlaceholder('Browse another command category')

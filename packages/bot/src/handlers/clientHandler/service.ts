@@ -115,8 +115,10 @@ export async function startClient({
                 })
 
                 // The rest goes only to the guilds the operator lists. These
-                // are explicit ids, not the ready-time cache, so the #1885
-                // failure (new servers with no commands) cannot come back.
+                // are explicit ids, not the ready-time cache, so a new public
+                // guild never depends on this step (#1885). They are read at
+                // boot: an operator guild the bot joins later, or whose PUT
+                // fails, gets no non-music commands until the next restart.
                 if (guildOnly.length > 0) {
                     for (const guildId of getFullCommandsGuildIds()) {
                         try {

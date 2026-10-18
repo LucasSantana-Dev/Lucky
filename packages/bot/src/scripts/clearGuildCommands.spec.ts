@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals'
+import {
+    describe,
+    it,
+    expect,
+    beforeEach,
+    afterEach,
+    jest,
+} from '@jest/globals'
 
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
@@ -234,5 +241,51 @@ describe('runClearGuildCommands', () => {
 
         expect(result.cleared).toEqual(['One'])
         expect(result.failed).toEqual([{ id: 'g2', name: 'Two' }])
+    })
+
+    // #2736: those guilds hold the non-music set as guild-scoped commands.
+    describe('FULL_COMMANDS_GUILD_IDS', () => {
+        const ORIGINAL_FULL = process.env.FULL_COMMANDS_GUILD_IDS
+        const ORIGINAL_MUSIC_ONLY = process.env.HOSTED_MUSIC_ONLY_COMMANDS
+        const guildList = [
+            { id: '111111111111111111', name: 'Operator' },
+            { id: '222222222222222222', name: 'Public' },
+        ]
+
+        const restore = (key: string, value: string | undefined) => {
+            if (value === undefined) delete process.env[key]
+            else process.env[key] = value
+        }
+
+        beforeEach(() => {
+            process.env.FULL_COMMANDS_GUILD_IDS = '111111111111111111'
+            ;(REST as unknown as jest.Mock).mockImplementationOnce(() => ({
+                setToken: jest.fn().mockReturnThis(),
+                get: jest.fn<any>().mockResolvedValue(guildList),
+                put: jest.fn<any>().mockResolvedValue(undefined),
+            }))
+        })
+
+        afterEach(() => {
+            restore('FULL_COMMANDS_GUILD_IDS', ORIGINAL_FULL)
+            restore('HOSTED_MUSIC_ONLY_COMMANDS', ORIGINAL_MUSIC_ONLY)
+        })
+
+        it('keeps the operator guilds when music-only is on', async () => {
+            process.env.HOSTED_MUSIC_ONLY_COMMANDS = 'true'
+
+            const result = await runClearGuildCommands()
+
+            expect(result.cleared).toEqual(['Public'])
+            expect(restInstance().put).toHaveBeenCalledTimes(1)
+        })
+
+        it('clears them too when music-only is off', async () => {
+            process.env.HOSTED_MUSIC_ONLY_COMMANDS = 'false'
+
+            const result = await runClearGuildCommands()
+
+            expect(result.cleared).toEqual(['Operator', 'Public'])
+        })
     })
 })
