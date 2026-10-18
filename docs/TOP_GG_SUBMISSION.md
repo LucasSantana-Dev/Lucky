@@ -62,6 +62,12 @@ Live copy since 2026-10-18, pasted together with the headline (§2). Same rules.
 It names `/recap channel` and the 👍 / 👎 now-playing buttons (#2687), both live
 in production.
 
+**Known gap in the live copy:** the headline and the long description promise a
+recap every Sunday, but the scheduler skips a week with fewer than 5 plays
+(`RECAP_MIN_PLAYS` in `packages/bot/src/services/recap/recapScheduler.ts`). A
+quiet server gets no recap that week. Changing the copy or the threshold is an
+owner call.
+
 ```markdown
 **Your server's week in music, every Sunday.**
 
