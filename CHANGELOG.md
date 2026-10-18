@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.61.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.60.0...v2.61.0) (2026-10-18)
+
+
+### Features
+
+* **bot:** register only music commands on the hosted bot ([#2848](https://github.com/LucasSantana-Dev/Lucky/issues/2848)) ([31773ca](https://github.com/LucasSantana-Dev/Lucky/commit/31773ca8ce3a8dc0c8d1490bf74d7c71d400381f))
+* **bot:** turn the weekly recap on at a guild's first play ([#2849](https://github.com/LucasSantana-Dev/Lucky/issues/2849)) ([30b29d1](https://github.com/LucasSantana-Dev/Lucky/commit/30b29d15fa8fd05380d4d55aa87c50f45aba2ae9))
+
+
+### Bug Fixes
+
+* **shared:** cut lyrics suffix with exec instead of greedy regex ([#2842](https://github.com/LucasSantana-Dev/Lucky/issues/2842)) ([b00bb2e](https://github.com/LucasSantana-Dev/Lucky/commit/b00bb2e98dc270935506018f93290a2093f916d9))
+
 ## [2.60.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.7...v2.60.0) (2026-10-17)
 
 
