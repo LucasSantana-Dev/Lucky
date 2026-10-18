@@ -825,6 +825,10 @@ describe('DatabaseService', () => {
         })
 
         it('deletes activation events older than 180 days and counts them', async () => {
+            mockTrackHistoryDeleteMany.mockResolvedValue({ count: 0 })
+            mockRateLimitDeleteMany.mockResolvedValue({ count: 0 })
+            mockServerLogDeleteMany.mockResolvedValue({ count: 0 })
+            mockUserFeedbackDeleteMany.mockResolvedValue({ count: 0 })
             mockActivationEventDeleteMany.mockResolvedValue({ count: 4 })
 
             const before = Date.now()

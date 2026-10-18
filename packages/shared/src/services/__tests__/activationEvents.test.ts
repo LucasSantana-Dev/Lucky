@@ -72,6 +72,10 @@ describe('recordActivationEvent', () => {
         await expect(
             recordActivationEvent(GUILD, 'onboarding_failed'),
         ).resolves.toBe(false)
+        expect(spy).toHaveBeenCalledWith(
+            'activation event log failed',
+            expect.any(Error),
+        )
         spy.mockRestore()
     })
 

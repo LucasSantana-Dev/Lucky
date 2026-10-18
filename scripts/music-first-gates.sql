@@ -49,13 +49,12 @@
 -- read needs plays of the gate weeks, which are purged 30 days after they
 -- happen: read each week soon after it closes and record the number.
 --
--- Known undercounts: track_history keeps the last 100 rows per guild and
--- autoplay writes a row at enqueue time (#2667), so play counts are not
--- reliable here; the gates only use "any row". The cap can still hide a
--- first-hour row: a guild that played 100+ tracks since joining may have had
--- it trimmed. h1_unknown counts eligible joins where that happened (100 rows
--- kept, oldest after join + 1 hour); they stay in the denominator as misses,
--- so heard_1h_pct is a floor.
+-- Known undercounts: autoplay writes a row at enqueue time (#2667), so play
+-- counts are not reliable here; the gates only use "any row". Rows are not
+-- capped per guild (#2678), only purged after 30 days, so a first-hour row is
+-- lost only when the join is older than that. h1_unknown counts eligible joins
+-- where that happened; they stay in the denominator as misses, so
+-- heard_1h_pct is a floor. With the 28-day cohort it stays 0.
 
 \set excluded_ids '{110373943822540800,333949691962195969,1541452011466268704}'
 -- 110373943822540800  Discord Bots (listing server)
@@ -126,8 +125,7 @@ cohort AS (
                 WHERE th."guildId" = j.g
                   AND th."playedAt" BETWEEN j.t AND j.t + interval '1 hour') AS heard_1h,
         j.t <= now() - interval '1 hour' AS h1_eligible,
-        (SELECT count(*) >= 100 AND min(th."playedAt") > j.t + interval '1 hour'
-         FROM track_history th WHERE th."guildId" = j.g) AS h1_trimmed,
+        j.t + interval '1 hour' < now() - interval '30 days' AS h1_trimmed,
         j.t <= now() - interval '8 days' AS d8_eligible,
         EXISTS (SELECT 1 FROM track_history th
                 WHERE th."guildId" = j.g AND th."playedAt" >= j.t + interval '7 days')

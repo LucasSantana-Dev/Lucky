@@ -33,7 +33,7 @@ GRANT USAGE ON SCHEMA public TO grafana_ro;
 
 GRANT SELECT ("occurredAt", "guildId", command, subcommand, kind, outcome, "latencyMs", "errorClass")
     ON command_events TO grafana_ro;
-GRANT SELECT ("guildId", "playedAt", source, "isAutoplay", "isPlaylist", title, author)
+GRANT SELECT ("guildId", "playedAt", "playDuration", source, "isAutoplay", "isPlaylist", title, author)
     ON track_history TO grafana_ro;
 GRANT SELECT ("guildDiscordId", "guildName", kind, "occurredAt")
     ON guild_membership_events TO grafana_ro;
