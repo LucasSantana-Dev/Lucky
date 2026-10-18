@@ -59,7 +59,7 @@ jobs:
   # `continue-on-error` is invalid on reusable-workflow jobs, same as above.
   # To re-enable: set the KIMI_API_KEY repo secret and restore the job.
   #
-  # AI review is currently covered by cubic and CodeRabbit, which run as apps
+  # AI review is currently covered by cubic, which runs as an app
   # rather than workflow jobs.
   danger:
     uses: LucasSantana-Dev/.github/.github/workflows/danger.yml@f534ac9dfb4ff1ffceebc209df38361882bd78a4 # main (skips the yt-dlp download, #2109)
