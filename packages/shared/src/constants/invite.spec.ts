@@ -98,7 +98,7 @@ describe('landing source attribution (#2750)', () => {
     it('accepts allowlisted sources, case-insensitively', () => {
         expect(normalizeLandingSource('topgg')).toBe('topgg')
         expect(normalizeLandingSource(' TopGG ')).toBe('topgg')
-        expect(normalizeLandingSource('test')).toBe('test')
+        expect(normalizeLandingSource('test')).toBe('unknown')
     })
 
     it('collapses anything else to the fallback', () => {
