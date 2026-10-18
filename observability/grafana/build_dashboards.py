@@ -299,19 +299,23 @@ def negocio():
         desc="Origem vem do parâmetro state do OAuth de /add (topgg, discordbotlist, botsgg, meta, landing, unknown). "
              "Joins anteriores a #2750 ou sem origem gravada aparecem como 'sem origem' (entraram por outro link ou antes do rastreio). Só entram joins com mais de 1 hora (a 1ª hora ainda não fechou para os mais novos).")
 
-    b.row("Funil de ativação (28 dias)")
-    # Same base as "Entraram (período)": counted_joins minus EXCL, here over a fixed 28 days.
+    b.row("Funil de ativação (período)")
+    # Same base as "Entraram (período)": counted_joins minus EXCL over the dashboard time range.
+    trimmed = ("(SELECT count(*) >= 100 AND min(th.\"playedAt\") > j.t + interval '1 hour' "
+               "FROM track_history th WHERE th.\"guildId\" = j.g)")
     funnel_base = (
-        f"WITH {COUNTED_JOINS}, joins AS (SELECT g, t FROM counted_joins WHERE t > now() - interval '28 days' AND g NOT IN {EXCL}), "
-        "f AS (SELECT j.g, "
-        "EXISTS (SELECT 1 FROM activation_events a WHERE a.\"guildDiscordId\" = j.g AND a.kind = 'onboarding_delivered' AND a.\"occurredAt\" >= j.t) AS delivered, "
-        "EXISTS (SELECT 1 FROM activation_events a WHERE a.\"guildDiscordId\" = j.g AND a.kind = 'station_click' AND a.\"occurredAt\" >= j.t) AS clicked, "
-        "EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') AS heard, "
+        f"WITH {COUNTED_JOINS}, joins AS (SELECT g, t FROM counted_joins WHERE $__timeFilter(t) AND g NOT IN {EXCL}), "
+        "f0 AS (SELECT j.g, j.t, "
+        "EXISTS (SELECT 1 FROM activation_events a WHERE a.\"guildDiscordId\" = j.g AND a.kind = 'onboarding_delivered' AND a.\"occurredAt\" >= j.t - interval '5 minutes') AS delivered, "
+        "EXISTS (SELECT 1 FROM activation_events a WHERE a.\"guildDiscordId\" = j.g AND a.kind = 'station_click' AND a.\"occurredAt\" >= j.t - interval '5 minutes') AS clicked, "
+        "EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') "
+        f"AND NOT {trimmed} AS heard, "
         "(SELECT count(*) FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '7 days') >= 5 AS plays5, "
         "(EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days') "
         "OR EXISTS (SELECT 1 FROM command_events ce WHERE ce.\"guildId\" = j.g AND ce.\"occurredAt\" >= j.t + interval '7 days')) AS d8 "
-        "FROM joins j) ")
-    b.add("bargauge", "Funil de ativação por guilda (28 dias)", [sql(funnel_base +
+        "FROM joins j), "
+        "f AS (SELECT g, delivered, delivered AND clicked AS clicked, heard, heard AND plays5 AS plays5, heard AND plays5 AND d8 AS d8 FROM f0) ")
+    b.add("bargauge", "Funil de ativação por guilda (período)", [sql(funnel_base +
         "SELECT '1. Entraram' AS \"Etapa\", count(*) AS \"Guildas\" FROM f "
         "UNION ALL SELECT '2. Onboarding entregue', count(*) FILTER (WHERE delivered) FROM f "
         "UNION ALL SELECT '3. Clicou na estação', count(*) FILTER (WHERE clicked) FROM f "
@@ -321,19 +325,23 @@ def negocio():
         "ORDER BY 1")], w=14, h=9, th=thresholds(("blue", 0)),
         options={"displayMode": "basic", "orientation": "horizontal", "showUnfilled": True,
                  "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": True}},
-        desc="Guildas distintas por etapa, entre as entradas contadas nos últimos 28 dias (mesma base de 'Entraram (período)': "
-             "reentrada em até 30 dias conta uma vez, guildas excluídas fora). Etapas 2 e 3 vêm de activation_events, que só existe a partir do deploy "
-             "desta instrumentação: guildas anteriores aparecem sem essas etapas. A etapa 6 só pode ser verdadeira 7 dias depois da entrada, "
-             "então guildas novas ainda não contam nela.")
+        desc="Funil aninhado: guildas distintas entre as entradas contadas do período (mesma base de 'Entraram (período)': "
+             "reentrada em até 30 dias conta uma vez, guildas excluídas fora). Clicou exige onboarding entregue; 5+ faixas exige a 1ª hora; "
+             "dia 8 exige 5+ faixas. A etapa 4 conta a 1ª hora de forma independente do clique, então pode passar da etapa 3. "
+             "Guildas com histórico cortado pelo limite de 100 faixas de track_history (mesma regra h1_trimmed de scripts/music-first-gates.sql) ficam fora das etapas 4 a 6. "
+             "Etapas 2 e 3 vêm de activation_events, que só existe a partir do deploy desta instrumentação. "
+             "A etapa 6 só pode valer 7 dias depois da entrada.")
     b.stat("Tempo até o primeiro áudio", sql(
-        f"WITH {COUNTED_JOINS}, joins AS (SELECT g, t FROM counted_joins WHERE t > now() - interval '28 days' AND g NOT IN {EXCL}), "
+        f"WITH {COUNTED_JOINS}, joins AS (SELECT g, t FROM counted_joins WHERE $__timeFilter(t) AND g NOT IN {EXCL}), "
         "first_play AS (SELECT j.g, extract(epoch FROM min(th.\"playedAt\") - j.t) AS secs FROM joins j "
-        "JOIN track_history th ON th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t GROUP BY j.g, j.t) "
+        "JOIN track_history th ON th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t "
+        f"WHERE NOT {trimmed} GROUP BY j.g, j.t) "
         "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY secs) AS \"p50\", "
         "percentile_cont(0.9) WITHIN GROUP (ORDER BY secs) AS \"p90\" FROM first_play"),
         unit="s", decimals=0, w=10, h=9, no_value="sem plays", show_names=True,
-        desc="Mediana (p50) e percentil 90 do intervalo entre a entrada contada e a primeira faixa tocada, nas guildas que entraram nos últimos 28 dias "
-             "e já tocaram algo. Quem nunca tocou fica fora (veja a etapa 4 do funil).")
+        desc="Mediana (p50) e percentil 90 do intervalo entre a entrada contada e a primeira faixa tocada, nas guildas do período que já tocaram algo. "
+             "Guildas com histórico cortado pelo limite de 100 faixas (h1_trimmed) ficam fora, porque a primeira faixa delas se perdeu. "
+             "Quem nunca tocou fica fora (veja a etapa 4 do funil).")
 
     b.row("Uso")
     b.add("timeseries", "Faixas tocadas por dia", [sql(
