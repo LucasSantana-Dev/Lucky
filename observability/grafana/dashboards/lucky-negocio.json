@@ -602,7 +602,7 @@
             "title": "Entradas e 1ª hora por origem (28 dias)",
             "description": "Origem vem do parâmetro state do OAuth de /add (topgg, discordbotlist, botsgg, meta, landing, unknown). Joins anteriores a #2750 ou sem origem gravada aparecem como 'sem origem' (entraram por outro link ou antes do rastreio). Só entram joins com mais de 1 hora (a 1ª hora ainda não fechou para os mais novos).",
             "gridPos": {
-                "x": 0,
+                "x": 12,
                 "y": 16,
                 "w": 12,
                 "h": 8
@@ -629,11 +629,11 @@
                 "overrides": []
             },
             "options": {},
-            "id": 11
+            "id": 12
         },
         {
             "type": "row",
-            "title": "Uso",
+            "title": "Funil de ativação (28 dias)",
             "collapsed": false,
             "panels": [],
             "gridPos": {
@@ -642,7 +642,123 @@
                 "w": 24,
                 "h": 1
             },
-            "id": 12
+            "id": 13
+        },
+        {
+            "type": "bargauge",
+            "title": "Funil de ativação por guilda (28 dias)",
+            "description": "Guildas distintas por etapa, entre as entradas contadas nos últimos 28 dias (mesma base de 'Entraram (período)': reentrada em até 30 dias conta uma vez, guildas excluídas fora). Etapas 2 e 3 vêm de activation_events, que só existe a partir do deploy desta instrumentação: guildas anteriores aparecem sem essas etapas. A etapa 6 só pode ser verdadeira 7 dias depois da entrada, então guildas novas ainda não contam nela.",
+            "gridPos": {
+                "x": 0,
+                "y": 25,
+                "w": 14,
+                "h": 9
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "WITH counted_joins AS ( SELECT g, t FROM ( SELECT \"guildDiscordId\" AS g, \"occurredAt\" AS t, lag(\"occurredAt\") OVER (PARTITION BY \"guildDiscordId\" ORDER BY \"occurredAt\") AS prev FROM guild_membership_events WHERE kind = 'JOIN' ) j WHERE prev IS NULL OR t - prev > interval '30 days' ), joins AS (SELECT g, t FROM counted_joins WHERE t > now() - interval '28 days' AND g NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')), f AS (SELECT j.g, EXISTS (SELECT 1 FROM activation_events a WHERE a.\"guildDiscordId\" = j.g AND a.kind = 'onboarding_delivered' AND a.\"occurredAt\" >= j.t) AS delivered, EXISTS (SELECT 1 FROM activation_events a WHERE a.\"guildDiscordId\" = j.g AND a.kind = 'station_click' AND a.\"occurredAt\" >= j.t) AS clicked, EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') AS heard, (SELECT count(*) FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '7 days') >= 5 AS plays5, (EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days') OR EXISTS (SELECT 1 FROM command_events ce WHERE ce.\"guildId\" = j.g AND ce.\"occurredAt\" >= j.t + interval '7 days')) AS d8 FROM joins j) SELECT '1. Entraram' AS \"Etapa\", count(*) AS \"Guildas\" FROM f UNION ALL SELECT '2. Onboarding entregue', count(*) FILTER (WHERE delivered) FROM f UNION ALL SELECT '3. Clicou na estação', count(*) FILTER (WHERE clicked) FROM f UNION ALL SELECT '4. Tocou na 1ª hora', count(*) FILTER (WHERE heard) FROM f UNION ALL SELECT '5. 5+ faixas em 7 dias', count(*) FILTER (WHERE plays5) FROM f UNION ALL SELECT '6. Ativa no dia 8', count(*) FILTER (WHERE d8) FROM f ORDER BY 1",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "blue",
+                                "value": null
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "displayMode": "basic",
+                "orientation": "horizontal",
+                "showUnfilled": true,
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": true
+                }
+            },
+            "id": 14
+        },
+        {
+            "type": "stat",
+            "title": "Tempo até o primeiro áudio",
+            "description": "Mediana (p50) e percentil 90 do intervalo entre a entrada contada e a primeira faixa tocada, nas guildas que entraram nos últimos 28 dias e já tocaram algo. Quem nunca tocou fica fora (veja a etapa 4 do funil).",
+            "gridPos": {
+                "x": 14,
+                "y": 25,
+                "w": 10,
+                "h": 9
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "WITH counted_joins AS ( SELECT g, t FROM ( SELECT \"guildDiscordId\" AS g, \"occurredAt\" AS t, lag(\"occurredAt\") OVER (PARTITION BY \"guildDiscordId\" ORDER BY \"occurredAt\") AS prev FROM guild_membership_events WHERE kind = 'JOIN' ) j WHERE prev IS NULL OR t - prev > interval '30 days' ), joins AS (SELECT g, t FROM counted_joins WHERE t > now() - interval '28 days' AND g NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')), first_play AS (SELECT j.g, extract(epoch FROM min(th.\"playedAt\") - j.t) AS secs FROM joins j JOIN track_history th ON th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t GROUP BY j.g, j.t) SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY secs) AS \"p50\", percentile_cont(0.9) WITHIN GROUP (ORDER BY secs) AS \"p90\" FROM first_play",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "noValue": "sem plays",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "value_and_name"
+            },
+            "id": 15
+        },
+        {
+            "type": "row",
+            "title": "Uso",
+            "collapsed": false,
+            "panels": [],
+            "gridPos": {
+                "x": 0,
+                "y": 34,
+                "w": 24,
+                "h": 1
+            },
+            "id": 16
         },
         {
             "type": "timeseries",
@@ -650,7 +766,7 @@
             "description": "",
             "gridPos": {
                 "x": 0,
-                "y": 25,
+                "y": 35,
                 "w": 12,
                 "h": 8
             },
@@ -696,7 +812,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 13
+            "id": 17
         },
         {
             "type": "timeseries",
@@ -704,7 +820,7 @@
             "description": "",
             "gridPos": {
                 "x": 12,
-                "y": 25,
+                "y": 35,
                 "w": 12,
                 "h": 8
             },
@@ -749,7 +865,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 14
+            "id": 18
         },
         {
             "type": "table",
@@ -757,7 +873,7 @@
             "description": "",
             "gridPos": {
                 "x": 0,
-                "y": 33,
+                "y": 43,
                 "w": 12,
                 "h": 9
             },
@@ -783,7 +899,7 @@
                 "overrides": []
             },
             "options": {},
-            "id": 15
+            "id": 19
         },
         {
             "type": "timeseries",
@@ -791,7 +907,7 @@
             "description": "Saídas aparecem abaixo de zero.",
             "gridPos": {
                 "x": 12,
-                "y": 33,
+                "y": 43,
                 "w": 12,
                 "h": 9
             },
@@ -867,7 +983,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 16
+            "id": 20
         },
         {
             "type": "row",
@@ -876,11 +992,11 @@
             "panels": [],
             "gridPos": {
                 "x": 0,
-                "y": 42,
+                "y": 52,
                 "w": 24,
                 "h": 1
             },
-            "id": 17
+            "id": 21
         },
         {
             "type": "stat",
@@ -888,7 +1004,7 @@
             "description": "Inflado: o autoplay grava uma linha ao enfileirar e outra ao tocar (#2667).",
             "gridPos": {
                 "x": 0,
-                "y": 43,
+                "y": 53,
                 "w": 6,
                 "h": 4
             },
@@ -925,7 +1041,7 @@
                 "graphMode": "none",
                 "textMode": "auto"
             },
-            "id": 18
+            "id": 22
         },
         {
             "type": "stat",
@@ -933,7 +1049,7 @@
             "description": "Aceitas / (aceitas + rejeitadas). Pendentes ficam fora.",
             "gridPos": {
                 "x": 6,
-                "y": 43,
+                "y": 53,
                 "w": 6,
                 "h": 4
             },
@@ -990,7 +1106,7 @@
                 "graphMode": "none",
                 "textMode": "auto"
             },
-            "id": 19
+            "id": 23
         },
         {
             "type": "bargauge",
@@ -998,7 +1114,7 @@
             "description": "",
             "gridPos": {
                 "x": 12,
-                "y": 43,
+                "y": 53,
                 "w": 12,
                 "h": 7
             },
@@ -1055,7 +1171,7 @@
                     "values": true
                 }
             },
-            "id": 20
+            "id": 24
         },
         {
             "type": "row",
@@ -1064,11 +1180,11 @@
             "panels": [],
             "gridPos": {
                 "x": 0,
-                "y": 50,
+                "y": 60,
                 "w": 24,
                 "h": 1
             },
-            "id": 21
+            "id": 25
         },
         {
             "type": "stat",
@@ -1076,7 +1192,7 @@
             "description": "Pessoas cujo último voto foi nos últimos 30 dias (a tabela guarda só o último voto de cada uma).",
             "gridPos": {
                 "x": 0,
-                "y": 51,
+                "y": 61,
                 "w": 4,
                 "h": 4
             },
@@ -1111,7 +1227,7 @@
                 "graphMode": "none",
                 "textMode": "auto"
             },
-            "id": 22
+            "id": 26
         },
         {
             "type": "stat",
@@ -1119,7 +1235,7 @@
             "description": "Recap semanal: domingo 18:00 UTC.",
             "gridPos": {
                 "x": 4,
-                "y": 51,
+                "y": 61,
                 "w": 4,
                 "h": 4
             },
@@ -1156,7 +1272,7 @@
                 "graphMode": "none",
                 "textMode": "auto"
             },
-            "id": 23
+            "id": 27
         },
         {
             "type": "stat",
@@ -1164,7 +1280,7 @@
             "description": "Mensagem de boas-vindas que chegou ao servidor novo.",
             "gridPos": {
                 "x": 8,
-                "y": 51,
+                "y": 61,
                 "w": 4,
                 "h": 4
             },
@@ -1198,7 +1314,7 @@
                 "graphMode": "none",
                 "textMode": "auto"
             },
-            "id": 24
+            "id": 28
         },
         {
             "type": "stat",
@@ -1206,7 +1322,7 @@
             "description": "",
             "gridPos": {
                 "x": 12,
-                "y": 51,
+                "y": 61,
                 "w": 4,
                 "h": 4
             },
@@ -1240,7 +1356,7 @@
                 "graphMode": "none",
                 "textMode": "auto"
             },
-            "id": 25
+            "id": 29
         },
         {
             "type": "piechart",
@@ -1248,7 +1364,7 @@
             "description": "Fonte real do stream de cada faixa (YouTube, SoundCloud...).",
             "gridPos": {
                 "x": 16,
-                "y": 51,
+                "y": 61,
                 "w": 8,
                 "h": 7
             },
@@ -1284,7 +1400,7 @@
                     "values": true
                 }
             },
-            "id": 26
+            "id": 30
         },
         {
             "type": "row",
@@ -1293,11 +1409,11 @@
             "panels": [],
             "gridPos": {
                 "x": 0,
-                "y": 58,
+                "y": 68,
                 "w": 24,
                 "h": 1
             },
-            "id": 27
+            "id": 31
         },
         {
             "type": "gauge",
@@ -1305,7 +1421,7 @@
             "description": "WAG (janela móvel de 7 dias) ≥ 100 aciona o desligamento do YouTube (decisão 2026-12-20). Laranja a 70 (70 % do limite), vermelho a 90.",
             "gridPos": {
                 "x": 0,
-                "y": 59,
+                "y": 69,
                 "w": 12,
                 "h": 7
             },
@@ -1363,7 +1479,7 @@
                 "showThresholdLabels": true,
                 "showThresholdMarkers": true
             },
-            "id": 28
+            "id": 32
         },
         {
             "type": "gauge",
@@ -1371,7 +1487,7 @@
             "description": "1.000 servidores ativos aciona o desligamento do YouTube (decisão 2026-12-20). Laranja a 700 (70 % do limite), vermelho a 900.",
             "gridPos": {
                 "x": 12,
-                "y": 59,
+                "y": 69,
                 "w": 12,
                 "h": 7
             },
@@ -1429,7 +1545,7 @@
                 "showThresholdLabels": true,
                 "showThresholdMarkers": true
             },
-            "id": 29
+            "id": 33
         }
     ]
 }
