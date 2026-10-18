@@ -1,12 +1,12 @@
 <p align="center">
   <picture>
     <source srcset="assets/lucky-social-preview.webp" type="image/webp" />
-    <img src="assets/lucky-social-preview.png" alt="Lucky — Verified Discord Bot" width="720" />
+    <img src="assets/lucky-social-preview.png" alt="Lucky: Verified Discord Bot" width="720" />
   </picture>
 </p>
 
 <p align="center">
-  <b>🎵 Lucky keeps the call playing and — when your server admin enables it — posts a weekly recap of what you listened to every Sunday.</b><br>
+  <b>Lucky keeps the call playing and, when your server admin enables it, posts a weekly recap of what you listened to every Sunday.</b><br>
   <strong>Free · Open source · English and Português · No paywall, no premium tier</strong>
 </p>
 
@@ -29,9 +29,9 @@
 
 ---
 
-## 🎯 What is Lucky?
+## What is Lucky?
 
-Lucky is a **free Discord music bot** that keeps the call going and remembers what your server plays. When enabled, it posts a Sunday recap of the week's most-played tracks (opt-in per server; weeks with fewer than five plays are skipped). Search by name or paste a Spotify link; smart autoplay keeps the queue running from your listening history. Add it in one click — every feature is included, no paywall, no premium tier.
+Lucky is a **free Discord music bot** that keeps the call going and remembers what your server plays. When enabled, it posts a Sunday recap of the week's most-played tracks (opt-in per server; weeks with fewer than five plays are skipped). Search by name or paste a Spotify link; smart autoplay keeps the queue running from your listening history. Add it in one click. Every feature is included, with no paywall and no premium tier.
 
 The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 
@@ -40,14 +40,14 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 
 ---
 
-## ✨ Features
+## Features
 
 <p align="center">
-  <a href="https://lucky.lucassantana.tech"><img src="assets/screenshots/landing-features.png" alt="What Lucky does — feature overview" width="820" /></a>
-  <br /><sub><i>Everything most servers need, in one bot — <a href="https://lucky.lucassantana.tech">see it live</a>.</i></sub>
+  <a href="https://lucky.lucassantana.tech"><img src="assets/screenshots/landing-features.png" alt="What Lucky does: feature overview" width="820" /></a>
+  <br /><sub><i>Everything most servers need, in one bot. <a href="https://lucky.lucassantana.tech">See it live</a>.</i></sub>
 </p>
 
-### 🎵 Music Player
+### Music Player
 - **Spotify-first search**: find tracks by name or paste Spotify links
 - **Smart autoplay**: Recommendations based on your listening history
 - **Queue management**: Shuffle, repeat, clear, skip, pause/resume
@@ -55,24 +55,24 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 - **Lyrics on-demand**: `/lyrics` for currently playing track
 - **Listening stats**: `/artist` and `/album` commands with Spotify integration
 
-### 📅 Weekly Recap
+### Weekly Recap
 - **Weekly post**: when enabled, Lucky posts a recap every Sunday of the week's top tracks and artists (weeks with fewer than five plays are skipped)
 - **Per-server**: each guild gets its own listening summary
 - **Opt-in**: `/recap channel #channel` to enable the Sunday post; `/recap off` to stop it (requires Manage Guild)
 
-### 📊 Engagement & Community
+### Engagement & Community
 - **Leveling system**: XP-based progression with role rewards
 - **Last.fm integration**: Scrobble and share your listening activity
-- **Social commands**: Hug, pat, kiss, dance, bonk, wave — interactive fun
+- **Social commands**: Hug, pat, kiss, dance, bonk, wave
 - **Twitch notifications**: Stream alerts for your favorite streamers
 
-### 🌐 Web Dashboard
-- **Discord OAuth login**: Secure, permission-based access
+### Web Dashboard
+- **Discord OAuth login**: Permission-based access
 - **Guild management**: Control settings and features per server
 - **Music controls**: Queue, playback, and playlist management from the web
 - **Feature status view**: Global, admin-managed
 
-### 📈 Reliability & Monitoring
+### Reliability & Monitoring
 - **CI/CD**: Every PR runs lint, build, the full test suite, and SonarCloud gates
 - **Auto-rollback**: A deploy that fails its health checks reverts to the last good build
 - **Sentry monitoring**: Real-time error tracking and telemetry
@@ -81,7 +81,7 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 
 ---
 
-## 📦 Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |-------|------------|
@@ -96,7 +96,7 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 
 ---
 
-## 🔧 Running your own copy
+## Running your own copy
 
 Lucky is meant to be added from the invite link above. Running your own copy is possible but **unsupported**: no help with setup, hosting or upgrades.
 
@@ -136,7 +136,7 @@ docker compose up -d
 docker compose logs -f bot
 ```
 
-**That's it.** Postgres, Redis, bot, backend, frontend, and Nginx all run together.
+Postgres, Redis, bot, backend, frontend, and Nginx all run together.
 
 ### Local Development
 
@@ -186,9 +186,9 @@ SENTRY_DSN=...
 
 ---
 
-## 📖 Commands
+## Commands
 
-### 🎵 Music
+### Music
 | Command | Purpose |
 |---------|---------|
 | `/play` | Play a song, playlist, or search query |
@@ -205,20 +205,20 @@ SENTRY_DSN=...
 | `/session` | Save/load playback sessions |
 | `/recap channel` / `/recap off` | Enable or disable the Sunday recap post (requires Manage Guild) |
 
-### 🎮 Engagement
+### Engagement
 | Command | Purpose |
 |---------|---------|
 | `/level` | Check your level and XP |
 | `/lastfm` | Link and view Last.fm stats |
 | `/hug` `/pat` `/kiss` `/dance` `/bonk` `/wave` | Social interactions |
 
-### 📡 Integrations
+### Integrations
 | Command | Purpose |
 |---------|---------|
 | `/twitch add` | Get stream alerts for a channel |
 | `/twitch list` | View your stream subscriptions |
 
-### ⚙️ General
+### General
 | Command | Purpose |
 |---------|---------|
 | `/ping` | Check latency |
@@ -227,7 +227,7 @@ SENTRY_DSN=...
 
 ---
 
-## 💻 Development
+## Development
 
 ### Local Workflows
 
@@ -276,22 +276,22 @@ Follow [conventional commits](https://www.conventionalcommits.org/):
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 ### Core Docs
-- **[Architecture](docs/ARCHITECTURE.md)** — System design, data flow, API structure
-- **[CI/CD Pipeline](docs/CI_CD.md)** — GitHub Actions, testing, deployment
-- **[Testing Strategy](docs/TESTING.md)** — Unit, integration, e2e test patterns
-- **[Docker Setup](docs/DOCKER.md)** — Containerization, compose configuration
+- **[Architecture](docs/ARCHITECTURE.md)**: System design, data flow, API structure
+- **[CI/CD Pipeline](docs/CI_CD.md)**: GitHub Actions, testing, deployment
+- **[Testing Strategy](docs/TESTING.md)**: Unit, integration, e2e test patterns
+- **[Docker Setup](docs/DOCKER.md)**: Containerization, compose configuration
 
 ### Deployment & Operations
-- **[Cloudflare Tunnel Setup](docs/CLOUDFLARE_TUNNEL_SETUP.md)** — Expose without port forwarding
-- **[Release Cadence](docs/RELEASE_CADENCE.md)** — Version strategy and process
-- **[Environment Variables](.env.example)** — Full configuration reference
+- **[Cloudflare Tunnel Setup](docs/CLOUDFLARE_TUNNEL_SETUP.md)**: Expose without port forwarding
+- **[Release Cadence](docs/RELEASE_CADENCE.md)**: Version strategy and process
+- **[Environment Variables](.env.example)**: Full configuration reference
 
 ### Integrations
-- **[Twitch Integration](docs/TWITCH_SETUP.md)** — Stream notification setup
-- **[Last.fm Integration](docs/LASTFM_SETUP.md)** — Scrobbling configuration
+- **[Twitch Integration](docs/TWITCH_SETUP.md)**: Stream notification setup
+- **[Last.fm Integration](docs/LASTFM_SETUP.md)**: Scrobbling configuration
 
 ### Architecture Decisions
 Every non-trivial technical choice is captured as an **Architecture Decision Record** in [`decisions/`](decisions/). 20+ ADRs cover:
@@ -324,15 +324,15 @@ Multiple admin IDs can be comma-separated: `DEVELOPER_USER_IDS=id1,id2,id3`
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-**Contributions are welcome.** Lucky runs in production and is small enough that a single PR can visibly change how it behaves — bug fixes, features, docs, and tests are all fair game.
+**Contributions are welcome.** Lucky runs in production and is small enough that a single PR can visibly change how it behaves. Bug fixes, features, docs, and tests are all fair game.
 
 **Where to start**
 
-- [`good first issue`](https://github.com/LucasSantana-Dev/Lucky/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) — self-contained, scoped, and written so you can start without asking anything first.
-- [`ready-for-human`](https://github.com/LucasSantana-Dev/Lucky/issues?q=is%3Aissue+is%3Aopen+label%3Aready-for-human) — specified and unclaimed, but assumes more repo context.
-- Found something broken? Open an issue. A reproduction case is a genuinely useful contribution on its own.
+- [`good first issue`](https://github.com/LucasSantana-Dev/Lucky/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22): self-contained, scoped, and written so you can start without asking anything first.
+- [`ready-for-human`](https://github.com/LucasSantana-Dev/Lucky/issues?q=is%3Aissue+is%3Aopen+label%3Aready-for-human): specified and unclaimed, but assumes more repo context.
+- Found something broken? Open an issue. A reproduction case is a useful contribution on its own.
 - Not sure whether an idea fits? Open an issue before building it and we will figure it out together, rather than after you have spent a weekend on it.
 
 **Making the change**
@@ -343,13 +343,13 @@ Multiple admin IDs can be comma-separated: `DEVELOPER_USER_IDS=id1,id2,id3`
 4. **Run the gate**: `npm run verify` (lint + build + tests)
 5. **Open a PR** describing what changed and why
 
-CI runs the same gate on your PR, so a red check is information rather than a rejection. Automated reviewers (CodeRabbit, cubic, SonarCloud) will comment too — treat those as suggestions to weigh, not orders.
+CI runs the same gate on your PR, so a red check tells you what to fix. Automated reviewers (CodeRabbit, cubic, SonarCloud) will comment too; treat their comments as suggestions to weigh.
 
-**What to expect.** This is maintained alongside a full-time job, so review latency varies. Every PR gets read and gets a real answer; if something cannot be merged you will get the reasoning, not silence. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the repo-specific details that are easy to miss.
+**What to expect.** This is maintained alongside a full-time job, so review latency varies. Every PR gets read and gets a real answer; if something cannot be merged you will get the reasoning. See [CONTRIBUTING.md](./CONTRIBUTING.md) for the repo-specific details that are easy to miss.
 
 ---
 
-## 🔒 Security & Maintenance
+## Security & Maintenance
 
 - **Automated scanning**: Trivy on every Docker build, Dependabot for dependencies
 - **Merge strategy**: Auto-merge for patch updates, manual review for major changes
@@ -358,17 +358,17 @@ CI runs the same gate on your PR, so a red check is information rather than a re
 
 ---
 
-## 📄 License
+## License
 
 ISC © [Lucas Santana](https://github.com/LucasSantana-Dev)
 
 ---
 
-## 🙌 Acknowledgments
+## Acknowledgments
 
-Inspired by community music bots like Groovy and Rythm. Built on the shoulders of:
-- [discord.js](https://discord.js.org/) — Discord API library
-- [Discord Player](https://discord-player.js.org/) — Music playback framework
-- [Prisma](https://www.prisma.io/) — Type-safe ORM
-- [React](https://react.dev/) — Frontend framework
-- And 200+ open-source dependencies 💙
+Inspired by community music bots like Groovy and Rythm. Built on:
+- [discord.js](https://discord.js.org/): Discord API library
+- [Discord Player](https://discord-player.js.org/): Music playback framework
+- [Prisma](https://www.prisma.io/): Type-safe ORM
+- [React](https://react.dev/): Frontend framework
+- And 200+ open-source dependencies
