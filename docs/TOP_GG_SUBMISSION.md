@@ -43,18 +43,18 @@ audio sources are never named, self-hosting is not promoted, and the listing
 never promises a feature the bot lacks.
 
 ```text
-Every Sunday, Lucky shows your server what it listened to, and keeps the call playing in between. Smart autoplay, all free.
+Every week your server plays music, Lucky posts a Sunday recap of what it listened to. Smart autoplay keeps the call going. All free.
 ```
 
-Character count: 123.
+Character count: 133.
 
 pt-BR variant (for a later test, same rule):
 
 ```text
-Todo domingo, a Lucky mostra o que o seu servidor ouviu, e mantém a call tocando no resto da semana. Autoplay que aprende, tudo grátis.
+Toda semana em que o seu servidor toca música, a Lucky posta um resumo no domingo. Autoplay que aprende mantém a call tocando. Tudo grátis.
 ```
 
-Character count: 135.
+Character count: 139.
 
 ## 3. Long description (Markdown supported)
 
@@ -62,20 +62,19 @@ Live copy since 2026-10-18, pasted together with the headline (§2). Same rules.
 It names `/recap channel` and the 👍 / 👎 now-playing buttons (#2687), both live
 in production.
 
-**Known gap in the live copy:** the headline and the long description promise a
-recap every Sunday, but the scheduler skips a week with fewer than 5 plays
-(`RECAP_MIN_PLAYS` in `packages/bot/src/services/recap/recapScheduler.ts`). A
-quiet server gets no recap that week. Changing the copy or the threshold is an
-owner call.
+The copy promises a recap only for weeks with music, because the scheduler
+skips a week with fewer than 5 plays (`RECAP_MIN_PLAYS` in
+`packages/bot/src/services/recap/recapScheduler.ts`). The long description
+names the 5-song threshold; keep the copy and the constant in step.
 
 ```markdown
-**Your server's week in music, every Sunday.**
+**Your server's week in music, every Sunday it has one.**
 
-Lucky keeps the call playing with autoplay that learns from what your server plays, skips and likes. Every Sunday it posts a recap in the channel where you first played music: the songs and artists your server played most, how long you listened, and how much came from autoplay. It never says who played what.
+Lucky keeps the call playing with autoplay that learns from what your server plays, skips and likes. On the Sunday after any week with at least 5 songs played, it posts a recap in the channel where you first played music: the songs and artists your server played most, how long you listened, and how much came from autoplay. It never says who played what.
 
 **What you get**
 
-- 📅 A weekly recap every Sunday, on from your first play and off in one click
+- 📅 A Sunday recap for every week your server plays music, on from your first play and off in one click
 - 🎶 Smart autoplay that adapts to your server. Rate the song playing with 👍 / 👎 to steer it
 - 📻 One-click station to get music going the moment Lucky joins
 - 🟢 Spotify search and links: paste a track, album or playlist
@@ -103,13 +102,13 @@ Made in Brazil. Open source under the ISC license: https://github.com/LucasSanta
 pt-BR variant (for a later test, same rule):
 
 ```markdown
-**A semana musical do seu servidor, todo domingo.**
+**A semana musical do seu servidor, todo domingo em que houver música.**
 
-A Lucky mantém a call tocando com um autoplay que aprende com o que o seu servidor toca, pula e curte. Todo domingo ela posta um resumo no canal onde vocês tocaram música pela primeira vez: as músicas e os artistas mais tocados, quanto tempo vocês ouviram e quanto veio do autoplay. Ela nunca diz quem tocou o quê.
+A Lucky mantém a call tocando com um autoplay que aprende com o que o seu servidor toca, pula e curte. No domingo depois de uma semana com pelo menos 5 músicas tocadas, ela posta um resumo no canal onde vocês tocaram música pela primeira vez: as músicas e os artistas mais tocados, quanto tempo vocês ouviram e quanto veio do autoplay. Ela nunca diz quem tocou o quê.
 
 **O que você ganha**
 
-- 📅 Um resumo semanal todo domingo, ligado desde a primeira música e desligado com um clique
+- 📅 Um resumo no domingo para cada semana em que o seu servidor toca música, ligado desde a primeira música e desligado com um clique
 - 🎶 Autoplay que se adapta ao seu servidor. Avalie a música que está tocando com 👍 / 👎 para guiar
 - 📻 Estação com um clique para a música começar assim que a Lucky entra
 - 🟢 Busca e links do Spotify: cole uma música, um álbum ou uma playlist
