@@ -1,6 +1,10 @@
 import { REST, Routes } from 'discord.js'
 import { config } from '@lucky/shared/config'
 import { errorLog, infoLog } from '@lucky/shared/utils'
+import {
+    getFullCommandsGuildIds,
+    isHostedMusicOnlyCommands,
+} from '../config/hostedCommands'
 
 export type GuildRef = { id: string; name: string }
 
@@ -96,7 +100,20 @@ export async function runClearGuildCommands(): Promise<ClearResult> {
     }
 
     const rest = new REST({ version: '10' }).setToken(TOKEN)
-    const guilds = await fetchAllGuilds(rest)
+    // With music-only on, the operator guilds hold the non-music set as
+    // guild-scoped commands (#2736). Clearing them would leave those guilds
+    // with music commands only until the next restart.
+    const keep = new Set(
+        isHostedMusicOnlyCommands() ? getFullCommandsGuildIds() : [],
+    )
+    const guilds = (await fetchAllGuilds(rest)).filter(
+        (guild) => !keep.has(guild.id),
+    )
+    if (keep.size > 0) {
+        infoLog({
+            message: `Keeping guild-scoped commands of ${keep.size} FULL_COMMANDS_GUILD_IDS guild(s)`,
+        })
+    }
 
     infoLog({
         message: `Clearing guild-scoped commands for ${guilds.length} guild(s)`,

@@ -12,6 +12,7 @@ const VIEW_CHANNEL = 1n << 10n
 const SEND_MESSAGES = 1n << 11n
 const MANAGE_MESSAGES = 1n << 13n
 const EMBED_LINKS = 1n << 14n
+const ATTACH_FILES = 1n << 15n
 const CONNECT = 1n << 20n
 const SPEAK = 1n << 21n
 
@@ -27,25 +28,30 @@ const MODERATE_MEMBERS = 1n << 40n
 describe('bot invite permissions', () => {
     const bits = BigInt(BOT_INVITE_PERMISSIONS)
 
-    // This value is the curated default decided in
-    // decisions/2026-06-18-invite-permission-scope.md. Four copies had already
-    // drifted apart (#1888, #1894, #1923) — the docs page shipped
-    // Administrator, the backend redirect shipped a set missing View Channels
-    // entirely — so it is worth pinning to the decision rather than to taste.
+    // Pinned to the decision rather than to taste: four copies had already
+    // drifted apart (#1888, #1894, #1923). Music-only since #2736.
     it('never requests Administrator', () => {
         expect(bits & ADMINISTRATOR).toBe(0n)
     })
 
-    it('requests exactly the ADR curated set', () => {
+    it('requests exactly the music set plus Attach Files for the recap card', () => {
         const expected =
-            VIEW_AUDIT_LOG |
             VIEW_CHANNEL |
             SEND_MESSAGES |
-            MANAGE_MESSAGES |
             EMBED_LINKS |
+            ATTACH_FILES |
             CONNECT |
             SPEAK
         expect(bits).toBe(expected)
+    })
+
+    // No music command needs these, and asking for them on install was part
+    // of why new servers removed the bot within minutes (#2736).
+    it.each([
+        ['Manage Messages', MANAGE_MESSAGES],
+        ['View Audit Log', VIEW_AUDIT_LOG],
+    ])('does not request %s', (_label, bit) => {
+        expect(bits & bit).toBe(0n)
     })
 
     // The ADR escalates these on demand: commands needing them check
