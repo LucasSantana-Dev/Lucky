@@ -210,6 +210,14 @@ export async function handleOnboardingStationButton(
             track: result.track,
             hadQueueBeforePlay,
             isPlaylist: false,
+            // A station click is a first play too (#2738).
+            recapTarget:
+                interaction.guild && interaction.channelId
+                    ? {
+                          guild: interaction.guild,
+                          channelId: interaction.channelId,
+                      }
+                    : null,
         }).catch((backgroundOpsError: unknown) => {
             warnLog({
                 message: 'Onboarding station post-play background ops failed',

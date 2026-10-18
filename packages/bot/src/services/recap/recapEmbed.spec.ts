@@ -40,7 +40,7 @@ describe('buildRecapEmbed (#2678)', () => {
             '**1.** Song \\*A\\* (Artist A) · ×4',
         )
         expect(field('music.recap.topArtistsName')).toBe('**1.** Artist A · ×6')
-        expect(json.footer?.text).toBe('Lucky')
+        expect(json.footer?.text).toBe('Lucky · music.recap.offHint')
     })
 
     it('never names who played and omits empty top lists', () => {

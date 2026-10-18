@@ -121,6 +121,7 @@ function createInteraction(
         guildId: 'guild-1',
         guild: { members: { me: { id: 'bot-id' } } },
         channel: { id: 'channel-1' },
+        channelId: 'channel-1',
         user: { id: 'user-1' },
         member: { voice: { channel: createVoiceChannel(true) } },
         client: { player: { play: playMock } },
@@ -253,6 +254,11 @@ describe('handleOnboardingStationButton', () => {
             track: { title: 'Fake Track' },
             hadQueueBeforePlay: false,
             isPlaylist: false,
+            // #2738: a station click counts as the guild's first play.
+            recapTarget: {
+                guild: { members: { me: { id: 'bot-id' } } },
+                channelId: 'channel-1',
+            },
         })
 
         expect(createSuccessEmbedMock).toHaveBeenCalledWith(

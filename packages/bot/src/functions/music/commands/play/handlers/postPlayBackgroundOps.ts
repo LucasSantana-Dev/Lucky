@@ -1,3 +1,4 @@
+import type { Guild } from 'discord.js'
 import type { GuildQueue, Track } from 'discord-player'
 import { QueueRepeatMode } from 'discord-player'
 import { errorLog } from '@lucky/shared/utils'
@@ -6,6 +7,7 @@ import { blendAutoplayTracks } from '../../../../../services/musicManagement/que
 import { applyStoredAutoplayPreference } from './autoplayPreference'
 import { clearAutoplayPause } from '../../../../../services/musicRecommendation/autoplay/skipCircuitBreaker'
 import { clearSessionMoodCache } from '../../../../../services/musicRecommendation/autoplay/replenisher'
+import { maybeAutoEnableRecap } from '../../../../../services/recap/recapAutoEnable'
 
 export interface PostPlayBackgroundOpsInput {
     queue: GuildQueue | null | undefined
@@ -13,6 +15,8 @@ export interface PostPlayBackgroundOpsInput {
     track: Track
     hadQueueBeforePlay: boolean
     isPlaylist: boolean
+    /** Where the /play ran, for the recap's first-play default (#2738). */
+    recapTarget?: { guild: Guild; channelId: string } | null
 }
 
 const AUTOPLAY_PREFERENCE_RETRY_DELAY_MS = 150
@@ -70,9 +74,16 @@ async function withSingleRetry(fn: () => Promise<void>): Promise<void> {
 export async function runPostPlayBackgroundOps(
     input: PostPlayBackgroundOpsInput,
 ): Promise<void> {
-    const { queue, guildId, track, hadQueueBeforePlay, isPlaylist } = input
+    const {
+        queue,
+        guildId,
+        track,
+        hadQueueBeforePlay,
+        isPlaylist,
+        recapTarget,
+    } = input
 
-    // These two touch independent caches, so they can run concurrently. The
+    // These touch independent state, so they can run concurrently. The
     // ops below depend on `queue.repeatMode`, possibly mutated by
     // applyStoredAutoplayPreference, so they must stay sequential.
     await Promise.all([
@@ -82,6 +93,14 @@ export async function runPostPlayBackgroundOps(
         runIsolated('clearSessionMoodCache', guildId, () =>
             clearSessionMoodCache(guildId),
         ),
+        recapTarget
+            ? runIsolated('autoEnableRecap', guildId, () =>
+                  maybeAutoEnableRecap(
+                      recapTarget.guild,
+                      recapTarget.channelId,
+                  ),
+              )
+            : undefined,
     ])
 
     if (!hadQueueBeforePlay && queue) {

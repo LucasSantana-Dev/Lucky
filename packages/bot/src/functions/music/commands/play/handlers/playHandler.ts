@@ -476,6 +476,13 @@ export async function executePlayHandler({
             track,
             hadQueueBeforePlay,
             isPlaylist,
+            recapTarget:
+                interaction.guild && interaction.channelId
+                    ? {
+                          guild: interaction.guild,
+                          channelId: interaction.channelId,
+                      }
+                    : null,
         }).catch((error: unknown) => {
             errorLog({
                 message: 'Post-play background ops failed',
