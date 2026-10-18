@@ -2,10 +2,18 @@
 --
 -- Idempotent: rerun after restoring a dump on a new host (roles are not in
 -- pg_dump) or after a migration that drops and recreates a granted table.
--- Expects psql variable `pw` (the password). Pass it on stdin, never in argv:
+-- Expects psql variable `pw` (the password). Pass it on stdin, never in argv.
+-- Refuses to run (exit 3, nothing changed) when `pw` is unset or empty: an
+-- empty value would make psql clear the grafana_ro password and break the
+-- Grafana datasource.
 --
---   { printf "\\set pw '%s'\n" "$(cat <password-file>)"; cat observability/postgres/grafana-ro.sql; } \
---     | docker exec -i lucky-postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -1 -q'
+-- On the homelab the secret is owned by Grafana (uid 472), so reading it needs
+-- sudo, and `cat` may be aliased (hence `command cat`):
+--
+--   ssh homelab
+--   cd ~/Lucky
+--   sudo -v
+--   pw="$(sudo cat ~/homelab/secrets/lucky_grafana_ro_password)" && [ -n "$pw" ] && { printf "\\set pw '%s'\n" "$pw"; command cat observability/postgres/grafana-ro.sql; } | docker exec -i lucky-postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -1 -q'; unset pw
 --
 -- Access model: column-level SELECT on product tables only. No user ids
 -- (userId, playedBy, discordUserId), no tokens, sessions, logs or payments.
@@ -17,6 +25,18 @@
 -- CONNECTION LIMIT 5 is intentional: keep the Grafana datasource's
 -- maxOpenConns at 5 or below (the homelab one uses 2), or panels fail with
 -- "too many connections for role grafana_ro".
+
+-- Guard: abort before touching any role when `pw` is unset or empty.
+\set ON_ERROR_STOP on
+\if :{?pw}
+\else
+    \set pw ''
+\endif
+SELECT (:'pw' = '') AS pw_empty \gset
+\if :pw_empty
+    \echo 'grafana-ro.sql: psql variable pw is empty or unset; refusing to run (would clear the grafana_ro password).'
+    DO $$ BEGIN RAISE EXCEPTION 'grafana-ro.sql aborted: empty pw'; END $$;
+\endif
 
 SELECT format('CREATE ROLE grafana_ro LOGIN PASSWORD %L', :'pw')
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'grafana_ro') \gexec
