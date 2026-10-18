@@ -19,7 +19,7 @@ activation, not acquisition:
 - 61% of new guilds never play a track.
 - 12 of 43 adds (28%) are removed within 5 minutes and 16 (37%) within 1 hour; only 3 of those
   16 ever played.
-- A new server sees about 90 global commands in the picker (pt-BR `/vaga` among them) and an
+- A new guild sees about 90 global commands in the picker (pt-BR `/vaga` among them) and an
   invite that asks for View Audit Log and Manage Messages (`BOT_INVITE_PERMISSIONS = '3173504'`).
 - The weekly recap is opt-in and has 0 uptake: 0 recap channels, 0 cards. It is the only lever
   any lens found for retention in weeks 2 to 4, and day-8 activity is 2 of 12 (17%).
@@ -40,8 +40,8 @@ Numbering follows the 8 amendments of #2759. Approved as written: 1, 3, 4, 5, 6,
 2. **Cut. No guild recruiting in any form, and no pt-BR vs international split.** The 40 hand
    recruits of the music-first ADR (decision 5) are dropped, and so is the proposal to replace
    them with automated channels. The pt-BR vs international cohort comparison (decision 6) is
-   dropped with them. Growth comes from the directories and top.gg in amendment 4 (#2751,
-   #2756).
+   dropped with them. Growth comes from the directories (#2751), top.gg ads (amendment 4, #2756)
+   and, if the landing page is live by 2026-10-31, Meta Ads (amendment 4, #2750, #2757).
 3. **Approved. The weekly recap is opt-out.** It is enabled at a guild's first successful /play,
    in that text channel. The first card says it can be turned off and carries a visible off
    button. The card goes to the guild channel only, never as a DM. (#2738)
@@ -72,7 +72,8 @@ The phases of the music-first ADR change as follows:
 
 - **Automated channels replace the 40 hand recruits, with the cohort split read from
   `preferredLocale` and OAuth state** (amendment 2 as proposed), rejected by the owner. Recruiting
-  is dropped in every form; the directories and top.gg are the only acquisition channels.
+  is dropped in every form; the directories, top.gg ads and the gated Meta Ads run of amendment 4
+  are the only acquisition channels.
 - **Move the taste profile and public share page after 2026-12-20** (amendment 8 as proposed),
   rejected by the owner in favor of removing them, and Wrapped, from the test entirely.
 - **Start spend before the activation fixes ship**, rejected. With 28% of adds removed within 5
@@ -88,7 +89,7 @@ The phases of the music-first ADR change as follows:
   measurement.
 - Hiding non-music commands from the hosted bot does not remove them from the repository;
   self-hosters keep them, as decision 3 of the music-first ADR already does for extractors.
-- An opt-out recap posts in a channel the server did not pick. The off button on the first card
+- An opt-out recap posts in a channel the guild did not pick. The off button on the first card
   and the 5-play minimum are what keep it from reading as spam; the no-unsolicited-DMs guardrail
   of `2026-06-18-in-bot-growth.md` still applies.
 

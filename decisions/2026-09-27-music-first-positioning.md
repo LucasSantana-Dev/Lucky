@@ -10,7 +10,7 @@
   check fired, so the pitch now leads with the weekly recap);
   `2026-10-18-music-first-business-review-amendments.md` (decisions 2, 5 and 6: music-only
   hosted commands, opt-out recap, spend and uptime gates, early portfolio trigger; recruiting,
-  the pt-BR cohort split, Wrapped and the taste profile are cut)
+  the pt-BR cohort split, Wrapped, the taste profile and the public share page are cut)
 
 ## Context
 
