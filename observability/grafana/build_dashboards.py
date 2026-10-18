@@ -10,9 +10,30 @@ ds_loki, ds_postgres, ds_sentry) so the same JSON loads in the homelab Grafana
 (auto-generated datasource uids) and in the Lucky compose profile Grafana.
 """
 import json
+import re
 from pathlib import Path
 
 OUT = Path(__file__).parent / "dashboards"
+GATES_SQL = Path(__file__).resolve().parents[2] / "scripts" / "music-first-gates.sql"
+
+
+def shared_cte(name):
+    """Return the named shared CTE from scripts/music-first-gates.sql as one line.
+
+    The gates script is the single definition of counted joins (re-add within 30
+    days counts once) and of the WAG gate weeks (ADR amendment 5); the dashboard
+    embeds the very same text instead of keeping a copy. Without the trailing comma.
+    """
+    text = GATES_SQL.read_text(encoding="utf-8")
+    m = re.search(rf"-- BEGIN SHARED {name}\n(.*?)-- END SHARED {name}\n", text, re.S)
+    if not m:
+        raise SystemExit(f"shared block {name!r} not found in {GATES_SQL}")
+    lines = [ln.strip() for ln in m.group(1).splitlines() if ln.strip() and not ln.strip().startswith("--")]
+    return " ".join(lines).rstrip(",")
+
+
+COUNTED_JOINS = shared_cte("counted_joins")
+WAG_WINDOWS = shared_cte("wag_windows")
 
 P = {"type": "prometheus", "uid": "${ds_prometheus}"}
 L = {"type": "loki", "uid": "${ds_loki}"}
@@ -219,8 +240,7 @@ def negocio():
     b.stat("WAG (7 dias)", sql(WAG_7D), th=thresholds((RED, 0), (ORANGE, 10), (GREEN, 20)), w=4,
            desc="Guildas com faixa tocada ou comando nos últimos 7 dias.")
     cohort = (
-        f"WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events "
-        f"WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days'), "
+        f"WITH {COUNTED_JOINS}, joins AS (SELECT g, t FROM counted_joins WHERE t > now() - interval '28 days'), "
         f"c AS (SELECT j.t, "
         f"EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') AS heard, "
         f"(EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days') "
@@ -238,12 +258,21 @@ def negocio():
            desc="Guildas que entraram entre 8 e 28 dias atrás e ainda tocaram ou usaram comando a partir do dia 8. Meta: 15%.")
     b.stat("Servidores com o Lucky", prom('max(lucky_bot_guilds_total{state="active"})', instant=True), w=4)
     b.stat("Entraram (período)", sql(
-        f"SELECT count(*) AS \"Entradas\" FROM guild_membership_events WHERE kind = 'JOIN' AND $__timeFilter(\"occurredAt\") "
-        f"AND \"guildDiscordId\" NOT IN {EXCL}"), w=3)
+        f"WITH {COUNTED_JOINS} SELECT count(*) AS \"Entradas\" FROM counted_joins WHERE $__timeFilter(t) AND g NOT IN {EXCL}"), w=3,
+        desc="Entradas contadas: reentrada em até 30 dias conta uma vez (emenda 5 do ADR). Mesma definição de scripts/music-first-gates.sql.")
     b.stat("Saíram (período)", sql(
         f"SELECT count(*) AS \"Saídas\" FROM guild_membership_events WHERE kind = 'LEAVE' AND $__timeFilter(\"occurredAt\") "
         f"AND \"guildDiscordId\" NOT IN {EXCL}"), w=3,
         th=thresholds((GREEN, 0), (ORANGE, 1)))
+    b.add("table", "WAG nas semanas da decisão (meta: 20 nas 3)", [sql(
+        f"WITH {WAG_WINDOWS}, activity AS (SELECT date_trunc('week', t)::date AS wk, g FROM {ACTIVITY} x "
+        f"WHERE t >= (SELECT min(week_start) FROM wag_windows)) "
+        f"SELECT w.week_start AS \"Semana (início)\", w.week_start + 6 AS \"Semana (fim)\", count(DISTINCT a.g) AS \"WAG\", "
+        f"count(DISTINCT a.g) >= 20 AS \"Meta ≥ 20\", w.week_start + 7 <= now()::date AS \"Fechada\" "
+        f"FROM wag_windows w LEFT JOIN activity a ON a.wk = w.week_start AND a.g NOT IN {EXCL} "
+        f"GROUP BY w.week_start ORDER BY w.week_start")], w=12, h=5,
+        desc="Semanas segunda a domingo que terminam em 29/11, 06/12 e 13/12/2026 (emenda 5 do ADR). Mesma definição de scripts/music-first-gates.sql. "
+             "Semana não fechada ainda lê baixo.")
     b.add("timeseries", "WAG por semana (últimas 4 semanas)", [sql(
         f"SELECT date_trunc('week', t) AS time, count(DISTINCT g) AS \"Guildas ativas\" FROM {ACTIVITY} a "
         f"WHERE t >= date_trunc('week', now()) - interval '3 weeks' AND g NOT IN {EXCL} GROUP BY 1 ORDER BY 1", "time_series")],
@@ -251,8 +280,7 @@ def negocio():
         th=thresholds((RED, 0), (GREEN, 20)), options=TS_OPTS,
         desc="Semana começa na segunda (UTC). A linha tracejada é a meta de 20.")
     b.add("table", "Guildas novas por semana de entrada (28 dias)", [sql(
-        "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events "
-        "WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days') "
+        f"WITH {COUNTED_JOINS}, joins AS (SELECT g, t FROM counted_joins WHERE t > now() - interval '28 days') "
         "SELECT date_trunc('week', j.t)::date AS \"Semana\", count(*) AS \"Entraram\", "
         "count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g "
         "AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour')) AS \"Tocaram na 1ª hora\", "
