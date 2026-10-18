@@ -5,6 +5,13 @@ export {
     BOT_CLIENT_ID,
     BOT_INVITE_PERMISSIONS,
     buildBotInviteUrl,
+    buildBotAddUrl,
+    normalizeLandingSource,
+    parseAddState,
+    LANDING_SOURCES,
+    FALLBACK_LANDING_SOURCE,
+    ADD_STATE_PREFIX,
+    type LandingSource,
 } from './invite'
 export { SUPPORT_SERVER_INVITE_URL } from './support'
 export {

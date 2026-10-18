@@ -127,6 +127,20 @@ model GuildMembershipEvent {
   @@map("guild_membership_events")
 }
 
+/// Where a guild add came from (#2750). Written by the OAuth callback of the
+/// landing add flow (`state=src.<source>`, source validated against an
+/// allowlist). One row per guild, first source wins. No FK to Guild on purpose:
+/// the row is written before the bot's own guild sync and must survive a
+/// Guild row deletion, like GuildMembershipEvent.
+model GuildJoinSource {
+  guildDiscordId String   @id
+  source         String
+  createdAt      DateTime @default(now())
+
+  @@index([source, createdAt])
+  @@map("guild_join_sources")
+}
+
 model GuildFeatureToggle {
   id      String  @id @default(cuid())
   guildId String
