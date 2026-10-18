@@ -8,8 +8,8 @@ Use the GitHub issue tracker: https://github.com/LucasSantana-Dev/Lucky/issues
 
 Issue templates guide you through the required information:
 
-- **Bug report** — steps to reproduce, expected vs actual behaviour, Lucky version, deployment type
-- **Feature request** — problem statement and proposed solution
+- **Bug report**: steps to reproduce, expected vs actual behaviour, Lucky version, deployment type
+- **Feature request**: problem statement and proposed solution
 
 ## Getting started
 
@@ -22,29 +22,29 @@ npm run test:bot -- --testPathPatterns='your-area'
 
 Per-package quick refs:
 
-- **Bot tests** — `npm run test:bot`
-- **Backend tests** — `npm run test:backend`
-- **Frontend dev** — `npm run dev:frontend` (Vite)
-- **Frontend e2e** — `npm run test:e2e` (Playwright)
+- **Bot tests**: `npm run test:bot`
+- **Backend tests**: `npm run test:backend`
+- **Frontend dev**: `npm run dev:frontend` (Vite)
+- **Frontend e2e**: `npm run test:e2e` (Playwright)
 
 The active backlog lives at `.claude/plans/backlog-YYYY-MM-DD.md`; the most recent file is canonical. Feature specs are local-only (untracked) under `.claude/specs/YYYY-MM-DD-*/`. Decisions of record (ADRs) are tracked at the repo root under `decisions/`.
 
-Touching `packages/bot/src/{handlers,functions,utils}/`? Read [docs/ARCHITECTURE.md § Internal layer boundaries](docs/ARCHITECTURE.md#internal-layer-boundaries-bot-package) first — there's a documented (not yet lint-enforced) rule for which way imports should go and what belongs in `utils/` vs `services/`.
+Touching `packages/bot/src/{handlers,functions,utils}/`? Read [docs/ARCHITECTURE.md § Internal layer boundaries](docs/ARCHITECTURE.md#internal-layer-boundaries-bot-package) first. There's a documented (not yet lint-enforced) rule for which way imports should go and what belongs in `utils/` vs `services/`.
 
 ## Pull request checks
 
 Branch protection on `main` requires:
 
-- `Quality Gates` (CI/CD Pipeline — jest + lint + typecheck)
-- `Security` (CI/CD Pipeline — secret scan + audit)
+- `Quality Gates` (CI/CD Pipeline: jest + lint + typecheck)
+- `Security` (CI/CD Pipeline: secret scan + audit)
 - `SonarCloud Code Analysis` (Quality Gate, includes ≥ 80% new-code coverage)
 
-Plus the repo _ruleset_ (separate from legacy branch protection — visible only via `gh api /repos/.../rules/branches/main`) adds:
+Plus the repo _ruleset_ (separate from legacy branch protection, visible only via `gh api /repos/.../rules/branches/main`) adds:
 
 - `portability` (path-portability check)
 - `SonarCloud Scan`
 - `GitGuardian Security Checks`
-- **`required_review_thread_resolution: true`** — every PR review thread must be marked Resolved before merge, even after the parent review is dismissed.
+- **`required_review_thread_resolution: true`**: every PR review thread must be marked Resolved before merge, even after the parent review is dismissed.
 
 ## Resolving review threads on merge
 
@@ -79,11 +79,11 @@ gh api graphql -f query='
   mutation { resolveReviewThread(input: { threadId: "PRRT_..." }) { thread { isResolved } } }'
 ```
 
-Note: dismissing the parent review (`PUT /repos/.../pulls/N/reviews/REVIEW_ID/dismissals`) does **not** auto-resolve its inline threads — the threads outlive the review record. Both steps are usually required when the bot review is stale.
+Note: dismissing the parent review (`PUT /repos/.../pulls/N/reviews/REVIEW_ID/dismissals`) does **not** auto-resolve its inline threads: the threads outlive the review record. Both steps are usually required when the bot review is stale.
 
 ## Re-triggering CI after retargeting a stacked PR
 
-`gh pr edit <N> --base main` flips the base branch but does **not** fire workflows whose trigger is `pull_request: branches: [main]` — GitHub dispatches `pull_request.edited` (which most workflows don't subscribe to), not `synchronize`. Required checks then never run on the existing head SHA and `mergeStateStatus` stays BLOCKED indefinitely.
+`gh pr edit <N> --base main` flips the base branch but does **not** fire workflows whose trigger is `pull_request: branches: [main]`: GitHub dispatches `pull_request.edited` (which most workflows don't subscribe to), not `synchronize`. Required checks then never run on the existing head SHA and `mergeStateStatus` stays BLOCKED indefinitely.
 
 **Fix:** push an empty commit immediately after retargeting:
 
@@ -100,7 +100,7 @@ Closing and reopening the PR works too but loses any auto-merge arming.
 
 ## cubic reviews
 
-cubic is the codebase-aware AI reviewer (replaced CodeRabbit 2026-06-04 — see `docs/review-tools.md`). Trigger a review by commenting `@cubic-dev-ai review` on the PR. cubic also auto-reviews new PRs.
+cubic is the codebase-aware AI reviewer (replaced CodeRabbit 2026-06-04; see `docs/review-tools.md`). Trigger a review by commenting `@cubic-dev-ai review` on the PR. cubic also auto-reviews new PRs.
 
 cubic is low-false-positive by design and does **not** flip PRs to `CHANGES_REQUESTED` on style nits, so there's no stale-review dismissal dance. If cubic posts a high-severity finding you've addressed, push the fix and re-comment `@cubic-dev-ai review` to re-run; resolve any inline threads with the thread-resolution recipe above.
 
