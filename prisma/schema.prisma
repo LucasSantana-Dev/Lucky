@@ -141,6 +141,21 @@ model GuildJoinSource {
   @@map("guild_join_sources")
 }
 
+/// Activation funnel events (onboarding delivery, station clicks, recap
+/// auto-enable). Append-only, no relation to Guild: rows must survive a guild
+/// removal so the funnel keeps counting guilds that left.
+model ActivationEvent {
+  id             Int      @id @default(autoincrement())
+  guildDiscordId String
+  kind           String
+  reason         String?
+  occurredAt     DateTime @default(now())
+
+  @@index([kind, occurredAt])
+  @@index([guildDiscordId])
+  @@map("activation_events")
+}
+
 model GuildFeatureToggle {
   id      String  @id @default(cuid())
   guildId String

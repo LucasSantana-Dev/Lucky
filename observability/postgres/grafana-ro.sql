@@ -45,6 +45,8 @@ GRANT SELECT ("lastVoteAt", streak)
     ON topgg_votes TO grafana_ro;
 GRANT SELECT ("guildDiscordId", source, "createdAt")
     ON guild_join_sources TO grafana_ro;
+GRANT SELECT ("guildDiscordId", kind, reason, "occurredAt")
+    ON activation_events TO grafana_ro;
 
 -- Most of these tables have RLS enabled with no policies
 -- (migration 20250101000001_enable_rls_no_policies), which hides every row
@@ -54,4 +56,4 @@ SELECT format('DROP POLICY IF EXISTS grafana_ro_read ON %I', t),
        format('CREATE POLICY grafana_ro_read ON %I FOR SELECT TO grafana_ro USING (true)', t)
 FROM unnest(ARRAY['command_events', 'track_history', 'guild_membership_events',
                   'recommendations', 'guilds', 'topgg_votes',
-                  'guild_join_sources']) AS t \gexec
+                  'guild_join_sources', 'activation_events']) AS t \gexec
