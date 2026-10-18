@@ -167,4 +167,18 @@ describe('prometheus registry', () => {
             )
         }
     })
+
+    it('exports every spotify cache result at 0 from boot', async () => {
+        countMock.mockResolvedValue(0)
+
+        const text = await renderMetrics()
+
+        for (const result of ['hit', 'miss', 'negative']) {
+            expect(text).toMatch(
+                new RegExp(
+                    `lucky_bot_spotify_cache_total\\{[^}]*result="${result}"[^}]*\\}\\s+0`,
+                ),
+            )
+        }
+    })
 })

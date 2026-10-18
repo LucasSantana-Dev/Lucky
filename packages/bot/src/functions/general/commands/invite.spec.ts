@@ -9,6 +9,7 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 jest.mock('@lucky/shared/constants', () => ({
+    BOT_INVITE_PERMISSIONS: '3197952',
     TOP_GG_VOTE_URL: 'https://top.gg/bot/962198089161134131/vote',
     COLOR: {
         INFO_GREEN: 0x22c55e,
@@ -118,7 +119,7 @@ describe('/invite', () => {
         }
         const description = args.content.embeds?.[0]?.description as string
 
-        expect(description).toContain('permissions=')
+        expect(description).toContain('permissions=3197952&')
         expect(description).toContain('scope=bot%20applications.commands')
     })
 

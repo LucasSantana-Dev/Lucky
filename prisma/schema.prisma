@@ -127,6 +127,39 @@ model GuildMembershipEvent {
   @@map("guild_membership_events")
 }
 
+/// Where a guild add came from (#2750). Written by the OAuth callback of the
+/// landing add flow (`state=src.<source>`, source validated against an
+/// allowlist). One row per guild, first source wins. No FK to Guild on purpose:
+/// the row is written before the bot's own guild sync and must survive a
+/// Guild row deletion, like GuildMembershipEvent.
+model GuildJoinSource {
+  guildDiscordId String   @id
+  source         String
+  createdAt      DateTime @default(now())
+
+  @@index([source, createdAt])
+  @@map("guild_join_sources")
+}
+
+/// Activation funnel events (onboarding delivery, station clicks, recap
+/// auto-enable). Append-only, no relation to Guild: rows must survive a guild
+/// removal so the funnel keeps counting guilds that left.
+model ActivationEvent {
+  id             Int      @id @default(autoincrement())
+  guildDiscordId String
+  /// Free-form String on purpose (no enum, avoids enum migrations). Values are
+  /// restricted by the CHECK constraint activation_events_kind_check in
+  /// migration 20261018170000_activation_events; keep it in sync with
+  /// ACTIVATION_EVENT_KINDS (packages/shared/src/constants/invite.ts).
+  kind           String
+  reason         String?
+  occurredAt     DateTime @default(now())
+
+  @@index([kind, occurredAt])
+  @@index([guildDiscordId])
+  @@map("activation_events")
+}
+
 model GuildFeatureToggle {
   id      String  @id @default(cuid())
   guildId String
@@ -247,6 +280,10 @@ model GuildSettings {
   // a transient send failure clears it again so the week is retried.
   recapChannelId    String?
   recapLastPostedAt DateTime?
+  // #2738: when this guild's recap choice was made, by the first successful
+  // /play (which turns it on) or by /recap channel. Never cleared, so a guild
+  // that turned the recap off is not turned back on by its next /play.
+  recapDecidedAt    DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

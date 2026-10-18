@@ -8,6 +8,7 @@ import {
 } from 'discord.js'
 import { QueryType } from 'discord-player'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
+import { recordActivationEvent } from '@lucky/shared/services'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import type { CustomClient } from '../types'
 import {
@@ -77,6 +78,11 @@ function logStationClick(data: {
         message: 'Onboarding station clicked',
         data: { event: 'onboarding_station', ...data },
     })
+    void recordActivationEvent(
+        data.guildId,
+        'station_click',
+        `${data.genre}:${data.reason}`,
+    ).catch(() => undefined)
 }
 
 export async function handleOnboardingStationButton(
@@ -210,6 +216,14 @@ export async function handleOnboardingStationButton(
             track: result.track,
             hadQueueBeforePlay,
             isPlaylist: false,
+            // A station click is a first play too (#2738).
+            recapTarget:
+                interaction.guild && interaction.channelId
+                    ? {
+                          guild: interaction.guild,
+                          channelId: interaction.channelId,
+                      }
+                    : null,
         }).catch((backgroundOpsError: unknown) => {
             warnLog({
                 message: 'Onboarding station post-play background ops failed',

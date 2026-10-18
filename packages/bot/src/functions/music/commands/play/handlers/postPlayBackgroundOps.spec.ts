@@ -8,6 +8,8 @@ const applyStoredAutoplayPreference =
 const blendAutoplayTracks =
     jest.fn<(queue: unknown, track: unknown) => Promise<void>>()
 const clearSessionMoodCache = jest.fn<(guildId: string) => void>()
+const maybeAutoEnableRecap =
+    jest.fn<(guild: unknown, channelId: string) => Promise<void>>()
 const addBreadcrumb = jest.fn()
 const errorLog = jest.fn()
 
@@ -30,6 +32,9 @@ jest.mock(
         clearSessionMoodCache: (id: string) => clearSessionMoodCache(id),
     }),
 )
+jest.mock('../../../../../services/recap/recapAutoEnable', () => ({
+    maybeAutoEnableRecap: (g: unknown, c: string) => maybeAutoEnableRecap(g, c),
+}))
 jest.mock('@lucky/shared/utils/monitoring', () => ({
     addBreadcrumb: (...args: unknown[]) => addBreadcrumb(...args),
 }))
@@ -62,6 +67,8 @@ describe('runPostPlayBackgroundOps', () => {
         blendAutoplayTracks.mockResolvedValue(undefined)
         clearSessionMoodCache.mockClear()
         clearSessionMoodCache.mockReturnValue(undefined)
+        maybeAutoEnableRecap.mockClear()
+        maybeAutoEnableRecap.mockResolvedValue(undefined)
         addBreadcrumb.mockClear()
         errorLog.mockClear()
     })
@@ -159,5 +166,49 @@ describe('runPostPlayBackgroundOps', () => {
         })
 
         expect(blendAutoplayTracks).not.toHaveBeenCalled()
+    })
+
+    // #2738: the first successful play turns the weekly recap on.
+    it('offers the play channel to the recap default', async () => {
+        const recapGuild = { id: guildId }
+
+        await runPostPlayBackgroundOps({
+            queue: autoplayQueue,
+            guildId,
+            track,
+            hadQueueBeforePlay: false,
+            isPlaylist: false,
+            recapTarget: { guild: recapGuild as never, channelId: 'c-1' },
+        })
+
+        expect(maybeAutoEnableRecap).toHaveBeenCalledWith(recapGuild, 'c-1')
+    })
+
+    it('skips the recap default without a target', async () => {
+        await runPostPlayBackgroundOps({
+            queue: autoplayQueue,
+            guildId,
+            track,
+            hadQueueBeforePlay: false,
+            isPlaylist: false,
+        })
+
+        expect(maybeAutoEnableRecap).not.toHaveBeenCalled()
+    })
+
+    it('isolates a recap default failure', async () => {
+        maybeAutoEnableRecap.mockRejectedValue(new Error('db down'))
+
+        await runPostPlayBackgroundOps({
+            queue: autoplayQueue,
+            guildId,
+            track,
+            hadQueueBeforePlay: false,
+            isPlaylist: false,
+            recapTarget: { guild: { id: guildId } as never, channelId: 'c-1' },
+        })
+
+        expect(failedOps()).toEqual(['autoEnableRecap'])
+        expect(blendAutoplayTracks).toHaveBeenCalledTimes(1)
     })
 })

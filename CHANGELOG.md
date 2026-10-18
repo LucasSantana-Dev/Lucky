@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.63.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.62.0...v2.63.0) (2026-10-18)
+
+
+### Features
+
+* **analytics:** activation funnel instrumentation ([#2854](https://github.com/LucasSantana-Dev/Lucky/issues/2854)) ([f6ffe20](https://github.com/LucasSantana-Dev/Lucky/commit/f6ffe204142e30cb54e8bc06cbff264c8a82dded))
+
+
+### Bug Fixes
+
+* **observability:** grafana-ro.sql refuses to run with empty or unset pw ([#2855](https://github.com/LucasSantana-Dev/Lucky/issues/2855)) ([30a6d77](https://github.com/LucasSantana-Dev/Lucky/commit/30a6d77c2c32f49e63b01779d105bd51d8456a36))
+* **observability:** pin Lucky dashboards to the Lucky Postgres datasource ([#2856](https://github.com/LucasSantana-Dev/Lucky/issues/2856)) ([650997a](https://github.com/LucasSantana-Dev/Lucky/commit/650997ab147280b70af96d8a0927cdd78e5757bd))
+
+## [2.62.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.61.0...v2.62.0) (2026-10-18)
+
+
+### Features
+
+* **growth:** attribute guild adds to a landing source ([#2851](https://github.com/LucasSantana-Dev/Lucky/issues/2851)) ([9677e48](https://github.com/LucasSantana-Dev/Lucky/commit/9677e4824b7f14021ab2d454bfe353d008039d6a))
+
+## [2.61.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.60.0...v2.61.0) (2026-10-18)
+
+
+### Features
+
+* **bot:** register only music commands on the hosted bot ([#2848](https://github.com/LucasSantana-Dev/Lucky/issues/2848)) ([31773ca](https://github.com/LucasSantana-Dev/Lucky/commit/31773ca8ce3a8dc0c8d1490bf74d7c71d400381f))
+* **bot:** turn the weekly recap on at a guild's first play ([#2849](https://github.com/LucasSantana-Dev/Lucky/issues/2849)) ([30b29d1](https://github.com/LucasSantana-Dev/Lucky/commit/30b29d15fa8fd05380d4d55aa87c50f45aba2ae9))
+
+
+### Bug Fixes
+
+* **shared:** cut lyrics suffix with exec instead of greedy regex ([#2842](https://github.com/LucasSantana-Dev/Lucky/issues/2842)) ([b00bb2e](https://github.com/LucasSantana-Dev/Lucky/commit/b00bb2e98dc270935506018f93290a2093f916d9))
+
+## [2.60.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.7...v2.60.0) (2026-10-17)
+
+
+### Features
+
+* **observability:** YouTube-off trigger gauges in negocio dashboard ([#2797](https://github.com/LucasSantana-Dev/Lucky/issues/2797)) ([fa55a0c](https://github.com/LucasSantana-Dev/Lucky/commit/fa55a0c34f3ac1579a90f3140f5e779773e8459f))
+
+
+### Bug Fixes
+
+* **deps:** bump framer-motion from 13.4.6 to 14.0.0 ([#2794](https://github.com/LucasSantana-Dev/Lucky/issues/2794)) ([a0051fe](https://github.com/LucasSantana-Dev/Lucky/commit/a0051fe74551ae33d76bd450fd12db22c3fd22c8))
+* **deps:** bump LucasSantana-Dev/.github/.github/workflows/claude-review.yml from b487626c2b3b3e089e98e0d358baad5bd6671513 to f534ac9dfb4ff1ffceebc209df38361882bd78a4 ([#2788](https://github.com/LucasSantana-Dev/Lucky/issues/2788)) ([11a2cd7](https://github.com/LucasSantana-Dev/Lucky/commit/11a2cd73007134ec3f7531b0db28b73f5e73e4bb))
+* **deps:** bump LucasSantana-Dev/.github/.github/workflows/danger.yml from 404e45f1192956a5cf5c3652dbe3ffb75fad6ac1 to f534ac9dfb4ff1ffceebc209df38361882bd78a4 ([#2790](https://github.com/LucasSantana-Dev/Lucky/issues/2790)) ([efdb122](https://github.com/LucasSantana-Dev/Lucky/commit/efdb1220508a493dc2be5f934745d7d11182ee40))
+* **deps:** bump LucasSantana-Dev/.github/.github/workflows/quality.yml from fa22667c1e0b6a5a27e7262c56b412db8b9f7c13 to f534ac9dfb4ff1ffceebc209df38361882bd78a4 ([#2789](https://github.com/LucasSantana-Dev/Lucky/issues/2789)) ([c81c785](https://github.com/LucasSantana-Dev/Lucky/commit/c81c785f479133b7dcd44caf6e22b1fcd9c1a91e))
+* **deps:** bump the minor-patch group across 1 directory with 51 updates ([#2834](https://github.com/LucasSantana-Dev/Lucky/issues/2834)) ([f9acbf9](https://github.com/LucasSantana-Dev/Lucky/commit/f9acbf994f18247050910cf4143fb0bd2c593dda))
+* **deps:** bump the minor-patch group across 1 directory with 6 updates ([#2831](https://github.com/LucasSantana-Dev/Lucky/issues/2831)) ([f8fd1a8](https://github.com/LucasSantana-Dev/Lucky/commit/f8fd1a82d6397e4fb0e4f83939514eb7cb6e3241))
+* **deps:** bump vulnerable dev-only transitive packages ([#2839](https://github.com/LucasSantana-Dev/Lucky/issues/2839)) ([e1b1a4b](https://github.com/LucasSantana-Dev/Lucky/commit/e1b1a4b8ebadcae15916504df102b6b1e54142d9))
+* **deps:** bump youtube-dl-exec from 3.1.15 to 3.1.17 ([#2793](https://github.com/LucasSantana-Dev/Lucky/issues/2793)) ([e18bfc4](https://github.com/LucasSantana-Dev/Lucky/commit/e18bfc448c24ee0e7392839829a929eb95328891))
+* **frontend:** clear code scanning alerts in packages/frontend ([#2838](https://github.com/LucasSantana-Dev/Lucky/issues/2838)) ([92f1147](https://github.com/LucasSantana-Dev/Lucky/commit/92f1147df6057cad76852cdfe55de0fc2257bcc4))
+* **security:** close infra code scanning alerts ([#2835](https://github.com/LucasSantana-Dev/Lucky/issues/2835)) ([84f45a4](https://github.com/LucasSantana-Dev/Lucky/commit/84f45a40a821f32818f3d06f8bc389b8fe45766c))
+* **security:** resolve backend and shared code scanning alerts ([#2837](https://github.com/LucasSantana-Dev/Lucky/issues/2837)) ([8a6b378](https://github.com/LucasSantana-Dev/Lucky/commit/8a6b37893d2c2fc866c72d4934a2f9ed2ba84695))
+
+
+### Performance Improvements
+
+* **bot:** spotify source cache + background prefetch ([#2799](https://github.com/LucasSantana-Dev/Lucky/issues/2799)) ([89e2e85](https://github.com/LucasSantana-Dev/Lucky/commit/89e2e853e8d77589b820832ce38304aeeb239e92))
+* **bot:** time budgets for ytsearch and SoundCloud ([#2800](https://github.com/LucasSantana-Dev/Lucky/issues/2800)) ([6d4b2fd](https://github.com/LucasSantana-Dev/Lucky/commit/6d4b2fdb93b7a868ae5f456cac7b2dc90de3478e))
+
 ## [2.59.7](https://github.com/LucasSantana-Dev/Lucky/compare/v2.59.6...v2.59.7) (2026-10-15)
 
 

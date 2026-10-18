@@ -392,7 +392,7 @@ describe('GuildService', () => {
 
             const result = await guildService.getGuildMemberContext(
                 '111111111111111111',
-                'user-1',
+                '555555555555555555',
             )
 
             expect(result).toEqual({
@@ -424,7 +424,7 @@ describe('GuildService', () => {
 
             const result = await guildService.getGuildMemberContext(
                 '111111111111111111',
-                'user-1',
+                '555555555555555555',
             )
 
             expect(result).toEqual({
@@ -932,6 +932,20 @@ describe('GuildService', () => {
             )
 
             expect(context).toEqual({ nickname: null, roleIds: [] })
+        })
+
+        test('rejects a non-snowflake userId before building the Discord API URL', async () => {
+            setBotClient(null)
+            process.env.DISCORD_TOKEN = 'test-token'
+            global.fetch = jest.fn() as unknown as typeof fetch
+
+            const context = await guildService.getGuildMemberContext(
+                '111111111111111111',
+                '../../users/@me',
+            )
+
+            expect(context).toEqual({ nickname: null, roleIds: [] })
+            expect(global.fetch).not.toHaveBeenCalled()
         })
     })
 

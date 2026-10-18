@@ -68,6 +68,7 @@ const DocsPage = lazy(() => import('./pages/Docs'))
 const ChangelogPage = lazy(() => import('./pages/Changelog'))
 const SupportPage = lazy(() => import('./pages/Support'))
 const AdminSupportPage = lazy(() => import('./pages/AdminSupport'))
+const AddLandingPage = lazy(() => import('./pages/AddLanding'))
 const NotFoundPage = lazy(() => import('./pages/NotFound'))
 
 const PUBLIC_PATH_PREFIXES = [
@@ -78,6 +79,8 @@ const PUBLIC_PATH_PREFIXES = [
     '/docs',
     '/changelog',
     '/support',
+    '/add',
+    '/l',
 ]
 
 function isPublicPath(pathname: string) {
@@ -288,6 +291,8 @@ function PublicRoutes() {
             <Route path='/docs' element={<DocsPage />} />
             <Route path='/changelog' element={<ChangelogPage />} />
             <Route path='/support' element={<SupportPage />} />
+            <Route path='/add' element={<AddLandingPage />} />
+            <Route path='/l/:source' element={<AddLandingPage />} />
             <Route path='*' element={<NotFoundPage />} />
         </Routes>
     )

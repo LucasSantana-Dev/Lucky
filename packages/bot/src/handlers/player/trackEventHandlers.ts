@@ -28,6 +28,7 @@ import {
 } from '../../services/musicManagement/replenishSuppressionStore'
 import { handleQueueExhaustion } from './queueExhaustion'
 import { recordRecommendationOutcome } from '../../services/musicRecommendation/recommendationTelemetry'
+import { prefetchNextSpotifyTrack } from './spotifyPrefetch'
 import {
     getRecentSkipCount,
     getTrackRequesterId,
@@ -70,6 +71,10 @@ export const setupTrackHandlers = ({
         clearIdleTimer(queue.guild.id)
         clearVotes(queue.guild.id)
         await handlePlayerStart(queue, track, client)
+        // After handlePlayerStart: it can replenish an empty autoplay queue,
+        // and the prefetch peeks at the next track. The prefetch never throws,
+        // so firing it without awaiting cannot affect playback.
+        void prefetchNextSpotifyTrack(queue)
     })
     player.events.on(
         'playerFinish',

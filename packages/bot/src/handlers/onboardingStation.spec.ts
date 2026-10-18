@@ -51,6 +51,12 @@ jest.mock('@lucky/shared/config', () => ({
     ENVIRONMENT_CONFIG: { PLAYER: { CONNECTION_TIMEOUT: 20_000 } },
 }))
 
+const recordActivationEventMock = jest.fn(async (..._args: unknown[]) => true)
+jest.mock('@lucky/shared/services', () => ({
+    recordActivationEvent: (...args: unknown[]) =>
+        recordActivationEventMock(...args),
+}))
+
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
@@ -121,6 +127,7 @@ function createInteraction(
         guildId: 'guild-1',
         guild: { members: { me: { id: 'bot-id' } } },
         channel: { id: 'channel-1' },
+        channelId: 'channel-1',
         user: { id: 'user-1' },
         member: { voice: { channel: createVoiceChannel(true) } },
         client: { player: { play: playMock } },
@@ -162,6 +169,19 @@ describe('handleOnboardingStationButton', () => {
         runPostPlayBackgroundOpsMock.mockResolvedValue(undefined)
     })
 
+    it('still replies when recording the activation event rejects', async () => {
+        recordActivationEventMock.mockRejectedValueOnce(new Error('db down'))
+        const interaction = createInteraction({
+            member: { voice: { channel: null } },
+        })
+
+        await expect(
+            handleOnboardingStationButton(interaction as never),
+        ).resolves.toBeUndefined()
+
+        expect(interactionReplyMock).toHaveBeenCalled()
+    })
+
     it('replies ephemerally asking to join a voice channel when not in one', async () => {
         const interaction = createInteraction({
             member: { voice: { channel: null } },
@@ -191,6 +211,11 @@ describe('handleOnboardingStationButton', () => {
                     reason: 'not_in_voice',
                 }),
             }),
+        )
+        expect(recordActivationEventMock).toHaveBeenCalledWith(
+            'guild-1',
+            'station_click',
+            'lofi:not_in_voice',
         )
     })
 
@@ -253,6 +278,11 @@ describe('handleOnboardingStationButton', () => {
             track: { title: 'Fake Track' },
             hadQueueBeforePlay: false,
             isPlaylist: false,
+            // #2738: a station click counts as the guild's first play.
+            recapTarget: {
+                guild: { members: { me: { id: 'bot-id' } } },
+                channelId: 'channel-1',
+            },
         })
 
         expect(createSuccessEmbedMock).toHaveBeenCalledWith(

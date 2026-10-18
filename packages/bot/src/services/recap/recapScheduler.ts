@@ -11,6 +11,7 @@ import {
 } from '../../utils/monitoring/prometheus'
 import { renderRecapCard } from './recapCard'
 import { buildRecapEmbed } from './recapEmbed'
+import { buildRecapOffRow } from '../../functions/music/recapOffButton'
 import type { RenderFailureReason } from './recapRenderClient'
 import { latestRecapBoundary, recapWindow } from './recapWindow'
 import {
@@ -205,8 +206,12 @@ export class RecapScheduler extends IntervalScheduler {
             const t = await translatorForInteraction({ guildId, guild })
             // Built per message: setImage mutates, and the text retry must
             // not carry the attachment reference.
+            // Every recap carries the off button (#2738): the recap is on by
+            // default, so turning it off must be one click away.
+            const components = [buildRecapOffRow(t)]
             const textOnly = () => ({
                 embeds: [buildRecapEmbed(recap, t)],
+                components,
                 allowedMentions: { parse: [] },
             })
             try {
@@ -225,6 +230,7 @@ export class RecapScheduler extends IntervalScheduler {
                                           description: t('music.recap.cardAlt'),
                                       }),
                                   ],
+                                  components,
                                   allowedMentions: { parse: [] },
                               }
                             : textOnly(),

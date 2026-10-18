@@ -10,9 +10,30 @@ ds_loki, ds_postgres, ds_sentry) so the same JSON loads in the homelab Grafana
 (auto-generated datasource uids) and in the Lucky compose profile Grafana.
 """
 import json
+import re
 from pathlib import Path
 
 OUT = Path(__file__).parent / "dashboards"
+GATES_SQL = Path(__file__).resolve().parents[2] / "scripts" / "music-first-gates.sql"
+
+
+def shared_cte(name):
+    """Return the named shared CTE from scripts/music-first-gates.sql as one line.
+
+    The gates script is the single definition of counted joins (re-add within 30
+    days counts once) and of the WAG gate weeks (ADR amendment 5); the dashboard
+    embeds the very same text instead of keeping a copy. Without the trailing comma.
+    """
+    text = GATES_SQL.read_text(encoding="utf-8")
+    m = re.search(rf"-- BEGIN SHARED {name}\n(.*?)-- END SHARED {name}\n", text, re.S)
+    if not m:
+        raise SystemExit(f"shared block {name!r} not found in {GATES_SQL}")
+    lines = [ln.strip() for ln in m.group(1).splitlines() if ln.strip() and not ln.strip().startswith("--")]
+    return " ".join(lines).rstrip(",")
+
+
+COUNTED_JOINS = shared_cte("counted_joins")
+WAG_WINDOWS = shared_cte("wag_windows")
 
 P = {"type": "prometheus", "uid": "${ds_prometheus}"}
 L = {"type": "loki", "uid": "${ds_loki}"}
@@ -81,7 +102,8 @@ class Board:
         self.y += 1
 
     def add(self, ptype, title, targets, w=6, h=6, desc="", unit=None, th=None, options=None,
-            no_value=None, decimals=None, mappings=None, custom=None, overrides=None, transformations=None, ds=None):
+            no_value=None, decimals=None, mappings=None, custom=None, overrides=None, transformations=None, ds=None,
+            min_val=None, max_val=None):
         defaults = {}
         if unit:
             defaults["unit"] = unit
@@ -96,6 +118,10 @@ class Board:
             defaults["mappings"] = mappings
         if custom:
             defaults["custom"] = custom
+        if min_val is not None:
+            defaults["min"] = min_val
+        if max_val is not None:
+            defaults["max"] = max_val
         for i, t in enumerate(targets):
             t["refId"] = chr(65 + i)
         panel = {
@@ -120,7 +146,8 @@ class Board:
         ds_vars = [
             ("ds_prometheus", "prometheus", "/^Prometheus$/"),
             ("ds_loki", "loki", ""),
-            ("ds_postgres", "grafana-postgresql-datasource", ""),
+            # Pinned by name: the homelab Grafana also has "CoJam Postgres", which sorts first.
+            ("ds_postgres", "grafana-postgresql-datasource", "/^Lucky Postgres$/"),
             ("ds_sentry", "grafana-sentry-datasource", ""),
         ]
         templating = [{"name": n, "type": "datasource", "query": q, "regex": r, "hide": 2, "refresh": 1,
@@ -208,14 +235,13 @@ def negocio():
     b.text("Leia antes", (
         "Metas do music-first (decisão até **20/12/2026**): **WAG ≥ 20** por 3 semanas, **≥ 35%** das guildas novas ouvem música na 1ª hora, "
         "**≥ 15%** ainda ativas no dia 8. Guildas do operador, de listagem e de teste não contam. "
-        "`track_history` guarda só 30 dias e no máximo 100 faixas por guilda, então janelas maiores que 30 dias subcontam plays."), h=3)
+        "`track_history` guarda só 30 dias, então janelas maiores que 30 dias subcontam plays."), h=3)
 
     b.row("Metas do music-first")
     b.stat("WAG (7 dias)", sql(WAG_7D), th=thresholds((RED, 0), (ORANGE, 10), (GREEN, 20)), w=4,
            desc="Guildas com faixa tocada ou comando nos últimos 7 dias.")
     cohort = (
-        f"WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events "
-        f"WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days'), "
+        f"WITH {COUNTED_JOINS}, joins AS (SELECT g, t FROM counted_joins WHERE t > now() - interval '28 days'), "
         f"c AS (SELECT j.t, "
         f"EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') AS heard, "
         f"(EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days') "
@@ -233,12 +259,21 @@ def negocio():
            desc="Guildas que entraram entre 8 e 28 dias atrás e ainda tocaram ou usaram comando a partir do dia 8. Meta: 15%.")
     b.stat("Servidores com o Lucky", prom('max(lucky_bot_guilds_total{state="active"})', instant=True), w=4)
     b.stat("Entraram (período)", sql(
-        f"SELECT count(*) AS \"Entradas\" FROM guild_membership_events WHERE kind = 'JOIN' AND $__timeFilter(\"occurredAt\") "
-        f"AND \"guildDiscordId\" NOT IN {EXCL}"), w=3)
+        f"WITH {COUNTED_JOINS} SELECT count(*) AS \"Entradas\" FROM counted_joins WHERE $__timeFilter(t) AND g NOT IN {EXCL}"), w=3,
+        desc="Entradas contadas: reentrada em até 30 dias conta uma vez (emenda 5 do ADR). Mesma definição de scripts/music-first-gates.sql.")
     b.stat("Saíram (período)", sql(
         f"SELECT count(*) AS \"Saídas\" FROM guild_membership_events WHERE kind = 'LEAVE' AND $__timeFilter(\"occurredAt\") "
         f"AND \"guildDiscordId\" NOT IN {EXCL}"), w=3,
         th=thresholds((GREEN, 0), (ORANGE, 1)))
+    b.add("table", "WAG nas semanas da decisão (meta: 20 nas 3)", [sql(
+        f"WITH {WAG_WINDOWS}, activity AS (SELECT date_trunc('week', t)::date AS wk, g FROM {ACTIVITY} x "
+        f"WHERE t >= (SELECT min(week_start) FROM wag_windows)) "
+        f"SELECT w.week_start AS \"Semana (início)\", w.week_start + 6 AS \"Semana (fim)\", count(DISTINCT a.g) AS \"WAG\", "
+        f"count(DISTINCT a.g) >= 20 AS \"Meta ≥ 20\", w.week_start + 7 <= now()::date AS \"Fechada\" "
+        f"FROM wag_windows w LEFT JOIN activity a ON a.wk = w.week_start AND a.g NOT IN {EXCL} "
+        f"GROUP BY w.week_start ORDER BY w.week_start")], w=12, h=5,
+        desc="Semanas segunda a domingo que terminam em 29/11, 06/12 e 13/12/2026 (emenda 5 do ADR). Mesma definição de scripts/music-first-gates.sql. "
+             "Semana não fechada ainda lê baixo.")
     b.add("timeseries", "WAG por semana (últimas 4 semanas)", [sql(
         f"SELECT date_trunc('week', t) AS time, count(DISTINCT g) AS \"Guildas ativas\" FROM {ACTIVITY} a "
         f"WHERE t >= date_trunc('week', now()) - interval '3 weeks' AND g NOT IN {EXCL} GROUP BY 1 ORDER BY 1", "time_series")],
@@ -246,13 +281,82 @@ def negocio():
         th=thresholds((RED, 0), (GREEN, 20)), options=TS_OPTS,
         desc="Semana começa na segunda (UTC). A linha tracejada é a meta de 20.")
     b.add("table", "Guildas novas por semana de entrada (28 dias)", [sql(
-        "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events "
-        "WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days') "
+        f"WITH {COUNTED_JOINS}, joins AS (SELECT g, t FROM counted_joins WHERE t > now() - interval '28 days') "
         "SELECT date_trunc('week', j.t)::date AS \"Semana\", count(*) AS \"Entraram\", "
         "count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g "
         "AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour')) AS \"Tocaram na 1ª hora\", "
         "count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g)) AS \"Já tocaram\" "
         f"FROM joins j WHERE j.g NOT IN {EXCL} GROUP BY 1 ORDER BY 1 DESC")], w=12, h=8)
+
+    b.add("table", "Entradas e 1ª hora por origem (28 dias)", [sql(
+        "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events "
+        "WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days' "
+        "AND min(\"occurredAt\") <= now() - interval '1 hour') "
+        "SELECT coalesce(s.source, 'sem origem') AS \"Origem\", count(*) AS \"Entraram\", "
+        "count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g "
+        "AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour')) AS \"Tocaram na 1ª hora\" "
+        "FROM joins j LEFT JOIN guild_join_sources s ON s.\"guildDiscordId\" = j.g "
+        f"WHERE j.g NOT IN {EXCL} GROUP BY 1 ORDER BY 2 DESC")], w=12, h=8,
+        desc="Origem vem do parâmetro state do OAuth de /add (topgg, discordbotlist, botsgg, meta, landing, unknown). "
+             "Joins anteriores a #2750 ou sem origem gravada aparecem como 'sem origem' (entraram por outro link ou antes do rastreio). Só entram joins com mais de 1 hora (a 1ª hora ainda não fechou para os mais novos).")
+
+    b.row("Funil de ativação (período)")
+    # Same base as "Entraram (período)": counted_joins minus EXCL over the dashboard time range.
+    # track_history keeps 30 days (no per-guild cap since #2678): a first hour older than that is unknown.
+    trimmed = "(j.t + interval '1 hour' < now() - interval '30 days')"
+    # next_t is the guild's next counted join, computed before the period filter, so an event
+    # or play after a later join is never credited to an earlier one (events keep a 5 minute
+    # lower slack: the onboarding message can land just before the JOIN row is written).
+    ev_bound = "AND a.\"occurredAt\" < coalesce(j.next_t, 'infinity'::timestamp)"
+    funnel_base = (
+        f"WITH {COUNTED_JOINS}, cj AS (SELECT g, t, lead(t) OVER (PARTITION BY g ORDER BY t) AS next_t FROM counted_joins), "
+        "joins AS (SELECT g, t, next_t FROM cj "
+        f"WHERE $__timeFilter(t) AND g NOT IN {EXCL}), "
+        "f0 AS (SELECT j.g, j.t, "
+        f"EXISTS (SELECT 1 FROM activation_events a WHERE a.\"guildDiscordId\" = j.g AND a.kind = 'onboarding_delivered' AND a.\"occurredAt\" >= j.t - interval '5 minutes' {ev_bound}) AS delivered, "
+        f"EXISTS (SELECT 1 FROM activation_events a WHERE a.\"guildDiscordId\" = j.g AND a.kind = 'station_click' AND a.\"occurredAt\" >= j.t - interval '5 minutes' {ev_bound}) AS clicked, "
+        "EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') "
+        f"AS heard, {trimmed} AS h1_trimmed, "
+        "(SELECT count(*) FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND least(j.t + interval '7 days', coalesce(j.next_t, 'infinity'::timestamp))) >= 5 AS plays5, "
+        "(EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days' AND th.\"playedAt\" < coalesce(j.next_t, 'infinity'::timestamp)) "
+        "OR EXISTS (SELECT 1 FROM command_events ce WHERE ce.\"guildId\" = j.g AND ce.\"occurredAt\" >= j.t + interval '7 days' AND ce.\"occurredAt\" < coalesce(j.next_t, 'infinity'::timestamp))) AS d8, "
+        "j.t <= now() - interval '1 hour' AS el1, j.t <= now() - interval '7 days' AS el7, j.t <= now() - interval '8 days' AS el8 "
+        "FROM joins j), "
+        "f AS (SELECT g, delivered, delivered AND clicked AS clicked, heard, heard AND plays5 AS plays5, heard AND plays5 AND d8 AS d8, h1_trimmed, el1, el7, el8 FROM f0) ")
+    b.add("bargauge", "Funil de ativação por guilda (período)", [sql(funnel_base +
+        "SELECT '1. Entraram' AS \"Etapa\", count(*) AS \"Guildas\" FROM f "
+        "UNION ALL SELECT '2. Onboarding entregue', count(*) FILTER (WHERE delivered) FROM f "
+        "UNION ALL SELECT '3. Clicou na estação', count(*) FILTER (WHERE clicked) FROM f "
+        "UNION ALL SELECT '4. Tocou na 1ª hora', count(*) FILTER (WHERE el1 AND heard) FROM f "
+        "UNION ALL SELECT '4b. 1ª hora desconhecida (fora dos 30 dias)', count(*) FILTER (WHERE el1 AND NOT heard AND h1_trimmed) FROM f "
+        "UNION ALL SELECT '5. 5+ faixas em 7 dias', count(*) FILTER (WHERE el7 AND plays5) FROM f "
+        "UNION ALL SELECT '6. Ativa no dia 8', count(*) FILTER (WHERE el8 AND d8) FROM f "
+        "ORDER BY 1")], w=14, h=9, th=thresholds(("blue", 0)),
+        options={"displayMode": "basic", "orientation": "horizontal", "showUnfilled": True,
+                 "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": True}},
+        desc="Funil aninhado: guildas distintas entre as entradas contadas do período (mesma base de 'Entraram (período)': "
+             "reentrada em até 30 dias conta uma vez, guildas excluídas fora). Clicou exige onboarding entregue; 5+ faixas exige a 1ª hora; "
+             "dia 8 exige 5+ faixas. A etapa 4 conta a 1ª hora de forma independente do clique, então pode passar da etapa 3. "
+             "Elegibilidade por etapa (como em scripts/music-first-gates.sql): a etapa 4 só conta entradas com mais de 1 hora, "
+             "a 5 com mais de 7 dias e a 6 com mais de 8 dias; entradas mais recentes ficam fora do numerador dessas etapas "
+             "(mas contam na etapa 1), então as etapas 4 a 6 sobem conforme as entradas amadurecem. "
+             "Eventos e plays só valem até a próxima entrada contada da mesma guilda. "
+             "A etapa 1 continua igual a 'Entraram (período)'. A etapa 4b conta guildas cuja 1ª hora passou dos 30 dias de retenção de track_history (regra h1_trimmed de scripts/music-first-gates.sql): "
+             "elas podem ter tocado na 1ª hora, mas essas linhas já foram apagadas. A taxa da 1ª hora é etapa 4 / (etapa 1 elegível menos etapa 4b), como no gate. "
+             "Etapas 2 e 3 vêm de activation_events, que só existe a partir do deploy desta instrumentação.")
+    b.stat("Tempo até o primeiro áudio", sql(
+        f"WITH {COUNTED_JOINS}, cj AS (SELECT g, t, lead(t) OVER (PARTITION BY g ORDER BY t) AS next_t FROM counted_joins), "
+        f"joins AS (SELECT g, t, next_t FROM cj WHERE $__timeFilter(t) AND g NOT IN {EXCL}), "
+        "first_play AS (SELECT j.g, greatest(0, extract(epoch FROM min(th.\"playedAt\" - coalesce(th.\"playDuration\", 0) * interval '1 second') - j.t)) AS secs FROM joins j "
+        "JOIN track_history th ON th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t AND th.\"playedAt\" < coalesce(j.next_t, 'infinity'::timestamp) "
+        f"WHERE NOT {trimmed} GROUP BY j.g, j.t) "
+        "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY secs) AS \"p50\", "
+        "percentile_cont(0.9) WITHIN GROUP (ORDER BY secs) AS \"p90\" FROM first_play"),
+        unit="s", decimals=0, w=10, h=9, no_value="sem plays", show_names=True,
+        desc="Mediana (p50) e percentil 90 do intervalo entre a entrada contada e o início da primeira faixa tocada, nas guildas do período que já tocaram algo. "
+             "track_history grava a linha quando a faixa termina ou é pulada, não quando começa; o início é estimado como playedAt menos playDuration (segundos tocados; sem valor, conta como 0 e o tempo inclui a faixa inteira). "
+             "Guildas cuja 1ª hora passou dos 30 dias de retenção (h1_trimmed) ficam fora, porque a primeira faixa delas já foi apagada. "
+             "Quem nunca tocou fica fora (veja a etapa 4 do funil). A etapa 4 do funil usa playedAt puro, igual ao gate do ADR.")
 
     b.row("Uso")
     b.add("timeseries", "Faixas tocadas por dia", [sql(
@@ -313,6 +417,22 @@ def negocio():
         w=8, h=7, options={"legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]},
                            "pieType": "donut", "reduceOptions": {"calcs": ["lastNotNull"], "values": True}},
         desc="Fonte real do stream de cada faixa (YouTube, SoundCloud...).")
+
+    b.row("Gatilhos YouTube-off")
+    b.add("gauge", "WAG (7 dias) vs limite 100", [sql(WAG_7D)],
+          w=12, h=7, min_val=0, max_val=100,
+          th=thresholds((GREEN, 0), (ORANGE, 70), (RED, 90)),
+          options={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
+                   "orientation": "auto", "showThresholdLabels": True, "showThresholdMarkers": True},
+          desc="WAG (janela móvel de 7 dias) ≥ 100 aciona o desligamento do YouTube (decisão 2026-12-20). "
+               "Laranja a 70 (70 % do limite), vermelho a 90.")
+    b.add("gauge", "Servidores vs limite 1.000", [prom('max(lucky_bot_guilds_total{state="active"})', instant=True)],
+          w=12, h=7, min_val=0, max_val=1000,
+          th=thresholds((GREEN, 0), (ORANGE, 700), (RED, 900)),
+          options={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
+                   "orientation": "auto", "showThresholdLabels": True, "showThresholdMarkers": True},
+          desc="1.000 servidores ativos aciona o desligamento do YouTube (decisão 2026-12-20). "
+               "Laranja a 700 (70 % do limite), vermelho a 900.")
     return b
 
 

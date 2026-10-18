@@ -1,21 +1,8 @@
 import { test, expect } from '@playwright/test'
-import {
-    setupMockApiResponses,
-    mockGlobalToggles,
-    mockServerToggles,
-} from './helpers/api-helpers'
-import {
-    navigateToFeatures,
-    waitForFeatures,
-    toggleFeature,
-    selectServer,
-} from './helpers/page-helpers'
-import {
-    getFeatureCard,
-    getServerSelector,
-    verifyToast,
-} from './helpers/ui-helpers'
-import { MOCK_FEATURES, MOCK_GUILDS } from './fixtures/test-data'
+import { setupMockApiResponses, mockGlobalToggles } from './helpers/api-helpers'
+import { navigateToFeatures, waitForFeatures } from './helpers/page-helpers'
+import { getFeatureCard, getServerSelector } from './helpers/ui-helpers'
+import { MOCK_FEATURES } from './fixtures/test-data'
 
 test.describe('Features Page', () => {
     test.beforeEach(async ({ page }) => {
@@ -104,9 +91,6 @@ test.describe('Features Page', () => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
 
-        const firstFeature = MOCK_FEATURES[0]
-        const featureCard = getFeatureCard(page, firstFeature.name)
-
         // Global features render a disabled switch; toggle a server-owned one.
         const switchButton = page
             .getByRole('switch', { disabled: false })
@@ -137,13 +121,6 @@ test.describe('Features Page', () => {
         if (isVisible) {
             await serverSelector.click()
             await page.waitForTimeout(500)
-
-            const dropdown = page
-                .locator('[role="menu"], [class*="dropdown"]')
-                .first()
-            const dropdownVisible = await dropdown
-                .isVisible({ timeout: 2000 })
-                .catch(() => false)
         }
     })
 
@@ -213,8 +190,6 @@ test.describe('Features Page', () => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
 
-        const firstFeature = MOCK_FEATURES[0]
-        const featureCard = getFeatureCard(page, firstFeature.name)
         const switchButton = page
             .getByRole('switch', { disabled: false })
             .first()
@@ -226,13 +201,6 @@ test.describe('Features Page', () => {
         if (isVisible) {
             await switchButton.click()
             await page.waitForTimeout(1000)
-
-            const toast = page
-                .locator('[class*="toast"], [role="status"]')
-                .first()
-            const toastVisible = await toast
-                .isVisible({ timeout: 3000 })
-                .catch(() => false)
         }
     })
 
@@ -259,16 +227,6 @@ test.describe('Features Page', () => {
     test('badge indicators show Global vs Per-Server', async ({ page }) => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
-
-        const globalBadge = page.locator('text=/Global/i').first()
-        const serverBadge = page.locator('text=/Per-Server|Server/i').first()
-
-        const globalVisible = await globalBadge
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
-        const serverVisible = await serverBadge
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
     })
 
     test('developer-only global toggles are hidden for non-developers', async ({

@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals'
+import {
+    describe,
+    it,
+    expect,
+    beforeEach,
+    afterEach,
+    jest,
+} from '@jest/globals'
 import { Client, Collection, REST, Routes } from 'discord.js'
 import { createClient, startClient, stopPresenceRotation } from './service'
 
@@ -258,9 +265,10 @@ describe('service', () => {
             const put = restResults[restResults.length - 1]?.value
                 .put as jest.Mock
 
+            // Music-only by default (#2736): the context menu is not music.
             expect(put).toHaveBeenCalledWith(
                 Routes.applicationCommands('test-client-id'),
-                { body: [commandJson, contextMenuJson] },
+                { body: [commandJson] },
             )
             // Guild-scoped writes must not happen at boot in either direction.
             // Registering per guild is the #1885 bug. Clearing per guild here
@@ -276,6 +284,80 @@ describe('service', () => {
             expect(put.mock.calls.some((call) => call[0] === guildRoute)).toBe(
                 false,
             )
+        })
+
+        describe('hosted command surface (#2736)', () => {
+            const musicJson = { name: 'play' }
+            const otherJson = { name: 'vaga' }
+            const operatorGuild = '111111111111111111'
+
+            const startWith = async () => {
+                const mockClient = {
+                    login: jest.fn().mockResolvedValue('client'),
+                    once: jest.fn((event: string, handler: () => void) => {
+                        if (event === 'clientReady') {
+                            Promise.resolve().then(() => handler())
+                        }
+                    }),
+                    user: null,
+                    commands: {
+                        map: jest.fn().mockReturnValue([musicJson, otherJson]),
+                    },
+                    contextMenus: { map: jest.fn().mockReturnValue([]) },
+                    guilds: {
+                        cache: { values: jest.fn().mockReturnValue([]) },
+                    },
+                }
+                const startPromise = startClient({ client: mockClient as any })
+                await new Promise((resolve) => setImmediate(resolve))
+                await startPromise
+                await new Promise((resolve) => setImmediate(resolve))
+                const restResults = (REST as unknown as jest.Mock).mock.results
+                return restResults[restResults.length - 1]?.value
+                    .put as jest.Mock
+            }
+
+            const originalEnv = {
+                HOSTED_MUSIC_ONLY_COMMANDS:
+                    process.env.HOSTED_MUSIC_ONLY_COMMANDS,
+                FULL_COMMANDS_GUILD_IDS: process.env.FULL_COMMANDS_GUILD_IDS,
+            }
+
+            afterEach(() => {
+                for (const [key, value] of Object.entries(originalEnv)) {
+                    if (value === undefined) delete process.env[key]
+                    else process.env[key] = value
+                }
+            })
+
+            it('registers the rest guild-scoped only in the listed guilds', async () => {
+                process.env.FULL_COMMANDS_GUILD_IDS = operatorGuild
+                const put = await startWith()
+
+                expect(put).toHaveBeenCalledWith(
+                    Routes.applicationCommands('test-client-id'),
+                    { body: [musicJson] },
+                )
+                expect(put).toHaveBeenCalledWith(
+                    Routes.applicationGuildCommands(
+                        'test-client-id',
+                        operatorGuild,
+                    ),
+                    { body: [otherJson] },
+                )
+            })
+
+            it('registers everything globally when music-only is off', async () => {
+                process.env.HOSTED_MUSIC_ONLY_COMMANDS = 'false'
+                process.env.FULL_COMMANDS_GUILD_IDS = operatorGuild
+                const put = await startWith()
+
+                expect(put).toHaveBeenCalledTimes(1)
+                expect(put).toHaveBeenCalledWith(
+                    Routes.applicationCommands('test-client-id'),
+                    { body: [musicJson, otherJson] },
+                )
+            })
         })
 
         it('should register ready event handler', async () => {

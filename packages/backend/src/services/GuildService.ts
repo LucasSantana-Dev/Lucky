@@ -58,7 +58,7 @@ class GuildService {
     ): Promise<GuildMemberContext> {
         const fallback: GuildMemberContext = { nickname: null, roleIds: [] }
 
-        if (!isSnowflakeId(guildId)) {
+        if (!isSnowflakeId(guildId) || !isSnowflakeId(userId)) {
             return fallback
         }
 

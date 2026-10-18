@@ -748,7 +748,8 @@ docker compose up -d <service>`}</code>
                     To preview migrations before they run, exec into the backend
                     container:{' '}
                     <code>
-                        docker compose exec backend npx prisma migrate status
+                        docker compose exec backend node_modules/.bin/prisma
+                        migrate status --config prisma/prisma.config.ts
                     </code>
                     {''}.
                 </p>
@@ -1571,54 +1572,33 @@ docker compose up -d <service>`}</code>
         content: () => (
             <>
                 <h2 id='discord-perms'>Discord permissions Lucky needs</h2>
+                <p>The invite asks only for what music needs:</p>
                 <ul>
                     <li>
-                        <strong>Read Messages / Send Messages.</strong> For
-                        slash command responses.
+                        <strong>View Channels / Send Messages.</strong> For
+                        slash command responses and the now-playing message.
                     </li>
                     <li>
-                        <strong>Embed Links.</strong> For embed-builder posts
-                        and rich responses.
+                        <strong>Embed Links.</strong> For rich responses.
                     </li>
                     <li>
-                        <strong>Attach Files.</strong> For exporting CSVs,
-                        lyrics, and album art.
+                        <strong>Attach Files.</strong> Optional, for the weekly
+                        recap card. Without it the recap posts as text.
                     </li>
                     <li>
                         <strong>Connect / Speak.</strong> For voice channel
                         playback.
                     </li>
-                    <li>
-                        <strong>Use Voice Activity / Priority Speaker.</strong>{' '}
-                        Quality-of-life for music.
-                    </li>
-                    <li>
-                        <strong>Manage Messages.</strong> For auto-mod deletion.
-                    </li>
-                    <li>
-                        <strong>Kick / Ban / Moderate Members.</strong> For
-                        moderation commands.
-                    </li>
-                    <li>
-                        <strong>Manage Roles.</strong> For reaction roles and
-                        role-rewards on level-up. Lucky's role must be above any
-                        role it manages.
-                    </li>
-                    <li>
-                        <strong>Read Message History.</strong> For audit
-                        features.
-                    </li>
-                    <li>
-                        <strong>Add Reactions.</strong> For self-role panels.
-                    </li>
                 </ul>
                 <h2 id='principle'>Principle of least privilege</h2>
                 <p>
-                    The OAuth invite asks for what Lucky <em>can</em> use, not
-                    what it <em>requires</em>. If you don't use moderation, deny{' '}
-                    <code>Kick / Ban</code>. If you don't use reaction roles,
-                    deny <code>Manage Roles</code>. Re-invite at any time to
-                    change the grant.
+                    The OAuth invite asks for what music needs, not everything
+                    Lucky <em>can</em> use. Skip-reason reactions on the
+                    now-playing message need Add Reactions. Moderation, auto-mod
+                    and reaction roles need more (Manage Messages, Kick / Ban /
+                    Moderate Members, Manage Roles); Lucky tells you which
+                    permission is missing when a command needs it, and you grant
+                    it to Lucky's role by hand.
                 </p>
                 <h2 id='dashboard-rbac'>Dashboard RBAC</h2>
                 <p>

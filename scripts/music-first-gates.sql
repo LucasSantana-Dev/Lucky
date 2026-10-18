@@ -19,9 +19,25 @@
 --             the ids in :excluded_ids below. Palacio do Lolo (436677047159619594)
 --             is counted until the owner confirms whether it is the operator's.
 --             Criativaria is a regular guild since 2026-10-07.
---   new       a guild whose first JOIN in guild_membership_events falls inside
---             the cohort window; a guild that joined before and came back is
---             not new.
+--   joins     counted joins (ADR amendment 5, decisions/2026-10-18-music-first-
+--             business-review-amendments.md): a JOIN counts unless the same guild
+--             had another JOIN in the 30 days before it, so add, remove and
+--             re-add cycles inside 30 days count once and a re-add after more
+--             than 30 days counts again. The comparison is with the previous
+--             JOIN event, so a chain of re-adds each under 30 days apart
+--             collapses to its first join.
+--   new       a guild with a counted join inside the cohort window; the cohort
+--             clock (first hour, day 8) starts at that counted join.
+--   WAG       the three gate weeks are fixed by the ADR: Monday to Sunday weeks
+--             ending 2026-11-29, 2026-12-06 and 2026-12-13 (week_start below).
+--             `closed` is false until the week has ended; a week that is not
+--             closed reads low by construction.
+--
+-- Shared definitions: the counted_joins and wag_windows blocks between the
+-- BEGIN SHARED / END SHARED markers below are the single source. The Grafana
+-- dashboard (observability/grafana/build_dashboards.py) extracts them from this
+-- file when generating lucky-negocio.json, so the two cannot drift. Edit them
+-- only here, then regenerate the dashboards.
 --   heard     a track_history row within 1 hour of that join; only joins at
 --             least 1 hour old are eligible.
 --   day 8     activity at or after join + 7 days; only joins at least 8 days
@@ -29,16 +45,16 @@
 --
 -- Windows fit retention: DatabaseService.cleanupOldData deletes track_history
 -- rows older than 30 days, so a join older than that always reads as "never
--- heard a track". Both reads therefore cover the last 4 weeks; run this at
--- least every 4 weeks to keep a continuous series.
+-- heard a track". The cohort read therefore covers the last 4 weeks. The WAG
+-- read needs plays of the gate weeks, which are purged 30 days after they
+-- happen: read each week soon after it closes and record the number.
 --
--- Known undercounts: track_history keeps the last 100 rows per guild and
--- autoplay writes a row at enqueue time (#2667), so play counts are not
--- reliable here; the gates only use "any row". The cap can still hide a
--- first-hour row: a guild that played 100+ tracks since joining may have had
--- it trimmed. h1_unknown counts eligible joins where that happened (100 rows
--- kept, oldest after join + 1 hour); they stay in the denominator as misses,
--- so heard_1h_pct is a floor.
+-- Known undercounts: autoplay writes a row at enqueue time (#2667), so play
+-- counts are not reliable here; the gates only use "any row". Rows are not
+-- capped per guild (#2678), only purged after 30 days, so a first-hour row is
+-- lost only when the join is older than that. h1_unknown counts eligible joins
+-- where that happened; they stay in the denominator as misses, so
+-- heard_1h_pct is a floor. With the 28-day cohort it stays 0.
 
 \set excluded_ids '{110373943822540800,333949691962195969,1541452011466268704}'
 -- 110373943822540800  Discord Bots (listing server)
@@ -49,33 +65,39 @@
 BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
 \pset pager off
 
-\echo '=== 1. Weekly active guilds, last 4 weeks (gate: >= 20 for 3 consecutive weeks) ==='
+\echo '=== 1. Weekly active guilds in the ADR gate weeks (gate: >= 20 in all 3) ==='
 WITH excluded AS (
     SELECT unnest(:'excluded_ids'::text[]) AS g
     UNION SELECT "discordId" FROM guilds WHERE name ILIKE '%test%'
     UNION SELECT "guildDiscordId" FROM guild_membership_events
           WHERE "guildName" ILIKE '%test%'
 ),
+-- BEGIN SHARED wag_windows
+wag_windows AS (
+    SELECT week_start FROM (VALUES (DATE '2026-11-23'), (DATE '2026-11-30'), (DATE '2026-12-07')) AS v(week_start)
+),
+-- END SHARED wag_windows
 activity AS (
     SELECT date_trunc('week', "playedAt")::date AS wk, "guildId" AS g
-    FROM track_history WHERE "playedAt" >= date_trunc('week', now()) - interval '3 weeks'
+    FROM track_history WHERE "playedAt" >= (SELECT min(week_start) FROM wag_windows)
     UNION
     SELECT date_trunc('week', "occurredAt")::date, "guildId"
     FROM command_events
     WHERE "guildId" IS NOT NULL
-      AND "occurredAt" >= date_trunc('week', now()) - interval '3 weeks'
+      AND "occurredAt" >= (SELECT min(week_start) FROM wag_windows)
 )
-SELECT w.wk::date AS week_start,
+SELECT w.week_start,
+       w.week_start + 6 AS week_end,
        count(DISTINCT a.g) AS wag,
-       count(DISTINCT a.g) >= 20 AS meets_gate
-FROM generate_series(date_trunc('week', now()) - interval '3 weeks',
-                     date_trunc('week', now()), interval '1 week') AS w(wk)
+       count(DISTINCT a.g) >= 20 AS meets_gate,
+       w.week_start + 7 <= now()::date AS closed
+FROM wag_windows w
 LEFT JOIN activity a
-       ON a.wk = w.wk::date AND a.g NOT IN (SELECT g FROM excluded)
-GROUP BY w.wk
-ORDER BY w.wk;
+       ON a.wk = w.week_start AND a.g NOT IN (SELECT g FROM excluded)
+GROUP BY w.week_start
+ORDER BY w.week_start;
 
-\echo '=== 2+3. New-guild cohort, joins in the last 28 days, by join week ==='
+\echo '=== 2+3. New-guild cohort, counted joins in the last 28 days, by join week ==='
 \echo '    (gates: heard_1h_pct >= 35, active_d8_pct >= 15; last row is the total)'
 WITH excluded AS (
     SELECT unnest(:'excluded_ids'::text[]) AS g
@@ -83,12 +105,19 @@ WITH excluded AS (
     UNION SELECT "guildDiscordId" FROM guild_membership_events
           WHERE "guildName" ILIKE '%test%'
 ),
+-- BEGIN SHARED counted_joins
+counted_joins AS (
+    SELECT g, t FROM (
+        SELECT "guildDiscordId" AS g, "occurredAt" AS t,
+               lag("occurredAt") OVER (PARTITION BY "guildDiscordId" ORDER BY "occurredAt") AS prev
+        FROM guild_membership_events
+        WHERE kind = 'JOIN'
+    ) j
+    WHERE prev IS NULL OR t - prev > interval '30 days'
+),
+-- END SHARED counted_joins
 joins AS (
-    SELECT "guildDiscordId" AS g, min("occurredAt") AS t
-    FROM guild_membership_events
-    WHERE kind = 'JOIN'
-    GROUP BY "guildDiscordId"
-    HAVING min("occurredAt") > now() - interval '28 days'
+    SELECT g, t FROM counted_joins WHERE t > now() - interval '28 days'
 ),
 cohort AS (
     SELECT j.g, j.t,
@@ -96,8 +125,7 @@ cohort AS (
                 WHERE th."guildId" = j.g
                   AND th."playedAt" BETWEEN j.t AND j.t + interval '1 hour') AS heard_1h,
         j.t <= now() - interval '1 hour' AS h1_eligible,
-        (SELECT count(*) >= 100 AND min(th."playedAt") > j.t + interval '1 hour'
-         FROM track_history th WHERE th."guildId" = j.g) AS h1_trimmed,
+        j.t + interval '1 hour' < now() - interval '30 days' AS h1_trimmed,
         j.t <= now() - interval '8 days' AS d8_eligible,
         EXISTS (SELECT 1 FROM track_history th
                 WHERE th."guildId" = j.g AND th."playedAt" >= j.t + interval '7 days')

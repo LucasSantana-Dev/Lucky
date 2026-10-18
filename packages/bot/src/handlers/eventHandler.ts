@@ -52,7 +52,10 @@ import {
     handleHelpCategorySelect,
     HELP_CATEGORY_SELECT_ID,
 } from '../functions/general/commands/help'
-import { reactionRolesService } from '@lucky/shared/services'
+import {
+    reactionRolesService,
+    recordActivationEvent,
+} from '@lucky/shared/services'
 import { syncAllGuildFollowerRoles } from '../twitch/followerRoleSync'
 import { aiDevToolkitService } from '../services/AiDevToolkitService'
 import { namedSessionService } from '../services/musicManagement/namedSessions'
@@ -74,6 +77,10 @@ import {
     handleReminderStopButton,
     REMINDER_STOP_BUTTON_PREFIX,
 } from '../functions/general/reminderStopButton'
+import {
+    handleRecapOffButton,
+    RECAP_OFF_BUTTON_ID,
+} from '../functions/music/recapOffButton'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -133,6 +140,14 @@ function findOnboardingChannel(guild: Guild): GuildBasedChannel | null {
     return guild.channels.cache.find((ch) => canPost(ch)) ?? null
 }
 
+// Short, bounded reason for the funnel: Discord's missing-permission codes get
+// a name, anything else is the error class.
+function activationFailureReason(error: unknown): string {
+    const code = (error as { code?: unknown } | null)?.code
+    if (code === 50013 || code === 50001) return 'missing_permissions'
+    return error instanceof Error ? error.name : 'send_failed'
+}
+
 async function sendOnboardingMessage(guild: Guild): Promise<void> {
     const channel = findOnboardingChannel(guild)
     if (!channel || channel.type !== ChannelType.GuildText) {
@@ -143,6 +158,11 @@ async function sendOnboardingMessage(guild: Guild): Promise<void> {
             delivered: false,
             reason: 'no_postable_channel',
         })
+        void recordActivationEvent(
+            guild.id,
+            'onboarding_failed',
+            'no_postable_channel',
+        ).catch(() => undefined)
         return
     }
     const t = await translatorForInteraction({ guildId: guild.id, guild })
@@ -156,12 +176,20 @@ async function sendOnboardingMessage(guild: Guild): Promise<void> {
             delivered: true,
             reason: 'ok',
         })
+        void recordActivationEvent(guild.id, 'onboarding_delivered').catch(
+            () => undefined,
+        )
     } catch (error) {
         telemetryLog('onboarding', {
             guildId: guild.id,
             delivered: false,
             reason: 'send_failed',
         })
+        void recordActivationEvent(
+            guild.id,
+            'onboarding_failed',
+            activationFailureReason(error),
+        ).catch(() => undefined)
         throw error
     }
 }
@@ -378,6 +406,7 @@ function buttonFamily(id: string): string | null {
     if (id.startsWith(REMINDER_STOP_BUTTON_PREFIX)) {
         return 'reminder_stop_button'
     }
+    if (id === RECAP_OFF_BUTTON_ID) return 'recap_off_button'
     return 'reaction_role_button'
 }
 
@@ -480,6 +509,11 @@ async function routeButtonInteraction(
     // "Stop this reminder" button on a recurring reminder (#2619).
     if (id.startsWith(REMINDER_STOP_BUTTON_PREFIX)) {
         await handleReminderStopButton(interaction)
+        return
+    }
+    // "Turn off weekly recap" button on every recap (#2738).
+    if (id === RECAP_OFF_BUTTON_ID) {
+        await handleRecapOffButton(interaction)
         return
     }
     return reactionRolesService.handleButtonInteraction(interaction)

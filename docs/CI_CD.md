@@ -107,8 +107,9 @@ de-duplicated, so it will never retry with malformed paths such as
 Deploy webhook runtime (`scripts/deploy.sh`) now blocks rollout before restarting
 services unless all database preconditions pass:
 
-1. `npx prisma migrate deploy`
-2. `npx prisma migrate status`
+1. `prisma migrate deploy`
+2. `prisma migrate status`
+   (both through `node_modules/.bin/prisma`: the runtime images ship no npm/npx)
 3. required relation guard
    (`guild_role_grants`, `guild_automation_manifests`,
    `guild_automation_runs`, `guild_automation_drifts`)

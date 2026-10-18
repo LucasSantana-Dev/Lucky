@@ -10,8 +10,16 @@ globalThis.ResizeObserver = class ResizeObserver {
 if (typeof globalThis.IntersectionObserver === 'undefined') {
     class IntersectionObserverMock {
         readonly root = null
-        readonly rootMargin = ''
-        readonly thresholds: ReadonlyArray<number> = []
+        readonly rootMargin: string
+        readonly thresholds: ReadonlyArray<number>
+        constructor(
+            _callback: IntersectionObserverCallback,
+            options?: IntersectionObserverInit,
+        ) {
+            this.rootMargin = options?.rootMargin ?? ''
+            const t = options?.threshold ?? []
+            this.thresholds = Array.isArray(t) ? t : [t]
+        }
         observe() {}
         unobserve() {}
         disconnect() {}
@@ -19,7 +27,11 @@ if (typeof globalThis.IntersectionObserver === 'undefined') {
             return []
         }
     }
-    ;(globalThis as unknown as { IntersectionObserver: typeof IntersectionObserver }).IntersectionObserver =
+    ;(
+        globalThis as unknown as {
+            IntersectionObserver: typeof IntersectionObserver
+        }
+    ).IntersectionObserver =
         IntersectionObserverMock as unknown as typeof IntersectionObserver
 }
 

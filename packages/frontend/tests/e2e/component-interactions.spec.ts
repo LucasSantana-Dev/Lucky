@@ -9,7 +9,6 @@ import {
     getServerCard,
     getFeatureCard,
     getAddBotButton,
-    verifyToast,
 } from './helpers/ui-helpers'
 import { MOCK_GUILDS, MOCK_FEATURES } from './fixtures/test-data'
 
@@ -104,13 +103,6 @@ test.describe('Component Interactions', () => {
 
         await navigateToServers(page)
 
-        const loadingButton = page
-            .locator('button:has-text("Loading"), button[disabled]')
-            .first()
-        const isVisible = await loadingButton
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
-
         await page.unroute('**/api/guilds')
     })
 
@@ -128,13 +120,6 @@ test.describe('Component Interactions', () => {
         if (isVisible) {
             await switchButton.click()
             await page.waitForTimeout(1000)
-
-            const toast = page
-                .locator('[class*="toast"], [role="status"]')
-                .first()
-            const toastVisible = await toast
-                .isVisible({ timeout: 3000 })
-                .catch(() => false)
         }
     })
 
@@ -152,7 +137,7 @@ test.describe('Component Interactions', () => {
         if (isVisible) {
             await switchButton.click()
 
-            const [response] = await Promise.all([
+            await Promise.all([
                 page
                     .waitForResponse(
                         (response) => response.url().includes('/api/'),

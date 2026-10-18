@@ -105,5 +105,5 @@ export function buildRecapEmbed(
             }),
         )
         .addFields(fields)
-        .setFooter({ text: 'Lucky' })
+        .setFooter({ text: `Lucky · ${t('music.recap.offHint')}` })
 }

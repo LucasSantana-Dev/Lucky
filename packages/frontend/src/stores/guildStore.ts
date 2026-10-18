@@ -1,18 +1,10 @@
 import { create } from 'zustand'
-import type {
-    Guild,
-    GuildMemberContext,
-    ServerSettings,
-} from '@/types'
+import type { Guild, GuildMemberContext, ServerSettings } from '@/types'
 import { api } from '@/services/api'
 import { ApiError } from '@/services/ApiError'
 import { captureFrontendException } from '@/lib/sentry'
 
-export type GuildLoadErrorKind =
-    | 'auth'
-    | 'forbidden'
-    | 'network'
-    | 'upstream'
+export type GuildLoadErrorKind = 'auth' | 'forbidden' | 'network' | 'upstream'
 
 export interface GuildLoadErrorState {
     kind: GuildLoadErrorKind
@@ -41,7 +33,11 @@ interface GuildState {
 function classifyGuildLoadError(error: unknown): GuildLoadErrorState {
     if (error instanceof ApiError) {
         if (error.status === 401) {
-            return { kind: 'auth', message: error.message, status: error.status }
+            return {
+                kind: 'auth',
+                message: error.message,
+                status: error.status,
+            }
         }
 
         if (error.status === 403) {
@@ -60,7 +56,11 @@ function classifyGuildLoadError(error: unknown): GuildLoadErrorState {
             }
         }
 
-        return { kind: 'upstream', message: error.message, status: error.status }
+        return {
+            kind: 'upstream',
+            message: error.message,
+            status: error.status,
+        }
     }
 
     if (error instanceof Error) {
@@ -71,6 +71,8 @@ function classifyGuildLoadError(error: unknown): GuildLoadErrorState {
 }
 
 let guildFetchPromise: Promise<void> | null = null
+// Bumped per fetch so a finished run only clears the slot it still owns.
+let guildFetchSeq = 0
 
 export const useGuildStore = create<GuildState>((set, get) => ({
     guilds: [],
@@ -142,11 +144,12 @@ export const useGuildStore = create<GuildState>((set, get) => ({
             }
         })()
 
+        const seq = ++guildFetchSeq
         guildFetchPromise = run
         try {
             await run
         } finally {
-            if (guildFetchPromise === run) {
+            if (guildFetchSeq === seq) {
                 guildFetchPromise = null
             }
         }

@@ -41,6 +41,7 @@ import FormattingToolbar from '@/components/ui/FormattingToolbar'
 import EmojiPicker from '@/components/ui/EmojiPicker'
 import { api } from '@/services/api'
 import { getApiErrorMessage } from '@/lib/apiError'
+import { safeImageSrc } from '@/lib/safeImageSrc'
 import { useGuildStore } from '@/stores/guildStore'
 import type {
     ReactionRoleMessage,
@@ -343,6 +344,11 @@ function MessageForm({
     const [error, setError] = useState<string | null>(null)
     const descriptionRef = useRef<HTMLTextAreaElement | null>(null)
     const fileInputRef = useRef<HTMLInputElement | null>(null)
+    const imageUrlPreviewSrc = imageFile ? null : safeImageSrc(imageUrl)
+    const imageFilePreviewSrc =
+        imageFile && imageFilePreviewUrl
+            ? safeImageSrc(imageFilePreviewUrl, ['blob:'])
+            : null
 
     useEffect(() => {
         if (!open) {
@@ -631,37 +637,24 @@ function MessageForm({
                             maxLength={2048}
                             disabled={!!imageFile}
                         />
-                        {!imageFile &&
-                            imageUrl.trim() &&
-                            (() => {
-                                try {
-                                    const url = new URL(imageUrl.trim())
-                                    return (
-                                        url.protocol === 'http:' ||
-                                        url.protocol === 'https:'
-                                    )
-                                } catch {
-                                    return false
-                                }
-                            })() && (
-                                <div className='mt-2 overflow-hidden rounded-md border border-lucky-border'>
-                                    <img
-                                        src={imageUrl}
-                                        alt='Preview'
-                                        className='max-h-40 w-full object-cover'
-                                        onError={(e) => {
-                                            const img =
-                                                e.target as HTMLImageElement
-                                            img.src =
-                                                'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"%3E%3Crect x="3" y="3" width="18" height="18" rx="2"/%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"/%3E%3Cpath d="m21 15-5-5L5 21"/%3E%3C/svg%3E'
-                                            img.classList.add(
-                                                'p-4',
-                                                'text-lucky-text-tertiary',
-                                            )
-                                        }}
-                                    />
-                                </div>
-                            )}
+                        {imageUrlPreviewSrc && (
+                            <div className='mt-2 overflow-hidden rounded-md border border-lucky-border'>
+                                <img
+                                    src={imageUrlPreviewSrc}
+                                    alt='Preview'
+                                    className='max-h-40 w-full object-cover'
+                                    onError={(e) => {
+                                        const img = e.target as HTMLImageElement
+                                        img.src =
+                                            'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"%3E%3Crect x="3" y="3" width="18" height="18" rx="2"/%3E%3Ccircle cx="8.5" cy="8.5" r="1.5"/%3E%3Cpath d="m21 15-5-5L5 21"/%3E%3C/svg%3E'
+                                        img.classList.add(
+                                            'p-4',
+                                            'text-lucky-text-tertiary',
+                                        )
+                                    }}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className='space-y-1.5'>
@@ -701,10 +694,10 @@ function MessageForm({
                                 </div>
                             )}
                         </div>
-                        {imageFile && imageFilePreviewUrl && (
+                        {imageFilePreviewSrc && (
                             <div className='mt-2 overflow-hidden rounded-md border border-lucky-border'>
                                 <img
-                                    src={imageFilePreviewUrl}
+                                    src={imageFilePreviewSrc}
                                     alt='File preview'
                                     className='max-h-40 w-full object-cover'
                                 />
