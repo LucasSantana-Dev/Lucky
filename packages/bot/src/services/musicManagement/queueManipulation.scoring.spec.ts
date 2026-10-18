@@ -40,7 +40,6 @@ jest.mock('../../spotify/spotifyApi', () => ({
 }))
 
 import {
-    enrichWithAudioFeatures,
     getGenreFamilies,
     calculateGenreFamilyPenalty,
 } from './queueManipulation'

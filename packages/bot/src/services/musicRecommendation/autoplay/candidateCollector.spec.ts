@@ -512,7 +512,6 @@ describe('candidateCollector', () => {
                 null,
                 0,
                 null,
-                true,
             )
 
             // fail-open: track should not be blocked when tag fetch errors

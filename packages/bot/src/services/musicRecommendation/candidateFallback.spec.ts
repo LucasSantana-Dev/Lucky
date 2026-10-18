@@ -78,7 +78,6 @@ jest.mock('./autoplay/artistTagCache', () => ({
 
 import {
     interleaveByArtist,
-    enrichWithAudioFeatures,
     collectBroadFallbackCandidates,
     collectGenreCandidates,
 } from './candidateFallback'

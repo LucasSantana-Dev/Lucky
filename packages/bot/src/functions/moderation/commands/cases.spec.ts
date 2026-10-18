@@ -2,7 +2,6 @@ import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import casesCommand from './cases.js'
 
 const getUserCasesMock = jest.fn()
-const getStatsMock = jest.fn()
 const getRecentCasesMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const infoLogMock = jest.fn()
@@ -11,7 +10,6 @@ const errorLogMock = jest.fn()
 jest.mock('@lucky/shared/services', () => ({
     moderationService: {
         getUserCases: (...args: unknown[]) => getUserCasesMock(...args),
-        getStats: (...args: unknown[]) => getStatsMock(...args),
         getRecentCases: (...args: unknown[]) => getRecentCasesMock(...args),
     },
 }))
@@ -96,7 +94,6 @@ describe('cases command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         getUserCasesMock.mockResolvedValue([])
-        getStatsMock.mockResolvedValue({ totalCases: 0 })
         getRecentCasesMock.mockResolvedValue([])
     })
 
@@ -139,7 +136,6 @@ describe('cases command', () => {
             createCase({ caseNumber: 1, type: 'warn' }),
             createCase({ caseNumber: 2, type: 'ban' }),
         ]
-        getStatsMock.mockResolvedValue({ totalCases: 2 })
         getRecentCasesMock.mockResolvedValue(cases)
 
         await casesCommand.execute({ interaction } as any)
@@ -193,7 +189,6 @@ describe('cases command', () => {
             createCase({ caseNumber: 2, type: 'ban' }),
             createCase({ caseNumber: 3, type: 'ban' }),
         ]
-        getStatsMock.mockResolvedValue({ totalCases: 3 })
         getRecentCasesMock.mockResolvedValue(allCases)
 
         await casesCommand.execute({ interaction } as any)
@@ -232,7 +227,6 @@ describe('cases command', () => {
         const cases = Array.from({ length: 25 }, (_, i) =>
             createCase({ caseNumber: i + 1 }),
         )
-        getStatsMock.mockResolvedValue({ totalCases: 25 })
         getRecentCasesMock.mockResolvedValue(cases)
 
         await casesCommand.execute({ interaction } as any)
@@ -246,7 +240,6 @@ describe('cases command', () => {
     test('defaults to page 1 when page not specified', async () => {
         const interaction = createInteraction()
         const cases = [createCase({ caseNumber: 1 })]
-        getStatsMock.mockResolvedValue({ totalCases: 1 })
         getRecentCasesMock.mockResolvedValue(cases)
 
         await casesCommand.execute({ interaction } as any)
@@ -261,7 +254,6 @@ describe('cases command', () => {
         const cases = Array.from({ length: 30 }, (_, i) =>
             createCase({ caseNumber: i + 1 }),
         )
-        getStatsMock.mockResolvedValue({ totalCases: 30 })
         getRecentCasesMock.mockResolvedValue(cases)
 
         await casesCommand.execute({ interaction } as any)
@@ -282,7 +274,6 @@ describe('cases command', () => {
         const cases = Array.from({ length: 30 }, (_, i) =>
             createCase({ caseNumber: i + 1 }),
         )
-        getStatsMock.mockResolvedValue({ totalCases: 30 })
         getRecentCasesMock.mockResolvedValue(cases)
 
         await casesCommand.execute({ interaction } as any)
@@ -297,7 +288,6 @@ describe('cases command', () => {
         const cases = Array.from({ length: 30 }, (_, i) =>
             createCase({ caseNumber: i + 1 }),
         )
-        getStatsMock.mockResolvedValue({ totalCases: 30 })
         getRecentCasesMock.mockResolvedValue(cases)
 
         await casesCommand.execute({ interaction } as any)
@@ -310,7 +300,6 @@ describe('cases command', () => {
     test('does not add pagination buttons for single page', async () => {
         const interaction = createInteraction()
         const cases = [createCase({ caseNumber: 1 })]
-        getStatsMock.mockResolvedValue({ totalCases: 1 })
         getRecentCasesMock.mockResolvedValue(cases)
 
         await casesCommand.execute({ interaction } as any)
@@ -325,7 +314,6 @@ describe('cases command', () => {
             createCase({ caseNumber: 1, active: true, appealed: false }),
             createCase({ caseNumber: 2, active: false, appealed: true }),
         ]
-        getStatsMock.mockResolvedValue({ totalCases: 2 })
         getRecentCasesMock.mockResolvedValue(cases)
 
         await casesCommand.execute({ interaction } as any)
@@ -338,7 +326,7 @@ describe('cases command', () => {
 
     test('handles error gracefully', async () => {
         const interaction = createInteraction()
-        getStatsMock.mockRejectedValue(new Error('Database error'))
+        getRecentCasesMock.mockRejectedValue(new Error('Database error'))
 
         await casesCommand.execute({ interaction } as any)
 

@@ -48,7 +48,6 @@ jest.mock('../handlers/twitchHandlers', () => ({
     handleTwitchList: handleTwitchListMock,
 }))
 
-import Command from '../../../models/Command'
 import twitchCommand from './twitch'
 
 describe('twitch command', () => {
