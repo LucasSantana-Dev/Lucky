@@ -566,7 +566,7 @@
         {
             "type": "table",
             "title": "Entradas e 1ª hora por origem (28 dias)",
-            "description": "Origem vem do parâmetro state do OAuth de /add (topgg, discordbotlist, botsgg, meta, landing, unknown). Guildas sem origem entraram por outro link. Só joins com origem gravada desde #2750 e com mais de 1 hora (a 1ª hora ainda não fechou para os mais novos).",
+            "description": "Origem vem do parâmetro state do OAuth de /add (topgg, discordbotlist, botsgg, meta, landing, unknown). Joins anteriores a #2750 ou sem origem gravada aparecem como 'sem origem' (entraram por outro link ou antes do rastreio). Só entram joins com mais de 1 hora (a 1ª hora ainda não fechou para os mais novos).",
             "gridPos": {
                 "x": 0,
                 "y": 16,

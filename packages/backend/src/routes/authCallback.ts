@@ -41,19 +41,37 @@ export async function handleOAuthCallback(
                         data: { source: addSource },
                     })
                 } else {
-                    const tokenData =
-                        await discordOAuthService.exchangeCodeForToken(
-                            code,
-                            getOAuthRedirectUri(req),
-                        )
-                    const guildId = tokenData.guild?.id
-                    if (!guildId) {
+                    let tokenData: Awaited<
+                        ReturnType<
+                            typeof discordOAuthService.exchangeCodeForToken
+                        >
+                    > | null = null
+                    try {
+                        tokenData =
+                            await discordOAuthService.exchangeCodeForToken(
+                                code,
+                                getOAuthRedirectUri(req),
+                            )
+                    } catch (e) {
+                        // Expected when a refreshed page reuses a consumed
+                        // code; the service already logged the cause.
+                        warnLog({
+                            message:
+                                'Landing add callback: code exchange failed',
+                            data: {
+                                source: addSource,
+                                reason: e instanceof Error ? e.name : 'unknown',
+                            },
+                        })
+                    }
+                    const guildId = tokenData?.guild?.id
+                    if (tokenData && !guildId) {
                         warnLog({
                             message:
                                 'Landing add callback: token response has no guild',
                             data: { source: addSource },
                         })
-                    } else {
+                    } else if (guildId) {
                         const recorded = await recordGuildJoinSource(
                             guildId,
                             addSource,

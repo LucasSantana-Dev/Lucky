@@ -1,4 +1,11 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import {
+    describe,
+    test,
+    expect,
+    beforeEach,
+    afterAll,
+    jest,
+} from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
 import { getPrismaClient } from '@lucky/shared/utils'
@@ -16,6 +23,7 @@ jest.mock('../../../src/services/DiscordOAuthService', () => ({
 }))
 
 const GUILD_ID = '123456789012345678'
+const CALLBACK_URI = 'https://lucky.test/api/auth/callback'
 
 type Row = { guildDiscordId: string; source: string; createdAt: Date }
 
@@ -44,7 +52,14 @@ describe('landing source attribution (#2750)', () => {
 
     const exchange = discordOAuthService.exchangeCodeForToken as jest.Mock
 
+    const prevRedirect = process.env.WEBAPP_REDIRECT_URI
+    afterAll(() => {
+        if (prevRedirect === undefined) delete process.env.WEBAPP_REDIRECT_URI
+        else process.env.WEBAPP_REDIRECT_URI = prevRedirect
+    })
+
     beforeEach(() => {
+        process.env.WEBAPP_REDIRECT_URI = CALLBACK_URI
         table = fakeTable()
         exchange.mockReset()
         // Default: Discord accepts the code and reports the guild the bot joined.
@@ -75,7 +90,7 @@ describe('landing source attribution (#2750)', () => {
             guildDiscordId: GUILD_ID,
             source: 'landing',
         })
-        expect(exchange).toHaveBeenCalledWith('x', expect.any(String))
+        expect(exchange).toHaveBeenCalledWith('x', CALLBACK_URI)
     })
 
     test('an unknown source is stored as the fallback, never as typed', async () => {
@@ -93,7 +108,11 @@ describe('landing source attribution (#2750)', () => {
     test('an oversized state is capped to the fallback', async () => {
         await request(app)
             .get('/api/auth/callback')
-            .query({ code: 'x', state: `src.${'a'.repeat(5000)}`, guild_id: GUILD_ID })
+            .query({
+                code: 'x',
+                state: `src.${'a'.repeat(5000)}`,
+                guild_id: GUILD_ID,
+            })
             .expect(302)
         expect(table.rows.get(GUILD_ID)?.source).toBe('unknown')
     })
@@ -126,12 +145,22 @@ describe('landing source attribution (#2750)', () => {
 
     test('a code Discord rejects writes nothing and still redirects', async () => {
         exchange.mockRejectedValueOnce(new Error('invalid_grant'))
+        const { errorLog, warnLog } = jest.requireMock(
+            '@lucky/shared/utils',
+        ) as {
+            errorLog: jest.Mock
+            warnLog: jest.Mock
+        }
+        errorLog.mockClear()
+        warnLog.mockClear()
         const res = await request(app)
             .get('/api/auth/callback')
             .query({ code: 'forged', state: 'src.topgg', guild_id: GUILD_ID })
         expect(res.status).toBe(302)
         expect(res.headers.location).toContain('added=1')
         expect(table.upsert).not.toHaveBeenCalled()
+        expect(warnLog).toHaveBeenCalled()
+        expect(errorLog).not.toHaveBeenCalled()
     })
 
     test('the guild id comes from the token response, not the query', async () => {
@@ -214,9 +243,7 @@ describe('landing source attribution (#2750)', () => {
             expect(url.searchParams.get('permissions')).toBe(
                 BOT_INVITE_PERMISSIONS,
             )
-            expect(url.searchParams.get('redirect_uri')).toMatch(
-                /\/api\/auth\/callback$/,
-            )
+            expect(url.searchParams.get('redirect_uri')).toBe(CALLBACK_URI)
         })
 
         test('falls back for an unknown or missing source', async () => {
