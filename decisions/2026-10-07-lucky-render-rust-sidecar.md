@@ -4,6 +4,7 @@
 **Deciders:** Lucas Santana
 **Related issues:** #2658 (pitch switch to weekly recap, owner decision), #2652 (skips in track history), #2667 (autoplay enqueue rows), #2657 (gate query), #2655 (opus to mediaplex), #2678 (slice 1), #2690 (skips in the top lists)
 **Amended 2026-10-07 after the slice-2 PoC (#2692), owner-approved:** collage card at 1200x1440, JPEG output, brand type, covers up to 25 at 64 KB each, 0.5 CPU. Points 4 and 6 carry the changes.
+**Amended by:** `decisions/2026-10-18-music-first-business-review-amendments.md`. Amendment 3 (#2738) makes the recap opt-out: it is enabled at a guild's first successful /play, and `/recap channel` and `/recap off` stay as the manual controls, so the opt-in rule of point 3 no longer holds. Amendment 8 cuts Server Wrapped from the test, so slice 4 is dropped.
 **Slice 1 shipped:** #2679, #2680, #2681, #2668, released in v2.52.0. Points 2 and 3 below describe what was built.
 **Related:** `decisions/2026-09-27-music-first-positioning.md`, `decisions/2026-09-26-lucky-owned-observability-stack.md`, `decisions/2026-07-12-brand-asset-regen-tooling.md`, `decisions/2026-07-02-resource-hygiene-alert-calibration-first.md`, `decisions/2026-07-11-bot-redeploy-no-bluegreen.md`
 
