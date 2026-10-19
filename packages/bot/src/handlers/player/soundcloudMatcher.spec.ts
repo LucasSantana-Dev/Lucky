@@ -454,6 +454,51 @@ describe('findMatchingSoundCloudResult – expected artist', () => {
         ).toBe(accented[0])
     })
 
+    it('checks title and uploader separately and the joined name as a whole token', () => {
+        const split = [
+            { name: 'Kanye - Flashing Lights', url, user: { name: 'West' } },
+        ]
+        const fan = [
+            { name: 'Flashing Lights', url, user: { name: 'kanyewestfan' } },
+        ]
+        for (const results of [split, fan]) {
+            expect(
+                findMatchingSoundCloudResult(
+                    'Flashing Lights',
+                    undefined,
+                    results,
+                    { expectedArtist: 'Kanye West' },
+                ),
+            ).toBeUndefined()
+        }
+    })
+
+    it('keeps names that start with ft/feat and duos joined by &', () => {
+        const ftIsland = [
+            { name: 'Love Love Love', url, user: { name: 'Jamie' } },
+            { name: 'FT Island - Love Love Love', url },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Love Love Love',
+                undefined,
+                ftIsland,
+                {
+                    expectedArtist: 'FT Island',
+                },
+            ),
+        ).toBe(ftIsland[1])
+        const duo = [
+            { name: 'The Boxer', url, user: { name: 'Simon' } },
+            { name: 'Simon & Garfunkel - The Boxer', url },
+        ]
+        expect(
+            findMatchingSoundCloudResult('The Boxer', undefined, duo, {
+                expectedArtist: 'Simon & Garfunkel',
+            }),
+        ).toBe(duo[1])
+    })
+
     it('does not let a short artist name match inside another word', () => {
         const results = [
             { name: 'Flashing Lights', url, user: { name: 'Eyes Only' } },
@@ -764,6 +809,29 @@ describe('streamViaSoundCloud', () => {
         mockSearch.mockResolvedValue([makeResult('Completely Different', 300)])
         await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
             'SoundCloud: no validated match',
+        )
+    })
+
+    it('says why each candidate was rejected for artist and version', async () => {
+        mockSearch.mockResolvedValue([
+            makeResult('NØYCEY - FLASHING LIGHTS DUB', 221),
+        ])
+        await expect(
+            streamViaSoundCloud('Flashing Lights', '03:58', {
+                expectedArtist: 'Kanye West',
+            }),
+        ).rejects.toThrow('SoundCloud: no validated match')
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    rejected: [
+                        expect.objectContaining({
+                            artistMatch: false,
+                            alteredVersion: true,
+                        }),
+                    ],
+                }),
+            }),
         )
     })
 

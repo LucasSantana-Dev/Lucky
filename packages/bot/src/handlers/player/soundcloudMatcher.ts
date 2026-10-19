@@ -206,6 +206,7 @@ export async function streamViaSoundCloud(
                     query,
                     trackDuration,
                     results,
+                    options,
                 ),
             },
         })
@@ -267,11 +268,9 @@ export function findMatchingSoundCloudResult(
     if (tokens.length === 0) return undefined
 
     const trackSec = parseDurationString(trackDuration)
-    const artistTokens = expectedArtist
-        ? toTokens(primaryArtist(expectedArtist))
-        : []
+    const artistTokens = toArtistTokens(expectedArtist)
 
-    const requested = ` ${normalizeForMatch(`${query} ${sourceTitle ?? ''}`)} `
+    const requested = toRequestedText(query, sourceTitle)
 
     const candidates = results
         .map((result) => {
@@ -368,9 +367,18 @@ function describeRejectedCandidates(
     query: string,
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
-): { name: string; titleScore: number; durationDeltaSec: number | null }[] {
+    { expectedArtist, sourceTitle }: SoundCloudMatchOptions = {},
+): {
+    name: string
+    titleScore: number
+    durationDeltaSec: number | null
+    artistMatch?: boolean
+    alteredVersion?: true
+}[] {
     const { tokens } = getQueryTokens(query)
     const trackSec = parseDurationString(trackDuration)
+    const artistTokens = toArtistTokens(expectedArtist)
+    const requested = toRequestedText(query, sourceTitle)
     return results.slice(0, 5).map((result) => {
         const resultNorm = normalizeForMatch(result.name)
         const matched = tokens.filter((token) =>
@@ -385,8 +393,22 @@ function describeRejectedCandidates(
                 trackSec !== null && result.durationInSec
                     ? Math.abs(result.durationInSec - trackSec)
                     : null,
+            ...(artistTokens.length > 0 && {
+                artistMatch: namesArtist(artistTokens, result),
+            }),
+            ...(isUnrequestedAlteredVersion(resultNorm, requested) && {
+                alteredVersion: true as const,
+            }),
         }
     })
+}
+
+function toArtistTokens(expectedArtist: string | undefined): string[] {
+    return expectedArtist ? toTokens(primaryArtist(expectedArtist)) : []
+}
+
+function toRequestedText(query: string, sourceTitle?: string): string {
+    return ` ${normalizeForMatch(`${query} ${sourceTitle ?? ''}`)} `
 }
 
 function isUnrequestedAlteredVersion(
@@ -401,23 +423,29 @@ function isUnrequestedAlteredVersion(
 }
 
 // "Kanye West, JAY-Z" / "Kanye West feat. Rihanna": uploads name the lead.
+// Only a credit separator ends the lead name: "&" stays (a duo like "Simon &
+// Garfunkel" is one name) and feat/ft need a space before them, so names
+// that start with them ("FT Island", "Feathers") are kept whole.
 function primaryArtist(artist: string): string {
-    return artist.split(/,|&|;|\bfeat\.?|\bft\.?/i)[0]
+    return artist.split(/[,;]|\s(?:feat|ft)\b\.?/i)[0]
 }
 
-// Token match ("kanye west" in "Kanye West - Flashing Lights" or uploader
-// "Kanye West"), or the joined form for accounts that drop the space
-// ("kanyewest"). The joined form needs a few characters so a short name
-// cannot match inside an unrelated word.
+// Title and uploader are checked one at a time, so "Kanye" in a title plus a
+// "West" uploader is no match. Each field matches on the artist's tokens
+// ("Kanye West - Flashing Lights", uploader "Kanye West") or on the joined
+// form as a whole token (uploader "kanyewest", never "kanyewestfan").
 function namesArtist(
     artistTokens: readonly string[],
     result: SoundCloudSearchResult,
 ): boolean {
-    const haystack = `${result.name} ${result.user?.name ?? ''}`
-    const tokens = new Set(toTokens(haystack))
-    if (artistTokens.every((token) => tokens.has(token))) return true
     const joined = artistTokens.join('')
-    return joined.length >= 4 && [...tokens].join('').includes(joined)
+    return [result.name, result.user?.name ?? ''].some((field) => {
+        const tokens = new Set(toTokens(field))
+        return (
+            artistTokens.every((token) => tokens.has(token)) ||
+            tokens.has(joined)
+        )
+    })
 }
 
 function normalizeForMatch(value: string): string {
