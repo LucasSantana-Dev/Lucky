@@ -111,6 +111,22 @@ describe('sentry monitoring', () => {
         )
     })
 
+    it('forwards the fingerprint to Sentry.captureException only when given', () => {
+        captureException(new Error('boom'), { guildId: 'g1' }, ['a', 'b'])
+        expect(captureExceptionMock).toHaveBeenLastCalledWith(
+            expect.any(Error),
+            { extra: { guildId: 'g1' }, fingerprint: ['a', 'b'] },
+        )
+
+        captureException(new Error('boom'), { guildId: 'g1' })
+        const options = captureExceptionMock.mock.calls.at(-1)?.[1] as Record<
+            string,
+            unknown
+        >
+        expect(options).toEqual({ extra: { guildId: 'g1' } })
+        expect('fingerprint' in options).toBe(false)
+    })
+
     it('sanitizes sensitive extras before capturing exceptions and messages', () => {
         captureException(new Error('boom'), {
             token: 'secret-token',

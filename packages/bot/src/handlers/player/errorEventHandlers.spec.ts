@@ -406,6 +406,7 @@ describe('errorEventHandlers', () => {
                 context: 'player-error',
                 guildId: 'guild-1',
             }),
+            undefined,
         )
 
         expect(debugLogMock).toHaveBeenCalledWith(
@@ -413,6 +414,32 @@ describe('errorEventHandlers', () => {
                 message: expect.stringContaining('stream extraction error'),
             }),
         )
+    })
+
+    it('fingerprints classified yt-dlp failures and skips the duplicate errorLog capture', async () => {
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            currentTrack: {
+                url: 'https://youtube.com/watch?v=123',
+                title: 'Test Track',
+            },
+            node: { skip: jest.fn() },
+        }
+        errorLogMock.mockClear()
+        warnLogMock.mockClear()
+
+        await handlePlayerError(
+            queue as any,
+            new Error('ERROR: HTTP Error 403: Forbidden'),
+        )
+
+        expect(captureExceptionMock).toHaveBeenCalledWith(
+            expect.any(Error),
+            expect.objectContaining({ context: 'player-error' }),
+            ['player-error', 'youtube', 'forbidden'],
+        )
+        expect(errorLogMock).not.toHaveBeenCalled()
+        expect(warnLogMock).toHaveBeenCalled()
     })
 
     describe('Bridge exhausted dedupe', () => {

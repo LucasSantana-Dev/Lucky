@@ -195,10 +195,10 @@ export function findMatchingSoundCloudResult(
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
 ): SoundCloudSearchResult | undefined {
-    const queryNorm = normalizeForMatch(query)
-    if (!queryNorm) return undefined
-
-    const tokens = queryNorm.split(/ +/).filter(Boolean)
+    // Gate on the query with trailing parenthetical suffixes stripped so
+    // version/comment suffixes ("(Comentário)", "(En Vivo)") do not inflate the
+    // token count (#2866). Ranking below still looks at the full query tokens.
+    const { tokens, fullTokens, hasStripped } = getQueryTokens(query)
     if (tokens.length === 0) return undefined
 
     const trackSec = parseDurationString(trackDuration)
@@ -214,6 +214,15 @@ export function findMatchingSoundCloudResult(
             const titleScore = matched / tokens.length
             if (titleScore < TITLE_MATCH_THRESHOLD) return null
 
+            // Only meaningful when a suffix was stripped: how much of the full
+            // query (suffix included) the result carries. Lets "Song (Remix)"
+            // prefer the remix and "The Man (Who Sold the World)" prefer the
+            // full title over a bare "The Man".
+            const fullScore = hasStripped
+                ? fullTokens.filter((token) => resultNorm.includes(token))
+                      .length / fullTokens.length
+                : 0
+
             if (
                 trackSec !== null &&
                 result.durationInSec &&
@@ -222,11 +231,16 @@ export function findMatchingSoundCloudResult(
                 return null
             }
 
-            return { result, titleScore }
+            return { result, titleScore, fullScore }
         })
         .filter(
-            (c): c is { result: SoundCloudSearchResult; titleScore: number } =>
-                c !== null,
+            (
+                c,
+            ): c is {
+                result: SoundCloudSearchResult
+                titleScore: number
+                fullScore: number
+            } => c !== null,
         )
 
     if (candidates.length === 0) return undefined
@@ -245,7 +259,13 @@ export function findMatchingSoundCloudResult(
         if (clean.length > 0) pool = clean
     }
 
-    if (trackSec === null) return pool[0].result
+    if (trackSec === null) {
+        return pool.reduce(
+            (best, candidate) =>
+                candidate.fullScore > best.fullScore ? candidate : best,
+            pool[0],
+        ).result
+    }
 
     // Prefer the closer title match first — an exact title match with no
     // duration data is a more trustworthy signal than a near-miss duration
@@ -254,6 +274,9 @@ export function findMatchingSoundCloudResult(
     // candidate is the original recording rather than an altered one;
     // missing duration data is treated as neutral there, not disqualifying.
     return pool.reduce((best, candidate) => {
+        if (candidate.fullScore !== best.fullScore) {
+            return candidate.fullScore > best.fullScore ? candidate : best
+        }
         if (candidate.titleScore !== best.titleScore) {
             return candidate.titleScore > best.titleScore ? candidate : best
         }
@@ -272,7 +295,7 @@ function describeRejectedCandidates(
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
 ): { name: string; titleScore: number; durationDeltaSec: number | null }[] {
-    const tokens = normalizeForMatch(query).split(/ +/).filter(Boolean)
+    const { tokens } = getQueryTokens(query)
     const trackSec = parseDurationString(trackDuration)
     return results.slice(0, 5).map((result) => {
         const resultNorm = normalizeForMatch(result.name)
@@ -300,6 +323,57 @@ function normalizeForMatch(value: string): string {
         .replace(/[^a-z0-9 ]/g, '')
         .replace(/ {2,}/g, ' ') // NOSONAR: S5852 — bounded input, no catastrophic backtracking risk
         .trim()
+}
+
+function toTokens(value: string): string[] {
+    return normalizeForMatch(value).split(/ +/).filter(Boolean)
+}
+
+function getQueryTokens(query: string): {
+    tokens: string[]
+    fullTokens: string[]
+    hasStripped: boolean
+} {
+    const fullTokens = toTokens(query)
+    const stripped = toTokens(stripTrailingParentheticals(query))
+    // A query that is only a bracketed group ("(Intro)") strips to nothing:
+    // fall back to the unstripped query instead of rejecting it.
+    if (stripped.length === 0) {
+        return { tokens: fullTokens, fullTokens, hasStripped: false }
+    }
+    return {
+        tokens: stripped,
+        fullTokens,
+        hasStripped: stripped.length !== fullTokens.length,
+    }
+}
+
+// Strips trailing parenthetical/bracketed suffix groups from the query
+// ("(Comentário)", "(En Vivo)", '(12" Version)') so they do not inflate the
+// token count and push title scores below the match threshold (#2866).
+// Only trailing groups are removed: a group in the middle of the title stays.
+// Linear stack-based scan (no regex, so no backtracking), nested groups
+// ("Song (Live (Acoustic) Version)") are one top-level group, and unmatched
+// openers/closers are treated as plain text. Applied to the query only.
+function stripTrailingParentheticals(value: string): string {
+    const groups: { start: number; end: number }[] = []
+    const open: number[] = []
+    for (let i = 0; i < value.length; i++) {
+        const ch = value[i]
+        if (ch === '(' || ch === '[') {
+            open.push(i)
+        } else if ((ch === ')' || ch === ']') && open.length > 0) {
+            const start = open.pop() as number
+            if (open.length === 0) groups.push({ start, end: i })
+        }
+    }
+
+    let end = value.length
+    for (let g = groups.length - 1; g >= 0; g--) {
+        if (value.slice(groups[g].end + 1, end).trim() !== '') break
+        end = groups[g].start
+    }
+    return value.slice(0, end).trim()
 }
 
 export function parseDurationString(duration?: string): number | null {
