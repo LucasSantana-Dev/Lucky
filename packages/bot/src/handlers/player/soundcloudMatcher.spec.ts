@@ -255,6 +255,117 @@ describe('findMatchingSoundCloudResult – parenthetical title suffixes (#2866)'
     })
 })
 
+describe('findMatchingSoundCloudResult – suffix stripping edge cases (#2866)', () => {
+    const url = 'https://soundcloud.com/x'
+
+    it('falls back to the unstripped query when it is entirely bracketed', () => {
+        const results = [{ name: 'Intro', url }]
+        expect(
+            findMatchingSoundCloudResult('(Intro)', undefined, results),
+        ).toBe(results[0])
+    })
+
+    it('does not strip a title-defining group: prefers the full title', () => {
+        const results = [
+            { name: 'The Man', url },
+            { name: 'The Man Who Sold the World', url },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'The Man (Who Sold the World)',
+                undefined,
+                results,
+            ),
+        ).toBe(results[1])
+    })
+
+    it('does not strip a title-defining (Part II) group when ranking', () => {
+        const results = [
+            { name: 'The Song', url },
+            { name: 'The Song Part II', url },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'The Song (Part II)',
+                '3:00',
+                results,
+            ),
+        ).toBe(results[1])
+    })
+
+    it('keeps a mid-title group in the scored tokens', () => {
+        const results = [{ name: 'Song Extra', url }]
+        expect(
+            findMatchingSoundCloudResult(
+                'Song (Alpha Beta Gamma) Extra',
+                undefined,
+                results,
+            ),
+        ).toBeUndefined()
+    })
+
+    it('strips nested groups with a linear scan', () => {
+        const results = [{ name: 'Song', url }]
+        expect(
+            findMatchingSoundCloudResult(
+                'Song (Live (Acoustic) Version)',
+                undefined,
+                results,
+            ),
+        ).toBe(results[0])
+        expect(
+            findMatchingSoundCloudResult(
+                'Song [Live [Acoustic] Version]',
+                undefined,
+                results,
+            ),
+        ).toBe(results[0])
+    })
+
+    it('treats unmatched delimiters as plain text', () => {
+        const results = [{ name: 'Song Live', url }]
+        expect(
+            findMatchingSoundCloudResult('Song (Live', undefined, results),
+        ).toBe(results[0])
+    })
+
+    it('handles pathological unclosed input quickly', () => {
+        const results = [{ name: 'Song', url }]
+        const nasty = 'Song ' + '('.repeat(50_000)
+        expect(
+            findMatchingSoundCloudResult(nasty, undefined, results),
+        ).toBe(results[0])
+    })
+
+    it('still prefers the remix when the query asks for (Remix)', () => {
+        const results = [
+            { name: 'Song Name', url },
+            { name: 'Song Name (Remix)', url },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Song Name (Remix)',
+                undefined,
+                results,
+            ),
+        ).toBe(results[1])
+        expect(
+            findMatchingSoundCloudResult('Song Name (Remix)', '3:00', results),
+        ).toBe(results[1])
+    })
+
+    it('falls back to the plain track when no remix exists', () => {
+        const results = [{ name: 'Song Name', url }]
+        expect(
+            findMatchingSoundCloudResult(
+                'Song Name (Remix)',
+                undefined,
+                results,
+            ),
+        ).toBe(results[0])
+    })
+})
+
 describe('findMatchingSoundCloudResult – duration matching', () => {
     it('accepts match within 30 seconds of track duration', () => {
         const results = [makeResult('Song', 200)] // 3:20
