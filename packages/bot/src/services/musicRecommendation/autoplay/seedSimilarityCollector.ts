@@ -5,6 +5,7 @@ import { createArtistTagFetcher } from './artistTagCache'
 import {
     cleanSearchQuery,
     cleanTitle,
+    splitArtistAndSong,
 } from '../../../utils/music/searchQueryCleaner'
 import type { AutoplayContext } from './autoplayContext'
 import { calculateRecommendationScore } from './candidateScorer'
@@ -81,6 +82,20 @@ async function fetchSeedSimilar(
     return tracks
 }
 
+async function fetchSeedSimilarForTrack(
+    author: string,
+    title: string,
+): Promise<SimilarTrack[]> {
+    const similar = await fetchSeedSimilar(author, title)
+    if (similar.length > 0) return similar
+    // A YouTube upload's author is the channel ("MoonWalker777"), which
+    // Last.fm does not know, so the lookup above finds nothing. Its title
+    // usually carries "Artist - Song": retry with those. Matters most while
+    // Spotify is down and /play lands on YouTube (2026-10-19).
+    const parsed = splitArtistAndSong(title, author)
+    return parsed ? fetchSeedSimilar(parsed.artist, parsed.song) : similar
+}
+
 /**
  * Seed-similarity spine: grounds autoplay on Last.fm `track.getSimilar` for the
  * currently-playing track, independent of whether any user has linked Last.fm.
@@ -104,7 +119,7 @@ export async function collectSeedSimilarCandidates(
     const seedTitle = ctx.currentTrack.title?.trim()
     if (!seedArtist || !seedTitle) return
 
-    const similar = await fetchSeedSimilar(seedArtist, seedTitle)
+    const similar = await fetchSeedSimilarForTrack(seedArtist, seedTitle)
     if (similar.length === 0) return
 
     const getArtistTags =
