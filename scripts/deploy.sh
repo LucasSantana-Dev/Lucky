@@ -608,26 +608,30 @@ BOT_MANIFEST_PATHS=(package.json package-lock.json packages/bot/package.json pac
 BOT_MAX_AGE_SECONDS=$((7 * 24 * 3600))
 
 # Succeeds only when the running bot can be left alone: it is running and
-# healthy, younger than BOT_MAX_AGE_SECONDS, its compose config (env, env_file,
+# healthy, its image is younger than BOT_MAX_AGE_SECONDS, its compose config (env, env_file,
 # volumes, labels, restart policy...) matches the current one apart from the
 # image tag, and no bot input changed between its commit and DEPLOYED_SHA.
 # Any unknown or error fails closed: recreate.
 bot_recreate_skippable() {
-    local state running health created image label created_s sha hash manifest_diff
+    local state running health image_id image label created created_s sha hash manifest_diff
     state=$(docker inspect lucky-bot --format \
-        '{{.State.Running}} {{.State.Health.Status}} {{.Created}} {{.Config.Image}} {{index .Config.Labels "com.docker.compose.config-hash"}}' \
+        '{{.State.Running}} {{.State.Health.Status}} {{.Image}} {{.Config.Image}} {{index .Config.Labels "com.docker.compose.config-hash"}}' \
         2>/dev/null) || return 1
-    read -r running health created image label <<<"$state"
+    read -r running health image_id image label <<<"$state"
     # docker inspect also succeeds for an exited container; a stopped bot must
     # go through the normal `up` path or the rollout would leave it stopped. An
     # unhealthy one is recreated too, as every deploy did before.
     [[ "$running" == "true" && "$health" == "healthy" ]] || return 1
     [[ -n "$label" && -n "$DEPLOYED_SHA" ]] || return 1
-    # .Created is RFC 3339 (2026-10-18T21:39:32.123Z); busybox date parses the
+    # Age is the image build time, not the container's: a container recreated
+    # from an older image (e.g. an auto-rollback target) would reset the clock.
+    # Inspect by ID, since the pull may have moved a :latest tag. .Created is
+    # RFC 3339 (2026-10-18T21:39:32.123Z); busybox date parses the
     # "YYYY-MM-DD hh:mm:ss" prefix.
+    created=$(docker image inspect "$image_id" --format '{{.Created}}' 2>/dev/null) || return 1
     created_s=$(date -u -d "${created:0:10} ${created:11:8}" +%s 2>/dev/null) || return 1
     if (( $(date -u +%s) - created_s > BOT_MAX_AGE_SECONDS )); then
-        log "Bot recreate needed: container older than $((BOT_MAX_AGE_SECONDS / 86400)) days"
+        log "Bot recreate needed: image older than $((BOT_MAX_AGE_SECONDS / 86400)) days"
         return 1
     fi
 
