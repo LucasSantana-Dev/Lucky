@@ -621,7 +621,7 @@ describe('fallback stage stamping', () => {
         )
     })
 
-    it('requires the artist only on the stages whose query dropped it', async () => {
+    it('requires the artist uploader on every SoundCloud stage', async () => {
         mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud
             .mockRejectedValueOnce(new Error('no validated match'))
@@ -641,13 +641,13 @@ describe('fallback stage stamping', () => {
             1,
             'Flashing Lights Kanye West',
             '03:58',
-            { expectedArtist: undefined, sourceTitle: 'Flashing Lights' },
+            { expectedArtists: ['Kanye West'], sourceTitle: 'Flashing Lights' },
         )
         expect(mockStreamViaSoundCloud).toHaveBeenNthCalledWith(
             2,
             'Flashing Lights',
             '03:58',
-            { expectedArtist: 'Kanye West', sourceTitle: 'Flashing Lights' },
+            { expectedArtists: ['Kanye West'], sourceTitle: 'Flashing Lights' },
         )
     })
 
@@ -693,7 +693,12 @@ describe('fallback stage stamping', () => {
             3,
             'Human Nature',
             track.duration,
-            { expectedArtist: 'Test Artist', sourceTitle: track.title },
+            // A channel author ("Test Artist") may not be the artist, so the
+            // name in front of "Artist - Song" is accepted too.
+            {
+                expectedArtists: ['Test Artist', 'Michael Jackson'],
+                sourceTitle: track.title,
+            },
         )
         expect(mockStampFallbackStage).toHaveBeenCalledWith(
             track,

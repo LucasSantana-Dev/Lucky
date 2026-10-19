@@ -14,8 +14,8 @@ type SoundCloudSearchResult = {
 }
 
 export type SoundCloudMatchOptions = {
-    /** Artist the result must name, for queries that dropped it. */
-    expectedArtist?: string
+    /** Names the uploader account must carry (any one of them). */
+    expectedArtists?: readonly string[]
     /** Uncleaned source title: a version word in it counts as requested. */
     sourceTitle?: string
 }
@@ -157,11 +157,13 @@ async function withClientIdRetry<T>(
 }
 
 /**
- * `expectedArtist` is for queries that do not carry the artist themselves (the
- * bridge's title-only and core stages). Without it, "Flashing Lights" matched
- * "NØYCEY - FLASHING LIGHTS DUB" for a Kanye West track: right title, right
- * duration, someone else's remix. With it, a result must name the artist in
- * its title or be uploaded by an account of that name.
+ * `expectedArtists` makes the uploader account the proof of origin. Without
+ * it, "Flashing Lights" matched "NØYCEY - FLASHING LIGHTS DUB" for a Kanye
+ * West track: right title, right duration, someone else's remix. Naming the
+ * artist in the title is not enough either: "03 Simple man - Lynyrd Skynyrd"
+ * by a fan account played instead of the original, because the official
+ * Lynyrd Skynyrd uploads are 30s previews (2026-10-19). A miss here means the
+ * track does not play, which the owner prefers to a cover.
  */
 export async function streamViaSoundCloud(
     query: string,
@@ -201,7 +203,7 @@ export async function streamViaSoundCloud(
             data: {
                 query,
                 trackDuration,
-                expectedArtist: options.expectedArtist,
+                expectedArtists: options.expectedArtists,
                 rejected: describeRejectedCandidates(
                     query,
                     trackDuration,
@@ -259,7 +261,7 @@ export function findMatchingSoundCloudResult(
     query: string,
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
-    { expectedArtist, sourceTitle }: SoundCloudMatchOptions = {},
+    { expectedArtists, sourceTitle }: SoundCloudMatchOptions = {},
 ): SoundCloudSearchResult | undefined {
     // Gate on the query with trailing parenthetical suffixes stripped so
     // version/comment suffixes ("(Comentário)", "(En Vivo)") do not inflate the
@@ -268,7 +270,7 @@ export function findMatchingSoundCloudResult(
     if (tokens.length === 0) return undefined
 
     const trackSec = parseDurationString(trackDuration)
-    const artistTokens = toArtistTokens(expectedArtist)
+    const artistKeys = toArtistKeys(expectedArtists)
 
     const requested = toRequestedText(query, sourceTitle)
 
@@ -276,7 +278,10 @@ export function findMatchingSoundCloudResult(
         .map((result) => {
             const resultNorm = normalizeForMatch(result.name)
             if (!resultNorm) return null
-            if (artistTokens.length > 0 && !namesArtist(artistTokens, result)) {
+            if (
+                artistKeys.length > 0 &&
+                !uploadedByArtist(artistKeys, result)
+            ) {
                 return null
             }
             if (isUnrequestedAlteredVersion(resultNorm, requested)) return null
@@ -367,9 +372,10 @@ function describeRejectedCandidates(
     query: string,
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
-    { expectedArtist, sourceTitle }: SoundCloudMatchOptions = {},
+    { expectedArtists, sourceTitle }: SoundCloudMatchOptions = {},
 ): {
     name: string
+    uploader?: string
     titleScore: number
     durationDeltaSec: number | null
     artistMatch?: boolean
@@ -377,7 +383,7 @@ function describeRejectedCandidates(
 }[] {
     const { tokens } = getQueryTokens(query)
     const trackSec = parseDurationString(trackDuration)
-    const artistTokens = toArtistTokens(expectedArtist)
+    const artistKeys = toArtistKeys(expectedArtists)
     const requested = toRequestedText(query, sourceTitle)
     return results.slice(0, 5).map((result) => {
         const resultNorm = normalizeForMatch(result.name)
@@ -386,6 +392,7 @@ function describeRejectedCandidates(
         ).length
         return {
             name: result.name,
+            uploader: result.user?.name,
             titleScore: tokens.length
                 ? Number((matched / tokens.length).toFixed(2))
                 : 0,
@@ -393,8 +400,8 @@ function describeRejectedCandidates(
                 trackSec !== null && result.durationInSec
                     ? Math.abs(result.durationInSec - trackSec)
                     : null,
-            ...(artistTokens.length > 0 && {
-                artistMatch: namesArtist(artistTokens, result),
+            ...(artistKeys.length > 0 && {
+                artistMatch: uploadedByArtist(artistKeys, result),
             }),
             ...(isUnrequestedAlteredVersion(resultNorm, requested) && {
                 alteredVersion: true as const,
@@ -403,8 +410,14 @@ function describeRejectedCandidates(
     })
 }
 
-function toArtistTokens(expectedArtist: string | undefined): string[] {
-    return expectedArtist ? toTokens(primaryArtist(expectedArtist)) : []
+// One key per expected artist: the lead name with spaces dropped, so the
+// account "kanyewest" and the author "LynyrdSkynyrd" (from "LynyrdSkynyrdVEVO")
+// compare equal to "Kanye West" and "Lynyrd Skynyrd".
+function toArtistKeys(expectedArtists: readonly string[] = []): string[] {
+    const keys = expectedArtists.map((artist) =>
+        toTokens(primaryArtist(artist)).join(''),
+    )
+    return [...new Set(keys.filter(Boolean))]
 }
 
 function toRequestedText(query: string, sourceTitle?: string): string {
@@ -430,22 +443,20 @@ function primaryArtist(artist: string): string {
     return artist.split(/[,;]|\s(?:feat|ft)\b\.?/i)[0]
 }
 
-// Title and uploader are checked one at a time, so "Kanye" in a title plus a
-// "West" uploader is no match. Each field matches on the artist's tokens
-// ("Kanye West - Flashing Lights", uploader "Kanye West") or on the joined
-// form as a whole token (uploader "kanyewest", never "kanyewestfan").
-function namesArtist(
-    artistTokens: readonly string[],
+// The account name must be the artist's, give or take spacing and an
+// "Official"/"VEVO" suffix: "Lynyrd Skynyrd", "lynyrdskynyrd" and "Lynyrd
+// Skynyrd Official" pass, "kanyewestfan" and "Kanye West Fan" do not. The
+// title is ignored: anyone can put the artist in it.
+const ACCOUNT_SUFFIX = /(?:official|vevo)$/
+
+function uploadedByArtist(
+    artistKeys: readonly string[],
     result: SoundCloudSearchResult,
 ): boolean {
-    const joined = artistTokens.join('')
-    return [result.name, result.user?.name ?? ''].some((field) => {
-        const tokens = new Set(toTokens(field))
-        return (
-            artistTokens.every((token) => tokens.has(token)) ||
-            tokens.has(joined)
-        )
-    })
+    const account = toTokens(result.user?.name ?? '').join('')
+    if (!account) return false
+    const bare = account.replace(ACCOUNT_SUFFIX, '')
+    return artistKeys.some((key) => account === key || bare === key)
 }
 
 function normalizeForMatch(value: string): string {
