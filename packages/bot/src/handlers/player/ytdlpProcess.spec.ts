@@ -256,8 +256,12 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
             }
             expect(isYtDlpBlocked()).toBe(false)
             // recordYtDlpSuccess clears the streak, so also prove the failure
-            // recorder (metric + streak) was never reached.
-            expect(incSpy).not.toHaveBeenCalled()
+            // recorder was never reached: each first 403 is counted once by
+            // countYtDlpFailure (#2864); recordYtDlpFailure would add a second.
+            expect(incSpy).toHaveBeenCalledTimes(3)
+            for (const call of incSpy.mock.calls) {
+                expect(call[0]).toEqual({ type: 'forbidden' })
+            }
             incSpy.mockRestore()
         })
 
