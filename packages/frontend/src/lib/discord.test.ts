@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'vitest'
-import { BOT_INVITE_PERMISSIONS, getBotInviteUrl } from './discord'
+import {
+    BOT_INVITE_PERMISSIONS,
+    getBotInviteUrl,
+    getLandingAddUrl,
+} from './discord'
 
 describe('getBotInviteUrl', () => {
     // Regression guard for #1888. The landing page and the docs page each built
@@ -30,5 +34,16 @@ describe('getBotInviteUrl', () => {
         expect(getBotInviteUrl()).toMatch(
             /^https:\/\/discord\.com\/oauth2\/authorize\?client_id=\d+/,
         )
+    })
+})
+
+describe('getLandingAddUrl (#2861)', () => {
+    test('routes through the backend add endpoint with source=landing', () => {
+        const url = getLandingAddUrl()
+        expect(url).toMatch(/\/api\/add\?source=landing$/)
+    })
+
+    test('never points directly at discord.com', () => {
+        expect(getLandingAddUrl()).not.toContain('discord.com')
     })
 })
