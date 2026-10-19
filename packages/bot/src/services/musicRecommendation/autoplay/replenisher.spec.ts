@@ -134,6 +134,7 @@ function createGuildQueue(overrides: Partial<GuildQueue> = {}): GuildQueue {
         currentTrack: createTrack(),
         metadata: {},
         history: { tracks: { toArray: () => [] } },
+        addTrack: jest.fn(),
         ...overrides,
     } as GuildQueue
 }
@@ -298,6 +299,67 @@ describe('replenishQueue', () => {
         expect(collectSeedSimilarCandidates).toHaveBeenCalled()
         expect(call[0].data.sources.seedSimilar).toBe(0)
         expect(call[0].data.hasRequester).toBe(true)
+    })
+
+    // #2870: all collectors returned empty — history replay fallback
+    it('replays guild history when every collector returns empty', async () => {
+        const { warnLog } = require('@lucky/shared/utils')
+        const historyTrack = createTrack({
+            id: 'hist1',
+            url: 'https://open.spotify.com/track/hist1',
+            title: 'History Song',
+        })
+        const queue = createGuildQueue({
+            history: { tracks: { toArray: () => [historyTrack] } },
+        } as Partial<GuildQueue>)
+
+        await replenishQueue(queue)
+
+        const replayCall = warnLog.mock.calls.find(
+            ([arg]: [{ message: string }]) =>
+                arg.message ===
+                'Autoplay: replaying history tracks — all collectors empty',
+        )
+        expect(replayCall).toBeDefined()
+        expect(replayCall[0].data.replayed).toContain('History Song')
+        expect((queue.addTrack as jest.Mock).mock.calls.length).toBeGreaterThan(
+            0,
+        )
+    })
+
+    it('still warns about empty pool before replaying history', async () => {
+        const { warnLog } = require('@lucky/shared/utils')
+        const historyTrack = createTrack({
+            id: 'hist1',
+            url: 'https://open.spotify.com/track/hist1',
+        })
+        const queue = createGuildQueue({
+            history: { tracks: { toArray: () => [historyTrack] } },
+        } as Partial<GuildQueue>)
+
+        await replenishQueue(queue)
+
+        const stall = warnLog.mock.calls.find(
+            ([arg]: [{ message: string }]) =>
+                arg.message ===
+                'Autoplay: no candidates selected — queue may stall',
+        )
+        expect(stall).toBeDefined()
+    })
+
+    it('does not attempt history replay when history is also empty', async () => {
+        const { warnLog } = require('@lucky/shared/utils')
+        const queue = createGuildQueue()
+
+        await replenishQueue(queue)
+
+        const replayCall = warnLog.mock.calls.find(
+            ([arg]: [{ message: string }]) =>
+                arg.message ===
+                'Autoplay: replaying history tracks — all collectors empty',
+        )
+        expect(replayCall).toBeUndefined()
+        expect((queue.addTrack as jest.Mock).mock.calls.length).toBe(0)
     })
 
     it('should serialize concurrent calls with locks', async () => {
