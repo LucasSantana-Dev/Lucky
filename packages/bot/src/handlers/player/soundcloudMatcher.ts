@@ -195,7 +195,9 @@ export function findMatchingSoundCloudResult(
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
 ): SoundCloudSearchResult | undefined {
-    const queryNorm = normalizeForMatch(query)
+    // Strip parenthetical content before tokenizing so version suffixes
+    // ("(Comentário)", "(En Vivo)") do not inflate token count (#2866).
+    const queryNorm = normalizeForMatch(stripParentheticals(query))
     if (!queryNorm) return undefined
 
     const tokens = queryNorm.split(/ +/).filter(Boolean)
@@ -272,7 +274,9 @@ function describeRejectedCandidates(
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
 ): { name: string; titleScore: number; durationDeltaSec: number | null }[] {
-    const tokens = normalizeForMatch(query).split(/ +/).filter(Boolean)
+    const tokens = normalizeForMatch(stripParentheticals(query))
+        .split(/ +/)
+        .filter(Boolean)
     const trackSec = parseDurationString(trackDuration)
     return results.slice(0, 5).map((result) => {
         const resultNorm = normalizeForMatch(result.name)
@@ -299,6 +303,19 @@ function normalizeForMatch(value: string): string {
         .toLowerCase()
         .replace(/[^a-z0-9 ]/g, '')
         .replace(/ {2,}/g, ' ') // NOSONAR: S5852 — bounded input, no catastrophic backtracking risk
+        .trim()
+}
+
+// Strips parenthetical/bracketed content from the query before tokenizing so
+// that version/comment suffixes like "(Comentário)", "(En Vivo)", '(12" Version)'
+// do not inflate the token count and push title scores below the match
+// threshold (#2866). Applied to the query only — SoundCloud results keep their
+// full name so a result that also carries the suffix still matches.
+function stripParentheticals(value: string): string {
+    return value
+        .replace(/\([^)]*\)/g, ' ') // NOSONAR: S5852 — closed delimiter, bounded
+        .replace(/\[[^\]]*\]/g, ' ') // NOSONAR: S5852 — closed delimiter, bounded
+        .replace(/ {2,}/g, ' ')
         .trim()
 }
 

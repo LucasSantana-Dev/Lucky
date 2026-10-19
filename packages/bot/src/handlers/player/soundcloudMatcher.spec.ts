@@ -180,6 +180,81 @@ describe('findMatchingSoundCloudResult – accent folding', () => {
     })
 })
 
+describe('findMatchingSoundCloudResult – parenthetical title suffixes (#2866)', () => {
+    // Real production failures: Spotify sends titles with comment/version
+    // parentheticals that SoundCloud lists without them. The extra tokens
+    // drove the score below the 0.75 threshold.
+    it.each([
+        [
+            'Sobre Pra Você Guardei o Amor (Comentário)',
+            'Sobre Pra Voce Guardei o Amor',
+        ],
+        ['Ai Se Eu Te Pego (En Vivo)', 'Ai Se Eu Te Pego'],
+        ['Shallow (From "A Star Is Born")', 'Shallow'],
+        ['Song Title (12" Version)', 'Song Title'],
+        ['My Song (karaokê)', 'My Song'],
+        ['Track [Live Version]', 'Track'],
+    ])(
+        'query with suffix "%s" matches clean SoundCloud result "%s"',
+        (query, name) => {
+            const results = [{ name, url: 'https://soundcloud.com/x' }]
+            expect(
+                findMatchingSoundCloudResult(query, undefined, results),
+            ).toBe(results[0])
+        },
+    )
+
+    it('still rejects a clearly different title even when parentheticals are stripped', () => {
+        const results = [
+            {
+                name: 'Completely Different Song',
+                url: 'https://soundcloud.com/x',
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Ai Se Eu Te Pego (En Vivo)',
+                undefined,
+                results,
+            ),
+        ).toBeUndefined()
+    })
+
+    it('matches when SoundCloud result also carries the suffix', () => {
+        const results = [
+            {
+                name: 'Ai Se Eu Te Pego (En Vivo)',
+                url: 'https://soundcloud.com/x',
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Ai Se Eu Te Pego (En Vivo)',
+                undefined,
+                results,
+            ),
+        ).toBe(results[0])
+    })
+
+    it('duration check still applies after stripping', () => {
+        // 3:00 = 180s; result at 300s is 120s off — should be rejected
+        const results = [
+            {
+                name: 'Ai Se Eu Te Pego',
+                url: 'https://soundcloud.com/x',
+                durationInSec: 300,
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Ai Se Eu Te Pego (En Vivo)',
+                '3:00',
+                results,
+            ),
+        ).toBeUndefined()
+    })
+})
+
 describe('findMatchingSoundCloudResult – duration matching', () => {
     it('accepts match within 30 seconds of track duration', () => {
         const results = [makeResult('Song', 200)] // 3:20
