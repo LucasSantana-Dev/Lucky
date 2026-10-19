@@ -603,20 +603,33 @@ BOT_SOURCE_PATHS=(
 )
 BOT_MANIFEST_PATHS=(package.json package-lock.json packages/bot/package.json packages/shared/package.json)
 
-# Succeeds only when the running bot can be left alone: it is running, its
-# compose config (env, env_file, volumes, labels, restart policy...) matches the
-# current one apart from the image tag, and no bot input changed between its
-# commit and DEPLOYED_SHA. Any unknown or error fails closed: recreate.
+# The production-bot build also pulls unpinned inputs (yt-dlp, apk upgrades,
+# npm@latest) that no git diff sees, so a bot older than this is recreated anyway.
+BOT_MAX_AGE_SECONDS=$((7 * 24 * 3600))
+
+# Succeeds only when the running bot can be left alone: it is running and
+# healthy, younger than BOT_MAX_AGE_SECONDS, its compose config (env, env_file,
+# volumes, labels, restart policy...) matches the current one apart from the
+# image tag, and no bot input changed between its commit and DEPLOYED_SHA.
+# Any unknown or error fails closed: recreate.
 bot_recreate_skippable() {
-    local state running image label sha hash manifest_diff
+    local state running health created image label created_s sha hash manifest_diff
     state=$(docker inspect lucky-bot --format \
-        '{{.State.Running}} {{.Config.Image}} {{index .Config.Labels "com.docker.compose.config-hash"}}' \
+        '{{.State.Running}} {{.State.Health.Status}} {{.Created}} {{.Config.Image}} {{index .Config.Labels "com.docker.compose.config-hash"}}' \
         2>/dev/null) || return 1
-    read -r running image label <<<"$state"
+    read -r running health created image label <<<"$state"
     # docker inspect also succeeds for an exited container; a stopped bot must
-    # go through the normal `up` path or the rollout would leave it stopped.
-    [[ "$running" == "true" ]] || return 1
+    # go through the normal `up` path or the rollout would leave it stopped. An
+    # unhealthy one is recreated too, as every deploy did before.
+    [[ "$running" == "true" && "$health" == "healthy" ]] || return 1
     [[ -n "$label" && -n "$DEPLOYED_SHA" ]] || return 1
+    # .Created is RFC 3339 (2026-10-18T21:39:32.123Z); busybox date parses the
+    # "YYYY-MM-DD hh:mm:ss" prefix.
+    created_s=$(date -u -d "${created:0:10} ${created:11:8}" +%s 2>/dev/null) || return 1
+    if (( $(date -u +%s) - created_s > BOT_MAX_AGE_SECONDS )); then
+        log "Bot recreate needed: container older than $((BOT_MAX_AGE_SECONDS / 86400)) days"
+        return 1
+    fi
 
     sha=$(docker inspect lucky-bot --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
         | sed -n 's/^COMMIT_SHA=//p' | head -1)
