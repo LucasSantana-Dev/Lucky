@@ -408,7 +408,8 @@ function toArtistTokens(expectedArtist: string | undefined): string[] {
 }
 
 function toRequestedText(query: string, sourceTitle?: string): string {
-    return ` ${normalizeForMatch(`${query} ${sourceTitle ?? ''}`)} `
+    const requested = normalizeForMatch(`${query} ${sourceTitle ?? ''}`)
+    return ` ${requested} `
 }
 
 function isUnrequestedAlteredVersion(
