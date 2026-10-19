@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.63.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.63.1...v2.63.2) (2026-10-19)
+
+
+### Bug Fixes
+
+* **backend:** abort discord redirect when session.save() fails ([#2883](https://github.com/LucasSantana-Dev/Lucky/issues/2883)) ([a591993](https://github.com/LucasSantana-Dev/Lucky/commit/a591993980ecc33372748172e99a3fbcaf96d937))
+* **bot:** autoplay seed-similar finds the artist in YouTube-style titles ([#2899](https://github.com/LucasSantana-Dev/Lucky/issues/2899)) ([2dcb3cb](https://github.com/LucasSantana-Dev/Lucky/commit/2dcb3cbe68fb21a57dac005fa2751a59ef651232))
+* **bot:** autoplay survives a Spotify outage, surface dead YouTube cookies and Spotify API errors ([#2895](https://github.com/LucasSantana-Dev/Lucky/issues/2895)) ([6b3f8e6](https://github.com/LucasSantana-Dev/Lucky/commit/6b3f8e6e3aff2982c3ffb2a2efeb2ec82b23f21a))
+* **bot:** count every yt-dlp extraction failure in prometheus ([#2864](https://github.com/LucasSantana-Dev/Lucky/issues/2864)) ([#2886](https://github.com/LucasSantana-Dev/Lucky/issues/2886)) ([b2565cc](https://github.com/LucasSantana-Dev/Lucky/commit/b2565cc5ab5bfdf537abdb836e30a24f9c72202a))
+* **bot:** dashboard play falls back to YouTube and SoundCloud when Spotify text search is empty ([#2898](https://github.com/LucasSantana-Dev/Lucky/issues/2898)) ([2f4ea5c](https://github.com/LucasSantana-Dev/Lucky/commit/2f4ea5cbbe4c1ae7df695877dd8e5bfc1ecaeace))
+* **bot:** history replay fallback + cycle budget for empty pool ([#2870](https://github.com/LucasSantana-Dev/Lucky/issues/2870)) ([#2889](https://github.com/LucasSantana-Dev/Lucky/issues/2889)) ([a8674a5](https://github.com/LucasSantana-Dev/Lucky/commit/a8674a5eb6831e7b813af1f51bb3db2a0dbf4c8e))
+* **bot:** keep comma names like Earth, Wind & Fire in the SoundCloud uploader check ([#2901](https://github.com/LucasSantana-Dev/Lucky/issues/2901)) ([aaf933f](https://github.com/LucasSantana-Dev/Lucky/commit/aaf933ff545b377312e902fa25a684856b13bbd0))
+* **bot:** keep text searches on non-Spotify engines away from SpotifyExtractor ([#2896](https://github.com/LucasSantana-Dev/Lucky/issues/2896)) ([2817ea7](https://github.com/LucasSantana-Dev/Lucky/commit/2817ea7afce8b0d5de28349269f473800851f94b))
+* **bot:** log recap tick outcomes and unusable play channels at info ([#2879](https://github.com/LucasSantana-Dev/Lucky/issues/2879)) ([1e0528d](https://github.com/LucasSantana-Dev/Lucky/commit/1e0528d4782f4507f2e293dfa2c3e7a178107d00))
+* **bot:** SoundCloud fallback plays only uploads from the artist account ([#2900](https://github.com/LucasSantana-Dev/Lucky/issues/2900)) ([3c9e7e4](https://github.com/LucasSantana-Dev/Lucky/commit/3c9e7e44b3adf116a281ef2d34bf43769dcd6bf8))
+* **bot:** stop calling Spotify while it answers 429, honor Retry-After ([#2897](https://github.com/LucasSantana-Dev/Lucky/issues/2897)) ([44f46df](https://github.com/LucasSantana-Dev/Lucky/commit/44f46df8e20c2082f86643817c88cfc4b6920798))
+* **bot:** stop SoundCloud fallback from playing remixes and other artists' tracks ([#2894](https://github.com/LucasSantana-Dev/Lucky/issues/2894)) ([81f34bf](https://github.com/LucasSantana-Dev/Lucky/commit/81f34bfd86509ada5c06697c475264ecf3eff909))
+* **deps:** bump discord-player-youtubei from 3.0.0-beta.4 to 3.1.0 ([#2795](https://github.com/LucasSantana-Dev/Lucky/issues/2795)) ([9392248](https://github.com/LucasSantana-Dev/Lucky/commit/9392248dc2801330f822a2e84a30ead1819faa32))
+* **frontend:** music-first landing, add recap card ([#2890](https://github.com/LucasSantana-Dev/Lucky/issues/2890)) ([ab962a9](https://github.com/LucasSantana-Dev/Lucky/commit/ab962a92bd44045d60f868f0319c6e743262fd5e))
+
 ## [2.63.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.63.0...v2.63.1) (2026-10-18)
 
 
