@@ -180,6 +180,192 @@ describe('findMatchingSoundCloudResult – accent folding', () => {
     })
 })
 
+describe('findMatchingSoundCloudResult – parenthetical title suffixes (#2866)', () => {
+    // Real production failures: Spotify sends titles with comment/version
+    // parentheticals that SoundCloud lists without them. The extra tokens
+    // drove the score below the 0.75 threshold.
+    it.each([
+        [
+            'Sobre Pra Você Guardei o Amor (Comentário)',
+            'Sobre Pra Voce Guardei o Amor',
+        ],
+        ['Ai Se Eu Te Pego (En Vivo)', 'Ai Se Eu Te Pego'],
+        ['Shallow (From "A Star Is Born")', 'Shallow'],
+        ['Song Title (12" Version)', 'Song Title'],
+        ['My Song (karaokê)', 'My Song'],
+        ['Track [Live Version]', 'Track'],
+    ])(
+        'query with suffix "%s" matches clean SoundCloud result "%s"',
+        (query, name) => {
+            const results = [{ name, url: 'https://soundcloud.com/x' }]
+            expect(
+                findMatchingSoundCloudResult(query, undefined, results),
+            ).toBe(results[0])
+        },
+    )
+
+    it('still rejects a clearly different title even when parentheticals are stripped', () => {
+        const results = [
+            {
+                name: 'Completely Different Song',
+                url: 'https://soundcloud.com/x',
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Ai Se Eu Te Pego (En Vivo)',
+                undefined,
+                results,
+            ),
+        ).toBeUndefined()
+    })
+
+    it('matches when SoundCloud result also carries the suffix', () => {
+        const results = [
+            {
+                name: 'Ai Se Eu Te Pego (En Vivo)',
+                url: 'https://soundcloud.com/x',
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Ai Se Eu Te Pego (En Vivo)',
+                undefined,
+                results,
+            ),
+        ).toBe(results[0])
+    })
+
+    it('duration check still applies after stripping', () => {
+        // 3:00 = 180s; result at 300s is 120s off — should be rejected
+        const results = [
+            {
+                name: 'Ai Se Eu Te Pego',
+                url: 'https://soundcloud.com/x',
+                durationInSec: 300,
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Ai Se Eu Te Pego (En Vivo)',
+                '3:00',
+                results,
+            ),
+        ).toBeUndefined()
+    })
+})
+
+describe('findMatchingSoundCloudResult - suffix stripping edge cases (#2866)', () => {
+    const url = 'https://soundcloud.com/x'
+
+    it('falls back to the unstripped query when it is entirely bracketed', () => {
+        const results = [{ name: 'Intro', url }]
+        expect(
+            findMatchingSoundCloudResult('(Intro)', undefined, results),
+        ).toBe(results[0])
+    })
+
+    it('does not strip a title-defining group: prefers the full title', () => {
+        const results = [
+            { name: 'The Man', url },
+            { name: 'The Man Who Sold the World', url },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'The Man (Who Sold the World)',
+                undefined,
+                results,
+            ),
+        ).toBe(results[1])
+    })
+
+    it('does not strip a title-defining (Part II) group when ranking', () => {
+        const results = [
+            { name: 'The Song', url },
+            { name: 'The Song Part II', url },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'The Song (Part II)',
+                '3:00',
+                results,
+            ),
+        ).toBe(results[1])
+    })
+
+    it('keeps a mid-title group in the scored tokens', () => {
+        const results = [{ name: 'Song Extra', url }]
+        expect(
+            findMatchingSoundCloudResult(
+                'Song (Alpha Beta Gamma) Extra',
+                undefined,
+                results,
+            ),
+        ).toBeUndefined()
+    })
+
+    it('strips nested groups with a linear scan', () => {
+        const results = [{ name: 'Song', url }]
+        expect(
+            findMatchingSoundCloudResult(
+                'Song (Live (Acoustic) Version)',
+                undefined,
+                results,
+            ),
+        ).toBe(results[0])
+        expect(
+            findMatchingSoundCloudResult(
+                'Song [Live [Acoustic] Version]',
+                undefined,
+                results,
+            ),
+        ).toBe(results[0])
+    })
+
+    it('treats unmatched delimiters as plain text', () => {
+        const results = [{ name: 'Song Live', url }]
+        expect(
+            findMatchingSoundCloudResult('Song (Live', undefined, results),
+        ).toBe(results[0])
+    })
+
+    it('handles pathological unclosed input quickly', () => {
+        const results = [{ name: 'Song', url }]
+        const nasty = 'Song ' + '('.repeat(50_000)
+        expect(
+            findMatchingSoundCloudResult(nasty, undefined, results),
+        ).toBe(results[0])
+    })
+
+    it('still prefers the remix when the query asks for (Remix)', () => {
+        const results = [
+            { name: 'Song Name', url },
+            { name: 'Song Name (Remix)', url },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Song Name (Remix)',
+                undefined,
+                results,
+            ),
+        ).toBe(results[1])
+        expect(
+            findMatchingSoundCloudResult('Song Name (Remix)', '3:00', results),
+        ).toBe(results[1])
+    })
+
+    it('falls back to the plain track when no remix exists', () => {
+        const results = [{ name: 'Song Name', url }]
+        expect(
+            findMatchingSoundCloudResult(
+                'Song Name (Remix)',
+                undefined,
+                results,
+            ),
+        ).toBe(results[0])
+    })
+})
+
 describe('findMatchingSoundCloudResult – duration matching', () => {
     it('accepts match within 30 seconds of track duration', () => {
         const results = [makeResult('Song', 200)] // 3:20
