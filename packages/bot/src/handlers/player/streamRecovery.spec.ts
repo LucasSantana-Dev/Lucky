@@ -152,6 +152,11 @@ describe('streamRecovery', () => {
             expect(queue.player.search).toHaveBeenCalledWith('Song A', {
                 requestedBy: { id: 'user-1' },
                 searchEngine: QueryType.YOUTUBE_SEARCH,
+                // SpotifyExtractor claims any text whatever the engine, so
+                // without the block a Spotify outage kills recovery.
+                blockExtractors: expect.arrayContaining([
+                    'com.discord-player.itsmaat.spotifyextractor',
+                ]),
             })
             expect(queue.insertTrack).toHaveBeenCalledWith(alternativeTrack, 0)
             expect(queue.node.skip).toHaveBeenCalled()
