@@ -406,6 +406,7 @@ describe('errorEventHandlers', () => {
                 context: 'player-error',
                 guildId: 'guild-1',
             }),
+            expect.arrayContaining(['player-error']),
         )
 
         expect(debugLogMock).toHaveBeenCalledWith(

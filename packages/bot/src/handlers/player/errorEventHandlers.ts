@@ -16,6 +16,7 @@ import {
     logHandlerFailure,
 } from './errorClassification'
 import { isReportedBridgeExhausted } from './bridgeExhaustedError'
+import { classifyYtDlpFailure } from './ytdlpBlockBreaker'
 import { notifyChannelStreamFailed } from './streamFailureNotifier'
 import { settlePlayStartWatch } from './playStartWatch'
 import {
@@ -175,6 +176,9 @@ export async function handlePlayerError(
         const alreadyReported = isReportedBridgeExhausted(error)
         logPlayerError(queue, error, alreadyReported)
         if (!alreadyReported) {
+            // Stable fingerprint by failure class so the same yt-dlp root
+            // cause stays in one Sentry group across redeploys (#2876).
+            const failureClass = classifyYtDlpFailure(error)
             captureException(
                 toErrorInstance(error) ?? new Error(String(error)),
                 {
@@ -183,6 +187,7 @@ export async function handlePlayerError(
                     provider: currentTrackProvider,
                     trackUrl: queue.currentTrack?.url,
                 },
+                ['player-error', currentTrackProvider, failureClass],
             )
         }
 

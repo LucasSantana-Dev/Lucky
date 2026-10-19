@@ -121,6 +121,9 @@ function logSentrySkip(message: string): void {
  * Capture an exception in Sentry
  * @param error The error to capture
  * @param extras Additional data to include with the exception
+ * @param fingerprint Optional stable grouping key; prevents the same root cause
+ *   from splitting into new Sentry groups when stack frames change on redeploy.
+ *   Pass failure-class values so each class stays in its own issue (#2876).
  * @returns The Sentry event id, or `undefined` when Sentry is disabled. Lets
  * callers (e.g. the "Report this" button on command errors, #2477) carry the
  * event id as user-visible context without a separate Sentry lookup.
@@ -128,12 +131,16 @@ function logSentrySkip(message: string): void {
 export function captureException(
     error: Error,
     extras?: Record<string, unknown>,
+    fingerprint?: string[],
 ): string | undefined {
     if (!isSentryEnabled()) {
         return undefined
     }
 
-    return Sentry.captureException(error, { extra: getSanitizedExtra(extras) })
+    return Sentry.captureException(error, {
+        extra: getSanitizedExtra(extras),
+        ...(fingerprint ? { fingerprint } : {}),
+    })
 }
 
 /**
