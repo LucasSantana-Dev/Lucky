@@ -335,7 +335,7 @@ describe('replenishQueue', () => {
         const replayCall = warnLog.mock.calls.find(
             ([arg]: [{ message: string }]) =>
                 arg.message ===
-                'Autoplay: replaying history tracks — all collectors empty',
+                'Autoplay: replaying history tracks, all collectors empty',
         )
         expect(replayCall).toBeDefined()
         expect(replayCall[0].data.replayed).toContain('History Song')
@@ -385,7 +385,7 @@ describe('replenishQueue', () => {
         const replayIndex = warnLog.mock.calls.findIndex(
             ([arg]: [{ message: string }]) =>
                 arg.message ===
-                'Autoplay: replaying history tracks — all collectors empty',
+                'Autoplay: replaying history tracks, all collectors empty',
         )
         expect(stallIndex).toBeGreaterThanOrEqual(0)
         expect(replayIndex).toBeGreaterThan(stallIndex)
@@ -401,7 +401,7 @@ describe('replenishQueue', () => {
         const replayCall = warnLog.mock.calls.find(
             ([arg]: [{ message: string }]) =>
                 arg.message ===
-                'Autoplay: replaying history tracks — all collectors empty',
+                'Autoplay: replaying history tracks, all collectors empty',
         )
         expect(replayCall).toBeUndefined()
         expect((queue.addTrack as jest.Mock).mock.calls.length).toBe(0)
