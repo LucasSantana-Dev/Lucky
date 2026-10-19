@@ -205,6 +205,29 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         expect(spawnArgs(1)).not.toContain('--cookies')
     })
 
+    it('counts a recovered bot-check once as botcheck (#2864)', async () => {
+        readableCookies()
+        script(SIGN_IN, 'ok')
+        const incSpy = jest.spyOn(extractionFailuresTotal, 'inc')
+
+        await streamViaYtDlp(validUrl)
+
+        expect(incSpy).toHaveBeenCalledTimes(1)
+        expect(incSpy).toHaveBeenCalledWith({ type: 'botcheck' })
+        incSpy.mockRestore()
+    })
+
+    it('does not count a SoundCloud 403 as a YouTube failure (#2864)', async () => {
+        script(FORBIDDEN, 'ok')
+        const incSpy = jest.spyOn(extractionFailuresTotal, 'inc')
+
+        await streamViaYtDlp('https://soundcloud.com/artist/track')
+
+        expect(mockSpawn).toHaveBeenCalledTimes(2)
+        expect(incSpy).not.toHaveBeenCalled()
+        incSpy.mockRestore()
+    })
+
     it('gives up after a second 403 (one retry, no loop)', async () => {
         readableCookies()
         script(FORBIDDEN, FORBIDDEN, 'ok')

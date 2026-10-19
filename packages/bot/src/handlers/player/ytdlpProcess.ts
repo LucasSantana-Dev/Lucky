@@ -178,7 +178,8 @@ export function streamViaYtDlp(
             // Count the first 403 so Prometheus reflects every attempt, even
             // those the retry recovers. The block breaker (recordYtDlpFailure
             // in the bridge) only fires when the retry also fails (#2864).
-            countYtDlpFailure(error)
+            // YouTube only: the metric and its alert describe YouTube blocks.
+            if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
             infoLog({
                 message: 'Bridge: yt-dlp got HTTP 403, retrying once',
                 data: { retry: 'forbidden' },
@@ -187,6 +188,9 @@ export function streamViaYtDlp(
         }
         const cookiesArgs = needsSignIn(error) ? ytdlpCookiesArgs() : []
         if (cookiesArgs.length === 0) throw error
+        // Count the first sign-in challenge too: the cookies retry may
+        // recover it, and the breaker only sees a failed retry (#2864).
+        if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
         return spawnYtDlp(url, cookiesArgs, timeoutMs)
     })
 }
