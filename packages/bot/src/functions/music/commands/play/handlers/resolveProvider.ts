@@ -32,6 +32,21 @@ export const TEXT_SEARCH_BLOCKED_EXTRACTORS = [
 ]
 
 /**
+ * Search options for a query that may be plain text or a URL, on an engine
+ * that is not Spotify's. Plain text gets TEXT_SEARCH_BLOCKED_EXTRACTORS,
+ * otherwise SpotifyExtractor claims it and a Spotify outage returns nothing.
+ * A URL is left alone: a Spotify link must still reach the Spotify
+ * extractor, and its validate() already rejects every other URL.
+ */
+export function textSearchBlockOptions(query: string): {
+    blockExtractors?: string[]
+} {
+    return /^https?:\/\//i.test(query.trim())
+        ? {}
+        : { blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS }
+}
+
+/**
  * Some extractors (Spotify's raw search API in particular) return their own
  * top hit as tracks[0] with no relevance re-ranking, so a short/ambiguous
  * query like "Prince" can surface a same-genre act (e.g. Prince Royce)

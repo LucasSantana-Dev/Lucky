@@ -12,6 +12,7 @@ import { isSameTrack } from './errorClassification'
 import { notifyChannelStreamFailed } from './streamFailureNotifier'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
 import { settlePlayStartWatch } from './playStartWatch'
+import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from '../../functions/music/commands/play/handlers/resolveProvider'
 
 function describeYouTubeParserErrorType(
     youtubeErrorInfo: ReturnType<typeof analyzeYouTubeError>,
@@ -123,6 +124,9 @@ export async function recoverFromStreamExtractionError(
             queue.player.search(currentTrack.title, {
                 requestedBy: requestedByUser,
                 searchEngine: QueryType.YOUTUBE_SEARCH,
+                // Without this SpotifyExtractor claims the title and recovery
+                // dies with Spotify. See TEXT_SEARCH_BLOCKED_EXTRACTORS.
+                blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
             }),
             searchTimeout,
         ])

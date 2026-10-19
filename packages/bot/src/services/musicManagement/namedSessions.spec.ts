@@ -197,6 +197,49 @@ describe('NamedSessionService', () => {
             },
         )
 
+        it('keeps a text-only entry away from SpotifyExtractor but lets a Spotify URL through', async () => {
+            const spotifyUrl = 'https://open.spotify.com/track/abc123'
+            mockFindUnique.mockResolvedValueOnce(
+                row({
+                    currentTrack: {
+                        title: 'Song 1',
+                        author: 'Artist',
+                        url: '',
+                        duration: '3:00',
+                        source: 'spotify',
+                    },
+                    upcomingTracks: [
+                        {
+                            title: 'Song 2',
+                            author: 'Artist',
+                            url: spotifyUrl,
+                            duration: '3:00',
+                            source: 'spotify',
+                        },
+                    ],
+                }),
+            )
+
+            await service.restore(queue, 'party-mix')
+
+            // SpotifyExtractor claims any text on AUTO, so a Spotify outage
+            // would drop the entry; a Spotify link must still reach it.
+            expect(queue.player.search).toHaveBeenCalledWith(
+                'Song 1 Artist',
+                expect.objectContaining({
+                    blockExtractors: expect.arrayContaining([
+                        'com.discord-player.itsmaat.spotifyextractor',
+                    ]),
+                }),
+            )
+            expect(queue.player.search).toHaveBeenCalledWith(
+                spotifyUrl,
+                expect.not.objectContaining({
+                    blockExtractors: expect.anything(),
+                }),
+            )
+        })
+
         describe('HOSTED_YOUTUBE_ENABLED = false (#2486)', () => {
             const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
 
