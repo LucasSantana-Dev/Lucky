@@ -23,6 +23,9 @@ type FetchData = (
 
 const WARN_COOLDOWN_MS = 5 * 60_000
 const DEFAULT_BLOCK_MS = 60_000
+// A bogus Retry-After (say 1e20) must not stop Spotify for good or push the
+// date past what toISOString() accepts. Quota blocks seen so far are ~6h.
+const MAX_BLOCK_MS = 24 * 60 * 60_000
 
 // Spotify's own meaning for each status on this client-credentials path,
 // so the log line says what to check (developer.spotify.com quota modes).
@@ -87,6 +90,13 @@ export function retryAfterMs(
     header: string | null | undefined,
     now = Date.now(),
 ): number {
+    return Math.min(parseRetryAfterMs(header, now), MAX_BLOCK_MS)
+}
+
+function parseRetryAfterMs(
+    header: string | null | undefined,
+    now = Date.now(),
+): number {
     const value = header?.trim()
     if (value) {
         const seconds = Number(value)
@@ -111,6 +121,14 @@ function blockSpotifyApi(retryAfter: string | null, now = Date.now()): void {
             retryAfter: retryAfter ?? 'none',
         },
     })
+}
+
+function blockAfterFailure(error: unknown, response?: Response): void {
+    if (response?.status === 429) {
+        blockSpotifyApi(response.headers.get('retry-after'))
+    } else if (statusOf(error) === '429') {
+        blockSpotifyApi(null)
+    }
 }
 
 function observeFetch(): void {
@@ -151,11 +169,7 @@ export function logSpotifyApiFailures(extractor: unknown): void {
             return await lastResponse.run(store, () => fetchData(url, options))
         } catch (error) {
             reportSpotifyApiFailure(url, error)
-            if (store.response?.status === 429) {
-                blockSpotifyApi(store.response.headers.get('retry-after'))
-            } else if (statusOf(error) === '429') {
-                blockSpotifyApi(null)
-            }
+            blockAfterFailure(error, store.response)
             throw error
         }
     }

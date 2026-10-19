@@ -253,6 +253,18 @@ describe('Spotify API block after a 429', () => {
         expect(fetchMock).toHaveBeenCalledTimes(2)
     })
 
+    it('keeps the original 429 when Retry-After is huge', async () => {
+        const api = libraryExtractor()
+        fetchMock.mockResolvedValueOnce(answer(429, { 'Retry-After': '1e20' }))
+
+        await expect(api.fetchData(SEARCH_URL)).rejects.toThrow(
+            'Failed to fetch Spotify data: 429',
+        )
+        await expect(api.fetchData(SEARCH_URL)).rejects.toThrow(
+            'Spotify API blocked until 2026-10-20T12:00:00.000Z',
+        )
+    })
+
     it('does not block on other failures', async () => {
         const api = libraryExtractor()
         fetchMock.mockResolvedValueOnce(answer(403))
@@ -282,6 +294,13 @@ describe('retryAfterMs', () => {
 
     it('reads an HTTP date', () => {
         expect(retryAfterMs('Mon, 19 Oct 2026 12:05:00 GMT', now)).toBe(300_000)
+    })
+
+    it('caps a huge value at 24 hours', () => {
+        expect(retryAfterMs('1e20', now)).toBe(24 * 60 * 60_000)
+        expect(retryAfterMs('Fri, 01 Jan 2100 00:00:00 GMT', now)).toBe(
+            24 * 60 * 60_000,
+        )
     })
 
     it.each([
