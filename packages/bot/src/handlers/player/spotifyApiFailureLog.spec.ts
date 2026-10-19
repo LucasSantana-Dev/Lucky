@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    jest,
+} from '@jest/globals'
 
 const warnLogMock = jest.fn()
 
@@ -10,6 +17,7 @@ import {
     logSpotifyApiFailures,
     reportSpotifyApiFailure,
     resetSpotifyApiFailureLogForTests,
+    retryAfterMs,
 } from './spotifyApiFailureLog'
 
 const SEARCH_URL =
@@ -46,7 +54,12 @@ describe('logSpotifyApiFailures', () => {
 
         await expect(extractor.internal.search('x')).resolves.toBeNull()
 
-        expect(warnLogMock).toHaveBeenCalledTimes(1)
+        const failureLogs = warnLogMock.mock.calls.filter(
+            (call) =>
+                (call[0] as { message: string }).message ===
+                'Spotify extractor request failed',
+        )
+        expect(failureLogs).toHaveLength(1)
         expect(warnLogMock).toHaveBeenCalledWith({
             message: 'Spotify extractor request failed',
             data: expect.objectContaining({
@@ -127,5 +140,159 @@ describe('reportSpotifyApiFailure', () => {
             (call) => (call[0] as { data: { status: string } }).data.status,
         )
         expect(statuses).toEqual(['429', '403', '429'])
+    })
+})
+
+describe('Spotify API block after a 429', () => {
+    const realFetch = globalThis.fetch
+    const fetchMock = jest.fn<typeof fetch>()
+    let now = 0
+
+    // Same flow as discord-player-spotify 1.1.9: fetchData() calls the global
+    // fetch and throws on a non-2xx answer, dropping the response headers.
+    function libraryExtractor() {
+        const internal = {
+            async fetchData(url: string) {
+                const res = await fetch(url)
+                if (!res.ok)
+                    throw new Error(
+                        `Failed to fetch Spotify data: ${res.status}`,
+                    )
+                return res
+            },
+            async search(query: string) {
+                try {
+                    await this.fetchData(`${SEARCH_URL}&query=${query}`)
+                    return []
+                } catch {
+                    return null
+                }
+            },
+        }
+        logSpotifyApiFailures({ internal })
+        return internal
+    }
+
+    const answer = (status: number, headers: Record<string, string> = {}) =>
+        new Response('{}', { status, headers })
+
+    const blockLogs = () =>
+        warnLogMock.mock.calls.filter((call) =>
+            String((call[0] as { message: string }).message).includes(
+                'skipping Spotify calls',
+            ),
+        )
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        resetSpotifyApiFailureLogForTests()
+        fetchMock.mockReset()
+        globalThis.fetch = fetchMock
+        now = Date.parse('2026-10-19T12:00:00Z')
+        jest.spyOn(Date, 'now').mockImplementation(() => now)
+    })
+
+    afterEach(() => {
+        resetSpotifyApiFailureLogForTests()
+        globalThis.fetch = realFetch
+        jest.restoreAllMocks()
+    })
+
+    it('skips the network until Retry-After passes, then calls Spotify again', async () => {
+        const api = libraryExtractor()
+        fetchMock.mockResolvedValueOnce(answer(429, { 'Retry-After': '20335' }))
+
+        await expect(api.search('a')).resolves.toBeNull()
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+
+        now += 20_334_000
+        await expect(api.search('b')).resolves.toBeNull()
+        await expect(api.fetchData(SEARCH_URL)).rejects.toThrow(
+            'Spotify API blocked until 2026-10-19T17:38:55.000Z',
+        )
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+
+        now += 1000
+        fetchMock.mockResolvedValueOnce(answer(200))
+        await expect(api.search('c')).resolves.toEqual([])
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('logs the block once, with the time it unblocks', async () => {
+        const api = libraryExtractor()
+        fetchMock.mockResolvedValue(answer(429, { 'Retry-After': '20335' }))
+
+        await Promise.all([api.search('a'), api.search('b')])
+        await api.search('c')
+
+        expect(blockLogs()).toEqual([
+            [
+                {
+                    message: expect.stringContaining('429'),
+                    data: {
+                        unblocksAt: '2026-10-19T17:38:55.000Z',
+                        retryAfter: '20335',
+                    },
+                },
+            ],
+        ])
+    })
+
+    it('blocks for 60 seconds when the 429 has no Retry-After', async () => {
+        const api = libraryExtractor()
+        fetchMock.mockResolvedValueOnce(answer(429))
+
+        await api.search('a')
+        now += 59_000
+        await api.search('b')
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+
+        now += 1000
+        fetchMock.mockResolvedValueOnce(answer(200))
+        await expect(api.search('c')).resolves.toEqual([])
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not block on other failures', async () => {
+        const api = libraryExtractor()
+        fetchMock.mockResolvedValueOnce(answer(403))
+        fetchMock.mockResolvedValueOnce(answer(200))
+
+        await expect(api.search('a')).resolves.toBeNull()
+        await expect(api.search('b')).resolves.toEqual([])
+        expect(blockLogs()).toEqual([])
+    })
+
+    it('leaves fetch calls outside the Spotify extractor alone', async () => {
+        libraryExtractor()
+        fetchMock.mockResolvedValueOnce(answer(429, { 'Retry-After': '600' }))
+
+        await fetch('https://example.com/')
+
+        expect(blockLogs()).toEqual([])
+    })
+})
+
+describe('retryAfterMs', () => {
+    const now = Date.parse('2026-10-19T12:00:00Z')
+
+    it('reads delay-seconds', () => {
+        expect(retryAfterMs('20335', now)).toBe(20_335_000)
+    })
+
+    it('reads an HTTP date', () => {
+        expect(retryAfterMs('Mon, 19 Oct 2026 12:05:00 GMT', now)).toBe(300_000)
+    })
+
+    it.each([
+        null,
+        undefined,
+        '',
+        '0',
+        '-5',
+        'soon',
+        'Mon, 19 Oct 2026 11:00:00 GMT',
+    ])('falls back to 60 seconds for %p', (header) => {
+        expect(retryAfterMs(header, now)).toBe(60_000)
     })
 })
