@@ -237,6 +237,11 @@ export const extractionFailuresTotal = new Counter<'type'>({
     labelNames: ['type'],
     registers: [registry],
 })
+// Seed all types at 0 on boot so the alert's increase() has a baseline from
+// the first scrape, even before the first failure (#2864).
+for (const type of ['forbidden', 'botcheck', 'empty', 'timeout', 'other']) {
+    extractionFailuresTotal.labels(type).inc(0)
+}
 
 /**
  * Counter: Spotify source cache lookups by result (hit|miss|negative).
