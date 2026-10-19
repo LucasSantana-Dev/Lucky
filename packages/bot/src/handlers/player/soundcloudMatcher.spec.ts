@@ -529,6 +529,21 @@ describe('findMatchingSoundCloudResult – expected artist', () => {
         ).toBe(joinedAuthor[0])
     })
 
+    it('keeps an artist whose name contains a comma', () => {
+        const results = [
+            {
+                name: 'September',
+                url,
+                user: { name: 'Earth, Wind & Fire' },
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult('September', undefined, results, {
+                expectedArtists: ['Earth, Wind & Fire'],
+            }),
+        ).toBe(results[0])
+    })
+
     it('accepts any one of several expected artists', () => {
         const results = [
             { name: 'Ben', url, user: { name: 'Michael Jackson' } },
