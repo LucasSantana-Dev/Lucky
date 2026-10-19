@@ -410,13 +410,16 @@ function describeRejectedCandidates(
     })
 }
 
-// One key per expected artist: the lead name with spaces dropped, so the
-// account "kanyewest" and the author "LynyrdSkynyrd" (from "LynyrdSkynyrdVEVO")
-// compare equal to "Kanye West" and "Lynyrd Skynyrd".
+// Keys are names with spaces dropped, so the account "kanyewest" and the
+// author "LynyrdSkynyrd" (from "LynyrdSkynyrdVEVO") compare equal to "Kanye
+// West" and "Lynyrd Skynyrd". Each artist gives its lead name ("Kanye West,
+// JAY-Z" is uploaded by Kanye) and its full name, because a comma can also be
+// part of one name ("Earth, Wind & Fire", "Tyler, The Creator").
 function toArtistKeys(expectedArtists: readonly string[] = []): string[] {
-    const keys = expectedArtists.map((artist) =>
+    const keys = expectedArtists.flatMap((artist) => [
         toTokens(primaryArtist(artist)).join(''),
-    )
+        toTokens(artist).join(''),
+    ])
     return [...new Set(keys.filter(Boolean))]
 }
 
