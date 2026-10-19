@@ -121,9 +121,11 @@ function logSentrySkip(message: string): void {
  * Capture an exception in Sentry
  * @param error The error to capture
  * @param extras Additional data to include with the exception
- * @param fingerprint Optional stable grouping key; prevents the same root cause
- *   from splitting into new Sentry groups when stack frames change on redeploy.
- *   Pass failure-class values so each class stays in its own issue (#2876).
+ * @param fingerprint Optional stable grouping key. It replaces Sentry's default
+ *   grouping (exception type, message, stack), so every error passed with the
+ *   same array merges into one issue regardless of message or stack. Use it
+ *   only for well-defined root-cause classes (#2876); omit it to keep default
+ *   grouping.
  * @returns The Sentry event id, or `undefined` when Sentry is disabled. Lets
  * callers (e.g. the "Report this" button on command errors, #2477) carry the
  * event id as user-visible context without a separate Sentry lookup.
