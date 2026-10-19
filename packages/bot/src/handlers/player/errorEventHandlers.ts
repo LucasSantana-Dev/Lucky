@@ -185,7 +185,11 @@ export async function handlePlayerError(
                 : ['player-error', currentTrackProvider, failureClass]
         // errorLog forwards to Sentry without a fingerprint, so a fingerprinted
         // event is captured below and the log line drops to warn level.
-        logPlayerError(queue, error, alreadyReported || fingerprint !== undefined)
+        logPlayerError(
+            queue,
+            error,
+            alreadyReported || fingerprint !== undefined,
+        )
         if (!alreadyReported) {
             captureException(
                 toErrorInstance(error) ?? new Error(String(error)),
