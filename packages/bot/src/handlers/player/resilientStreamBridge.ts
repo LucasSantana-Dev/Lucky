@@ -450,11 +450,10 @@ async function attemptSoundCloud(
 ): Promise<Readable | null> {
     const startedAt = Date.now()
     try {
-        const stream = await streamViaSoundCloud(
-            query,
-            track.duration,
+        const stream = await streamViaSoundCloud(query, track.duration, {
             expectedArtist,
-        )
+            sourceTitle: track.title,
+        })
         const durationMs = observeStage(
             stageLabel === 'soundcloud-title'
                 ? 'soundcloud_title'
@@ -529,11 +528,10 @@ async function attemptCoreStageOrLogExhausted(
 
     const startedAt = Date.now()
     try {
-        const stream = await streamViaSoundCloud(
-            coreTitle,
-            track.duration,
-            cleanedAuthor,
-        )
+        const stream = await streamViaSoundCloud(coreTitle, track.duration, {
+            expectedArtist: cleanedAuthor,
+            sourceTitle: track.title,
+        })
         const durationMs = observeStage('soundcloud_core', startedAt, 'ok')
         stampFallbackStage(track, 'soundcloud-core')
         infoLog({

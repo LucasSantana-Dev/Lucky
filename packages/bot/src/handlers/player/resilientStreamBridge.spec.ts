@@ -641,13 +641,13 @@ describe('fallback stage stamping', () => {
             1,
             'Flashing Lights Kanye West',
             '03:58',
-            undefined,
+            { expectedArtist: undefined, sourceTitle: 'Flashing Lights' },
         )
         expect(mockStreamViaSoundCloud).toHaveBeenNthCalledWith(
             2,
             'Flashing Lights',
             '03:58',
-            'Kanye West',
+            { expectedArtist: 'Kanye West', sourceTitle: 'Flashing Lights' },
         )
     })
 
@@ -693,7 +693,7 @@ describe('fallback stage stamping', () => {
             3,
             'Human Nature',
             track.duration,
-            'Test Artist',
+            { expectedArtist: 'Test Artist', sourceTitle: track.title },
         )
         expect(mockStampFallbackStage).toHaveBeenCalledWith(
             track,

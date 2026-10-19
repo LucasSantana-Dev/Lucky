@@ -13,7 +13,52 @@ type SoundCloudSearchResult = {
     user?: { name?: string }
 }
 
+export type SoundCloudMatchOptions = {
+    /** Artist the result must name, for queries that dropped it. */
+    expectedArtist?: string
+    /** Uncleaned source title: a version word in it counts as requested. */
+    sourceTitle?: string
+}
+
 const TITLE_MATCH_THRESHOLD = 0.75
+
+// Words that mark a different recording, not just a different release of the
+// same one. Unlike the soft `hasVersionMarker` demotion (remaster, deluxe,
+// explicit...), a result carrying one of these anywhere in its name is never
+// played unless the request carries the same word: "( Perfect Slowed ) Tiktok
+// Version" and "NØYCEY - FLASHING LIGHTS DUB" both slipped past the
+// structured-position check and played instead of the original (2026-10-19).
+const ALTERED_VERSION_TERMS: readonly string[] = [
+    '8d',
+    'acapella',
+    'acoustic',
+    'bass boosted',
+    'bootleg',
+    'chopped',
+    'cover',
+    'daycore',
+    'dub',
+    'flip',
+    'instrumental',
+    'karaoke',
+    'live',
+    'lofi',
+    'lo fi',
+    'mashup',
+    'nightcore',
+    'phonk',
+    'rebuild',
+    'remix',
+    'reverb',
+    'reversed',
+    'rmx',
+    'screwed',
+    'slowed',
+    'sped up',
+    'speed up',
+    'tiktok',
+    'vip',
+]
 const CLIENT_ID_TIMEOUT_MS = 10_000
 const REFRESH_COOLDOWN_MS = 60_000
 export const SOUNDCLOUD_SEARCH_TIMEOUT_MS = 8_000
@@ -121,7 +166,7 @@ async function withClientIdRetry<T>(
 export async function streamViaSoundCloud(
     query: string,
     trackDuration?: string,
-    expectedArtist?: string,
+    options: SoundCloudMatchOptions = {},
 ): Promise<Readable> {
     if (!query.trim()) {
         throw new Error('SoundCloud: empty query')
@@ -148,7 +193,7 @@ export async function streamViaSoundCloud(
         query,
         trackDuration,
         results,
-        expectedArtist,
+        options,
     )
     if (!match) {
         warnLog({
@@ -156,7 +201,7 @@ export async function streamViaSoundCloud(
             data: {
                 query,
                 trackDuration,
-                expectedArtist,
+                expectedArtist: options.expectedArtist,
                 rejected: describeRejectedCandidates(
                     query,
                     trackDuration,
@@ -213,7 +258,7 @@ export function findMatchingSoundCloudResult(
     query: string,
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
-    expectedArtist?: string,
+    { expectedArtist, sourceTitle }: SoundCloudMatchOptions = {},
 ): SoundCloudSearchResult | undefined {
     // Gate on the query with trailing parenthetical suffixes stripped so
     // version/comment suffixes ("(Comentário)", "(En Vivo)") do not inflate the
@@ -226,6 +271,8 @@ export function findMatchingSoundCloudResult(
         ? toTokens(primaryArtist(expectedArtist))
         : []
 
+    const requested = ` ${normalizeForMatch(`${query} ${sourceTitle ?? ''}`)} `
+
     const candidates = results
         .map((result) => {
             const resultNorm = normalizeForMatch(result.name)
@@ -233,6 +280,7 @@ export function findMatchingSoundCloudResult(
             if (artistTokens.length > 0 && !namesArtist(artistTokens, result)) {
                 return null
             }
+            if (isUnrequestedAlteredVersion(resultNorm, requested)) return null
 
             const matched = tokens.filter((token) =>
                 resultNorm.includes(token),
@@ -339,6 +387,17 @@ function describeRejectedCandidates(
                     : null,
         }
     })
+}
+
+function isUnrequestedAlteredVersion(
+    resultNorm: string,
+    requested: string,
+): boolean {
+    const name = ` ${resultNorm} `
+    return ALTERED_VERSION_TERMS.some(
+        (term) =>
+            name.includes(` ${term} `) && !requested.includes(` ${term} `),
+    )
 }
 
 // "Kanye West, JAY-Z" / "Kanye West feat. Rihanna": uploads name the lead.
