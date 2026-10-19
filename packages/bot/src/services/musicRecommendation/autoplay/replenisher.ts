@@ -826,18 +826,31 @@ export async function collectAllCandidates(
         const beforeFallback = candidates.size
         // Broad fallback runs two Spotify searches that can stall for 10-25s
         // without a timeout. Race against BROAD_FALLBACK_TIMEOUT_MS so the
-        // cycle budget stays under 8s p95 (#2870). The underlying search keeps
-        // running but the promise resolves to whatever was collected so far.
-        await Promise.race([
+        // cycle budget stays under 8s p95 (#2870). On timeout the late result is discarded.
+        // The collector writes into a scratch map that is merged only if it
+        // finishes in time, so a stalled search cannot mutate a later pass.
+        const scratch = new Map<string, ScoredTrack>()
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const finished = await Promise.race([
             collectBroadFallbackCandidates(
                 autoplayContext,
-                candidates,
+                scratch,
                 autoplayContext.auditCollector,
+            ).then(
+                () => true,
+                () => false,
             ),
-            new Promise<void>((resolve) =>
-                setTimeout(resolve, BROAD_FALLBACK_TIMEOUT_MS),
-            ),
+            new Promise<boolean>((resolve) => {
+                timer = setTimeout(
+                    () => resolve(false),
+                    BROAD_FALLBACK_TIMEOUT_MS,
+                )
+            }),
         ])
+        if (timer) clearTimeout(timer)
+        if (finished) {
+            for (const [k, v] of scratch) candidates.set(k, v)
+        }
         sourcesCounts.fallback = candidates.size - beforeFallback
         debugLog({
             message: 'Autoplay: broad fallback candidates',
@@ -995,8 +1008,17 @@ export async function enqueueAndFinalize(
         // History replay: fall back to recent session history so the queue
         // doesn't hard-stall. Pick tracks not already excluded, shuffle to
         // avoid the same track leading every time (#2870).
+        // excludedUrls already holds every session-history URL, so filtering
+        // on it would always empty the pool. Replay only needs to avoid what
+        // is playing or already queued.
+        const replayExcluded = new Set<string>(
+            [
+                currentTrack?.url,
+                ...queue.tracks.toArray().map((t) => t.url),
+            ].filter((u): u is string => Boolean(u)),
+        )
         const historyPool = allHistoryTracks.filter(
-            (t) => t.url && !excludedUrls.has(t.url),
+            (t) => t.url && !replayExcluded.has(t.url),
         )
         // Shuffle so successive empty passes don't always replay the same track.
         for (let i = historyPool.length - 1; i > 0; i--) {
@@ -1008,13 +1030,23 @@ export async function enqueueAndFinalize(
         }
         const historyReplay = historyPool.slice(0, HISTORY_REPLAY_LIMIT)
         if (historyReplay.length > 0) {
-            for (const t of historyReplay) {
-                queue.addTrack(t)
-                excludedUrls.add(t.url)
-            }
+            // Same path as selected candidates: autoplay marking, buffer
+            // accounting and telemetry, so status/skip/clear controls see them.
+            await addSelectedTracks(
+                queue,
+                historyReplay.map((track) => ({
+                    track,
+                    score: 0,
+                    basis: { source: 'artist-fallback', signals: [] },
+                })),
+                excludedUrls,
+                excludedKeys,
+                requestedBy?.id,
+                autoplayMode,
+            )
             warnLog({
                 message:
-                    'Autoplay: replaying history tracks — all collectors empty',
+                    'Autoplay: replaying history tracks, all collectors empty',
                 data: {
                     guildId,
                     replayed: historyReplay.map((t) => t.title),

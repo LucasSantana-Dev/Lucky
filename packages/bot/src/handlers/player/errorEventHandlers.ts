@@ -174,11 +174,23 @@ export async function handlePlayerError(
         // logs at warn level: skipping only captureException still sent a
         // second NoResultError event on LUCKY-47 for every exhausted play.
         const alreadyReported = isReportedBridgeExhausted(error)
-        logPlayerError(queue, error, alreadyReported)
+        // Stable fingerprint by yt-dlp failure class so the same root cause
+        // stays in one Sentry group across redeploys (#2876). The 'other'
+        // class keeps Sentry's default grouping so an unrelated new bug is
+        // not merged into an existing issue.
+        const failureClass = classifyYtDlpFailure(error)
+        const fingerprint =
+            failureClass === 'other'
+                ? undefined
+                : ['player-error', currentTrackProvider, failureClass]
+        // errorLog forwards to Sentry without a fingerprint, so a fingerprinted
+        // event is captured below and the log line drops to warn level.
+        logPlayerError(
+            queue,
+            error,
+            alreadyReported || fingerprint !== undefined,
+        )
         if (!alreadyReported) {
-            // Stable fingerprint by failure class so the same yt-dlp root
-            // cause stays in one Sentry group across redeploys (#2876).
-            const failureClass = classifyYtDlpFailure(error)
             captureException(
                 toErrorInstance(error) ?? new Error(String(error)),
                 {
@@ -187,7 +199,7 @@ export async function handlePlayerError(
                     provider: currentTrackProvider,
                     trackUrl: queue.currentTrack?.url,
                 },
-                ['player-error', currentTrackProvider, failureClass],
+                fingerprint,
             )
         }
 
