@@ -267,7 +267,7 @@ describe('Landing', () => {
         expect(screen.queryByText('/automod')).not.toBeInTheDocument()
         expect(screen.queryByText('/cc create')).not.toBeInTheDocument()
         expect(screen.getAllByText(/music/i).length).toBeGreaterThanOrEqual(2)
-        expect(screen.getByText('+ more in the dashboard')).toBeInTheDocument()
+        expect(screen.getByText('+ more commands with /help')).toBeInTheDocument()
     })
 
     test('renders stack list with all six services', () => {
