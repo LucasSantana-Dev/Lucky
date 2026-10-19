@@ -213,7 +213,7 @@
         },
         "repoCard": {
             "name": "LucasSantana-Dev / Lucky",
-            "description": "Discord music bot with taste-learning autoplay, a React dashboard, and a moderation suite.",
+            "description": "Discord music bot with taste-learning autoplay and a React dashboard.",
             "license": "ISC",
             "lang": "TypeScript",
             "serversLabel": "servers",
@@ -222,7 +222,7 @@
             "copyClone": "Copy clone URL"
         },
         "commands": {
-            "heading": "100+ commands, scoped to what you actually run",
+            "heading": "Music commands, right where you need them",
             "rows": {
                 "play": {
                     "name": "/play",
@@ -239,23 +239,23 @@
                     "description": "Inspect or reorder the current queue",
                     "kbd": "music"
                 },
-                "ban": {
-                    "name": "/mod ban",
-                    "description": "Tempban with reason, auto-DM, audit-log entry",
-                    "kbd": "mod"
+                "skip": {
+                    "name": "/skip",
+                    "description": "Skip the current track",
+                    "kbd": "music"
                 },
-                "automod": {
-                    "name": "/automod",
-                    "description": "Spam, caps, links, invites — per-guild rules",
-                    "kbd": "mod"
+                "lyrics": {
+                    "name": "/lyrics",
+                    "description": "Fetch lyrics for the current track",
+                    "kbd": "music"
                 },
-                "custom": {
-                    "name": "/cc create",
-                    "description": "Custom commands with variable interpolation",
-                    "kbd": "custom"
+                "recap": {
+                    "name": "/recap",
+                    "description": "Weekly digest of what this server listened to",
+                    "kbd": "music"
                 }
             },
-            "more": "+ 100 more in the dashboard"
+            "more": "+ more in the dashboard"
         },
         "stack": {
             "heading": "For developers — what you're running",
@@ -275,7 +275,7 @@
                 },
                 "postgres": {
                     "name": "postgres",
-                    "description": "Guild config, custom commands, moderation log"
+                    "description": "Guild config, music history, autoplay state"
                 },
                 "redis": {
                     "name": "redis",
@@ -312,21 +312,13 @@
                     "title": "Music with smart autoplay",
                     "description": "Search by name or paste a Spotify link. Autoplay learns the mood and won't drift into the wrong language."
                 },
-                "moderation": {
-                    "title": "Moderation that doesn't sleep",
-                    "description": "Auto-mod for spam, caps, links, and invites. Tempbans with reasons, audit log entries, and per-server rules."
-                },
-                "customCommands": {
-                    "title": "Custom commands",
-                    "description": "Build replies, role-toggles, embeds, and shortcuts without writing code. Variable interpolation included."
+                "recap": {
+                    "title": "Weekly recap, automatically",
+                    "description": "Every Monday, Lucky posts a digest of what the server listened to — top tracks, total plays, and listening streaks."
                 },
                 "dashboard": {
                     "title": "A real web dashboard",
                     "description": "Configure everything from your browser. Discord OAuth login, no JSON files, no SSH."
-                },
-                "embeds": {
-                    "title": "Embed builder",
-                    "description": "Compose rich Discord embeds with a live preview. Save templates, send on schedule, edit in place."
                 }
             }
         }
@@ -338,7 +330,7 @@
         },
         "brand": "Discord Bot Dashboard",
         "headline": "Manage your Discord servers",
-        "description": "Configure moderation, custom commands, music, and more — all in one place.",
+        "description": "Configure music, autoplay preferences, and bot settings — all in one place.",
         "modules": "Modules",
         "commands": "Commands",
         "uptime": "Uptime",

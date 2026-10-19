@@ -197,19 +197,15 @@ describe('Landing', () => {
         expect(ellipses.length).toBeGreaterThanOrEqual(2)
     })
 
-    test('renders features section with five user-facing items', () => {
+    test('renders features section with three music-first items', () => {
         render(<Landing />)
         expect(
             screen.getByText(/Music with smart autoplay/i),
         ).toBeInTheDocument()
         expect(
-            screen.getByText(/Moderation that doesn't sleep/i),
+            screen.getByText(/Weekly recap, automatically/i),
         ).toBeInTheDocument()
-        expect(
-            screen.getAllByText(/Custom commands/i).length,
-        ).toBeGreaterThanOrEqual(1)
         expect(screen.getByText(/A real web dashboard/i)).toBeInTheDocument()
-        expect(screen.getByText(/Embed builder/i)).toBeInTheDocument()
     })
 
     test('repo card copy button writes clone command to clipboard', async () => {
@@ -254,19 +250,16 @@ describe('Landing', () => {
         }
     })
 
-    test('renders command list with all six commands and category tags', () => {
+    test('renders command list with all six music commands', () => {
         render(<Landing />)
         expect(screen.getByText('/play')).toBeInTheDocument()
         expect(screen.getByText('/autoplay')).toBeInTheDocument()
         expect(screen.getByText('/queue')).toBeInTheDocument()
-        expect(screen.getByText('/mod ban')).toBeInTheDocument()
-        expect(screen.getByText('/automod')).toBeInTheDocument()
-        expect(screen.getByText('/cc create')).toBeInTheDocument()
+        expect(screen.getByText('/skip')).toBeInTheDocument()
+        expect(screen.getByText('/lyrics')).toBeInTheDocument()
+        expect(screen.getByText('/recap')).toBeInTheDocument()
         expect(screen.getAllByText(/music/i).length).toBeGreaterThanOrEqual(2)
-        expect(screen.getAllByText(/mod$/i).length).toBeGreaterThanOrEqual(1)
-        expect(
-            screen.getByText('+ 100 more in the dashboard'),
-        ).toBeInTheDocument()
+        expect(screen.getByText('+ more in the dashboard')).toBeInTheDocument()
     })
 
     test('renders stack list with all six services', () => {
