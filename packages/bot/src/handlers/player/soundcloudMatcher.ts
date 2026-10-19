@@ -10,9 +10,55 @@ type SoundCloudSearchResult = {
     url: string
     permalink?: string
     durationInSec?: number
+    user?: { name?: string }
+}
+
+export type SoundCloudMatchOptions = {
+    /** Artist the result must name, for queries that dropped it. */
+    expectedArtist?: string
+    /** Uncleaned source title: a version word in it counts as requested. */
+    sourceTitle?: string
 }
 
 const TITLE_MATCH_THRESHOLD = 0.75
+
+// Words that mark a different recording, not just a different release of the
+// same one. Unlike the soft `hasVersionMarker` demotion (remaster, deluxe,
+// explicit...), a result carrying one of these anywhere in its name is never
+// played unless the request carries the same word: "( Perfect Slowed ) Tiktok
+// Version" and "NØYCEY - FLASHING LIGHTS DUB" both slipped past the
+// structured-position check and played instead of the original (2026-10-19).
+const ALTERED_VERSION_TERMS: readonly string[] = [
+    '8d',
+    'acapella',
+    'acoustic',
+    'bass boosted',
+    'bootleg',
+    'chopped',
+    'cover',
+    'daycore',
+    'dub',
+    'flip',
+    'instrumental',
+    'karaoke',
+    'live',
+    'lofi',
+    'lo fi',
+    'mashup',
+    'nightcore',
+    'phonk',
+    'rebuild',
+    'remix',
+    'reverb',
+    'reversed',
+    'rmx',
+    'screwed',
+    'slowed',
+    'sped up',
+    'speed up',
+    'tiktok',
+    'vip',
+]
 const CLIENT_ID_TIMEOUT_MS = 10_000
 const REFRESH_COOLDOWN_MS = 60_000
 export const SOUNDCLOUD_SEARCH_TIMEOUT_MS = 8_000
@@ -110,9 +156,17 @@ async function withClientIdRetry<T>(
     }
 }
 
+/**
+ * `expectedArtist` is for queries that do not carry the artist themselves (the
+ * bridge's title-only and core stages). Without it, "Flashing Lights" matched
+ * "NØYCEY - FLASHING LIGHTS DUB" for a Kanye West track: right title, right
+ * duration, someone else's remix. With it, a result must name the artist in
+ * its title or be uploaded by an account of that name.
+ */
 export async function streamViaSoundCloud(
     query: string,
     trackDuration?: string,
+    options: SoundCloudMatchOptions = {},
 ): Promise<Readable> {
     if (!query.trim()) {
         throw new Error('SoundCloud: empty query')
@@ -135,17 +189,24 @@ export async function streamViaSoundCloud(
         throw new Error(`SoundCloud: no results for "${query}"`)
     }
 
-    const match = findMatchingSoundCloudResult(query, trackDuration, results)
+    const match = findMatchingSoundCloudResult(
+        query,
+        trackDuration,
+        results,
+        options,
+    )
     if (!match) {
         warnLog({
             message: 'SoundCloud: no validated match',
             data: {
                 query,
                 trackDuration,
+                expectedArtist: options.expectedArtist,
                 rejected: describeRejectedCandidates(
                     query,
                     trackDuration,
                     results,
+                    options,
                 ),
             },
         })
@@ -153,6 +214,10 @@ export async function streamViaSoundCloud(
             `SoundCloud: no validated match for "${query}" (title/duration mismatch)`,
         )
     }
+    infoLog({
+        message: 'SoundCloud: matched',
+        data: { query, track: match.name, uploader: match.user?.name },
+    })
 
     // SoundCloud now lists an adaptive `abr_sq` HLS transcoding last, and
     // play-dl 1.9.7 always streams the last HLS format, whose URL answers
@@ -194,6 +259,7 @@ export function findMatchingSoundCloudResult(
     query: string,
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
+    { expectedArtist, sourceTitle }: SoundCloudMatchOptions = {},
 ): SoundCloudSearchResult | undefined {
     // Gate on the query with trailing parenthetical suffixes stripped so
     // version/comment suffixes ("(Comentário)", "(En Vivo)") do not inflate the
@@ -202,11 +268,18 @@ export function findMatchingSoundCloudResult(
     if (tokens.length === 0) return undefined
 
     const trackSec = parseDurationString(trackDuration)
+    const artistTokens = toArtistTokens(expectedArtist)
+
+    const requested = toRequestedText(query, sourceTitle)
 
     const candidates = results
         .map((result) => {
             const resultNorm = normalizeForMatch(result.name)
             if (!resultNorm) return null
+            if (artistTokens.length > 0 && !namesArtist(artistTokens, result)) {
+                return null
+            }
+            if (isUnrequestedAlteredVersion(resultNorm, requested)) return null
 
             const matched = tokens.filter((token) =>
                 resultNorm.includes(token),
@@ -294,9 +367,18 @@ function describeRejectedCandidates(
     query: string,
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
-): { name: string; titleScore: number; durationDeltaSec: number | null }[] {
+    { expectedArtist, sourceTitle }: SoundCloudMatchOptions = {},
+): {
+    name: string
+    titleScore: number
+    durationDeltaSec: number | null
+    artistMatch?: boolean
+    alteredVersion?: true
+}[] {
     const { tokens } = getQueryTokens(query)
     const trackSec = parseDurationString(trackDuration)
+    const artistTokens = toArtistTokens(expectedArtist)
+    const requested = toRequestedText(query, sourceTitle)
     return results.slice(0, 5).map((result) => {
         const resultNorm = normalizeForMatch(result.name)
         const matched = tokens.filter((token) =>
@@ -311,7 +393,58 @@ function describeRejectedCandidates(
                 trackSec !== null && result.durationInSec
                     ? Math.abs(result.durationInSec - trackSec)
                     : null,
+            ...(artistTokens.length > 0 && {
+                artistMatch: namesArtist(artistTokens, result),
+            }),
+            ...(isUnrequestedAlteredVersion(resultNorm, requested) && {
+                alteredVersion: true as const,
+            }),
         }
+    })
+}
+
+function toArtistTokens(expectedArtist: string | undefined): string[] {
+    return expectedArtist ? toTokens(primaryArtist(expectedArtist)) : []
+}
+
+function toRequestedText(query: string, sourceTitle?: string): string {
+    return ` ${normalizeForMatch(`${query} ${sourceTitle ?? ''}`)} `
+}
+
+function isUnrequestedAlteredVersion(
+    resultNorm: string,
+    requested: string,
+): boolean {
+    const name = ` ${resultNorm} `
+    return ALTERED_VERSION_TERMS.some(
+        (term) =>
+            name.includes(` ${term} `) && !requested.includes(` ${term} `),
+    )
+}
+
+// "Kanye West, JAY-Z" / "Kanye West feat. Rihanna": uploads name the lead.
+// Only a credit separator ends the lead name: "&" stays (a duo like "Simon &
+// Garfunkel" is one name) and feat/ft need a space before them, so names
+// that start with them ("FT Island", "Feathers") are kept whole.
+function primaryArtist(artist: string): string {
+    return artist.split(/[,;]|\s(?:feat|ft)\b\.?/i)[0]
+}
+
+// Title and uploader are checked one at a time, so "Kanye" in a title plus a
+// "West" uploader is no match. Each field matches on the artist's tokens
+// ("Kanye West - Flashing Lights", uploader "Kanye West") or on the joined
+// form as a whole token (uploader "kanyewest", never "kanyewestfan").
+function namesArtist(
+    artistTokens: readonly string[],
+    result: SoundCloudSearchResult,
+): boolean {
+    const joined = artistTokens.join('')
+    return [result.name, result.user?.name ?? ''].some((field) => {
+        const tokens = new Set(toTokens(field))
+        return (
+            artistTokens.every((token) => tokens.has(token)) ||
+            tokens.has(joined)
+        )
     })
 }
 

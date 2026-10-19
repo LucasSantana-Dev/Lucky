@@ -285,11 +285,7 @@ describe('findMatchingSoundCloudResult - suffix stripping edge cases (#2866)', (
             { name: 'The Song Part II', url },
         ]
         expect(
-            findMatchingSoundCloudResult(
-                'The Song (Part II)',
-                '3:00',
-                results,
-            ),
+            findMatchingSoundCloudResult('The Song (Part II)', '3:00', results),
         ).toBe(results[1])
     })
 
@@ -332,9 +328,9 @@ describe('findMatchingSoundCloudResult - suffix stripping edge cases (#2866)', (
     it('handles pathological unclosed input quickly', () => {
         const results = [{ name: 'Song', url }]
         const nasty = 'Song ' + '('.repeat(50_000)
-        expect(
-            findMatchingSoundCloudResult(nasty, undefined, results),
-        ).toBe(results[0])
+        expect(findMatchingSoundCloudResult(nasty, undefined, results)).toBe(
+            results[0],
+        )
     })
 
     it('still prefers the remix when the query asks for (Remix)', () => {
@@ -359,6 +355,257 @@ describe('findMatchingSoundCloudResult - suffix stripping edge cases (#2866)', (
         expect(
             findMatchingSoundCloudResult(
                 'Song Name (Remix)',
+                undefined,
+                results,
+            ),
+        ).toBe(results[0])
+    })
+})
+
+describe('findMatchingSoundCloudResult – expected artist', () => {
+    const url = 'https://soundcloud.com/x'
+    // Real SoundCloud results for the title-only query "Flashing Lights"
+    // (2026-10-19). A "kanye west" search resolved Flashing Lights (3:58) on
+    // YouTube, yt-dlp failed, and the title-only stage played the only
+    // candidate within 30s: someone else's dub.
+    const flashingLights = [
+        { name: 'Kanye West - Flashing Lights', url, durationInSec: 715 },
+        { name: 'Flashing Lights - Kanye West', url, durationInSec: 737 },
+        {
+            name: 'Flashing Lights',
+            url,
+            durationInSec: 30,
+            user: { name: 'Trace' },
+        },
+        { name: 'Kanye West - Flashing Lights 2', url, durationInSec: 275 },
+        {
+            name: 'NØYCEY - FLASHING LIGHTS DUB',
+            url,
+            durationInSec: 221,
+            user: { name: 'NØYCEY' },
+        },
+    ]
+
+    it('rejects a same-title track by another artist (kanye west regression)', () => {
+        expect(
+            findMatchingSoundCloudResult(
+                'Flashing Lights',
+                '03:58',
+                flashingLights,
+                { expectedArtist: 'Kanye West' },
+            ),
+        ).toBeUndefined()
+    })
+
+    it('needs the artist even for a plain same-title track', () => {
+        const other = [
+            {
+                name: 'NØYCEY - Flashing Lights',
+                url,
+                durationInSec: 221,
+                user: { name: 'NØYCEY' },
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult('Flashing Lights', '03:58', other),
+        ).toBe(other[0])
+        expect(
+            findMatchingSoundCloudResult('Flashing Lights', '03:58', other, {
+                expectedArtist: 'Kanye West',
+            }),
+        ).toBeUndefined()
+    })
+
+    it('accepts an upload by the artist account without the artist in the title', () => {
+        const results = [
+            {
+                name: 'Flashing Lights',
+                url,
+                durationInSec: 238,
+                user: { name: 'Kanye West' },
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult('Flashing Lights', '03:58', results, {
+                expectedArtist: 'Kanye West',
+            }),
+        ).toBe(results[0])
+    })
+
+    it('matches the lead artist, accents and a joined account name', () => {
+        const results = [
+            {
+                name: 'Flashing Lights',
+                url,
+                durationInSec: 238,
+                user: { name: 'kanyewest' },
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult('Flashing Lights', '03:58', results, {
+                expectedArtist: 'Kanye West feat. Dwele',
+            }),
+        ).toBe(results[0])
+        const accented = [{ name: 'Björk - Army of Me', url }]
+        expect(
+            findMatchingSoundCloudResult('Army of Me', undefined, accented, {
+                expectedArtist: 'Bjork',
+            }),
+        ).toBe(accented[0])
+    })
+
+    it('checks title and uploader separately and the joined name as a whole token', () => {
+        const split = [
+            { name: 'Kanye - Flashing Lights', url, user: { name: 'West' } },
+        ]
+        const fan = [
+            { name: 'Flashing Lights', url, user: { name: 'kanyewestfan' } },
+        ]
+        for (const results of [split, fan]) {
+            expect(
+                findMatchingSoundCloudResult(
+                    'Flashing Lights',
+                    undefined,
+                    results,
+                    { expectedArtist: 'Kanye West' },
+                ),
+            ).toBeUndefined()
+        }
+    })
+
+    it('keeps names that start with ft/feat and duos joined by &', () => {
+        const ftIsland = [
+            { name: 'Love Love Love', url, user: { name: 'Jamie' } },
+            { name: 'FT Island - Love Love Love', url },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Love Love Love',
+                undefined,
+                ftIsland,
+                {
+                    expectedArtist: 'FT Island',
+                },
+            ),
+        ).toBe(ftIsland[1])
+        const duo = [
+            { name: 'The Boxer', url, user: { name: 'Simon' } },
+            { name: 'Simon & Garfunkel - The Boxer', url },
+        ]
+        expect(
+            findMatchingSoundCloudResult('The Boxer', undefined, duo, {
+                expectedArtist: 'Simon & Garfunkel',
+            }),
+        ).toBe(duo[1])
+    })
+
+    it('does not let a short artist name match inside another word', () => {
+        const results = [
+            { name: 'Flashing Lights', url, user: { name: 'Eyes Only' } },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Flashing Lights',
+                undefined,
+                results,
+                { expectedArtist: 'Ye' },
+            ),
+        ).toBeUndefined()
+    })
+})
+
+describe('findMatchingSoundCloudResult – altered versions', () => {
+    const url = 'https://soundcloud.com/x'
+
+    // Real results for the soundcloud-full query of "Justin Bieber - Beauty
+    // And A Beat (Official Music Video) ft. Nicki Minaj" (2026-10-19): the
+    // slowed TikTok edit was the only one near the video's length and played.
+    const beautyAndABeat = [
+        {
+            name: 'Justin Bieber - Beauty And A Beat (feat. Nicki Minaj)',
+            url,
+            durationInSec: 684,
+        },
+        { name: 'BEAUTY AND A BEAT (HAWYS REMIX)', url, durationInSec: 237 },
+        {
+            name: 'Beauty And A Beat- Justin Bieber ft. Nicki Minaj ( Perfect Slowed ) Tiktok Version_160k',
+            url,
+            durationInSec: 301,
+        },
+        {
+            name: 'Justin Bieber, Nicki Minaj - Beauty And A Beat (KONSTRUKT REBUILD)',
+            url,
+            durationInSec: 233,
+        },
+    ]
+
+    it('rejects a slowed edit and an unstructured remix marker (beauty and a beat regression)', () => {
+        expect(
+            findMatchingSoundCloudResult(
+                'Justin Bieber - Beauty And A Beat Nicki Minaj Justin Bieber',
+                '04:54',
+                beautyAndABeat,
+                {
+                    sourceTitle:
+                        'Justin Bieber - Beauty And A Beat (Official Music Video) ft. Nicki Minaj',
+                },
+            ),
+        ).toBeUndefined()
+        expect(
+            findMatchingSoundCloudResult(
+                'Beauty And A Beat',
+                '03:55',
+                beautyAndABeat,
+            ),
+        ).toBeUndefined()
+    })
+
+    it('rejects the slowed copy and keeps the plain upload (exile regression)', () => {
+        const exile = [
+            {
+                name: 'exile - taylor swift (slowed)',
+                url,
+                durationInSec: 286,
+            },
+            { name: 'exile - taylor swift', url, durationInSec: 276 },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Taylor Swift – exile',
+                '04:47',
+                exile,
+                {
+                    expectedArtist: 'Taylor Swift',
+                },
+            ),
+        ).toBe(exile[1])
+    })
+
+    it('plays the remix when the source title asked for it', () => {
+        const results = [
+            {
+                name: 'BEAUTY AND A BEAT (HAWYS REMIX)',
+                url,
+                durationInSec: 237,
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Beauty And A Beat',
+                '03:55',
+                results,
+                {
+                    sourceTitle: 'Beauty And A Beat (HAWYS Remix)',
+                },
+            ),
+        ).toBe(results[0])
+    })
+
+    it('does not treat a version word inside another word as a marker', () => {
+        const results = [{ name: 'Dubai Nights - Livewire', url }]
+        expect(
+            findMatchingSoundCloudResult(
+                'Dubai Nights Livewire',
                 undefined,
                 results,
             ),
@@ -494,14 +741,21 @@ describe('findMatchingSoundCloudResult – version marker demotion', () => {
         expect(match?.name).toBe('Song Name Extra')
     })
 
-    it('falls back to a marked candidate when nothing else matches', () => {
-        const results = [makeResult('Song Name (Remix)')]
+    it('falls back to a remaster when nothing else matches', () => {
+        const results = [makeResult('Song Name (Remastered 2011)')]
         const match = findMatchingSoundCloudResult(
             'song name',
             undefined,
             results,
         )
-        expect(match?.name).toBe('Song Name (Remix)')
+        expect(match?.name).toBe('Song Name (Remastered 2011)')
+    })
+
+    it('never falls back to a remix the request did not ask for', () => {
+        const results = [makeResult('Song Name (Remix)')]
+        expect(
+            findMatchingSoundCloudResult('song name', undefined, results),
+        ).toBeUndefined()
     })
 
     it('does not demote when the query itself asks for that version', () => {
@@ -555,6 +809,29 @@ describe('streamViaSoundCloud', () => {
         mockSearch.mockResolvedValue([makeResult('Completely Different', 300)])
         await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
             'SoundCloud: no validated match',
+        )
+    })
+
+    it('says why each candidate was rejected for artist and version', async () => {
+        mockSearch.mockResolvedValue([
+            makeResult('NØYCEY - FLASHING LIGHTS DUB', 221),
+        ])
+        await expect(
+            streamViaSoundCloud('Flashing Lights', '03:58', {
+                expectedArtist: 'Kanye West',
+            }),
+        ).rejects.toThrow('SoundCloud: no validated match')
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    rejected: [
+                        expect.objectContaining({
+                            artistMatch: false,
+                            alteredVersion: true,
+                        }),
+                    ],
+                }),
+            }),
         )
     })
 
