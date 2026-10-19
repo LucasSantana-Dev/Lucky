@@ -446,10 +446,15 @@ async function attemptSoundCloud(
     stageLabel: StreamBridgeFallbackStage,
     failureMessage: string,
     cleanedTitle: string,
+    expectedArtist?: string,
 ): Promise<Readable | null> {
     const startedAt = Date.now()
     try {
-        const stream = await streamViaSoundCloud(query, track.duration)
+        const stream = await streamViaSoundCloud(
+            query,
+            track.duration,
+            expectedArtist,
+        )
         const durationMs = observeStage(
             stageLabel === 'soundcloud-title'
                 ? 'soundcloud_title'
@@ -524,7 +529,11 @@ async function attemptCoreStageOrLogExhausted(
 
     const startedAt = Date.now()
     try {
-        const stream = await streamViaSoundCloud(coreTitle, track.duration)
+        const stream = await streamViaSoundCloud(
+            coreTitle,
+            track.duration,
+            cleanedAuthor,
+        )
         const durationMs = observeStage('soundcloud_core', startedAt, 'ok')
         stampFallbackStage(track, 'soundcloud-core')
         infoLog({
@@ -838,6 +847,8 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         'soundcloud-title',
         'Bridge: title-only SoundCloud failed, retrying without parentheticals',
         cleanedTitle,
+        // The query dropped the artist, so the match must carry it instead.
+        cleanedAuthor,
     )
     if (titleOnlyStream) return titleOnlyStream
 

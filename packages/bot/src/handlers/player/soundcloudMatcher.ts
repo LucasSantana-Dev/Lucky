@@ -10,6 +10,7 @@ type SoundCloudSearchResult = {
     url: string
     permalink?: string
     durationInSec?: number
+    user?: { name?: string }
 }
 
 const TITLE_MATCH_THRESHOLD = 0.75
@@ -110,9 +111,17 @@ async function withClientIdRetry<T>(
     }
 }
 
+/**
+ * `expectedArtist` is for queries that do not carry the artist themselves (the
+ * bridge's title-only and core stages). Without it, "Flashing Lights" matched
+ * "NØYCEY - FLASHING LIGHTS DUB" for a Kanye West track: right title, right
+ * duration, someone else's remix. With it, a result must name the artist in
+ * its title or be uploaded by an account of that name.
+ */
 export async function streamViaSoundCloud(
     query: string,
     trackDuration?: string,
+    expectedArtist?: string,
 ): Promise<Readable> {
     if (!query.trim()) {
         throw new Error('SoundCloud: empty query')
@@ -135,13 +144,19 @@ export async function streamViaSoundCloud(
         throw new Error(`SoundCloud: no results for "${query}"`)
     }
 
-    const match = findMatchingSoundCloudResult(query, trackDuration, results)
+    const match = findMatchingSoundCloudResult(
+        query,
+        trackDuration,
+        results,
+        expectedArtist,
+    )
     if (!match) {
         warnLog({
             message: 'SoundCloud: no validated match',
             data: {
                 query,
                 trackDuration,
+                expectedArtist,
                 rejected: describeRejectedCandidates(
                     query,
                     trackDuration,
@@ -153,6 +168,10 @@ export async function streamViaSoundCloud(
             `SoundCloud: no validated match for "${query}" (title/duration mismatch)`,
         )
     }
+    infoLog({
+        message: 'SoundCloud: matched',
+        data: { query, track: match.name, uploader: match.user?.name },
+    })
 
     // SoundCloud now lists an adaptive `abr_sq` HLS transcoding last, and
     // play-dl 1.9.7 always streams the last HLS format, whose URL answers
@@ -194,6 +213,7 @@ export function findMatchingSoundCloudResult(
     query: string,
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
+    expectedArtist?: string,
 ): SoundCloudSearchResult | undefined {
     // Gate on the query with trailing parenthetical suffixes stripped so
     // version/comment suffixes ("(Comentário)", "(En Vivo)") do not inflate the
@@ -202,11 +222,17 @@ export function findMatchingSoundCloudResult(
     if (tokens.length === 0) return undefined
 
     const trackSec = parseDurationString(trackDuration)
+    const artistTokens = expectedArtist
+        ? toTokens(primaryArtist(expectedArtist))
+        : []
 
     const candidates = results
         .map((result) => {
             const resultNorm = normalizeForMatch(result.name)
             if (!resultNorm) return null
+            if (artistTokens.length > 0 && !namesArtist(artistTokens, result)) {
+                return null
+            }
 
             const matched = tokens.filter((token) =>
                 resultNorm.includes(token),
@@ -313,6 +339,26 @@ function describeRejectedCandidates(
                     : null,
         }
     })
+}
+
+// "Kanye West, JAY-Z" / "Kanye West feat. Rihanna": uploads name the lead.
+function primaryArtist(artist: string): string {
+    return artist.split(/,|&|;|\bfeat\.?|\bft\.?/i)[0]
+}
+
+// Token match ("kanye west" in "Kanye West - Flashing Lights" or uploader
+// "Kanye West"), or the joined form for accounts that drop the space
+// ("kanyewest"). The joined form needs a few characters so a short name
+// cannot match inside an unrelated word.
+function namesArtist(
+    artistTokens: readonly string[],
+    result: SoundCloudSearchResult,
+): boolean {
+    const haystack = `${result.name} ${result.user?.name ?? ''}`
+    const tokens = new Set(toTokens(haystack))
+    if (artistTokens.every((token) => tokens.has(token))) return true
+    const joined = artistTokens.join('')
+    return joined.length >= 4 && [...tokens].join('').includes(joined)
 }
 
 function normalizeForMatch(value: string): string {

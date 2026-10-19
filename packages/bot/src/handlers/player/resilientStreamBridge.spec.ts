@@ -621,6 +621,36 @@ describe('fallback stage stamping', () => {
         )
     })
 
+    it('requires the artist only on the stages whose query dropped it', async () => {
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
+        mockStreamViaSoundCloud
+            .mockRejectedValueOnce(new Error('no validated match'))
+            .mockResolvedValueOnce(fakeStream)
+        mockCleanTitle.mockReturnValue('Flashing Lights')
+        mockCleanAuthor.mockReturnValue('Kanye West')
+        mockCleanSearchQuery.mockReturnValue('Flashing Lights Kanye West')
+        const track = makeTrack({
+            title: 'Flashing Lights',
+            author: 'Kanye West',
+            duration: '03:58',
+        })
+
+        await createResilientStream(track)
+
+        expect(mockStreamViaSoundCloud).toHaveBeenNthCalledWith(
+            1,
+            'Flashing Lights Kanye West',
+            '03:58',
+            undefined,
+        )
+        expect(mockStreamViaSoundCloud).toHaveBeenNthCalledWith(
+            2,
+            'Flashing Lights',
+            '03:58',
+            'Kanye West',
+        )
+    })
+
     it('stamps soundcloud-core when only the core-title search resolves', async () => {
         mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
         mockStreamViaSoundCloud
@@ -663,6 +693,7 @@ describe('fallback stage stamping', () => {
             3,
             'Human Nature',
             track.duration,
+            'Test Artist',
         )
         expect(mockStampFallbackStage).toHaveBeenCalledWith(
             track,

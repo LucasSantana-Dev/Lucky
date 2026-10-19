@@ -285,11 +285,7 @@ describe('findMatchingSoundCloudResult - suffix stripping edge cases (#2866)', (
             { name: 'The Song Part II', url },
         ]
         expect(
-            findMatchingSoundCloudResult(
-                'The Song (Part II)',
-                '3:00',
-                results,
-            ),
+            findMatchingSoundCloudResult('The Song (Part II)', '3:00', results),
         ).toBe(results[1])
     })
 
@@ -332,9 +328,9 @@ describe('findMatchingSoundCloudResult - suffix stripping edge cases (#2866)', (
     it('handles pathological unclosed input quickly', () => {
         const results = [{ name: 'Song', url }]
         const nasty = 'Song ' + '('.repeat(50_000)
-        expect(
-            findMatchingSoundCloudResult(nasty, undefined, results),
-        ).toBe(results[0])
+        expect(findMatchingSoundCloudResult(nasty, undefined, results)).toBe(
+            results[0],
+        )
     })
 
     it('still prefers the remix when the query asks for (Remix)', () => {
@@ -363,6 +359,113 @@ describe('findMatchingSoundCloudResult - suffix stripping edge cases (#2866)', (
                 results,
             ),
         ).toBe(results[0])
+    })
+})
+
+describe('findMatchingSoundCloudResult – expected artist', () => {
+    const url = 'https://soundcloud.com/x'
+    // Real SoundCloud results for the title-only query "Flashing Lights"
+    // (2026-10-19). A "kanye west" search resolved Flashing Lights (3:58) on
+    // YouTube, yt-dlp failed, and the title-only stage played the only
+    // candidate within 30s: someone else's dub.
+    const flashingLights = [
+        { name: 'Kanye West - Flashing Lights', url, durationInSec: 715 },
+        { name: 'Flashing Lights - Kanye West', url, durationInSec: 737 },
+        {
+            name: 'Flashing Lights',
+            url,
+            durationInSec: 30,
+            user: { name: 'Trace' },
+        },
+        { name: 'Kanye West - Flashing Lights 2', url, durationInSec: 275 },
+        {
+            name: 'NØYCEY - FLASHING LIGHTS DUB',
+            url,
+            durationInSec: 221,
+            user: { name: 'NØYCEY' },
+        },
+    ]
+
+    it('rejects a same-title track by another artist (kanye west regression)', () => {
+        expect(
+            findMatchingSoundCloudResult(
+                'Flashing Lights',
+                '03:58',
+                flashingLights,
+                'Kanye West',
+            ),
+        ).toBeUndefined()
+    })
+
+    it('keeps the old behavior when no artist is given', () => {
+        expect(
+            findMatchingSoundCloudResult(
+                'Flashing Lights',
+                '03:58',
+                flashingLights,
+            ),
+        ).toBe(flashingLights[4])
+    })
+
+    it('accepts an upload by the artist account without the artist in the title', () => {
+        const results = [
+            {
+                name: 'Flashing Lights',
+                url,
+                durationInSec: 238,
+                user: { name: 'Kanye West' },
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Flashing Lights',
+                '03:58',
+                results,
+                'Kanye West',
+            ),
+        ).toBe(results[0])
+    })
+
+    it('matches the lead artist, accents and a joined account name', () => {
+        const results = [
+            {
+                name: 'Flashing Lights',
+                url,
+                durationInSec: 238,
+                user: { name: 'kanyewest' },
+            },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Flashing Lights',
+                '03:58',
+                results,
+                'Kanye West feat. Dwele',
+            ),
+        ).toBe(results[0])
+        const accented = [{ name: 'Björk - Army of Me', url }]
+        expect(
+            findMatchingSoundCloudResult(
+                'Army of Me',
+                undefined,
+                accented,
+                'Bjork',
+            ),
+        ).toBe(accented[0])
+    })
+
+    it('does not let a short artist name match inside another word', () => {
+        const results = [
+            { name: 'Flashing Lights', url, user: { name: 'Eyes Only' } },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Flashing Lights',
+                undefined,
+                results,
+                'Ye',
+            ),
+        ).toBeUndefined()
     })
 })
 
