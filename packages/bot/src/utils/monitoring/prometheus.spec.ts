@@ -182,7 +182,7 @@ describe('prometheus registry', () => {
         ]) {
             expect(text).toMatch(
                 new RegExp(
-                    `lucky_bot_render_fallback_total\{[^}]*reason="${reason}"[^}]*\\}\\s+0`,
+                    `lucky_bot_render_fallback_total\\{[^}]*reason="${reason}"[^}]*\\}\\s+0`,
                 ),
             )
         }
@@ -196,7 +196,7 @@ describe('prometheus registry', () => {
         for (const result of ['hit', 'miss', 'negative']) {
             expect(text).toMatch(
                 new RegExp(
-                    `lucky_bot_spotify_cache_total\{[^}]*result="${result}"[^}]*\\}\\s+0`,
+                    `lucky_bot_spotify_cache_total\\{[^}]*result="${result}"[^}]*\\}\\s+0`,
                 ),
             )
         }
