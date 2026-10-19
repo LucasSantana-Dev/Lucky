@@ -120,7 +120,7 @@ describe('maybeAutoEnableRecap (#2738)', () => {
         resolveRecapChannelMock.mockResolvedValue({ reason: 'missing_channel' })
 
         await maybeAutoEnableRecap(guild, 'c-voice', NOW)
-        await maybeAutoEnableRecap(guild, 'c-voice', NOW)
+        await maybeAutoEnableRecap(guild, 'c-voice-2', NOW)
 
         expect(infoLogMock).toHaveBeenCalledTimes(1)
         expect(infoLogMock).toHaveBeenCalledWith({
