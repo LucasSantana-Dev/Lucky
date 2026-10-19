@@ -587,6 +587,69 @@ render_optional_for_sha() {
     ! git -C "$DEPLOY_DIR" cat-file -e "${sha}:packages/render/Cargo.toml" 2>/dev/null
 }
 
+# Recreating the bot drops every active voice session (#2747). Image IDs cannot
+# tell whether the bot changed: docker-publish rebuilds all services on every
+# release and bakes COMMIT_SHA plus the root package.json version into the bot
+# image, so its ID changes even when no bot code did. Instead compare sources:
+# the running bot's baked COMMIT_SHA against DEPLOYED_SHA, over everything the
+# production-bot stage is built from. Release-please "version" bumps in the
+# manifests are ignored, so a skipped bot keeps reporting the older version and
+# Sentry release, which is the code it actually runs. Specs and snapshots are
+# excluded too: the bot and shared tsconfigs leave them out of dist.
+BOT_SOURCE_PATHS=(
+    packages/bot packages/shared prisma Dockerfile .dockerignore
+    ':(exclude)packages/bot/package.json' ':(exclude)packages/shared/package.json'
+    ':(exclude,glob)**/*.spec.ts' ':(exclude,glob)**/*.test.ts' ':(exclude,glob)**/__snapshots__/**'
+)
+BOT_MANIFEST_PATHS=(package.json package-lock.json packages/bot/package.json packages/shared/package.json)
+
+# Succeeds only when the running bot can be left alone: it is running, its
+# compose config (env, env_file, volumes, labels, restart policy...) matches the
+# current one apart from the image tag, and no bot input changed between its
+# commit and DEPLOYED_SHA. Any unknown or error fails closed: recreate.
+bot_recreate_skippable() {
+    local state running image label sha hash manifest_diff
+    state=$(docker inspect lucky-bot --format \
+        '{{.State.Running}} {{.Config.Image}} {{index .Config.Labels "com.docker.compose.config-hash"}}' \
+        2>/dev/null) || return 1
+    read -r running image label <<<"$state"
+    # docker inspect also succeeds for an exited container; a stopped bot must
+    # go through the normal `up` path or the rollout would leave it stopped.
+    [[ "$running" == "true" ]] || return 1
+    [[ -n "$label" && -n "$DEPLOYED_SHA" ]] || return 1
+
+    sha=$(docker inspect lucky-bot --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
+        | sed -n 's/^COMMIT_SHA=//p' | head -1)
+    [[ "$sha" =~ ^[0-9a-fA-F]{7,40}$ ]] || return 1
+    git -C "$DEPLOY_DIR" cat-file -e "${sha}^{commit}" 2>/dev/null || return 1
+    git -C "$DEPLOY_DIR" cat-file -e "${DEPLOYED_SHA}^{commit}" 2>/dev/null || return 1
+
+    # The config-hash label was computed with the running image tag; hash the
+    # current compose config under that same tag so only real config changes
+    # differ (a pinned deploy changes IMAGE_TAG every time).
+    hash=$(export IMAGE_TAG="${image##*:}"; docker_compose config --hash bot 2>/dev/null \
+        | awk '$1 == "bot" { print $2 }')
+    if [[ -z "$hash" || "$hash" != "$label" ]]; then
+        log "Bot recreate needed: compose config changed"
+        return 1
+    fi
+
+    if ! git -C "$DEPLOY_DIR" diff --quiet "$sha" "$DEPLOYED_SHA" -- "${BOT_SOURCE_PATHS[@]}"; then
+        log "Bot recreate needed: bot sources changed since ${sha:0:7}"
+        return 1
+    fi
+    manifest_diff=$(git -C "$DEPLOY_DIR" diff -U0 "$sha" "$DEPLOYED_SHA" -- "${BOT_MANIFEST_PATHS[@]}") || return 1
+    if printf '%s\n' "$manifest_diff" \
+        | grep -E '^[+-]' \
+        | grep -vE '^(\+\+\+|---) ' \
+        | grep -qvE '^[+-][[:space:]]*"version":'; then
+        log "Bot recreate needed: dependency manifests changed since ${sha:0:7}"
+        return 1
+    fi
+
+    log "Bot sources and config unchanged since ${sha:0:7}"
+}
+
 # Auto-rollback: when a deploy fails its health checks, redeploy the last SHA
 # that was known healthy (recorded in LAST_GOOD_FILE) and re-check. Returns 0 if
 # the rollback target is healthy (DEPLOYED_SHA is then repointed at it), 1 if no
@@ -753,10 +816,6 @@ fi
 
 log "Pulling images..."
 phase_start image_pull
-# Capture the running bot's image digest before pulling. If the pulled image
-# has the same content-addressable ID the bot container is left untouched,
-# avoiding a voice-session drop on observability-only or pure-frontend releases.
-_bot_image_id_before=$(docker inspect lucky-bot --format '{{.Image}}' 2>/dev/null || true)
 # Render is optional only when the target commit predates the render service
 # (no packages/render/Cargo.toml in it); then it is pulled separately. Every
 # other deploy, pinned or not, keeps render mandatory.
@@ -798,19 +857,10 @@ fi
 
 phase_end image_pull
 
-# Decide whether the bot container needs recreating. Skip it when the pulled
-# image has the same content-addressable ID as the image the running container
-# was started from (handles observability-only and pure-frontend releases).
+# Leave the bot (and its voice sessions) alone on releases that do not touch it.
 _bot_skip_recreate=false
-if [[ -n "$_bot_image_id_before" ]]; then
-    _image_prefix="${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}"
-    _image_tag="${IMAGE_TAG:-latest}"
-    _bot_image_id_after=$(docker inspect "${_image_prefix}-bot:${_image_tag}" \
-        --format '{{.Id}}' 2>/dev/null || true)
-    if [[ -n "$_bot_image_id_after" && "$_bot_image_id_before" == "$_bot_image_id_after" ]]; then
-        _bot_skip_recreate=true
-        log "Bot image unchanged (${_bot_image_id_after:7:16}…) — skipping bot container recreate"
-    fi
+if bot_recreate_skippable; then
+    _bot_skip_recreate=true
 fi
 
 log "Starting database services..."
@@ -890,7 +940,7 @@ phase_start rollout
 _rollout_services=""
 for _svc in $_app_services; do
     if [[ "$_svc" == "bot" && "$_bot_skip_recreate" == "true" ]]; then
-        log "Rollout: skipping bot container (image unchanged)"
+        log "Rollout: skipping bot container (bot unchanged)"
         continue
     fi
     _rollout_services="${_rollout_services:+$_rollout_services }$_svc"
@@ -940,7 +990,13 @@ if [[ "$_health_rc" -eq 0 ]]; then
     # prior last-good rather than clobber a valid target.
     # See decisions/2026-06-05-rollback-last-good-from-image-commit-sha.md
     if [[ -n "$DEPLOYED_SHA" ]]; then
-        _last_good_sha=$(docker inspect lucky-bot \
+        # A skipped bot still carries an older release's COMMIT_SHA; the backend
+        # was recreated from this deploy's images, so read it there instead.
+        _last_good_container=lucky-bot
+        if [[ "$_bot_skip_recreate" == "true" ]]; then
+            _last_good_container=lucky-backend
+        fi
+        _last_good_sha=$(docker inspect "$_last_good_container" \
             --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
             | sed -n 's/^COMMIT_SHA=//p' | head -1)
         # Only persist a well-formed git SHA (7-40 hex). A malformed value would
@@ -950,9 +1006,9 @@ if [[ "$_health_rc" -eq 0 ]]; then
             printf '%s\n' "$_last_good_sha" >"$LAST_GOOD_FILE" 2>/dev/null \
                 || log "WARN: could not record last-good SHA to $LAST_GOOD_FILE"
         elif [[ -n "$_last_good_sha" ]]; then
-            log "WARN: malformed COMMIT_SHA '$_last_good_sha' from lucky-bot; keeping prior last-good"
+            log "WARN: malformed COMMIT_SHA '$_last_good_sha' from $_last_good_container; keeping prior last-good"
         else
-            log "WARN: could not read COMMIT_SHA from lucky-bot; keeping prior last-good"
+            log "WARN: could not read COMMIT_SHA from $_last_good_container; keeping prior last-good"
         fi
     fi
 
