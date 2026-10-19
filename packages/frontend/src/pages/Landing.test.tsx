@@ -206,6 +206,11 @@ describe('Landing', () => {
             screen.getByText(/Weekly recap, automatically/i),
         ).toBeInTheDocument()
         expect(screen.getByText(/A real web dashboard/i)).toBeInTheDocument()
+        expect(
+            screen.queryByText(/Moderation that doesn't sleep/i),
+        ).not.toBeInTheDocument()
+        expect(screen.queryByText(/Custom commands/i)).not.toBeInTheDocument()
+        expect(screen.queryByText(/Embed builder/i)).not.toBeInTheDocument()
     })
 
     test('repo card copy button writes clone command to clipboard', async () => {
@@ -258,6 +263,9 @@ describe('Landing', () => {
         expect(screen.getByText('/skip')).toBeInTheDocument()
         expect(screen.getByText('/lyrics')).toBeInTheDocument()
         expect(screen.getByText('/recap')).toBeInTheDocument()
+        expect(screen.queryByText('/mod ban')).not.toBeInTheDocument()
+        expect(screen.queryByText('/automod')).not.toBeInTheDocument()
+        expect(screen.queryByText('/cc create')).not.toBeInTheDocument()
         expect(screen.getAllByText(/music/i).length).toBeGreaterThanOrEqual(2)
         expect(screen.getByText('+ more in the dashboard')).toBeInTheDocument()
     })
