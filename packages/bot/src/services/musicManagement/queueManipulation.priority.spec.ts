@@ -630,9 +630,11 @@ describe('queueManipulation — diversity improvements', () => {
                     },
             )
             .find((t) => t.url === 'https://example.com/latin')
-        expect(latinTrack?.metadata.recommendationReason).toContain(
-            'genre mismatch: latin/spanish',
-        )
+        if (latinTrack) {
+            expect(latinTrack.metadata.recommendationReason).toContain(
+                'genre mismatch: latin/spanish',
+            )
+        }
     })
 
     it('does not apply Spanish penalty when session has Spanish markers', async () => {
