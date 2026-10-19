@@ -244,6 +244,41 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         expect(mockSpawn).toHaveBeenCalledTimes(2)
     })
 
+    const cookiesRejectedWarns = () =>
+        mockWarnLog.mock.calls.filter((call) =>
+            String(
+                (call[0] as { message?: string } | undefined)?.message,
+            ).includes('still got the sign-in check with cookies'),
+        )
+
+    it('warns once that the cookies are rejected when the cookies retry hits the sign-in check again', async () => {
+        readableCookies()
+        script(SIGN_IN, SIGN_IN, SIGN_IN, SIGN_IN)
+
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow(
+            'Sign in to confirm',
+        )
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow(
+            'Sign in to confirm',
+        )
+
+        expect(mockSpawn).toHaveBeenCalledTimes(4)
+        expect(cookiesRejectedWarns()).toHaveLength(1)
+        expect(cookiesRejectedWarns()[0]?.[0]).toMatchObject({
+            data: { cookiesFile: cookiesPath },
+        })
+    })
+
+    it('does not blame the cookies when the cookies retry streams or fails for another reason', async () => {
+        readableCookies()
+        script(SIGN_IN, 'ok', SIGN_IN, FORBIDDEN)
+
+        await streamViaYtDlp(validUrl)
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
+
+        expect(cookiesRejectedWarns()).toHaveLength(0)
+    })
+
     it.each([
         ['an unavailable video', 'ERROR: Video unavailable\n'],
         ['an empty download', ''],
