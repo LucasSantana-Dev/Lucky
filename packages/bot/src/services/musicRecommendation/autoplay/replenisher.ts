@@ -1,3 +1,4 @@
+import { randomInt } from 'node:crypto'
 import type { Track, GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
@@ -689,6 +690,35 @@ export async function buildGenreTagContext(
 }
 
 /**
+ * Broad fallback runs two Spotify searches that can stall for 10-25s without a
+ * timeout. Race against BROAD_FALLBACK_TIMEOUT_MS so the cycle budget stays
+ * under 8s p95 (#2870). The collector writes into a scratch map that is
+ * returned only if it finishes in time, so a stalled search cannot mutate a
+ * later pass; on timeout or error the result is empty.
+ */
+async function collectBroadFallbackWithTimeout(
+    autoplayContext: AutoplayContext,
+): Promise<Map<string, ScoredTrack>> {
+    const scratch = new Map<string, ScoredTrack>()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const finished = await Promise.race([
+        collectBroadFallbackCandidates(
+            autoplayContext,
+            scratch,
+            autoplayContext.auditCollector,
+        ).then(
+            () => true,
+            () => false,
+        ),
+        new Promise<boolean>((resolve) => {
+            timer = setTimeout(() => resolve(false), BROAD_FALLBACK_TIMEOUT_MS)
+        }),
+    ])
+    if (timer) clearTimeout(timer)
+    return finished ? scratch : new Map()
+}
+
+/**
  * Collect all autoplay candidates from five sources: recommendation, seed-similar,
  * lastfm, genre, and fallback. Returns candidates set and sourcesCounts breakdown.
  */
@@ -824,33 +854,8 @@ export async function collectAllCandidates(
 
     if (candidates.size === 0 && autoplayContext.currentTrack) {
         const beforeFallback = candidates.size
-        // Broad fallback runs two Spotify searches that can stall for 10-25s
-        // without a timeout. Race against BROAD_FALLBACK_TIMEOUT_MS so the
-        // cycle budget stays under 8s p95 (#2870). On timeout the late result is discarded.
-        // The collector writes into a scratch map that is merged only if it
-        // finishes in time, so a stalled search cannot mutate a later pass.
-        const scratch = new Map<string, ScoredTrack>()
-        let timer: ReturnType<typeof setTimeout> | undefined
-        const finished = await Promise.race([
-            collectBroadFallbackCandidates(
-                autoplayContext,
-                scratch,
-                autoplayContext.auditCollector,
-            ).then(
-                () => true,
-                () => false,
-            ),
-            new Promise<boolean>((resolve) => {
-                timer = setTimeout(
-                    () => resolve(false),
-                    BROAD_FALLBACK_TIMEOUT_MS,
-                )
-            }),
-        ])
-        if (timer) clearTimeout(timer)
-        if (finished) {
-            for (const [k, v] of scratch) candidates.set(k, v)
-        }
+        const scratch = await collectBroadFallbackWithTimeout(autoplayContext)
+        for (const [k, v] of scratch) candidates.set(k, v)
         sourcesCounts.fallback = candidates.size - beforeFallback
         debugLog({
             message: 'Autoplay: broad fallback candidates',
@@ -1022,7 +1027,7 @@ export async function enqueueAndFinalize(
         )
         // Shuffle so successive empty passes don't always replay the same track.
         for (let i = historyPool.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1))
+            const j = randomInt(i + 1)
             ;[historyPool[i], historyPool[j]] = [
                 historyPool[j]!,
                 historyPool[i]!,
