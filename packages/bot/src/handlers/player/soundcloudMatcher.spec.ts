@@ -255,7 +255,7 @@ describe('findMatchingSoundCloudResult – parenthetical title suffixes (#2866)'
     })
 })
 
-describe('findMatchingSoundCloudResult – suffix stripping edge cases (#2866)', () => {
+describe('findMatchingSoundCloudResult - suffix stripping edge cases (#2866)', () => {
     const url = 'https://soundcloud.com/x'
 
     it('falls back to the unstripped query when it is entirely bracketed', () => {
