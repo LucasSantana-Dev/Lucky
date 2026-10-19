@@ -3,7 +3,6 @@ import type { Track } from 'discord-player'
 import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import {
     calculateRecommendationScore,
-    enrichWithAudioFeatures,
     calculateGenreFamilyPenalty,
     getGenreFamilies,
     RECENCY_WINDOW_TRACKS,

@@ -108,7 +108,7 @@ describe('tagExtractor', () => {
                 },
             } as any
 
-            const tags = extractTags(track)
+            extractTags(track)
 
             expect(debugLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({

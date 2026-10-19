@@ -66,10 +66,9 @@ jest.mock('../../../i18n/translatorForInteraction', () => ({
 import playSkipCommand from './playskip'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { buildPlayResponseEmbed } from '../../../utils/music/nowPlayingEmbed'
-import { createMusicControlButtons } from '../../../utils/music/buttonComponents'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { requireVoiceChannel } from '../../../utils/command/commandValidations'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { errorLog } from '@lucky/shared/utils'
 
 function createMockInteraction(overrides = {}) {
     return {

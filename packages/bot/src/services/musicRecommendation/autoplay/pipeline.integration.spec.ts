@@ -37,11 +37,9 @@ jest.mock('../../../lastfm', () => ({
     getArtistTopTags: jest.fn().mockResolvedValue([]),
     getSimilarTracks: jest.fn().mockResolvedValue([]),
     getTagTopTracks: jest.fn().mockResolvedValue([]),
-    getArtistTopTracks: jest.fn().mockResolvedValue([]),
 }))
 
 jest.mock('../../../spotify/spotifyApi', () => ({
-    getBatchAudioFeatures: jest.fn().mockResolvedValue(new Map()),
     getArtistGenres: jest.fn().mockResolvedValue([]),
     getArtistPopularity: jest.fn().mockResolvedValue(null),
     searchSpotifyTrack: jest.fn().mockResolvedValue(null),
@@ -62,10 +60,8 @@ import {
     getArtistTopTags,
     getSimilarTracks,
     getTagTopTracks,
-    getArtistTopTracks,
 } from '../../../lastfm'
 import {
-    getBatchAudioFeatures,
     getArtistGenres,
     getArtistPopularity,
     searchSpotifyTrack,
@@ -129,15 +125,13 @@ function makeAutoplayContext(
 describe('autoplay pipeline integration', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        ;(getArtistTopTags as jest.Mock).mockResolvedValue([])
-        ;(getSimilarTracks as jest.Mock).mockResolvedValue([])
-        ;(getTagTopTracks as jest.Mock).mockResolvedValue([])
-        ;(getArtistTopTracks as jest.Mock).mockResolvedValue([])
-        ;(getBatchAudioFeatures as jest.Mock).mockResolvedValue(new Map())
-        ;(getArtistGenres as jest.Mock).mockResolvedValue([])
-        ;(getArtistPopularity as jest.Mock).mockResolvedValue(null)
-        ;(searchSpotifyTrack as jest.Mock).mockResolvedValue(null)
-        ;(getUserSpotifySeeds as jest.Mock).mockResolvedValue(null)
+        jest.mocked(getArtistTopTags).mockResolvedValue([])
+        jest.mocked(getSimilarTracks).mockResolvedValue([])
+        jest.mocked(getTagTopTracks).mockResolvedValue([])
+        jest.mocked(getArtistGenres).mockResolvedValue([])
+        jest.mocked(getArtistPopularity).mockResolvedValue(null)
+        jest.mocked(searchSpotifyTrack).mockResolvedValue(null)
+        jest.mocked(getUserSpotifySeeds).mockResolvedValue(null)
     })
 
     describe('cross-locale veto via real candidateScorer', () => {

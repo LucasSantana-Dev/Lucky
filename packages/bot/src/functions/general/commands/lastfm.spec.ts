@@ -2,21 +2,25 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import lastfmCommand from './lastfm'
 
 const interactionReplyMock = jest.fn()
-const createSuccessEmbedMock = jest.fn((title: string, description: string) => ({
-    type: 'success',
-    title,
-    description,
-}))
+const createSuccessEmbedMock = jest.fn(
+    (title: string, description: string) => ({
+        type: 'success',
+        title,
+        description,
+    }),
+)
 const createErrorEmbedMock = jest.fn((title: string, description: string) => ({
     type: 'error',
     title,
     description,
 }))
-const buildPlatformAttribEmbedMock = jest.fn((platform: string, body: unknown) => ({
-    type: 'platform',
-    platform,
-    ...body,
-}))
+const buildPlatformAttribEmbedMock = jest.fn(
+    (platform: string, body: unknown) => ({
+        type: 'platform',
+        platform,
+        ...body,
+    }),
+)
 const isLastFmConfiguredMock = jest.fn()
 const getByDiscordIdMock = jest.fn()
 
@@ -30,7 +34,8 @@ jest.mock('../../../utils/general/embeds', () => ({
 }))
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
-    buildPlatformAttribEmbed: (...args: unknown[]) => buildPlatformAttribEmbedMock(...args),
+    buildPlatformAttribEmbed: (...args: unknown[]) =>
+        buildPlatformAttribEmbedMock(...args),
 }))
 
 jest.mock('../../../lastfm', () => ({
@@ -57,11 +62,13 @@ function getConnectUrlFromEmbed(): string {
     if (!lastCall) {
         throw new Error('buildPlatformAttribEmbed was not called')
     }
-    const [platform, body] = lastCall
+    const [, body] = lastCall
     const description = String((body as any)?.description ?? '')
     const match = description.match(/\[Click here to connect\]\(([^)]+)\)/)
     if (!match) {
-        throw new Error(`Expected connect link in embed description: ${description}`)
+        throw new Error(
+            `Expected connect link in embed description: ${description}`,
+        )
     }
     return match[1]
 }
@@ -86,7 +93,9 @@ describe('lastfm command link generation', () => {
         } as any)
 
         const url = getConnectUrlFromEmbed()
-        expect(url).toContain('https://lucky-api.lucassantana.tech/api/lastfm/connect')
+        expect(url).toContain(
+            'https://lucky-api.lucassantana.tech/api/lastfm/connect',
+        )
         expect(url).not.toContain('nexus.lucassantana.tech')
     })
 
@@ -98,7 +107,9 @@ describe('lastfm command link generation', () => {
         } as any)
 
         const url = getConnectUrlFromEmbed()
-        expect(url).toContain('https://lucky-api.lucassantana.tech/api/lastfm/connect')
+        expect(url).toContain(
+            'https://lucky-api.lucassantana.tech/api/lastfm/connect',
+        )
         expect(url).not.toContain('//api/lastfm/connect')
     })
 
@@ -112,7 +123,9 @@ describe('lastfm command link generation', () => {
         } as any)
 
         const url = getConnectUrlFromEmbed()
-        expect(url).toContain('https://lucky.lucassantana.tech/api/lastfm/connect')
+        expect(url).toContain(
+            'https://lucky.lucassantana.tech/api/lastfm/connect',
+        )
         expect(url).not.toContain('nexus.lucassantana.tech')
     })
 
@@ -126,7 +139,9 @@ describe('lastfm command link generation', () => {
         } as any)
 
         const url = getConnectUrlFromEmbed()
-        expect(url).toContain('https://lucky.lucassantana.tech/api/lastfm/connect')
+        expect(url).toContain(
+            'https://lucky.lucassantana.tech/api/lastfm/connect',
+        )
     })
 
     it('falls back to WEBAPP_REDIRECT_URI and normalizes /api/auth/callback', async () => {
@@ -138,7 +153,9 @@ describe('lastfm command link generation', () => {
         } as any)
 
         const url = getConnectUrlFromEmbed()
-        expect(url).toContain('https://lucky.lucassantana.tech/api/lastfm/connect')
+        expect(url).toContain(
+            'https://lucky.lucassantana.tech/api/lastfm/connect',
+        )
     })
 
     it('falls back to WEBAPP_REDIRECT_URI and normalizes legacy /auth/callback', async () => {
@@ -150,7 +167,9 @@ describe('lastfm command link generation', () => {
         } as any)
 
         const url = getConnectUrlFromEmbed()
-        expect(url).toContain('https://lucky.lucassantana.tech/api/lastfm/connect')
+        expect(url).toContain(
+            'https://lucky.lucassantana.tech/api/lastfm/connect',
+        )
     })
 
     it('returns configuration error when no valid base url is available', async () => {

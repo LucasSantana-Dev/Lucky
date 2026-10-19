@@ -1,5 +1,4 @@
 import * as spotifyApi from './spotifyApi'
-import { debugLog, warnLog } from '@lucky/shared/utils/general/log'
 import { logAndSwallow } from '@lucky/shared/utils/error'
 
 jest.mock('@lucky/shared/utils/general/log')

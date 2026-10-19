@@ -123,8 +123,6 @@ describe('RecommendationFeedbackService', () => {
     it('cleans expired feedback entries via lazy-prune', async () => {
         const now = 50_000
         const service = new RecommendationFeedbackService(30)
-        const key = service.buildTrackKey('Song B', 'Artist B')
-
         mockUserTrackFeedback.deleteMany.mockResolvedValueOnce({
             count: 1,
         })

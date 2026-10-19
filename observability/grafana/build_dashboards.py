@@ -146,7 +146,8 @@ class Board:
         ds_vars = [
             ("ds_prometheus", "prometheus", "/^Prometheus$/"),
             ("ds_loki", "loki", ""),
-            ("ds_postgres", "grafana-postgresql-datasource", ""),
+            # Pinned by name: the homelab Grafana also has "CoJam Postgres", which sorts first.
+            ("ds_postgres", "grafana-postgresql-datasource", "/^Lucky Postgres$/"),
             ("ds_sentry", "grafana-sentry-datasource", ""),
         ]
         templating = [{"name": n, "type": "datasource", "query": q, "regex": r, "hide": 2, "refresh": 1,
@@ -234,7 +235,7 @@ def negocio():
     b.text("Leia antes", (
         "Metas do music-first (decisão até **20/12/2026**): **WAG ≥ 20** por 3 semanas, **≥ 35%** das guildas novas ouvem música na 1ª hora, "
         "**≥ 15%** ainda ativas no dia 8. Guildas do operador, de listagem e de teste não contam. "
-        "`track_history` guarda só 30 dias e no máximo 100 faixas por guilda, então janelas maiores que 30 dias subcontam plays."), h=3)
+        "`track_history` guarda só 30 dias, então janelas maiores que 30 dias subcontam plays."), h=3)
 
     b.row("Metas do music-first")
     b.stat("WAG (7 dias)", sql(WAG_7D), th=thresholds((RED, 0), (ORANGE, 10), (GREEN, 20)), w=4,
@@ -286,6 +287,76 @@ def negocio():
         "AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour')) AS \"Tocaram na 1ª hora\", "
         "count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g)) AS \"Já tocaram\" "
         f"FROM joins j WHERE j.g NOT IN {EXCL} GROUP BY 1 ORDER BY 1 DESC")], w=12, h=8)
+
+    b.add("table", "Entradas e 1ª hora por origem (28 dias)", [sql(
+        "WITH joins AS (SELECT \"guildDiscordId\" AS g, min(\"occurredAt\") AS t FROM guild_membership_events "
+        "WHERE kind = 'JOIN' GROUP BY 1 HAVING min(\"occurredAt\") > now() - interval '28 days' "
+        "AND min(\"occurredAt\") <= now() - interval '1 hour') "
+        "SELECT coalesce(s.source, 'sem origem') AS \"Origem\", count(*) AS \"Entraram\", "
+        "count(*) FILTER (WHERE EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g "
+        "AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour')) AS \"Tocaram na 1ª hora\" "
+        "FROM joins j LEFT JOIN guild_join_sources s ON s.\"guildDiscordId\" = j.g "
+        f"WHERE j.g NOT IN {EXCL} GROUP BY 1 ORDER BY 2 DESC")], w=12, h=8,
+        desc="Origem vem do parâmetro state do OAuth de /add (topgg, discordbotlist, botsgg, meta, landing, unknown). "
+             "Joins anteriores a #2750 ou sem origem gravada aparecem como 'sem origem' (entraram por outro link ou antes do rastreio). Só entram joins com mais de 1 hora (a 1ª hora ainda não fechou para os mais novos).")
+
+    b.row("Funil de ativação (período)")
+    # Same base as "Entraram (período)": counted_joins minus EXCL over the dashboard time range.
+    # track_history keeps 30 days (no per-guild cap since #2678): a first hour older than that is unknown.
+    trimmed = "(j.t + interval '1 hour' < now() - interval '30 days')"
+    # next_t is the guild's next counted join, computed before the period filter, so an event
+    # or play after a later join is never credited to an earlier one (events keep a 5 minute
+    # lower slack: the onboarding message can land just before the JOIN row is written).
+    ev_bound = "AND a.\"occurredAt\" < coalesce(j.next_t, 'infinity'::timestamp)"
+    funnel_base = (
+        f"WITH {COUNTED_JOINS}, cj AS (SELECT g, t, lead(t) OVER (PARTITION BY g ORDER BY t) AS next_t FROM counted_joins), "
+        "joins AS (SELECT g, t, next_t FROM cj "
+        f"WHERE $__timeFilter(t) AND g NOT IN {EXCL}), "
+        "f0 AS (SELECT j.g, j.t, "
+        f"EXISTS (SELECT 1 FROM activation_events a WHERE a.\"guildDiscordId\" = j.g AND a.kind = 'onboarding_delivered' AND a.\"occurredAt\" >= j.t - interval '5 minutes' {ev_bound}) AS delivered, "
+        f"EXISTS (SELECT 1 FROM activation_events a WHERE a.\"guildDiscordId\" = j.g AND a.kind = 'station_click' AND a.\"occurredAt\" >= j.t - interval '5 minutes' {ev_bound}) AS clicked, "
+        "EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour') "
+        f"AS heard, {trimmed} AS h1_trimmed, "
+        "(SELECT count(*) FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" BETWEEN j.t AND least(j.t + interval '7 days', coalesce(j.next_t, 'infinity'::timestamp))) >= 5 AS plays5, "
+        "(EXISTS (SELECT 1 FROM track_history th WHERE th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t + interval '7 days' AND th.\"playedAt\" < coalesce(j.next_t, 'infinity'::timestamp)) "
+        "OR EXISTS (SELECT 1 FROM command_events ce WHERE ce.\"guildId\" = j.g AND ce.\"occurredAt\" >= j.t + interval '7 days' AND ce.\"occurredAt\" < coalesce(j.next_t, 'infinity'::timestamp))) AS d8, "
+        "j.t <= now() - interval '1 hour' AS el1, j.t <= now() - interval '7 days' AS el7, j.t <= now() - interval '8 days' AS el8 "
+        "FROM joins j), "
+        "f AS (SELECT g, delivered, delivered AND clicked AS clicked, heard, heard AND plays5 AS plays5, heard AND plays5 AND d8 AS d8, h1_trimmed, el1, el7, el8 FROM f0) ")
+    b.add("bargauge", "Funil de ativação por guilda (período)", [sql(funnel_base +
+        "SELECT '1. Entraram' AS \"Etapa\", count(*) AS \"Guildas\" FROM f "
+        "UNION ALL SELECT '2. Onboarding entregue', count(*) FILTER (WHERE delivered) FROM f "
+        "UNION ALL SELECT '3. Clicou na estação', count(*) FILTER (WHERE clicked) FROM f "
+        "UNION ALL SELECT '4. Tocou na 1ª hora', count(*) FILTER (WHERE el1 AND heard) FROM f "
+        "UNION ALL SELECT '4b. 1ª hora desconhecida (fora dos 30 dias)', count(*) FILTER (WHERE el1 AND NOT heard AND h1_trimmed) FROM f "
+        "UNION ALL SELECT '5. 5+ faixas em 7 dias', count(*) FILTER (WHERE el7 AND plays5) FROM f "
+        "UNION ALL SELECT '6. Ativa no dia 8', count(*) FILTER (WHERE el8 AND d8) FROM f "
+        "ORDER BY 1")], w=14, h=9, th=thresholds(("blue", 0)),
+        options={"displayMode": "basic", "orientation": "horizontal", "showUnfilled": True,
+                 "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": True}},
+        desc="Funil aninhado: guildas distintas entre as entradas contadas do período (mesma base de 'Entraram (período)': "
+             "reentrada em até 30 dias conta uma vez, guildas excluídas fora). Clicou exige onboarding entregue; 5+ faixas exige a 1ª hora; "
+             "dia 8 exige 5+ faixas. A etapa 4 conta a 1ª hora de forma independente do clique, então pode passar da etapa 3. "
+             "Elegibilidade por etapa (como em scripts/music-first-gates.sql): a etapa 4 só conta entradas com mais de 1 hora, "
+             "a 5 com mais de 7 dias e a 6 com mais de 8 dias; entradas mais recentes ficam fora do numerador dessas etapas "
+             "(mas contam na etapa 1), então as etapas 4 a 6 sobem conforme as entradas amadurecem. "
+             "Eventos e plays só valem até a próxima entrada contada da mesma guilda. "
+             "A etapa 1 continua igual a 'Entraram (período)'. A etapa 4b conta guildas cuja 1ª hora passou dos 30 dias de retenção de track_history (regra h1_trimmed de scripts/music-first-gates.sql): "
+             "elas podem ter tocado na 1ª hora, mas essas linhas já foram apagadas. A taxa da 1ª hora é etapa 4 / (etapa 1 elegível menos etapa 4b), como no gate. "
+             "Etapas 2 e 3 vêm de activation_events, que só existe a partir do deploy desta instrumentação.")
+    b.stat("Tempo até o primeiro áudio", sql(
+        f"WITH {COUNTED_JOINS}, cj AS (SELECT g, t, lead(t) OVER (PARTITION BY g ORDER BY t) AS next_t FROM counted_joins), "
+        f"joins AS (SELECT g, t, next_t FROM cj WHERE $__timeFilter(t) AND g NOT IN {EXCL}), "
+        "first_play AS (SELECT j.g, greatest(0, extract(epoch FROM min(th.\"playedAt\" - coalesce(th.\"playDuration\", 0) * interval '1 second') - j.t)) AS secs FROM joins j "
+        "JOIN track_history th ON th.\"guildId\" = j.g AND th.\"playedAt\" >= j.t AND th.\"playedAt\" < coalesce(j.next_t, 'infinity'::timestamp) "
+        f"WHERE NOT {trimmed} GROUP BY j.g, j.t) "
+        "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY secs) AS \"p50\", "
+        "percentile_cont(0.9) WITHIN GROUP (ORDER BY secs) AS \"p90\" FROM first_play"),
+        unit="s", decimals=0, w=10, h=9, no_value="sem plays", show_names=True,
+        desc="Mediana (p50) e percentil 90 do intervalo entre a entrada contada e o início da primeira faixa tocada, nas guildas do período que já tocaram algo. "
+             "track_history grava a linha quando a faixa termina ou é pulada, não quando começa; o início é estimado como playedAt menos playDuration (segundos tocados; sem valor, conta como 0 e o tempo inclui a faixa inteira). "
+             "Guildas cuja 1ª hora passou dos 30 dias de retenção (h1_trimmed) ficam fora, porque a primeira faixa delas já foi apagada. "
+             "Quem nunca tocou fica fora (veja a etapa 4 do funil). A etapa 4 do funil usa playedAt puro, igual ao gate do ADR.")
 
     b.row("Uso")
     b.add("timeseries", "Faixas tocadas por dia", [sql(

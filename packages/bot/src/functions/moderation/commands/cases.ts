@@ -71,7 +71,7 @@ export default new Command({
 
         try {
             let cases
-            let totalCases = 0
+            let totalCases: number
 
             if (user) {
                 cases = await moderationService.getUserCases(
@@ -85,11 +85,6 @@ export default new Command({
                 totalCases = cases.length
                 cases = cases.slice((page - 1) * perPage, page * perPage)
             } else {
-                const stats = await moderationService.getStats(
-                    interaction.guild.id,
-                )
-                totalCases = stats.totalCases
-
                 const allCases = await moderationService.getRecentCases(
                     interaction.guild.id,
                     1000,

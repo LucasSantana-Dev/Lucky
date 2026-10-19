@@ -51,6 +51,12 @@ jest.mock('@lucky/shared/config', () => ({
     ENVIRONMENT_CONFIG: { PLAYER: { CONNECTION_TIMEOUT: 20_000 } },
 }))
 
+const recordActivationEventMock = jest.fn(async (..._args: unknown[]) => true)
+jest.mock('@lucky/shared/services', () => ({
+    recordActivationEvent: (...args: unknown[]) =>
+        recordActivationEventMock(...args),
+}))
+
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
@@ -163,6 +169,19 @@ describe('handleOnboardingStationButton', () => {
         runPostPlayBackgroundOpsMock.mockResolvedValue(undefined)
     })
 
+    it('still replies when recording the activation event rejects', async () => {
+        recordActivationEventMock.mockRejectedValueOnce(new Error('db down'))
+        const interaction = createInteraction({
+            member: { voice: { channel: null } },
+        })
+
+        await expect(
+            handleOnboardingStationButton(interaction as never),
+        ).resolves.toBeUndefined()
+
+        expect(interactionReplyMock).toHaveBeenCalled()
+    })
+
     it('replies ephemerally asking to join a voice channel when not in one', async () => {
         const interaction = createInteraction({
             member: { voice: { channel: null } },
@@ -192,6 +211,11 @@ describe('handleOnboardingStationButton', () => {
                     reason: 'not_in_voice',
                 }),
             }),
+        )
+        expect(recordActivationEventMock).toHaveBeenCalledWith(
+            'guild-1',
+            'station_click',
+            'lofi:not_in_voice',
         )
     })
 
