@@ -446,12 +446,12 @@ async function attemptSoundCloud(
     stageLabel: StreamBridgeFallbackStage,
     failureMessage: string,
     cleanedTitle: string,
-    expectedArtist?: string,
+    expectedArtists: readonly string[],
 ): Promise<Readable | null> {
     const startedAt = Date.now()
     try {
         const stream = await streamViaSoundCloud(query, track.duration, {
-            expectedArtist,
+            expectedArtists,
             sourceTitle: track.title,
         })
         const durationMs = observeStage(
@@ -487,6 +487,17 @@ async function attemptSoundCloud(
     }
 }
 
+// Accounts a SoundCloud upload may come from: the track author and, for a
+// YouTube upload whose author is a channel ("MoonWalker777"), the artist in
+// front of an "Artist - Song" title.
+function soundCloudArtists(
+    cleanedTitle: string,
+    cleanedAuthor: string,
+): string[] {
+    const [lead, rest] = cleanedTitle.split(/\s[-\u2013\u2014]\s/, 2)
+    return rest ? [cleanedAuthor, lead] : [cleanedAuthor]
+}
+
 // #2142: this stage used to be gated on "the title had a parenthetical to
 // strip", so titles without one (most tracks) silently never got a third
 // attempt. It now always runs after stage 2 fails, broadening via
@@ -510,6 +521,7 @@ async function attemptCoreStageOrLogExhausted(
     cleanedTitle: string,
     cleanedAuthor: string,
     youtubeStages: string[],
+    expectedArtists: readonly string[],
 ): Promise<Readable | null> {
     const coreTitle = computeCoreTitleCandidate(cleanedTitle, cleanedAuthor)
     const alreadyTriedQueries = new Set([
@@ -529,7 +541,7 @@ async function attemptCoreStageOrLogExhausted(
     const startedAt = Date.now()
     try {
         const stream = await streamViaSoundCloud(coreTitle, track.duration, {
-            expectedArtist: cleanedAuthor,
+            expectedArtists,
             sourceTitle: track.title,
         })
         const durationMs = observeStage('soundcloud_core', startedAt, 'ok')
@@ -830,12 +842,14 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         throw new Error(`Bridge exhausted: no stream for "${track.title}"`)
     }
 
+    const expectedArtists = soundCloudArtists(cleanedTitle, cleanedAuthor)
     const fullSearchStream = await attemptSoundCloud(
         cleanSearchQuery(cleanedTitle, cleanedAuthor),
         track,
         'soundcloud-full',
         'Bridge: SoundCloud primary search failed, retrying with title only',
         cleanedTitle,
+        expectedArtists,
     )
     if (fullSearchStream) return fullSearchStream
 
@@ -845,8 +859,7 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         'soundcloud-title',
         'Bridge: title-only SoundCloud failed, retrying without parentheticals',
         cleanedTitle,
-        // The query dropped the artist, so the match must carry it instead.
-        cleanedAuthor,
+        expectedArtists,
     )
     if (titleOnlyStream) return titleOnlyStream
 
@@ -855,6 +868,7 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         cleanedTitle,
         cleanedAuthor,
         youtubeStages,
+        expectedArtists,
     )
     if (coreStream) return coreStream
 
