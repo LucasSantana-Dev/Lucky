@@ -341,13 +341,13 @@ export function splitArtistAndSong(
     const unfeatured = title
         .replaceAll(/\s*[([]\s*(?:feat|ft|featuring)\.?\s[^)\]]*[)\]]/gi, '')
         .replaceAll(
-            /\s+(?:feat|ft|featuring)\.?\s.*?(?=\s+[-–—]\s|\s*[([]|$)/gi,
+            /\s+(?:feat|ft|featuring)\.?\s.*?(?=\s+[-\u2013\u2014]\s|\s*[([]|$)/gi,
             '',
         )
     const song = extractSongCore(unfeatured, author)
     if (!song) return null
     const cleaned = cleanTitle(unfeatured)
-    for (const sep of [' - ', ' – ', ' — ']) {
+    for (const sep of [' - ', ' \u2013 ', ' \u2014 ']) {
         const idx = cleaned.indexOf(sep)
         if (idx < 2 || idx > 60) continue
         const left = cleaned.slice(0, idx).trim()
