@@ -123,13 +123,6 @@ export const recapCardPostedTotal = new Counter({
     registers: [registry],
 })
 
-/** Counter: "Play this week's mix" button clicks on the weekly recap card (#2739). */
-export const recapMixPlayedTotal = new Counter({
-    name: 'lucky_bot_recap_mix_played_total',
-    help: "Count of times the Play this week's mix button was clicked on the weekly recap card.",
-    registers: [registry],
-})
-
 /**
  * Counter: "did that autoplay song fit you?" prompts sent after a user skipped,
  * stopped or paused an autoplay track. Unlabelled: guild and user ids stay out
@@ -244,6 +237,12 @@ export const extractionFailuresTotal = new Counter<'type'>({
     labelNames: ['type'],
     registers: [registry],
 })
+// Seed all types at 0 on boot so rate()/increase() queries (dashboards, future
+// alert rules) have a baseline from the first scrape, even before the first
+// failure (#2864).
+for (const type of ['forbidden', 'botcheck', 'empty', 'timeout', 'other']) {
+    extractionFailuresTotal.labels(type).inc(0)
+}
 
 /**
  * Counter: Spotify source cache lookups by result (hit|miss|negative).

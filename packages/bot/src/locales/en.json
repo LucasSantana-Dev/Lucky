@@ -101,12 +101,7 @@
             "notTextChannel": "❌ Pick a text channel for the recap.",
             "missingPermissions": "❌ I can't post in <#{{channel}}>. I need View Channel, Send Messages and Embed Links there.",
             "failed": "❌ Couldn't update the weekly recap. Try again in a moment.",
-            "needManageGuild": "You need the **Manage Server** permission to configure the weekly recap.",
-            "mixButton": "Play this week's mix",
-            "mixNoVoice": "Join a voice channel first.",
-            "mixNoTracks": "No tracks found for this week's recap.",
-            "mixQueued": "▶️ Queued {{count}} track(s) from this week's recap.",
-            "mixFailed": "❌ Couldn't start the mix. Try again in a moment."
+            "needManageGuild": "You need the **Manage Server** permission to configure the weekly recap."
         },
         "thumbs": {
             "liked": "👍 Added **{{title}}** to your likes. Autoplay leans toward them on the songs you queue.",

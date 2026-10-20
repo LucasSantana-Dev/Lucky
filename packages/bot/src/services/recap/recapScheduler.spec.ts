@@ -16,6 +16,7 @@ const fallbackIncMock = jest.fn<AnyFn>()
 const fallbackLabelsMock = jest.fn<AnyFn>(() => ({ inc: fallbackIncMock }))
 const cardPostedIncMock = jest.fn<AnyFn>()
 const warnLogMock = jest.fn<AnyFn>()
+const infoLogMock = jest.fn<AnyFn>()
 
 jest.mock('./recapStore', () => ({
     listDueRecaps: (...a: unknown[]) => listDueRecapsMock(...a),
@@ -31,7 +32,7 @@ jest.mock('@lucky/shared/services', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
-    infoLog: jest.fn(),
+    infoLog: (...a: unknown[]) => infoLogMock(...a),
     warnLog: (...a: unknown[]) => warnLogMock(...a),
 }))
 
@@ -322,6 +323,58 @@ describe('RecapScheduler (#2678)', () => {
 
         expect(disableRecapMock).not.toHaveBeenCalled()
         expect(claimRecapWeekMock).not.toHaveBeenCalled()
+    })
+
+    // #2860: every skip is a debug line, so prod logs could not tell a
+    // Sunday with no opted-in guild from one where every guild was skipped.
+    describe('tick summary (#2860)', () => {
+        const summaries = () =>
+            infoLogMock.mock.calls
+                .map(([entry]) => entry)
+                .filter((entry) => entry.message === 'recap: tick')
+
+        it('logs a Sunday with nothing due, once per boundary', async () => {
+            listDueRecapsMock.mockResolvedValue([])
+            const scheduler = new RecapScheduler({ clock: () => NOW })
+            ;(scheduler as unknown as { client: unknown }).client =
+                makeClient('text').client
+
+            await scheduler.tick()
+            await scheduler.tick()
+
+            expect(summaries()).toEqual([
+                {
+                    message: 'recap: tick',
+                    data: {
+                        boundary: BOUNDARY.toISOString(),
+                        due: 0,
+                        outcomes: {},
+                    },
+                },
+            ])
+        })
+
+        it('counts how each due guild ended', async () => {
+            listDueRecapsMock.mockResolvedValue([
+                { guildId: 'g-1', channelId: 'c-1' },
+                { guildId: 'g-1', channelId: 'c-1' },
+                { guildId: 'gone', channelId: 'c-1' },
+            ])
+            getWeeklyRecapMock
+                .mockResolvedValueOnce(recap(12))
+                .mockResolvedValueOnce(recap(4))
+
+            await runTick(makeClient('text').client)
+
+            expect(summaries()).toEqual([
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        due: 3,
+                        outcomes: { posted: 1, quiet: 1, not_in_cache: 1 },
+                    }),
+                }),
+            ])
+        })
     })
 
     describe('image card (#2693)', () => {

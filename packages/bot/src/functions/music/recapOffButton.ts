@@ -10,17 +10,14 @@ import type { TFunction } from 'i18next'
 import { errorLog, infoLog } from '@lucky/shared/utils'
 import { translatorForInteraction } from '../../i18n/translatorForInteraction'
 import { disableRecap } from '../../services/recap/recapStore'
-import { buildRecapMixButton } from './recapMixButton'
 
 /** Custom id of the "Turn off weekly recap" button on every recap (#2738). */
 export const RECAP_OFF_BUTTON_ID = 'recap_off'
 
-/** Action row with "▶️ Play this week's mix" and "🔕 Turn off" buttons. */
 export function buildRecapOffRow(
     t: TFunction,
 ): ActionRowBuilder<ButtonBuilder> {
     return new ActionRowBuilder<ButtonBuilder>().addComponents(
-        buildRecapMixButton(t),
         new ButtonBuilder()
             .setCustomId(RECAP_OFF_BUTTON_ID)
             .setLabel(t('music.recap.offButton'))

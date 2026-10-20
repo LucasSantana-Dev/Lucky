@@ -100,12 +100,7 @@
             "notTextChannel": "❌ Escolha um canal de texto para o resumo.",
             "missingPermissions": "❌ Não consigo postar em <#{{channel}}>. Preciso de Ver canal, Enviar mensagens e Inserir links lá.",
             "failed": "❌ Não consegui atualizar o resumo semanal. Tente de novo daqui a pouco.",
-            "needManageGuild": "Você precisa da permissão **Gerenciar servidor** para configurar o resumo semanal.",
-            "mixButton": "Tocar o mix da semana",
-            "mixNoVoice": "Entre em um canal de voz primeiro.",
-            "mixNoTracks": "Nenhuma música encontrada para o resumo desta semana.",
-            "mixQueued": "▶️ {{count}} música(s) do resumo da semana adicionada(s) à fila.",
-            "mixFailed": "❌ Não consegui iniciar o mix. Tente de novo daqui a pouco."
+            "needManageGuild": "Você precisa da permissão **Gerenciar servidor** para configurar o resumo semanal."
         },
         "thumbs": {
             "liked": "👍 **{{title}}** foi para as suas curtidas. O autoplay puxa músicas assim nas que você coloca.",

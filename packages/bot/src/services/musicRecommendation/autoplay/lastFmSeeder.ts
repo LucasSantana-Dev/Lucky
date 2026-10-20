@@ -24,6 +24,7 @@ import {
 } from './candidateCollector'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import { isHostedYoutubeEnabled } from '../../../config/featureFlags'
+import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from '../../../functions/music/commands/play/handlers/resolveProvider'
 import type { ScoredTrack } from './diversitySelector'
 import type { AutoplayAuditCollector } from './autoplayAudit'
 
@@ -367,6 +368,13 @@ export async function searchLastFmQuery(
             const result = await queue.player.search(query, {
                 requestedBy,
                 searchEngine: engine,
+                // SpotifyExtractor claims every plain-text query whatever the
+                // engine, so without this the YouTube and AUTO arms were
+                // Spotify searches too: when Spotify returned nothing, every
+                // arm did, and autoplay found no candidates (2026-10-19).
+                ...(engine === QueryType.SPOTIFY_SEARCH
+                    ? {}
+                    : { blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS }),
             })
             if (engine === QueryType.SPOTIFY_SEARCH) {
                 // Raw API count, same meaning as in candidateFallback: a hit
