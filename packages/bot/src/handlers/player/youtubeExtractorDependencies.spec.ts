@@ -6,8 +6,14 @@ import path from 'node:path'
 // discord-player-youtubei 3.1.0 imports simple-ytdl-core without declaring it.
 // The bot loads the extractor with a dynamic import, so a missing package only
 // shows up at runtime as "YouTube extractor unavailable after retries"
-// (2026-10-20). Every bare import of the dist files must resolve from here.
+// (2026-10-20). simple-ytdl-core 1.1.1 in turn imports bgutils-js and
+// googlevideo as devDependencies only. Every bare import of the dist files of
+// both packages must resolve from where the package is installed.
 const EXTRACTOR = 'discord-player-youtubei'
+const RUNTIME_PACKAGES: Array<[string, string]> = [
+    [EXTRACTOR, 'youtubei.js'],
+    ['simple-ytdl-core', 'bgutils-js'],
+]
 
 function findPackageDir(name: string, fromDir: string): string | null {
     let dir = fromDir
@@ -48,20 +54,24 @@ describe('discord-player-youtubei runtime dependencies', () => {
         expect(extractorDir).not.toBeNull()
     })
 
-    it.each(['index.mjs', 'index.cjs'])(
-        'resolves every bare import of dist/%s',
-        (file) => {
-            const source = fs.readFileSync(
-                path.join(extractorDir as string, 'dist', file),
-                'utf8',
-            )
-            const imports = bareImports(source)
-            expect(imports).toContain('youtubei.js')
+    it.each(
+        RUNTIME_PACKAGES.flatMap(([name, expected]) =>
+            ['index.mjs', 'index.cjs'].map((file) => [name, file, expected]),
+        ),
+    )('resolves every bare import of %s dist/%s', (name, file, expected) => {
+        const packageDir = findPackageDir(name, extractorDir as string)
+        expect(packageDir).not.toBeNull()
 
-            const missing = imports.filter(
-                (name) => findPackageDir(name, extractorDir as string) === null,
-            )
-            expect(missing).toEqual([])
-        },
-    )
+        const source = fs.readFileSync(
+            path.join(packageDir as string, 'dist', file),
+            'utf8',
+        )
+        const imports = bareImports(source)
+        expect(imports).toContain(expected)
+
+        const missing = imports.filter(
+            (dep) => findPackageDir(dep, packageDir as string) === null,
+        )
+        expect(missing).toEqual([])
+    })
 })
