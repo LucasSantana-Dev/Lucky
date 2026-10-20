@@ -315,7 +315,10 @@ export function findMatchingSoundCloudResult(
     // Gate on the query with trailing parenthetical suffixes stripped so
     // version/comment suffixes ("(Comentário)", "(En Vivo)") do not inflate the
     // token count (#2866). Ranking below still looks at the full query tokens.
-    const { tokens, fullTokens, hasStripped } = getQueryTokens(query)
+    const { tokens, fullTokens, hasStripped } = getQueryTokens(
+        query,
+        expectedArtists,
+    )
     if (tokens.length === 0) return undefined
 
     const trackSec = parseDurationString(trackDuration)
@@ -430,7 +433,7 @@ function describeRejectedCandidates(
     artistMatch?: boolean
     alteredVersion?: true
 }[] {
-    const { tokens } = getQueryTokens(query)
+    const { tokens } = getQueryTokens(query, expectedArtists)
     const trackSec = parseDurationString(trackDuration)
     const artistKeys = toArtistKeys(expectedArtists)
     const requested = toRequestedText(query, sourceTitle)
@@ -525,13 +528,19 @@ function toTokens(value: string): string[] {
     return normalizeForMatch(value).split(/ +/).filter(Boolean)
 }
 
-function getQueryTokens(query: string): {
+function getQueryTokens(
+    query: string,
+    expectedArtists: readonly string[] = [],
+): {
     tokens: string[]
     fullTokens: string[]
     hasStripped: boolean
 } {
-    const fullTokens = toTokens(query)
-    const stripped = toTokens(stripTrailingParentheticals(query))
+    const fullTokens = dropArtistSuffix(toTokens(query), expectedArtists)
+    const stripped = dropArtistSuffix(
+        toTokens(stripTrailingParentheticals(query)),
+        expectedArtists,
+    )
     // A query that is only a bracketed group ("(Intro)") strips to nothing:
     // fall back to the unstripped query instead of rejecting it.
     if (stripped.length === 0) {
@@ -542,6 +551,31 @@ function getQueryTokens(query: string): {
         fullTokens,
         hasStripped: stripped.length !== fullTokens.length,
     }
+}
+
+// The soundcloud-full query is "title author" (cleanSearchQuery). With an
+// expected artist, every candidate left has passed the uploader check, so the
+// account already proves the author part: scoring the title against it too
+// rejected "Fique Rico ou Moralismo 2" by Froid for the query "Fique Rico ou
+// Moralismo 2 Froid, Major RD" (5 of 8 tokens, 2026-10-20). Only a trailing
+// run of an expected artist's full name is dropped, never artist words inside
+// the title, and a query that is only the artist is kept whole.
+function dropArtistSuffix(
+    tokens: string[],
+    expectedArtists: readonly string[],
+): string[] {
+    for (const artist of expectedArtists) {
+        const artistTokens = toTokens(artist)
+        const start = tokens.length - artistTokens.length
+        if (
+            artistTokens.length > 0 &&
+            start > 0 &&
+            artistTokens.every((token, i) => tokens[start + i] === token)
+        ) {
+            return tokens.slice(0, start)
+        }
+    }
+    return tokens
 }
 
 // Strips trailing parenthetical/bracketed suffix groups from the query
