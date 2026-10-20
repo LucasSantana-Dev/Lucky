@@ -231,7 +231,9 @@ RUN npm prune --omit=dev --legacy-peer-deps
 # undeclared transitive dep (simple-ytdl-core in 3.1.0, 2026-10-20) only
 # showed up in prod logs as "YouTube extractor unavailable". Fail the build
 # instead, after the prune, from the bot workspace like the runtime does.
-RUN cd packages/bot && node --input-type=module -e "const m = await import('discord-player-youtubei'); if (typeof m.YoutubeExtractor !== 'function') throw new Error('YoutubeExtractor export missing')"
+WORKDIR /app/packages/bot
+RUN node --input-type=module -e "const m = await import('discord-player-youtubei'); if (typeof m.YoutubeExtractor !== 'function') throw new Error('YoutubeExtractor export missing')"
+WORKDIR /app
 # Same guard as deps-production-backend below: nested workspace node_modules
 # can hoist away between installs and COPY --from hard-fails on a missing dir.
 RUN mkdir -p packages/shared/node_modules packages/bot/node_modules
