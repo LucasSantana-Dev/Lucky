@@ -15,6 +15,7 @@ import {
 } from './resilientStreamBridge'
 import { refreshSoundCloudClientId } from './soundcloudMatcher'
 import { setExtractorDegraded } from './extractorHealth'
+import { logSpotifyApiFailures } from './spotifyApiFailureLog'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
 
 type CreatePlayerParams = {
@@ -112,7 +113,18 @@ export const registerSpotifyExtractor = async (
             return
         }
         setExtractorDegraded('spotify', false)
-        infoLog({ message: 'Registered SpotifyExtractor (priority 1)' })
+        logSpotifyApiFailures(registered)
+        infoLog({
+            message: 'Registered SpotifyExtractor (priority 1)',
+            // Without both credentials the extractor scrapes an anonymous
+            // web-player token instead of using the Web API app.
+            data: {
+                credentials: Boolean(
+                    process.env.SPOTIFY_CLIENT_ID &&
+                    process.env.SPOTIFY_CLIENT_SECRET,
+                ),
+            },
+        })
     } catch (error) {
         setExtractorDegraded('spotify', true)
         errorLog({

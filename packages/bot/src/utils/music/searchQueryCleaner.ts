@@ -326,6 +326,91 @@ export function extractSongCore(title: string, author?: string): string | null {
 }
 
 /**
+ * Split a YouTube-style "Artist - Song" title into artist and song, for
+ * lookups that need the real artist when the track's author is the uploading
+ * channel ("MoonWalker777"). Same side rules as `extractSongCore`, so the
+ * inverted "Song - Artist" form works too. Returns null when the title has
+ * no usable separator.
+ */
+export function splitArtistAndSong(
+    title: string,
+    author?: string,
+): { artist: string; song: string } | null {
+    // Featured artists go first: cleanTitle drops only the "ft." word and
+    // would leave "Beauty And A Beat Nicki Minaj", which Last.fm cannot match.
+    const unfeatured = dropFeaturedTail(dropFeaturedGroups(title))
+    const song = extractSongCore(unfeatured, author)
+    if (!song) return null
+    const cleaned = cleanTitle(unfeatured)
+    for (const sep of [' - ', ' \u2013 ', ' \u2014 ']) {
+        const idx = cleaned.indexOf(sep)
+        if (idx < 2 || idx > 60) continue
+        const left = cleaned.slice(0, idx).trim()
+        if (/[()[\]]/.test(left)) continue
+        const right = cleaned.slice(idx + sep.length).trim()
+        const artist = right.startsWith(song) ? left : right
+        if (artist.length < 2) return null
+        // Upload decorations cleanTitle keeps ("Ben 1972 (4K Remastered)"):
+        // Last.fm track names carry neither the tag nor the year.
+        const bareSong = dropTrailingYear(cutAtBracket(song))
+        return { artist, song: bareSong || song }
+    }
+    return null
+}
+
+// Index-based helpers below instead of regexes over the whole title: Sonar
+// S8786 flags the lazy/backtracking forms, and titles are user input.
+const FEAT_WORD = /^(?:feat|ft|featuring)\.? /i
+
+function cutAtBracket(value: string): string {
+    const idx = value.search(/[([]/)
+    return (idx === -1 ? value : value.slice(0, idx)).trim()
+}
+
+function dropTrailingYear(value: string): string {
+    const year = value.slice(-4)
+    const before = value.at(-5)
+    return /^(?:19|20)\d{2}$/.test(year) && before?.trim() === ''
+        ? value.slice(0, -4).trim()
+        : value
+}
+
+// "(feat. X)" / "[ft. X]" anywhere in the title.
+function dropFeaturedGroups(title: string): string {
+    let out = ''
+    let i = 0
+    while (i < title.length) {
+        const ch = title[i]
+        const close = ch === '(' ? ')' : ch === '[' ? ']' : ''
+        const end = close ? title.indexOf(close, i + 1) : -1
+        if (end !== -1 && FEAT_WORD.test(title.slice(i + 1, end).trimStart())) {
+            out = out.trimEnd()
+            i = end + 1
+            continue
+        }
+        out += ch
+        i++
+    }
+    return out
+}
+
+// Bare " ft. X" runs until the next dash separator, bracket or the end.
+function dropFeaturedTail(title: string): string {
+    const lower = title.toLowerCase()
+    for (let i = lower.indexOf(' '); i !== -1; i = lower.indexOf(' ', i + 1)) {
+        if (!FEAT_WORD.test(lower.slice(i + 1, i + 13))) continue
+        const rest = title.slice(i + 1)
+        const stops = [
+            rest.search(/ [-\u2013\u2014] /),
+            rest.search(/[([]/),
+        ].filter((n) => n !== -1)
+        const end = stops.length ? i + 1 + Math.min(...stops) : title.length
+        return dropFeaturedTail(title.slice(0, i) + title.slice(end))
+    }
+    return title
+}
+
+/**
  * True if a search query asks for a version variant (remix, acoustic, live,
  * etc.) by name. Unlike `hasVersionMarker`, this matches bare words — a typed
  * query has no parentheses/brackets to be structured in, and false positives

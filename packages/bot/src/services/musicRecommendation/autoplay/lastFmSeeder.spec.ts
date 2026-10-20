@@ -171,6 +171,30 @@ describe('searchLastFmQuery', () => {
         expect(searchMock).toHaveBeenCalledTimes(2)
     })
 
+    it('keeps the Spotify extractor off the non-Spotify arms', async () => {
+        // SpotifyExtractor.validate() accepts any text whatever the engine,
+        // so an unblocked YouTube arm is just another Spotify search.
+        const track = createTrack()
+        const queue = createQueue({ tracks: [] })
+        const searchMock = queue.player.search as jest.Mock
+        searchMock
+            .mockResolvedValueOnce({ tracks: [] })
+            .mockResolvedValueOnce({ tracks: [track] })
+
+        const result = await searchLastFmQuery(queue, 'q', createUser())
+
+        expect(result).toEqual([track])
+        expect(searchMock.mock.calls[0][1]).not.toHaveProperty(
+            'blockExtractors',
+        )
+        expect(searchMock.mock.calls[1][1]).toMatchObject({
+            searchEngine: QueryType.YOUTUBE_SEARCH,
+            blockExtractors: expect.arrayContaining([
+                'com.discord-player.itsmaat.spotifyextractor',
+            ]),
+        })
+    })
+
     describe('HOSTED_YOUTUBE_ENABLED = false (#2475)', () => {
         const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
 

@@ -62,6 +62,36 @@ docker-compose exec bot npm run sentry:test:dist --workspace=packages/bot
 
 The script emits a warning-level message with `trigger=manual-sentry-test` and waits for Sentry to flush before exiting. Use it once to confirm the project wiring, then rotate the DSN if it was exposed in screenshots, logs, or shell history.
 
+## Extraction failure fingerprinting (#2876)
+
+Player errors (`player-error` group, any provider) whose message matches a
+yt-dlp failure class are fingerprinted by `['player-error', provider, failure_class]`,
+where `failure_class` is one of `forbidden | botcheck | empty | timeout`. Player
+errors that match none of these (`other`) keep Sentry's default grouping, so a new
+distinct bug still opens its own issue.
+
+The `youtube-extraction-exhausted` message event is fingerprinted by
+`['youtube-extraction-exhausted', failure_class]`, where `failure_class` is the
+first YouTube failure of the play: `forbidden | botcheck | empty | timeout | other`
+(yt-dlp classes), `no_match` (search returned only rejected candidates),
+`breaker_open` (yt-dlp skipped because the 403 breaker is open), or `none` (no
+YouTube failure was recorded).
+
+This keeps each root cause in a single Sentry issue across redeploys, instead of
+creating a new group with every code change or stage-list update.
+
+### Resolving extraction-failure issues
+
+Only resolve a `player-error` or `youtube-extraction-exhausted` issue when the
+underlying fix has been **deployed to production**. Use **"Resolve in current release"**
+after the deploy, so Sentry re-opens the issue automatically if the same failure
+class reappears on that release or a later one.
+
+Do not resolve `forbidden` or `botcheck` classes in response to a temporary
+quiet period; they re-appear whenever YouTube access-denial resumes.
+
+---
+
 Dashboard: https://sentry.io/organizations/your-org/projects/
 
 For SDK usage and configuration, see [Sentry Node.js docs](https://docs.sentry.io/platforms/node/).
