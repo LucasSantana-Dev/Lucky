@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.63.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.63.2...v2.63.3) (2026-10-20)
+
+
+### Bug Fixes
+
+* **bot:** declare simple-ytdl-core, required by discord-player-youtubei 3.1.0 ([#2904](https://github.com/LucasSantana-Dev/Lucky/issues/2904)) ([09134e1](https://github.com/LucasSantana-Dev/Lucky/commit/09134e183c649a906185aa2430c6cf20998c1edc))
+* **bot:** no skip after stream failure, discord-player advanced ([#2907](https://github.com/LucasSantana-Dev/Lucky/issues/2907)) ([7977957](https://github.com/LucasSantana-Dev/Lucky/commit/7977957b2eacdfcece77ea796cdba2c0ff09c9f3))
+* **bot:** skip DRM-protected SoundCloud uploads without retries ([#2903](https://github.com/LucasSantana-Dev/Lucky/issues/2903)) ([3869b9d](https://github.com/LucasSantana-Dev/Lucky/commit/3869b9d7227537c56cf49f770909ade05bc5cfbc))
+* **bot:** stop autoplay after 3 stream failures in a row with one message ([#2905](https://github.com/LucasSantana-Dev/Lucky/issues/2905)) ([4030154](https://github.com/LucasSantana-Dev/Lucky/commit/4030154fc6c6416ad79372927d22f7a931d2df6d))
+* **shared:** keep the bot running when a queued play has no voice connection ([#2902](https://github.com/LucasSantana-Dev/Lucky/issues/2902)) ([e7d6475](https://github.com/LucasSantana-Dev/Lucky/commit/e7d6475e4212cc6e9c5dce1e8c1ed7a25aaeaeb9))
+
 ## [2.63.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.63.1...v2.63.2) (2026-10-19)
 
 
