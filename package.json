@@ -142,7 +142,7 @@
         "lodash": "4.18.1",
         "yauzl": "3.4.0",
         "picomatch": "4.0.5",
-        "follow-redirects": "1.16.0",
+        "follow-redirects": "1.16.1",
         "ip-address": "10.7.2",
         "esbuild": "0.28.1",
         "qs": "6.16.0",
