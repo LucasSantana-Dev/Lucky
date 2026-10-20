@@ -222,7 +222,7 @@
             "copyClone": "Copiar URL de clone"
         },
         "commands": {
-            "heading": "Comandos de música, onde você precisa",
+            "heading": "Comandos de música, onde você precisa deles",
             "rows": {
                 "play": {
                     "name": "/play",
@@ -255,7 +255,7 @@
                     "kbd": "música"
                 }
             },
-            "more": "+ mais no painel"
+            "more": "+ mais comandos com /help"
         },
         "stack": {
             "heading": "Para desenvolvedores — o que você está rodando",
@@ -314,7 +314,7 @@
                 },
                 "recap": {
                     "title": "Recap semanal automático",
-                    "description": "Toda segunda, o Lucky posta um resumo do que o servidor ouviu — top músicas, total de plays e sequências de escuta."
+                    "description": "Todo domingo, o Lucky posta um resumo do que o servidor ouviu: top músicas, total de plays e tempo de escuta."
                 },
                 "dashboard": {
                     "title": "Um painel web de verdade",

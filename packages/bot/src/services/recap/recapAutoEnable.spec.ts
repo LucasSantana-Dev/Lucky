@@ -17,7 +17,6 @@ jest.mock('@lucky/shared/services', () => ({
     recordActivationEvent: (...a: unknown[]) => recordActivationEventMock(...a),
 }))
 jest.mock('@lucky/shared/utils', () => ({
-    debugLog: jest.fn(),
     infoLog: (...a: unknown[]) => infoLogMock(...a),
 }))
 
@@ -113,5 +112,24 @@ describe('maybeAutoEnableRecap (#2738)', () => {
 
         await maybeAutoEnableRecap(guild, 'c-1', NOW)
         expect(autoEnableRecapMock).toHaveBeenCalledWith('g-1', 'c-1', NOW)
+    })
+
+    // #2860: the skip was a debug line, so prod logs never showed a guild
+    // that plays from a channel the recap cannot use.
+    it('reports an unusable play channel at info, once per guild', async () => {
+        resolveRecapChannelMock.mockResolvedValue({ reason: 'missing_channel' })
+
+        await maybeAutoEnableRecap(guild, 'c-voice', NOW)
+        await maybeAutoEnableRecap(guild, 'c-voice-2', NOW)
+
+        expect(infoLogMock).toHaveBeenCalledTimes(1)
+        expect(infoLogMock).toHaveBeenCalledWith({
+            message: 'recap: play channel unusable, auto-enable skipped',
+            data: {
+                guildId: 'g-1',
+                channelId: 'c-voice',
+                reason: 'missing_channel',
+            },
+        })
     })
 })
