@@ -601,6 +601,53 @@ describe('findMatchingSoundCloudResult – expected artist', () => {
         ).toBe(duo[1])
     })
 
+    // Prod 2026-10-20T17:34:29Z: the soundcloud-full query is "title author",
+    // and the official upload was scored against all of it (5 of 8 tokens,
+    // 0.63), so the exact title by the artist's own account was rejected.
+    const fiqueRico = {
+        name: 'Fique Rico ou Moralismo 2',
+        url,
+        durationInSec: 180,
+        user: { name: 'Froid' },
+    }
+
+    it('accepts the exact title by the artist when the query ends with the artist (fique rico regression)', () => {
+        expect(
+            findMatchingSoundCloudResult(
+                'Fique Rico ou Moralismo 2 Froid, Major RD',
+                '03:00',
+                [fiqueRico],
+                { expectedArtists: ['Froid, Major RD'] },
+            ),
+        ).toBe(fiqueRico)
+    })
+
+    it('still needs the title when the artist suffix is dropped', () => {
+        const results = [
+            { ...fiqueRico, name: 'Fique Rico' },
+            { ...fiqueRico, name: 'Fique Rico ou Moralismo 2 (Remix)' },
+            { ...fiqueRico, user: { name: 'Froid Fan' } },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Fique Rico ou Moralismo 2 Froid, Major RD',
+                '03:00',
+                results,
+                { expectedArtists: ['Froid, Major RD'] },
+            ),
+        ).toBeUndefined()
+    })
+
+    it('keeps the artist in the score when no artist is expected', () => {
+        expect(
+            findMatchingSoundCloudResult(
+                'Fique Rico ou Moralismo 2 Froid, Major RD',
+                '03:00',
+                [fiqueRico],
+            ),
+        ).toBeUndefined()
+    })
+
     it('does not let a short artist name match inside another word', () => {
         const results = [
             { name: 'Flashing Lights', url, user: { name: 'Eyes Only' } },
@@ -941,6 +988,25 @@ describe('streamViaSoundCloud', () => {
                 }),
             }),
         )
+    })
+
+    it('streams the official upload for a title plus artist query (fique rico regression)', async () => {
+        mockSearch.mockResolvedValue([
+            {
+                name: 'Fique Rico ou Moralismo 2',
+                url: 'https://soundcloud.com/froid/fique-rico',
+                durationInSec: 180,
+                user: { name: 'Froid' },
+            },
+        ])
+        mockStream.mockResolvedValue({ stream: fakeReadable })
+        await expect(
+            streamViaSoundCloud(
+                'Fique Rico ou Moralismo 2 Froid, Major RD',
+                '03:00',
+                { expectedArtists: ['Froid, Major RD'] },
+            ),
+        ).resolves.toBe(fakeReadable)
     })
 
     it('logs rejected candidates when nothing validates', async () => {
