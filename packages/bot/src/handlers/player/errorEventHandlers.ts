@@ -1,4 +1,4 @@
-import type { GuildQueue } from 'discord-player'
+import type { GuildQueue, Track } from 'discord-player'
 import {
     errorLog,
     warnLog,
@@ -17,7 +17,17 @@ import {
 } from './errorClassification'
 import { isReportedBridgeExhausted } from './bridgeExhaustedError'
 import { classifyYtDlpFailure } from './ytdlpBlockBreaker'
-import { notifyChannelStreamFailed } from './streamFailureNotifier'
+import {
+    notifyChannelAutoplayStopped,
+    notifyChannelStreamFailed,
+} from './streamFailureNotifier'
+import { isAutoplayTrack } from './autoplayOutcomeTracking'
+import {
+    AUTOPLAY_FAILURE_STREAK_LIMIT,
+    recordAutoplayStreamFailure,
+    resetAutoplayFailureStreak,
+} from './autoplayFailureStreak'
+import { setReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 import { settlePlayStartWatch } from './playStartWatch'
 import {
     handleYouTubeParserError,
@@ -78,9 +88,12 @@ export const setupErrorHandlers = (player: PlayerEvents): void => {
         })
     })
 
-    player.events.on('playerError', (queue: GuildQueue, error: Error) => {
-        void handlePlayerErrorSafely(queue, error)
-    })
+    player.events.on(
+        'playerError',
+        (queue: GuildQueue, error: Error, track?: Track) => {
+            void handlePlayerErrorSafely(queue, error, track)
+        },
+    )
 
     player.events.on('debug', (queue: GuildQueue, message: string) => {
         runSafely('Player queue debug handler failed:', () => {
@@ -119,9 +132,10 @@ export const setupErrorHandlers = (player: PlayerEvents): void => {
 async function handlePlayerErrorSafely(
     queue: GuildQueue,
     error: Error,
+    track?: Track,
 ): Promise<void> {
     try {
-        await handlePlayerError(queue, error)
+        await handlePlayerError(queue, error, track)
     } catch (err) {
         logHandlerFailure('Player error event handler failed:', err)
     }
@@ -148,14 +162,42 @@ function logPlayerError(
     }
 }
 
+// Same choice /clear makes: no refill until a non-autoplay track starts
+// (playerStart lifts it), 1h as the ceiling when nothing else plays.
+const AUTOPLAY_STOP_SUPPRESSION_MS = 60 * 60 * 1_000
+
+// discord-player has already moved to the next track when it emits
+// playerError for a stream failure (GuildQueuePlayerNode #throw dispatches it
+// right after the emit), so an autoplay failure needs no recovery and no skip
+// here. Runs before the handler's first await, so the clear below lands
+// before that dispatch and the queue simply ends.
+function handleAutoplayStreamFailure(queue: GuildQueue): void {
+    const guildId = queue.guild.id
+    const count = recordAutoplayStreamFailure(guildId)
+    if (count < AUTOPLAY_FAILURE_STREAK_LIMIT) return
+
+    resetAutoplayFailureStreak(guildId)
+    queue.tracks.clear()
+    setReplenishSuppressed(guildId, AUTOPLAY_STOP_SUPPRESSION_MS)
+    warnLog({
+        message: 'Autoplay stopped after consecutive stream failures',
+        data: { guildId, failedCount: count },
+    })
+    void notifyChannelAutoplayStopped(queue, count)
+}
+
+/**
+ * @param failedTrack the track discord-player failed to stream. Defaults to
+ * queue.currentTrack, which after a stream failure still points at the last
+ * track that actually played.
+ */
 export async function handlePlayerError(
     queue: GuildQueue,
     error: Error,
+    failedTrack: Track | undefined = queue.currentTrack ?? undefined,
 ): Promise<void> {
     try {
-        const currentTrackProvider = providerFromTrack(
-            queue.currentTrack ?? undefined,
-        )
+        const currentTrackProvider = providerFromTrack(failedTrack)
         providerHealthService.recordFailure(
             currentTrackProvider,
             Date.now(),
@@ -197,7 +239,7 @@ export async function handlePlayerError(
                     context: 'player-error',
                     guildId: queue.guild.id,
                     provider: currentTrackProvider,
-                    trackUrl: queue.currentTrack?.url,
+                    trackUrl: failedTrack?.url,
                 },
                 fingerprint,
             )
@@ -209,6 +251,15 @@ export async function handlePlayerError(
             error.message.includes('chooseFormat') ||
             error.message.includes('Bridge exhausted')
 
+        if (
+            isStreamExtractionError &&
+            failedTrack &&
+            isAutoplayTrack(failedTrack, queue.player?.client?.user?.id)
+        ) {
+            handleAutoplayStreamFailure(queue)
+            return
+        }
+
         if (isStreamExtractionError) {
             debugLog({
                 message:
@@ -216,9 +267,8 @@ export async function handlePlayerError(
             })
 
             try {
-                const currentTrack = queue.currentTrack
-                if (currentTrack) {
-                    await recoverFromStreamExtractionError(queue, currentTrack)
+                if (failedTrack) {
+                    await recoverFromStreamExtractionError(queue, failedTrack)
                 } else {
                     queue.node.skip()
                 }
@@ -227,7 +277,6 @@ export async function handlePlayerError(
                     'Failed to recover from stream extraction error:',
                     recoveryError,
                 )
-                const failedTrack = queue.currentTrack
                 if (
                     failedTrack &&
                     !settlePlayStartWatch(
