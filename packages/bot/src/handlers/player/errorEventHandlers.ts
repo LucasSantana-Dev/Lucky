@@ -266,11 +266,10 @@ export async function handlePlayerError(
                     'Detected stream extraction error, attempting recovery...',
             })
 
+            // No skip on any path here: discord-player already moved on.
             try {
                 if (failedTrack) {
                     await recoverFromStreamExtractionError(queue, failedTrack)
-                } else {
-                    queue.node.skip()
                 }
             } catch (recoveryError) {
                 logHandlerFailure(
@@ -287,7 +286,6 @@ export async function handlePlayerError(
                 ) {
                     await notifyChannelStreamFailed(queue, failedTrack.title)
                 }
-                queue.node.skip()
             }
         }
     } catch (handlerError) {

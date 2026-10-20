@@ -42,9 +42,6 @@ export const youtubeConfig = {
         // Whether to enable fallback search engines
         enableFallbacks: true,
 
-        // Whether to skip tracks on parser errors
-        skipOnParserError: true,
-
         // Whether to log parser errors as warnings instead of errors
         logParserErrorsAsWarnings: true,
     },

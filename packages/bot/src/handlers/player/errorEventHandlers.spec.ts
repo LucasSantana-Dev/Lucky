@@ -669,6 +669,27 @@ describe('errorEventHandlers', () => {
             expect(notifyChannelAutoplayStoppedMock).not.toHaveBeenCalled()
         })
 
+        it('tells the channel but does not skip when recovery throws', async () => {
+            const queue = makeQueue()
+            const userTrack = {
+                url: 'https://soundcloud.com/x/user-pick',
+                title: 'User Pick',
+                requestedBy: { id: 'user-1' },
+            }
+            jest.mocked(recoverFromStreamExtractionError).mockRejectedValueOnce(
+                new Error('search failed'),
+            )
+
+            await handlePlayerError(queue as any, exhausted(), userTrack as any)
+
+            expect(notifyChannelStreamFailedMock).toHaveBeenCalledWith(
+                queue,
+                'User Pick',
+            )
+            // discord-player already started the next track.
+            expect(queue.node.skip).not.toHaveBeenCalled()
+        })
+
         it('passes the track from the playerError event to the handler', async () => {
             const handlers: Record<string, PlayerErrorHandler> = {}
             setupErrorHandlers({
