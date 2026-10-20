@@ -59,7 +59,7 @@ describe('streamRecovery', () => {
     })
 
     describe('handleYouTubeParserError', () => {
-        it('logs YouTube error and skips track when config allows', () => {
+        it('logs YouTube error and leaves the advance to discord-player', () => {
             const queue = {
                 guild: { name: 'Guild 1' },
                 currentTrack: {
@@ -82,7 +82,7 @@ describe('streamRecovery', () => {
                 expect.stringContaining('Guild 1'),
                 'user-1',
             )
-            expect(queue.node.skip).toHaveBeenCalled()
+            expect(queue.node.skip).not.toHaveBeenCalled()
             expect(debugLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: expect.stringContaining('parser error'),
@@ -159,11 +159,11 @@ describe('streamRecovery', () => {
                 ]),
             })
             expect(queue.insertTrack).toHaveBeenCalledWith(alternativeTrack, 0)
-            expect(queue.node.skip).toHaveBeenCalled()
+            expect(queue.node.skip).not.toHaveBeenCalled()
             expect(recordSuccessMock).toHaveBeenCalledWith('youtube')
         })
 
-        it('skips when no requester is available', async () => {
+        it('gives up when no requester is available', async () => {
             const queue = {
                 guild: { id: 'guild-1', name: 'Guild 1' },
                 metadata: {},
@@ -185,10 +185,10 @@ describe('streamRecovery', () => {
                 queue,
                 'Song A',
             )
-            expect(queue.node.skip).toHaveBeenCalled()
+            expect(queue.node.skip).not.toHaveBeenCalled()
         })
 
-        it('skips when currentTrack has no title', async () => {
+        it('gives up when currentTrack has no title', async () => {
             const queue = {
                 guild: { id: 'guild-1', name: 'Guild 1' },
                 metadata: { requestedBy: { id: 'user-1' } },
@@ -211,10 +211,10 @@ describe('streamRecovery', () => {
                 queue,
                 '',
             )
-            expect(queue.node.skip).toHaveBeenCalled()
+            expect(queue.node.skip).not.toHaveBeenCalled()
         })
 
-        it('skips when YouTube search returns no results', async () => {
+        it('gives up when YouTube search returns no results', async () => {
             const queue = {
                 guild: { id: 'guild-1', name: 'Guild 1' },
                 metadata: { requestedBy: { id: 'user-1' } },
@@ -240,10 +240,10 @@ describe('streamRecovery', () => {
                 queue,
                 'Song A',
             )
-            expect(queue.node.skip).toHaveBeenCalled()
+            expect(queue.node.skip).not.toHaveBeenCalled()
         })
 
-        it('skips when search times out (returns null)', async () => {
+        it('gives up when search times out (returns null)', async () => {
             const queue = {
                 guild: { id: 'guild-1', name: 'Guild 1' },
                 metadata: { requestedBy: { id: 'user-1' } },
@@ -264,7 +264,7 @@ describe('streamRecovery', () => {
 
             expect(queue.insertTrack).not.toHaveBeenCalled()
             expect(notifyChannelStreamFailedMock).toHaveBeenCalled()
-            expect(queue.node.skip).toHaveBeenCalled()
+            expect(queue.node.skip).not.toHaveBeenCalled()
         })
 
         it('times out after 10s when YouTube search does not resolve', async () => {
@@ -299,13 +299,13 @@ describe('streamRecovery', () => {
                     queue,
                     'Hangs Song',
                 )
-                expect(queue.node.skip).toHaveBeenCalled()
+                expect(queue.node.skip).not.toHaveBeenCalled()
             } finally {
                 jest.useRealTimers()
             }
         })
 
-        it('skips without reinserting when all alternatives have same URL', async () => {
+        it('gives up without reinserting when all alternatives have same URL', async () => {
             const queue = {
                 guild: { id: 'guild-1', name: 'Guild 1' },
                 metadata: { requestedBy: { id: 'user-1' } },
@@ -334,7 +334,7 @@ describe('streamRecovery', () => {
             )
 
             expect(queue.insertTrack).not.toHaveBeenCalled()
-            expect(queue.node.skip).toHaveBeenCalled()
+            expect(queue.node.skip).not.toHaveBeenCalled()
             expect(warnLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     message: expect.stringContaining('same track alternative'),
@@ -357,7 +357,7 @@ describe('streamRecovery', () => {
                 }
             })
 
-            it('skips the YouTube search recovery and goes straight to failure/skip', async () => {
+            it('skips the YouTube search recovery and goes straight to the failure path', async () => {
                 const queue = {
                     guild: { id: 'guild-1', name: 'Guild 1' },
                     metadata: { requestedBy: { id: 'user-1' } },
@@ -382,7 +382,7 @@ describe('streamRecovery', () => {
                     queue,
                     'Song A',
                 )
-                expect(queue.node.skip).toHaveBeenCalled()
+                expect(queue.node.skip).not.toHaveBeenCalled()
             })
         })
     })
@@ -431,7 +431,7 @@ describe('streamRecovery', () => {
 
             await expect(watch.settled).resolves.toBe('gave_up')
             expect(notifyChannelStreamFailedMock).not.toHaveBeenCalled()
-            expect(queue.node.skip).toHaveBeenCalled()
+            expect(queue.node.skip).not.toHaveBeenCalled()
             closePlayStartWatch(watch)
         })
 
