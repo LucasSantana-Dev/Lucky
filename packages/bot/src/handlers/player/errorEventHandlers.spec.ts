@@ -4,12 +4,19 @@ import {
     BridgeExhaustedError,
     BRIDGE_EXHAUSTED_REPORTED_MARKER,
 } from './bridgeExhaustedError'
+import { recoverFromStreamExtractionError } from './streamRecovery'
+import {
+    recordAutoplayStreamFailure,
+    resetAutoplayFailureStreak,
+} from './autoplayFailureStreak'
 
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const warnLogMock = jest.fn()
 const captureExceptionMock = jest.fn()
 const notifyChannelStreamFailedMock = jest.fn()
+const notifyChannelAutoplayStoppedMock = jest.fn()
+const setReplenishSuppressedMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
@@ -54,6 +61,19 @@ jest.mock('./errorClassification', () => ({
 jest.mock('./streamFailureNotifier', () => ({
     notifyChannelStreamFailed: (...args: unknown[]) =>
         notifyChannelStreamFailedMock(...args),
+    notifyChannelAutoplayStopped: (...args: unknown[]) =>
+        notifyChannelAutoplayStoppedMock(...args),
+}))
+
+jest.mock('./autoplayOutcomeTracking', () => ({
+    isAutoplayTrack: (track: any, clientUserId?: string) =>
+        track.metadata?.isAutoplay === true ||
+        (clientUserId !== undefined && track.requestedBy?.id === clientUserId),
+}))
+
+jest.mock('../../services/musicManagement/replenishSuppressionStore', () => ({
+    setReplenishSuppressed: (...args: unknown[]) =>
+        setReplenishSuppressedMock(...args),
 }))
 
 jest.mock('./streamRecovery', () => ({
@@ -542,6 +562,136 @@ describe('errorEventHandlers', () => {
         it('still captures other player errors', async () => {
             await handlePlayerError(makeQueue() as any, new Error('boom'))
             expect(captureExceptionMock).toHaveBeenCalledTimes(1)
+        })
+    })
+
+    describe('autoplay stream failure streak (2026-10-20)', () => {
+        const wrapLikeDiscordPlayer = (inner: Error) =>
+            new Error(
+                `Could not extract stream for this track\n\n${inner.stack || inner}`,
+            )
+        const exhausted = () =>
+            wrapLikeDiscordPlayer(
+                new BridgeExhaustedError(
+                    'Bridge exhausted: no stream for "Pick"',
+                    true,
+                ),
+            )
+        // After a stream failure queue.currentTrack still holds the last
+        // track that played, not the one that failed.
+        const lastPlayed = {
+            url: 'https://youtube.com/watch?v=played',
+            title: "Hit 'Em Up Style (Oops!)",
+        }
+        const makeQueue = () => ({
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            currentTrack: lastPlayed,
+            player: { client: { user: { id: 'bot-id' } } },
+            node: { skip: jest.fn() },
+            tracks: { clear: jest.fn() },
+        })
+        const autoplayPick = (n: number) => ({
+            url: `https://soundcloud.com/x/pick-${n}`,
+            title: `Pick ${n}`,
+            requestedBy: { id: 'bot-id' },
+            metadata: { isAutoplay: true },
+        })
+
+        beforeEach(() => {
+            resetAutoplayFailureStreak('guild-1')
+        })
+
+        it('lets discord-player move on below the limit: no recovery, skip or message', async () => {
+            const queue = makeQueue()
+            await handlePlayerError(
+                queue as any,
+                exhausted(),
+                autoplayPick(1) as any,
+            )
+            await handlePlayerError(
+                queue as any,
+                exhausted(),
+                autoplayPick(2) as any,
+            )
+
+            expect(recoverFromStreamExtractionError).not.toHaveBeenCalled()
+            expect(queue.node.skip).not.toHaveBeenCalled()
+            expect(notifyChannelStreamFailedMock).not.toHaveBeenCalled()
+            expect(notifyChannelAutoplayStoppedMock).not.toHaveBeenCalled()
+            expect(queue.tracks.clear).not.toHaveBeenCalled()
+        })
+
+        it('stops autoplay with one message on the third failure in a row', async () => {
+            const queue = makeQueue()
+            for (const n of [1, 2, 3]) {
+                await handlePlayerError(
+                    queue as any,
+                    exhausted(),
+                    autoplayPick(n) as any,
+                )
+            }
+
+            expect(queue.tracks.clear).toHaveBeenCalledTimes(1)
+            expect(setReplenishSuppressedMock).toHaveBeenCalledWith(
+                'guild-1',
+                60 * 60 * 1_000,
+            )
+            expect(notifyChannelAutoplayStoppedMock).toHaveBeenCalledTimes(1)
+            expect(notifyChannelAutoplayStoppedMock).toHaveBeenCalledWith(
+                queue,
+                3,
+            )
+            expect(notifyChannelStreamFailedMock).not.toHaveBeenCalled()
+            // The bridge already reported each exhausted play once.
+            expect(captureExceptionMock).not.toHaveBeenCalled()
+        })
+
+        it('counts from zero again after a reset (playerStart)', () => {
+            recordAutoplayStreamFailure('guild-1')
+            recordAutoplayStreamFailure('guild-1')
+            resetAutoplayFailureStreak('guild-1')
+            expect(recordAutoplayStreamFailure('guild-1')).toBe(1)
+        })
+
+        it('recovers a user track by the failed track, not the stale currentTrack', async () => {
+            const queue = makeQueue()
+            const userTrack = {
+                url: 'https://soundcloud.com/x/user-pick',
+                title: 'User Pick',
+                requestedBy: { id: 'user-1' },
+            }
+            await handlePlayerError(queue as any, exhausted(), userTrack as any)
+
+            expect(recoverFromStreamExtractionError).toHaveBeenCalledWith(
+                queue,
+                userTrack,
+            )
+            expect(notifyChannelAutoplayStoppedMock).not.toHaveBeenCalled()
+        })
+
+        it('passes the track from the playerError event to the handler', async () => {
+            const handlers: Record<string, PlayerErrorHandler> = {}
+            setupErrorHandlers({
+                events: {
+                    on: (event: string, handler: PlayerErrorHandler) => {
+                        handlers[event] = handler
+                    },
+                },
+            } as any)
+            const queue = makeQueue()
+            const userTrack = {
+                url: 'https://soundcloud.com/x/event-track',
+                title: 'Event Track',
+                requestedBy: { id: 'user-1' },
+            }
+
+            handlers.playerError(queue, exhausted(), userTrack)
+            await new Promise((resolve) => setImmediate(resolve))
+
+            expect(recoverFromStreamExtractionError).toHaveBeenCalledWith(
+                queue,
+                userTrack,
+            )
         })
     })
 })
