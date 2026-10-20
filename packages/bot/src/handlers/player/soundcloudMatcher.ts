@@ -99,11 +99,41 @@ export async function refreshSoundCloudClientId(): Promise<void> {
     return refreshInFlight
 }
 
+/**
+ * A DRM-protected SoundCloud upload never streams: yt-dlp refuses it ("This
+ * video is DRM protected") and play-dl then crashes on the missing transcoding
+ * ("reading 'url'") after a client ID refresh. On 2026-10-20 one such upload
+ * was picked by all three bridge stages of every autoplay attempt, ~6s each.
+ * Known DRM urls are left out of the candidates for the rest of the process.
+ */
+const MAX_DRM_TRACKS = 500
+const drmTrackUrls = new Set<string>()
+
+export class SoundCloudDrmError extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = 'SoundCloudDrmError'
+    }
+}
+
+function isDrmProtectedError(error: unknown): boolean {
+    return error instanceof Error && /DRM protected/i.test(error.message)
+}
+
+function rememberDrmTrack(url: string): void {
+    drmTrackUrls.add(url)
+    if (drmTrackUrls.size > MAX_DRM_TRACKS) {
+        const oldest = drmTrackUrls.values().next().value
+        if (oldest !== undefined) drmTrackUrls.delete(oldest)
+    }
+}
+
 // Test-only: the cooldown above is module-level state, so tests that assert on
 // the refresh path must reset it between cases instead of relying on run order.
 export function __resetSoundCloudRefreshStateForTests(): void {
     refreshInFlight = null
     lastRefreshAt = 0
+    drmTrackUrls.clear()
 }
 
 function isTimeoutError(error: unknown): boolean {
@@ -191,10 +221,17 @@ export async function streamViaSoundCloud(
         throw new Error(`SoundCloud: no results for "${query}"`)
     }
 
+    const playable = results.filter((result) => !drmTrackUrls.has(result.url))
+    if (!playable.length) {
+        throw new SoundCloudDrmError(
+            `SoundCloud: only DRM-protected results for "${query}"`,
+        )
+    }
+
     const match = findMatchingSoundCloudResult(
         query,
         trackDuration,
-        results,
+        playable,
         options,
     )
     if (!match) {
@@ -230,6 +267,18 @@ export async function streamViaSoundCloud(
         try {
             return await streamViaYtDlp(match.permalink)
         } catch (err) {
+            // play-dl cannot stream it either, and its failure would also
+            // spend a client ID refresh. Skip straight to the next stage.
+            if (isDrmProtectedError(err)) {
+                rememberDrmTrack(match.url)
+                warnLog({
+                    message: 'SoundCloud: DRM-protected upload, skipping',
+                    data: { track: match.name, url: match.url },
+                })
+                throw new SoundCloudDrmError(
+                    `SoundCloud: "${match.name}" is DRM protected`,
+                )
+            }
             warnLog({
                 message: 'SoundCloud: yt-dlp stream failed, trying play-dl',
                 data: { track: match.name, error: (err as Error).message },
