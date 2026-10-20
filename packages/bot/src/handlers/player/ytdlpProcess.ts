@@ -7,7 +7,7 @@ import type { Readable } from 'node:stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
-import { classifyYtDlpFailure } from './ytdlpBlockBreaker'
+import { classifyYtDlpFailure, countYtDlpFailure } from './ytdlpBlockBreaker'
 
 // Absolute path, not a bare "yt-dlp" resolved via PATH lookup (CWE-426):
 // the Dockerfile symlinks the venv binary to this fixed location. Override
@@ -76,12 +76,32 @@ function validateYtDlpUrl(url: string): void {
 // prior cookie-less behavior when unset or the file isn't there.
 let loggedCookiesMissing = false
 let loggedCookiesApplied = false
+let cookiesRejectedWarnedAt = 0
+
+// "cookies file applied" only proves the file is readable. When the cookies
+// retry gets the same sign-in challenge, the session in the file is logged
+// out or expired, and every YouTube play falls to SoundCloud until someone
+// re-exports it (2026-10-19). Warn about that, at most once an hour.
+const COOKIES_REJECTED_WARN_COOLDOWN_MS = 60 * 60_000
 
 // Test-only: the log-once dedup above is module-level state, so tests that
 // assert on it must reset between cases instead of relying on run order.
 export function __resetYtdlpCookiesLogStateForTests(): void {
     loggedCookiesMissing = false
     loggedCookiesApplied = false
+    cookiesRejectedWarnedAt = 0
+}
+
+function warnCookiesRejected(cookiesFile: string | undefined): void {
+    const now = Date.now()
+    if (now - cookiesRejectedWarnedAt < COOKIES_REJECTED_WARN_COOLDOWN_MS)
+        return
+    cookiesRejectedWarnedAt = now
+    warnLog({
+        message:
+            'Bridge: yt-dlp still got the sign-in check with cookies, re-export the cookies file (secrets/README.md)',
+        data: { cookiesFile },
+    })
 }
 
 function isReadableFile(cookiesFile: string): boolean {
@@ -175,6 +195,11 @@ export function streamViaYtDlp(
     // bridge) only sees a 403 that also failed the retry.
     return spawnYtDlp(url, [], timeoutMs).catch((error: unknown) => {
         if (classifyYtDlpFailure(error) === 'forbidden') {
+            // Count the first 403 so Prometheus reflects every attempt, even
+            // those the retry recovers. The block breaker (recordYtDlpFailure
+            // in the bridge) only fires when the retry also fails (#2864).
+            // YouTube only: the metric and its alert describe YouTube blocks.
+            if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
             infoLog({
                 message: 'Bridge: yt-dlp got HTTP 403, retrying once',
                 data: { retry: 'forbidden' },
@@ -183,7 +208,16 @@ export function streamViaYtDlp(
         }
         const cookiesArgs = needsSignIn(error) ? ytdlpCookiesArgs() : []
         if (cookiesArgs.length === 0) throw error
-        return spawnYtDlp(url, cookiesArgs, timeoutMs)
+        // Count the first sign-in challenge too: the cookies retry may
+        // recover it, and the breaker only sees a failed retry (#2864).
+        if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
+        return spawnYtDlp(url, cookiesArgs, timeoutMs).catch(
+            (retryError: unknown) => {
+                if (needsSignIn(retryError))
+                    warnCookiesRejected(process.env.YTDLP_COOKIES_FILE)
+                throw retryError
+            },
+        )
     })
 }
 

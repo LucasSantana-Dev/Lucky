@@ -1,3 +1,5 @@
+import { QueryType } from 'discord-player'
+import { warnLog } from '@lucky/shared/utils'
 import type { CustomClient } from '../../types'
 import {
     musicControlService,
@@ -7,6 +9,9 @@ import {
 import { buildQueueState, repeatModeToEnum } from './mappers'
 import { resolveGuildQueue } from '../../services/musicManagement/queueResolver'
 import { setReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
+import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from '../../functions/music/commands/play/handlers/resolveProvider'
+import { isUrl } from '../../functions/music/commands/play/queryUtils'
+import { isHostedYoutubeEnabled } from '../../config/featureFlags'
 
 type Result = MusicCommandResult
 
@@ -29,6 +34,36 @@ async function publishAndOk(
     const state = await buildQueueState(client, cmd.guildId)
     await musicControlService.publishState(state)
     return ok(cmd.id, cmd.guildId)
+}
+
+// The dashboard searches with engine AUTO, so a plain text query lands on
+// SpotifyExtractor first (its validate() claims any text). When Spotify comes
+// back empty, discord-player does not try the next extractor, so retry the
+// text query on YouTube (when hosted) and SoundCloud with the same block list
+// as the /play fallback arms. URLs resolve to a known target and are not retried.
+async function searchDashboardQuery(client: CustomClient, query: string) {
+    const result = await client.player.search(query, { requestedBy: undefined })
+    if (result?.tracks.length || isUrl(query)) return result
+
+    const fallbackEngines = isHostedYoutubeEnabled()
+        ? [QueryType.YOUTUBE_SEARCH, QueryType.SOUNDCLOUD_SEARCH]
+        : [QueryType.SOUNDCLOUD_SEARCH]
+    for (const searchEngine of fallbackEngines) {
+        try {
+            const fallback = await client.player.search(query, {
+                requestedBy: undefined,
+                searchEngine,
+                blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
+            })
+            if (fallback?.tracks.length) return fallback
+        } catch (error) {
+            warnLog({
+                message: 'Dashboard play fallback search failed',
+                data: { query, searchEngine, error: String(error) },
+            })
+        }
+    }
+    return result
 }
 
 function getQueue(client: CustomClient, guildId: string) {
@@ -59,7 +94,7 @@ export async function handlePlay(
         return fail(cmd.id, cmd.guildId, 'Voice channel not found')
     }
 
-    const result = await client.player.search(query, { requestedBy: undefined })
+    const result = await searchDashboardQuery(client, query)
     if (!result?.tracks.length)
         return fail(cmd.id, cmd.guildId, 'No results found')
 

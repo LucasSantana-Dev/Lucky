@@ -54,6 +54,7 @@ import {
     shouldIncludeCandidate,
     upsertScoredCandidate,
 } from './candidateCollector'
+import { collectSeedSimilarCandidates } from './seedSimilarityCollector'
 import type { SessionMood } from './sessionMood'
 import type { AutoplayContext } from './autoplayContext'
 import {
@@ -244,6 +245,56 @@ describe('autoplay pipeline integration', () => {
             )
 
             expect(candidates.size).toBeGreaterThan(0)
+        })
+    })
+
+    describe('seed-similar with Spotify search down (2026-10-19)', () => {
+        it('still fills the pool through the YouTube arm', async () => {
+            // Same routing as discord-player: SpotifyExtractor has the top
+            // priority and claims any text query unless it is blocked, and
+            // its search was returning nothing for every query.
+            const similar = makeTrack({
+                title: 'Stronger',
+                author: 'Kanye West',
+                url: 'https://www.youtube.com/watch?v=stronger1',
+                id: 'stronger1',
+                source: 'youtube',
+            })
+            const currentTrack = makeTrack({
+                title: 'Flashing Lights',
+                author: 'Kanye West',
+                url: 'https://www.youtube.com/watch?v=flashing1',
+                id: 'flashing1',
+                source: 'youtube',
+            })
+            const queue = makeQueue(currentTrack)
+            ;(queue.player.search as jest.Mock).mockImplementation(
+                async (_query: unknown, options: unknown) => {
+                    const blocked =
+                        (options as { blockExtractors?: string[] })
+                            .blockExtractors ?? []
+                    const spotifyClaims = !blocked.includes(
+                        'com.discord-player.itsmaat.spotifyextractor',
+                    )
+                    return {
+                        tracks: spotifyClaims ? [] : [similar],
+                        playlist: null,
+                    }
+                },
+            )
+            jest.mocked(getSimilarTracks).mockResolvedValue([
+                { artist: 'Kanye West', title: 'Stronger', match: 0.9 },
+            ])
+            const candidates = new Map()
+
+            await collectSeedSimilarCandidates(
+                makeAutoplayContext({ queue, currentTrack }),
+                { id: 'user-1' } as never,
+                candidates,
+            )
+
+            expect([...candidates.keys()]).toHaveLength(1)
+            expect([...candidates.values()][0]!.track).toBe(similar)
         })
     })
 

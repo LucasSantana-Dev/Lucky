@@ -61,6 +61,16 @@ function markBreakerDegraded(): void {
     setExtractorDegraded('youtube', true)
 }
 
+/**
+ * Counts a yt-dlp failure in the Prometheus counter without updating the
+ * circuit breaker. Use for failures that are immediately retried: the first
+ * 403 before a retry-once attempt should be counted but must not open the
+ * breaker — only a 403 that also failed the retry reaches recordYtDlpFailure.
+ */
+export function countYtDlpFailure(error: unknown): void {
+    extractionFailuresTotal.inc({ type: classifyYtDlpFailure(error) })
+}
+
 export function recordYtDlpFailure(error: unknown, now = Date.now()): void {
     const type = classifyYtDlpFailure(error)
     extractionFailuresTotal.inc({ type })

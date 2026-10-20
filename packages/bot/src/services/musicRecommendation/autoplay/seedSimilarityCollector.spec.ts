@@ -6,6 +6,7 @@ const getSimilarTracksMock = jest.fn()
 const createArtistTagFetcherMock = jest.fn()
 const cleanSearchQueryMock = jest.fn()
 const cleanTitleMock = jest.fn()
+const splitArtistAndSongMock = jest.fn()
 const calculateRecommendationScoreMock = jest.fn()
 const normalizeTrackKeyMock = jest.fn()
 const shouldIncludeCandidateMock = jest.fn()
@@ -28,6 +29,7 @@ jest.mock('./artistTagCache', () => ({
 jest.mock('../../../utils/music/searchQueryCleaner', () => ({
     cleanSearchQuery: (...args: unknown[]) => cleanSearchQueryMock(...args),
     cleanTitle: (...args: unknown[]) => cleanTitleMock(...args),
+    splitArtistAndSong: (...args: unknown[]) => splitArtistAndSongMock(...args),
 }))
 
 jest.mock('./candidateScorer', () => ({
@@ -100,6 +102,7 @@ describe('collectSeedSimilarCandidates', () => {
             (t: unknown, a: unknown) => `${t} ${a}`,
         )
         cleanTitleMock.mockImplementation((s: unknown) => s)
+        splitArtistAndSongMock.mockReturnValue(null)
         normalizeTrackKeyMock.mockReturnValue('normalized-key')
         shouldIncludeCandidateMock.mockReturnValue(true)
         calculateRecommendationScoreMock.mockReturnValue({
@@ -150,6 +153,54 @@ describe('collectSeedSimilarCandidates', () => {
         )
         const call = upsertScoredCandidateMock.mock.calls[0]
         expect((call?.[2] as { source: string })?.source).toBe('seed-similar')
+    })
+
+    it('retries with the artist from a YouTube title when the channel author finds nothing', async () => {
+        getSimilarTracksMock.mockImplementation(async (artist: unknown) =>
+            artist === 'Michael Jackson'
+                ? [{ title: 'Sim', artist: 'SimA', match: 1 }]
+                : [],
+        )
+        splitArtistAndSongMock.mockReturnValue({
+            artist: 'Michael Jackson',
+            song: 'Ben',
+        })
+        searchLastFmQueryMock.mockResolvedValue([createTrack('Sim', 'SimA')])
+        const ctx = createAutoplayContext({
+            currentTrack: createTrack(
+                'Michael Jackson - Ben (4K Remastered)',
+                'MoonWalker777',
+            ),
+        })
+        const candidates = new Map()
+        await collectSeedSimilarCandidates(ctx, createUser(), candidates)
+
+        expect(getSimilarTracksMock).toHaveBeenNthCalledWith(
+            1,
+            'MoonWalker777',
+            'Michael Jackson - Ben (4K Remastered)',
+            expect.any(Number),
+        )
+        expect(getSimilarTracksMock).toHaveBeenNthCalledWith(
+            2,
+            'Michael Jackson',
+            'Ben',
+            expect.any(Number),
+        )
+        expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not reparse the title when the author lookup already found similars', async () => {
+        getSimilarTracksMock.mockResolvedValue([
+            { title: 'Sim', artist: 'SimA', match: 1 },
+        ])
+        const ctx = createAutoplayContext({
+            currentTrack: createTrack('Run - Live', 'Snow Patrol'),
+        })
+        await collectSeedSimilarCandidates(ctx, createUser(), new Map())
+
+        expect(splitArtistAndSongMock).not.toHaveBeenCalled()
+        expect(getSimilarTracksMock).toHaveBeenCalledTimes(1)
     })
 
     it('weights a perfect match (1.0) at full strength', async () => {

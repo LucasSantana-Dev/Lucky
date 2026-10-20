@@ -4,12 +4,44 @@ import {
     handleStop,
     handleSkip,
     handlePrevious,
+    handlePlay,
 } from './commandHandlers'
 
 const publishStateMock = jest.fn()
 const buildQueueStateMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
 const setReplenishSuppressedMock = jest.fn()
+const isHostedYoutubeEnabledMock = jest.fn(() => true)
+const FAKE_BLOCKED_EXTRACTORS = ['blocked-spotify', 'blocked-attachment']
+
+jest.mock('discord-player', () => ({
+    QueryType: {
+        YOUTUBE_SEARCH: 'youtubeSearch',
+        SOUNDCLOUD_SEARCH: 'soundcloudSearch',
+    },
+}))
+
+jest.mock('@lucky/shared/utils', () => ({
+    warnLog: jest.fn(),
+}))
+
+jest.mock(
+    '../../functions/music/commands/play/handlers/resolveProvider',
+    () => ({
+        TEXT_SEARCH_BLOCKED_EXTRACTORS: [
+            'blocked-spotify',
+            'blocked-attachment',
+        ],
+    }),
+)
+
+jest.mock('../../functions/music/commands/play/queryUtils', () => ({
+    isUrl: (query: string) => /^https?:\/\//i.test(query),
+}))
+
+jest.mock('../../config/featureFlags', () => ({
+    isHostedYoutubeEnabled: () => isHostedYoutubeEnabledMock(),
+}))
 
 jest.mock('@lucky/shared/services', () => ({
     musicControlService: {
@@ -275,5 +307,117 @@ describe('handlePrevious', () => {
 
         expect(result.success).toBe(false)
         expect(result.error).toBe('No active queue')
+    })
+})
+
+describe('handlePlay', () => {
+    const track = { title: 'Song' }
+    const empty = { tracks: [], playlist: null }
+    const found = { tracks: [track], playlist: null }
+
+    function setup(searchResults: unknown[]) {
+        const search = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+        for (const r of searchResults) search.mockResolvedValueOnce(r)
+        const addTrack = jest.fn()
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                addTrack,
+                node: {
+                    isPlaying: () => true,
+                    isPaused: () => false,
+                    play: jest.fn(),
+                },
+            },
+        })
+        const client = {
+            guilds: {
+                cache: {
+                    get: () => ({ channels: { cache: { get: () => ({}) } } }),
+                },
+            },
+            player: { search },
+        }
+        return { client, search, addTrack }
+    }
+
+    const cmd = (query: string) =>
+        ({ id: 'cmd-p', guildId: 'guild-1', data: { query } }) as any
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        buildQueueStateMock.mockResolvedValue({ guildId: 'guild-1' })
+        isHostedYoutubeEnabledMock.mockReturnValue(true)
+    })
+
+    it('keeps the AUTO search result when Spotify answers', async () => {
+        const { client, search, addTrack } = setup([found])
+
+        const result = await handlePlay(client as any, cmd('daft punk'))
+
+        expect(result.success).toBe(true)
+        expect(search).toHaveBeenCalledTimes(1)
+        expect(search).toHaveBeenCalledWith('daft punk', {
+            requestedBy: undefined,
+        })
+        expect(addTrack).toHaveBeenCalledWith(track)
+    })
+
+    it('falls back to SoundCloud with the block list when text search is empty', async () => {
+        isHostedYoutubeEnabledMock.mockReturnValue(false)
+        const { client, search, addTrack } = setup([empty, found])
+
+        const result = await handlePlay(client as any, cmd('daft punk'))
+
+        expect(result.success).toBe(true)
+        expect(search).toHaveBeenCalledTimes(2)
+        expect(search).toHaveBeenLastCalledWith('daft punk', {
+            requestedBy: undefined,
+            searchEngine: 'soundcloudSearch',
+            blockExtractors: FAKE_BLOCKED_EXTRACTORS,
+        })
+        expect(addTrack).toHaveBeenCalledWith(track)
+    })
+
+    it('tries YouTube before SoundCloud when hosted YouTube is enabled', async () => {
+        const { client, search } = setup([empty, empty, found])
+
+        const result = await handlePlay(client as any, cmd('daft punk'))
+
+        expect(result.success).toBe(true)
+        expect(
+            search.mock.calls.map((c) => (c[1] as any).searchEngine),
+        ).toEqual([undefined, 'youtubeSearch', 'soundcloudSearch'])
+    })
+
+    it('still tries SoundCloud when the YouTube fallback throws', async () => {
+        const { client, search } = setup([empty])
+        search.mockRejectedValueOnce(new Error('yt down'))
+        search.mockResolvedValueOnce(found)
+
+        const result = await handlePlay(client as any, cmd('daft punk'))
+
+        expect(result.success).toBe(true)
+        expect(search).toHaveBeenCalledTimes(3)
+    })
+
+    it('does not retry or block extractors for a URL query', async () => {
+        const url = 'https://open.spotify.com/track/abc'
+        const { client, search } = setup([empty])
+
+        const result = await handlePlay(client as any, cmd(url))
+
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('No results found')
+        expect(search).toHaveBeenCalledTimes(1)
+        expect(search).toHaveBeenCalledWith(url, { requestedBy: undefined })
+    })
+
+    it('reports no results when every fallback is empty', async () => {
+        const { client } = setup([empty, empty, empty])
+
+        const result = await handlePlay(client as any, cmd('nothing here'))
+
+        expect(result.success).toBe(false)
+        expect(result.error).toBe('No results found')
     })
 })
