@@ -51,6 +51,26 @@ describe('prometheus registry', () => {
         expect(text).toMatch(/service="lucky-bot"/)
     })
 
+    it('exports every extraction failure type at 0 before any failure (#2864)', async () => {
+        countMock.mockResolvedValue(0)
+
+        const text = await renderMetrics()
+
+        for (const type of [
+            'forbidden',
+            'botcheck',
+            'empty',
+            'timeout',
+            'other',
+        ]) {
+            expect(text).toMatch(
+                new RegExp(
+                    `lucky_bot_extraction_failures_total\\{[^}]*type="${type}"[^}]*\\}\\s+0`,
+                ),
+            )
+        }
+    })
+
     it('counts only guilds the bot actually joined', async () => {
         countMock.mockResolvedValue(0)
 

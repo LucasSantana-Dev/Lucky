@@ -205,6 +205,29 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         expect(spawnArgs(1)).not.toContain('--cookies')
     })
 
+    it('counts a recovered bot-check once as botcheck (#2864)', async () => {
+        readableCookies()
+        script(SIGN_IN, 'ok')
+        const incSpy = jest.spyOn(extractionFailuresTotal, 'inc')
+
+        await streamViaYtDlp(validUrl)
+
+        expect(incSpy).toHaveBeenCalledTimes(1)
+        expect(incSpy).toHaveBeenCalledWith({ type: 'botcheck' })
+        incSpy.mockRestore()
+    })
+
+    it('does not count a SoundCloud 403 as a YouTube failure (#2864)', async () => {
+        script(FORBIDDEN, 'ok')
+        const incSpy = jest.spyOn(extractionFailuresTotal, 'inc')
+
+        await streamViaYtDlp('https://soundcloud.com/artist/track')
+
+        expect(mockSpawn).toHaveBeenCalledTimes(2)
+        expect(incSpy).not.toHaveBeenCalled()
+        incSpy.mockRestore()
+    })
+
     it('gives up after a second 403 (one retry, no loop)', async () => {
         readableCookies()
         script(FORBIDDEN, FORBIDDEN, 'ok')
@@ -219,6 +242,41 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
 
         await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
         expect(mockSpawn).toHaveBeenCalledTimes(2)
+    })
+
+    const cookiesRejectedWarns = () =>
+        mockWarnLog.mock.calls.filter((call) =>
+            String(
+                (call[0] as { message?: string } | undefined)?.message,
+            ).includes('still got the sign-in check with cookies'),
+        )
+
+    it('warns once that the cookies are rejected when the cookies retry hits the sign-in check again', async () => {
+        readableCookies()
+        script(SIGN_IN, SIGN_IN, SIGN_IN, SIGN_IN)
+
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow(
+            'Sign in to confirm',
+        )
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow(
+            'Sign in to confirm',
+        )
+
+        expect(mockSpawn).toHaveBeenCalledTimes(4)
+        expect(cookiesRejectedWarns()).toHaveLength(1)
+        expect(cookiesRejectedWarns()[0]?.[0]).toMatchObject({
+            data: { cookiesFile: cookiesPath },
+        })
+    })
+
+    it('does not blame the cookies when the cookies retry streams or fails for another reason', async () => {
+        readableCookies()
+        script(SIGN_IN, 'ok', SIGN_IN, FORBIDDEN)
+
+        await streamViaYtDlp(validUrl)
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
+
+        expect(cookiesRejectedWarns()).toHaveLength(0)
     })
 
     it.each([
@@ -256,8 +314,12 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
             }
             expect(isYtDlpBlocked()).toBe(false)
             // recordYtDlpSuccess clears the streak, so also prove the failure
-            // recorder (metric + streak) was never reached.
-            expect(incSpy).not.toHaveBeenCalled()
+            // recorder was never reached: each first 403 is counted once by
+            // countYtDlpFailure (#2864); recordYtDlpFailure would add a second.
+            expect(incSpy).toHaveBeenCalledTimes(3)
+            for (const call of incSpy.mock.calls) {
+                expect(call[0]).toEqual({ type: 'forbidden' })
+            }
             incSpy.mockRestore()
         })
 

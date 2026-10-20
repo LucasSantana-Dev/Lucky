@@ -255,7 +255,7 @@
                     "kbd": "music"
                 }
             },
-            "more": "+ more in the dashboard"
+            "more": "+ more commands with /help"
         },
         "stack": {
             "heading": "For developers — what you're running",
@@ -314,7 +314,7 @@
                 },
                 "recap": {
                     "title": "Weekly recap, automatically",
-                    "description": "Every Monday, Lucky posts a digest of what the server listened to — top tracks, total plays, and listening streaks."
+                    "description": "Every Sunday, Lucky posts a digest of what the server listened to: top tracks, total plays, and listening time."
                 },
                 "dashboard": {
                     "title": "A real web dashboard",
