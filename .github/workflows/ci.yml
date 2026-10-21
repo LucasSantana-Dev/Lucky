@@ -708,6 +708,17 @@ jobs:
                   print('yt-dlp', m.version('yt-dlp'), 'yt-dlp-ejs', got, 'pinned', want)
                   assert got == want, 'yt-dlp-ejs version does not match the yt-dlp pin'
                   "
+                  # The po_token plugin imports yt-dlp's PO token framework,
+                  # and yt-dlp floats on rebuilds while the plugin is pinned.
+                  # A yt-dlp release that breaks the plugin fails here, not
+                  # silently in production (ADR 2026-06-18, 2026-10-21).
+                  docker run --rm lucky-bot:ci /opt/ytdlp/bin/python -c "
+                  import sys
+                  sys.path.insert(0, '/opt/ytdlp-plugins/bgutil-ytdlp-pot-provider')
+                  import yt_dlp.version
+                  from yt_dlp_plugins.extractor import getpot_bgutil_http as http
+                  print('yt-dlp', yt_dlp.version.__version__, 'bgutil plugin', http.BgUtilHTTPPTP.PROVIDER_VERSION)
+                  "
             # ESM load-time bugs (bare JSON imports, a missing file extension
             # add-js-extensions.js failed to patch, a circular import) pass every
             # other check and only surface when Node actually loads the built

@@ -54,7 +54,7 @@
 - [2026-06-21 - Move Message via Context Menu (relocate, not archive)](2026-06-21-move-message-context-menu.md)
 - [2026-06-18 - In-bot growth: a utility-first activation aid, not an acquisition lever](2026-06-18-in-bot-growth.md) - _accepted-with-revisions (in-bot = activation/retention; acquisition stays external)_
 - [2026-06-18 - Invite permission scope: graceful checks first, then a curated default + on-demand escalation](2026-06-18-invite-permission-scope.md) - _accepted-with-revisions (sequenced — #2 graceful checks ship BEFORE #1 the invite integer)_
-- [2026-06-18 - YouTube extraction reliability: classify-and-measure first, weekly yt-dlp refresh, defer Lavalink behind a gate](2026-06-18-youtube-extraction-reliability.md) - _accepted-with-revisions (measurement made real + bounded; big bets data-gated)_
+- [2026-06-18 - YouTube extraction reliability: classify-and-measure first, weekly yt-dlp refresh, defer Lavalink behind a gate](2026-06-18-youtube-extraction-reliability.md) - _accepted-with-revisions (measurement made real + bounded; big bets data-gated); amended 2026-10-21 (step 2, bgutil po_token provider: see Amendment at the end)_
 - [2026-06-17 - Growth channel sequencing: measure first, then directories, defer App Directory + SEO](2026-06-17-growth-channel-sequencing.md) - _accepted-with-revisions (sequencing gated behind a 2-week measurement sprint)_
 - [2026-06-17 - Hotfix to prod: a committed runbook over the workflow_dispatch fast-path](2026-06-17-hotfix-runbook-workflow-dispatch.md)
 - [2026-06-17 - ADR: Reactivate Renovate (App) + add a dark-period health guard](2026-06-17-renovate-reactivation.md)

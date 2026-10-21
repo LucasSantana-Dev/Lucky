@@ -131,6 +131,15 @@ jobs:
                 # the GitHub owner's case (LucasSantana-Dev), so normalize here.
                 IMAGE="$(printf '%s' "${{ env.IMAGE_PREFIX }}-${{ matrix.service }}" | tr '[:upper:]' '[:lower:]')"
                 docker run --rm "$IMAGE:${{ steps.meta.outputs.version }}" yt-dlp --version
+                # Same po_token plugin check as ci.yml: this build may pull a
+                # newer yt-dlp than the PR build did.
+                docker run --rm "$IMAGE:${{ steps.meta.outputs.version }}" /opt/ytdlp/bin/python -c "
+                import sys
+                sys.path.insert(0, '/opt/ytdlp-plugins/bgutil-ytdlp-pot-provider')
+                import yt_dlp.version
+                from yt_dlp_plugins.extractor import getpot_bgutil_http as http
+                print('yt-dlp', yt_dlp.version.__version__, 'bgutil plugin', http.BgUtilHTTPPTP.PROVIDER_VERSION)
+                "
 
             - name: Verify ESM module load — bot
               if: matrix.service == 'bot'

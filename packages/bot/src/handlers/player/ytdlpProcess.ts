@@ -140,6 +140,57 @@ function ytdlpCookiesArgs(): string[] {
     return ['--cookies', cookiesFile]
 }
 
+// ADR 2026-06-18, step 2 of the escalation ladder (amendment 2026-10-21):
+// a bgutil po_token provider. The plugin sits in its own plugin dir (see the
+// Dockerfile), outside yt-dlp's default search path, so it only loads when
+// YTDLP_POT_PROVIDER_URL is set and nothing changes while it is unset. If the
+// sidecar is down, the plugin's /ping fails fast and yt-dlp extracts without a
+// PO token, exactly as it does with the provider unset.
+const YTDLP_POT_PLUGIN_DIR =
+    process.env.YTDLP_POT_PLUGIN_DIR || '/opt/ytdlp-plugins'
+let loggedPotProvider = false
+
+export function __resetYtdlpPotLogStateForTests(): void {
+    loggedPotProvider = false
+}
+
+function ytdlpPotProviderArgs(url: string): string[] {
+    const baseUrl = process.env.YTDLP_POT_PROVIDER_URL
+    if (!baseUrl || !isYoutubeYtDlpTarget(url)) return []
+
+    let parsed: URL | undefined
+    try {
+        parsed = new URL(baseUrl)
+    } catch {
+        // Falls through to the warning below.
+    }
+    // `;` separates extractor args, so it must not reach the arg value.
+    const valid =
+        (parsed?.protocol === 'http:' || parsed?.protocol === 'https:') &&
+        !baseUrl.includes(';')
+    if (!loggedPotProvider) {
+        loggedPotProvider = true
+        if (valid) {
+            infoLog({
+                message: 'Bridge: yt-dlp po_token provider configured',
+                data: { origin: parsed?.origin },
+            })
+        } else {
+            warnLog({
+                message:
+                    'Bridge: YTDLP_POT_PROVIDER_URL is not an http(s) URL, running without a po_token provider',
+            })
+        }
+    }
+    if (!valid) return []
+    return [
+        '--plugin-dirs',
+        YTDLP_POT_PLUGIN_DIR,
+        '--extractor-args',
+        `youtubepot-bgutilhttp:base_url=${baseUrl}`,
+    ]
+}
+
 // #2141: the prior 6s budget (set by #2044) sat inside the normal latency
 // distribution rather than above it. Prod measurement with --cookies (the
 // live path then; since #2653 cookies only apply on a sign-in retry) gave a
@@ -258,6 +309,7 @@ function spawnYtDlp(
                 '--no-progress',
                 '--js-runtimes',
                 `node:${process.execPath}`,
+                ...ytdlpPotProviderArgs(url),
                 ...cookiesArgs,
                 url,
             ],
