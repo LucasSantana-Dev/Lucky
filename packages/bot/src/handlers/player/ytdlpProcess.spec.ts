@@ -494,13 +494,28 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
     // Runs up to the spawn of the cookies retry. Leaves fake timers on
     // (except setImmediate, so the scripted sign-in failure still fires);
     // the caller restores real timers.
-    async function startCookiesRetry() {
+    it('keeps a caller budget longer than the cookies one on the retry', async () => {
+        const longer = YTDLP_COOKIES_STREAM_START_TIMEOUT_MS + 5_000
+        try {
+            const { promise, isSettled } = await startCookiesRetry(longer)
+            jest.advanceTimersByTime(YTDLP_COOKIES_STREAM_START_TIMEOUT_MS)
+            await Promise.resolve()
+            expect(isSettled()).toBe(false)
+
+            jest.advanceTimersByTime(5_000)
+            await expect(promise).rejects.toThrow('yt-dlp: timed out')
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    async function startCookiesRetry(timeoutMs?: number) {
         readableCookies()
         script(SIGN_IN)
         const cookiesProc = makeFakeProc()
         mockSpawn.mockImplementationOnce(() => cookiesProc)
         jest.useFakeTimers({ doNotFake: ['setImmediate'] })
-        const promise = streamViaYtDlp(validUrl)
+        const promise = streamViaYtDlp(validUrl, timeoutMs)
         let settled = false
         promise.catch(() => undefined).finally(() => (settled = true))
         await new Promise((resolve) => setImmediate(resolve))

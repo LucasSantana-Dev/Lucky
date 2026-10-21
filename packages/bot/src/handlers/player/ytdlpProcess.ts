@@ -246,39 +246,50 @@ export function streamViaYtDlp(
     // throw. A failure of the retry itself propagates as is. The retry runs
     // inside this function, so the block breaker (recordYtDlpFailure in the
     // bridge) only sees a 403 that also failed the retry.
-    return spawnTimed(url, 'plain', [], timeoutMs).catch((error: unknown) => {
-        if (classifyYtDlpFailure(error) === 'forbidden') {
-            // Count the first 403 so Prometheus reflects every attempt, even
-            // those the retry recovers. The block breaker (recordYtDlpFailure
-            // in the bridge) only fires when the retry also fails (#2864).
-            // YouTube only: the metric and its alert describe YouTube blocks.
-            if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
-            infoLog({
-                message: 'Bridge: yt-dlp got HTTP 403, retrying once',
-                data: { retry: 'forbidden' },
-            })
-            return spawnTimed(url, 'forbidden_retry', [], timeoutMs)
-        }
-        const cookiesArgs = needsSignIn(error) ? ytdlpCookiesArgs() : []
-        if (cookiesArgs.length === 0) throw error
-        // Count the first sign-in challenge too: the cookies retry may
-        // recover it, and the breaker only sees a failed retry (#2864).
+    return spawnTimed(url, 'plain', [], timeoutMs).catch((error: unknown) =>
+        retryOnce(url, error, timeoutMs),
+    )
+}
+
+async function retryOnce(
+    url: string,
+    error: unknown,
+    timeoutMs: number,
+): Promise<Readable> {
+    if (classifyYtDlpFailure(error) === 'forbidden') {
+        // Count the first 403 so Prometheus reflects every attempt, even
+        // those the retry recovers. The block breaker (recordYtDlpFailure
+        // in the bridge) only fires when the retry also fails (#2864).
+        // YouTube only: the metric and its alert describe YouTube blocks.
         if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
-        return spawnTimed(
+        infoLog({
+            message: 'Bridge: yt-dlp got HTTP 403, retrying once',
+            data: { retry: 'forbidden' },
+        })
+        return spawnTimed(url, 'forbidden_retry', [], timeoutMs)
+    }
+    const cookiesArgs = needsSignIn(error) ? ytdlpCookiesArgs() : []
+    if (cookiesArgs.length === 0) throw error
+    // Count the first sign-in challenge too: the cookies retry may
+    // recover it, and the breaker only sees a failed retry (#2864).
+    if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
+    try {
+        // Never less than the caller asked for.
+        return await spawnTimed(
             url,
             'cookies',
             cookiesArgs,
-            YTDLP_COOKIES_STREAM_START_TIMEOUT_MS,
-        ).catch((retryError: unknown) => {
-            if (needsSignIn(retryError))
-                warnCookiesRejected(process.env.YTDLP_COOKIES_FILE)
-            // A slow logged-in start must not open the block breaker; see
-            // markYtDlpBudgetMiss.
-            if (classifyYtDlpFailure(retryError) === 'timeout')
-                markYtDlpBudgetMiss(retryError)
-            throw retryError
-        })
-    })
+            Math.max(timeoutMs, YTDLP_COOKIES_STREAM_START_TIMEOUT_MS),
+        )
+    } catch (retryError) {
+        if (needsSignIn(retryError))
+            warnCookiesRejected(process.env.YTDLP_COOKIES_FILE)
+        // A slow logged-in start must not open the block breaker; see
+        // markYtDlpBudgetMiss.
+        if (classifyYtDlpFailure(retryError) === 'timeout')
+            markYtDlpBudgetMiss(retryError)
+        throw retryError
+    }
 }
 
 // Deliberately broad: matches both the bot-check ("Sign in to confirm you're
