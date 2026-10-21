@@ -27,6 +27,14 @@ import { isExtractorDegraded, setExtractorDegraded } from './extractorHealth'
 // still counts it as 'timeout', but like 'other' it neither counts toward
 // the streak nor breaks it.
 //
+// One play can reach yt-dlp up to three times: a cached URL then a fresh
+// search (often of the same video), an empty search then the broad one, or a
+// failed pass then discord-player's fallback hit. Counting each one let a
+// single bad upload open the breaker for every guild. With `play`, only the
+// first failure of that play that counts joins the streak; a budget miss or
+// 'other' does not use up the play, so a later bot-check in it still counts.
+// The metric still counts every attempt.
+//
 // The breaker only clears the youtube degraded gauge it set itself, so a
 // boot-time registration failure (playerFactory) is never cleared by a
 // later yt-dlp success. The gauge clears when the block expires, even if
@@ -44,6 +52,7 @@ let blockedUntil = 0
 let degradedByBreaker = false
 let expiryTimer: ReturnType<typeof setTimeout> | undefined
 const budgetMisses = new WeakSet<object>()
+const countedPlays = new WeakSet<object>()
 
 export function markYtDlpBudgetMiss(error: unknown): void {
     if (typeof error === 'object' && error !== null) budgetMisses.add(error)
@@ -85,7 +94,11 @@ export function countYtDlpFailure(error: unknown): void {
     extractionFailuresTotal.inc({ type: classifyYtDlpFailure(error) })
 }
 
-export function recordYtDlpFailure(error: unknown, now = Date.now()): void {
+export function recordYtDlpFailure(
+    error: unknown,
+    now = Date.now(),
+    play?: object,
+): void {
     const type = classifyYtDlpFailure(error)
     extractionFailuresTotal.inc({ type })
     // 'forbidden' and 'botcheck' are access-denial signals.
@@ -94,6 +107,10 @@ export function recordYtDlpFailure(error: unknown, now = Date.now()): void {
     if (type === 'other') return
     if (typeof error === 'object' && error !== null && budgetMisses.has(error))
         return
+    if (play) {
+        if (countedPlays.has(play)) return
+        countedPlays.add(play)
+    }
     if (now - lastForbiddenAt >= FORBIDDEN_WINDOW_MS) consecutiveForbidden = 0
     lastForbiddenAt = now
     consecutiveForbidden += 1

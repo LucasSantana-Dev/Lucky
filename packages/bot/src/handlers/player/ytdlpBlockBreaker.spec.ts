@@ -210,6 +210,37 @@ describe('ytdlpBlockBreaker (#2653)', () => {
         expect(isYtDlpBlocked(5)).toBe(true)
     })
 
+    it('counts one streak failure per play, every attempt in the metric', () => {
+        const play = {}
+        recordYtDlpFailure(BOTCHECK, 1, play)
+        recordYtDlpFailure(FORBIDDEN, 2, play)
+        recordYtDlpFailure(BOTCHECK, 3, play)
+
+        expect(isYtDlpBlocked(3)).toBe(false)
+        expect(mockInc).toHaveBeenCalledTimes(3)
+    })
+
+    it('two plays with a bot-check each still open the block', () => {
+        recordYtDlpFailure(BOTCHECK, 1, {})
+        recordYtDlpFailure(BOTCHECK, 2, {})
+
+        expect(isYtDlpBlocked(2)).toBe(true)
+    })
+
+    it('a play whose first failure does not count still counts a later bot-check', () => {
+        const budgetMiss = new Error(
+            'yt-dlp: timed out waiting for stream start',
+        )
+        markYtDlpBudgetMiss(budgetMiss)
+        const play = {}
+        recordYtDlpFailure(AGE_GATE, 1, play)
+        recordYtDlpFailure(budgetMiss, 2, play)
+        recordYtDlpFailure(BOTCHECK, 3, play)
+        recordYtDlpFailure(BOTCHECK, 4, {})
+
+        expect(isYtDlpBlocked(4)).toBe(true)
+    })
+
     it('two bot-check failures open the block (#2744)', () => {
         recordYtDlpFailure(BOTCHECK, 1_000)
         recordYtDlpFailure(BOTCHECK, 2_000)

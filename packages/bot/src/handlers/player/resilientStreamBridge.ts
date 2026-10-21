@@ -85,6 +85,15 @@ const keepCachedEntry = new WeakSet<object>()
 // carry the marker that lets handlePlayerError skip its duplicate exception.
 const reportedExhausted = new WeakSet<object>()
 
+// The play each track belongs to, so the block breaker counts at most one
+// failure per play (see ytdlpBlockBreaker). A discord-player pass shares one
+// play across its generic and fallback calls.
+const breakerPlays = new WeakMap<object, object>()
+
+function recordYouTubeFailure(track: BridgeTrack, error: unknown): void {
+    recordYtDlpFailure(error, Date.now(), breakerPlays.get(track))
+}
+
 function noteFirstYouTubeFailure(track: BridgeTrack, error: unknown): void {
     if (!firstYouTubeFailure.has(track)) {
         firstYouTubeFailure.set(track, classifyYtDlpFailure(error))
@@ -180,7 +189,7 @@ async function attemptYtDlpUrl(
         return stream
     } catch (ytdlpError) {
         const durationMs = observeStage('ytdlp_url', startedAt, 'fail')
-        recordYtDlpFailure(ytdlpError)
+        recordYouTubeFailure(track, ytdlpError)
         addBreadcrumb(
             'YouTube extraction failed via yt-dlp URL',
             'music.youtube-extraction',
@@ -307,7 +316,7 @@ async function attemptYtDlpSearch(
         return outcome.stream
     } catch (ytSearchError) {
         const durationMs = observeStage('ytdlp_search', startedAt, 'fail')
-        recordYtDlpFailure(ytSearchError)
+        recordYouTubeFailure(track, ytSearchError)
         addBreadcrumb(
             'YouTube extraction failed via search',
             'music.youtube-extraction',
@@ -415,7 +424,7 @@ async function attemptBroadYtDlpSearch(
         return outcome.stream
     } catch (broadError) {
         const durationMs = observeStage('ytdlp_search_broad', startedAt, 'fail')
-        recordYtDlpFailure(broadError)
+        recordYouTubeFailure(track, broadError)
         addBreadcrumb(
             'YouTube broad search retry failed',
             'music.youtube-extraction',
@@ -461,7 +470,7 @@ async function attemptCachedSpotifySource(
         return { stream, killSwitch: false }
     } catch (error) {
         const durationMs = observeStage('ytdlp_search', startedAt, 'fail')
-        recordYtDlpFailure(error)
+        recordYouTubeFailure(track, error)
         addBreadcrumb(
             'YouTube extraction failed via cached Spotify source',
             'music.youtube-extraction',
@@ -890,6 +899,7 @@ export async function createResilientStream(
     ext?: unknown,
 ): Promise<Readable> {
     const passKey = currentPassKey(ext)
+    breakerPlays.set(track, passKey ?? {})
     if (passKey && exhaustedPasses.has(passKey)) {
         return retryExhaustedPass(
             track,
