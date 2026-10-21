@@ -7,7 +7,11 @@ import type { Readable } from 'node:stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
-import { classifyYtDlpFailure, countYtDlpFailure } from './ytdlpBlockBreaker'
+import {
+    classifyYtDlpFailure,
+    countYtDlpFailure,
+    markYtDlpBudgetMiss,
+} from './ytdlpBlockBreaker'
 
 // Absolute path, not a bare "yt-dlp" resolved via PATH lookup (CWE-426):
 // the Dockerfile symlinks the venv binary to this fixed location. Override
@@ -197,13 +201,62 @@ function ytdlpPotProviderArgs(url: string): string[] {
 // p100 of 7673ms, and the
 // 6s budget was killing 16.8% of otherwise-healthy resolutions. Set just
 // above that measured p100.
+//
+// Still right for a cookie-less attempt (prod 2026-10-13 to 10-17): direct
+// URL stream start 2.0-3.0s (n=10); search-path totals (flat search plus
+// stream start) p99 8.2s, p100 8.9s over n=433, and the flat search alone is
+// 1.4-2.4s (n=60), which leaves the stream start under 8s.
 export const YTDLP_STREAM_START_TIMEOUT_MS = 8_000
 
-// ytsearch adds a YouTube search round-trip on top of the audio stream start.
-// Its total observed p95 sits below the direct-URL p100, so a shorter budget
-// lets the bridge fail faster on degraded YouTube without cutting healthy
-// resolutions (#2742).
+// The cookies retry runs a logged-in session, and that stream start is slower
+// than a cookie-less one. Since 2026-10-19 the plain attempt hits the
+// bot-check on nearly every play (19 bot-checks in 3 days), so this retry is
+// the live path. Under the 8s budget 9 of 14 cookie retries (2026-10-19 to
+// 10-21) timed out and the play fell to SoundCloud; the 5 that streamed took
+// 5.8-7.5s. Those timeouts are cut at 8s, so the logs cannot give a p99:
+// this budget is a measurement ceiling, to be set just above the p99 of the
+// "Bridge: yt-dlp attempt" logs (attempt=cookies) once they accumulate.
+export const YTDLP_COOKIES_STREAM_START_TIMEOUT_MS = 15_000
+
+// Only streamViaYtDlpSearch (single-shot ytsearch1) uses this. The bridge's
+// search path lists candidates first (YTDLP_SEARCH_RESOLVE_TIMEOUT_MS) and
+// then streams the pick through streamViaYtDlp, so its stream start gets
+// YTDLP_STREAM_START_TIMEOUT_MS, not this (#2742).
 export const YTDLP_SEARCH_STREAM_TIMEOUT_MS = 7_000
+
+type YtDlpAttempt = 'plain' | 'forbidden_retry' | 'cookies'
+
+// The bridge's durationMs spans the search and every attempt, so on its own
+// it cannot tell a slow stream start from a slow search, or from a fast
+// sign-in failure followed by the cookies retry. One line per YouTube attempt
+// gives each phase its own number. SoundCloud is not logged: its budget is
+// not in question and it would double the volume.
+function spawnTimed(
+    url: string,
+    attempt: YtDlpAttempt,
+    cookiesArgs: string[],
+    timeoutMs: number,
+): Promise<Readable> {
+    if (!isYoutubeYtDlpTarget(url)) {
+        return spawnYtDlp(url, cookiesArgs, timeoutMs)
+    }
+    const startedAt = Date.now()
+    const report = (outcome: string) =>
+        infoLog({
+            message: 'Bridge: yt-dlp attempt',
+            data: { attempt, outcome, ms: Date.now() - startedAt, timeoutMs },
+        })
+    return spawnYtDlp(url, cookiesArgs, timeoutMs).then(
+        (stream) => {
+            report('ok')
+            return stream
+        },
+        (error: unknown) => {
+            report(classifyYtDlpFailure(error))
+            throw error
+        },
+    )
+}
 
 // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-positioning.md
 // point 3): this is the layer that actually spawns yt-dlp against YouTube, so
@@ -244,32 +297,50 @@ export function streamViaYtDlp(
     // throw. A failure of the retry itself propagates as is. The retry runs
     // inside this function, so the block breaker (recordYtDlpFailure in the
     // bridge) only sees a 403 that also failed the retry.
-    return spawnYtDlp(url, [], timeoutMs).catch((error: unknown) => {
-        if (classifyYtDlpFailure(error) === 'forbidden') {
-            // Count the first 403 so Prometheus reflects every attempt, even
-            // those the retry recovers. The block breaker (recordYtDlpFailure
-            // in the bridge) only fires when the retry also fails (#2864).
-            // YouTube only: the metric and its alert describe YouTube blocks.
-            if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
-            infoLog({
-                message: 'Bridge: yt-dlp got HTTP 403, retrying once',
-                data: { retry: 'forbidden' },
-            })
-            return spawnYtDlp(url, [], timeoutMs)
-        }
-        const cookiesArgs = needsSignIn(error) ? ytdlpCookiesArgs() : []
-        if (cookiesArgs.length === 0) throw error
-        // Count the first sign-in challenge too: the cookies retry may
-        // recover it, and the breaker only sees a failed retry (#2864).
+    return spawnTimed(url, 'plain', [], timeoutMs).catch((error: unknown) =>
+        retryOnce(url, error, timeoutMs),
+    )
+}
+
+async function retryOnce(
+    url: string,
+    error: unknown,
+    timeoutMs: number,
+): Promise<Readable> {
+    if (classifyYtDlpFailure(error) === 'forbidden') {
+        // Count the first 403 so Prometheus reflects every attempt, even
+        // those the retry recovers. The block breaker (recordYtDlpFailure
+        // in the bridge) only fires when the retry also fails (#2864).
+        // YouTube only: the metric and its alert describe YouTube blocks.
         if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
-        return spawnYtDlp(url, cookiesArgs, timeoutMs).catch(
-            (retryError: unknown) => {
-                if (needsSignIn(retryError))
-                    warnCookiesRejected(process.env.YTDLP_COOKIES_FILE)
-                throw retryError
-            },
+        infoLog({
+            message: 'Bridge: yt-dlp got HTTP 403, retrying once',
+            data: { retry: 'forbidden' },
+        })
+        return spawnTimed(url, 'forbidden_retry', [], timeoutMs)
+    }
+    const cookiesArgs = needsSignIn(error) ? ytdlpCookiesArgs() : []
+    if (cookiesArgs.length === 0) throw error
+    // Count the first sign-in challenge too: the cookies retry may
+    // recover it, and the breaker only sees a failed retry (#2864).
+    if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
+    try {
+        // Never less than the caller asked for.
+        return await spawnTimed(
+            url,
+            'cookies',
+            cookiesArgs,
+            Math.max(timeoutMs, YTDLP_COOKIES_STREAM_START_TIMEOUT_MS),
         )
-    })
+    } catch (retryError) {
+        if (needsSignIn(retryError))
+            warnCookiesRejected(process.env.YTDLP_COOKIES_FILE)
+        // A slow logged-in start must not open the block breaker; see
+        // markYtDlpBudgetMiss.
+        if (classifyYtDlpFailure(retryError) === 'timeout')
+            markYtDlpBudgetMiss(retryError)
+        throw retryError
+    }
 }
 
 // Deliberately broad: matches both the bot-check ("Sign in to confirm you're
@@ -321,7 +392,7 @@ function spawnYtDlp(
         // full duration before falling back to SoundCloud, so a long timeout
         // directly taxes perceived playback latency whenever yt-dlp is
         // degraded (rate-limited/blocked) rather than erroring fast. See the
-        // constant above for why this isn't shorter. The 403 retry adds one
+        // constants above for why these aren't shorter. The 403 retry adds one
         // more attempt only after a fast failure, never after a timeout.
         const timeout = setTimeout(() => {
             proc.kill()
@@ -394,8 +465,9 @@ export type YtSearchCandidate = {
 }
 
 // A flat search only fetches the results page (no player JS, no formats):
-// measured 1-2 s. The stream of the chosen video then gets its own
-// YTDLP_STREAM_START_TIMEOUT_MS, the same budget a direct URL play has.
+// prod 2026-10-14 to 10-20, 1.4-2.4s over n=60. The stream of the chosen
+// video then gets its own YTDLP_STREAM_START_TIMEOUT_MS, the same budget a
+// direct URL play has.
 export const YTDLP_SEARCH_RESOLVE_TIMEOUT_MS = 5_000
 const YTDLP_SEARCH_MAX_OUTPUT_BYTES = 64 * 1024
 

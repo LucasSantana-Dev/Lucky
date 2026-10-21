@@ -18,6 +18,15 @@ import { isExtractorDegraded, setExtractorDegraded } from './extractorHealth'
 // access-denial signals (#2744). The age gate ("Sign in to confirm your age")
 // is per-video and stays 'other'.
 //
+// A timeout of the cookies retry is a budget miss, not a YouTube-wide
+// signal: by then the plain attempt already got the bot-check, and a
+// logged-in stream start is normally slow (5.8-7.5s against the old 8s,
+// 2026-10-19 to 10-21). Counting it opened the breaker on slow starts and
+// switched YouTube off for everyone (52 exhausted vs 3 plays, 10-19T23:44Z
+// to 10-20T17:44Z). markYtDlpBudgetMiss tags such an error: the metric
+// still counts it as 'timeout', but like 'other' it neither counts toward
+// the streak nor breaks it.
+//
 // The breaker only clears the youtube degraded gauge it set itself, so a
 // boot-time registration failure (playerFactory) is never cleared by a
 // later yt-dlp success. The gauge clears when the block expires, even if
@@ -34,6 +43,11 @@ let lastForbiddenAt = 0
 let blockedUntil = 0
 let degradedByBreaker = false
 let expiryTimer: ReturnType<typeof setTimeout> | undefined
+const budgetMisses = new WeakSet<object>()
+
+export function markYtDlpBudgetMiss(error: unknown): void {
+    if (typeof error === 'object' && error !== null) budgetMisses.add(error)
+}
 
 export function classifyYtDlpFailure(error: unknown): YtDlpFailureType {
     const message = error instanceof Error ? error.message : String(error)
@@ -78,6 +92,8 @@ export function recordYtDlpFailure(error: unknown, now = Date.now()): void {
     // 'timeout' and 'empty' also count: repeated hangs or no-output results
     // indicate YouTube is degraded, not per-track issues (#2742).
     if (type === 'other') return
+    if (typeof error === 'object' && error !== null && budgetMisses.has(error))
+        return
     if (now - lastForbiddenAt >= FORBIDDEN_WINDOW_MS) consecutiveForbidden = 0
     lastForbiddenAt = now
     consecutiveForbidden += 1
