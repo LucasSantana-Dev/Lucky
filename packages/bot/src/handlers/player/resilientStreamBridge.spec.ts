@@ -796,7 +796,11 @@ describe('yt-dlp block breaker wiring (#2653)', () => {
 
         await createResilientStream(spotifyTrack())
 
-        expect(mockRecordYtDlpFailure).toHaveBeenCalledWith(error)
+        expect(mockRecordYtDlpFailure).toHaveBeenCalledWith(
+            error,
+            expect.any(Number),
+            expect.any(Object),
+        )
         expect(mockRecordYtDlpSuccess).not.toHaveBeenCalled()
     })
 
@@ -870,7 +874,11 @@ describe('Spotify source cache', () => {
 
         await createResilientStream(spotifyTrack())
 
-        expect(mockRecordYtDlpFailure).toHaveBeenCalledWith(error)
+        expect(mockRecordYtDlpFailure).toHaveBeenCalledWith(
+            error,
+            expect.any(Number),
+            expect.any(Object),
+        )
         expect(mockAddBreadcrumb).toHaveBeenCalledWith(
             'YouTube extraction failed via cached Spotify source',
             'music.youtube-extraction',
