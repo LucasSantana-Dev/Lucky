@@ -145,18 +145,21 @@ async function attemptYtDlpUrl(
 }
 
 type SearchOutcome =
-    | { stream: Readable; pick: ScoredYouTubeCandidate }
+    | { stream: Readable; pick: ScoredYouTubeCandidate; searchMs: number }
     | { stream: null; rejected: RejectedYouTubeCandidate[] }
 
 // Lists the top hits, plays the best one that passes validation, and never
 // plays an unvalidated hit: no match returns the rejected list instead.
+// searchMs splits the listing from the stream start in the success log.
 async function streamValidatedSearchHit(
     query: string,
     cleanedTitle: string,
     cleanedAuthor: string,
     track: BridgeTrack,
 ): Promise<SearchOutcome> {
+    const searchStartedAt = Date.now()
     const candidates = await searchYtDlpCandidates(query)
+    const searchMs = Date.now() - searchStartedAt
     const { pick, rejected } = pickYouTubeCandidate(
         {
             title: cleanedTitle,
@@ -168,7 +171,7 @@ async function streamValidatedSearchHit(
     )
     if (!pick) return { stream: null, rejected }
     const stream = await streamViaYtDlp(youtubeWatchUrl(pick.id))
-    return { stream, pick }
+    return { stream, pick, searchMs }
 }
 
 function describePick(pick: ScoredYouTubeCandidate) {
@@ -248,6 +251,7 @@ async function attemptYtDlpSearch(
                 query: ytQuery,
                 title: cleanedTitle,
                 ...describePick(outcome.pick),
+                searchMs: outcome.searchMs,
                 durationMs,
             },
         })
@@ -363,6 +367,7 @@ async function attemptBroadYtDlpSearch(
                 query: broadQuery,
                 title: cleanedTitle,
                 ...describePick(outcome.pick),
+                searchMs: outcome.searchMs,
                 durationMs,
             },
         })

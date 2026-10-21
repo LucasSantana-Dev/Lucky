@@ -30,6 +30,7 @@ import {
     searchYtDlpCandidates,
     streamViaYtDlp,
     streamViaYtDlpSearch,
+    YTDLP_COOKIES_STREAM_START_TIMEOUT_MS,
     YTDLP_SEARCH_RESOLVE_TIMEOUT_MS,
     YTDLP_STREAM_START_TIMEOUT_MS,
     __resetYtdlpCookiesLogStateForTests,
@@ -389,12 +390,96 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         script(SIGN_IN, 'ok', SIGN_IN, 'ok')
         await streamViaYtDlp(validUrl)
         await streamViaYtDlp(validUrl)
-        expect(mockInfoLog).toHaveBeenCalledTimes(1)
-        expect(mockInfoLog).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'Bridge: yt-dlp cookies file applied',
-            }),
+        const applied = mockInfoLog.mock.calls.filter(
+            (call) =>
+                (call[0] as { message?: string }).message ===
+                'Bridge: yt-dlp cookies file applied',
         )
+        expect(applied).toHaveLength(1)
+    })
+
+    const attemptLogs = () =>
+        mockInfoLog.mock.calls
+            .map((call) => call[0] as { message?: string; data?: unknown })
+            .filter((entry) => entry.message === 'Bridge: yt-dlp attempt')
+            .map((entry) => entry.data)
+
+    it('logs one timing line per YouTube attempt, with its kind and outcome', async () => {
+        readableCookies()
+        script(SIGN_IN, 'ok', FORBIDDEN, FORBIDDEN)
+
+        await streamViaYtDlp(validUrl)
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
+
+        const ms = expect.any(Number)
+        expect(attemptLogs()).toEqual([
+            {
+                attempt: 'plain',
+                outcome: 'botcheck',
+                ms,
+                timeoutMs: YTDLP_STREAM_START_TIMEOUT_MS,
+            },
+            {
+                attempt: 'cookies',
+                outcome: 'ok',
+                ms,
+                timeoutMs: YTDLP_COOKIES_STREAM_START_TIMEOUT_MS,
+            },
+            {
+                attempt: 'plain',
+                outcome: 'forbidden',
+                ms,
+                timeoutMs: YTDLP_STREAM_START_TIMEOUT_MS,
+            },
+            {
+                attempt: 'forbidden_retry',
+                outcome: 'forbidden',
+                ms,
+                timeoutMs: YTDLP_STREAM_START_TIMEOUT_MS,
+            },
+        ])
+    })
+
+    it('does not log attempt timings for SoundCloud', async () => {
+        script('ok')
+
+        await streamViaYtDlp('https://soundcloud.com/artist/track')
+
+        expect(attemptLogs()).toEqual([])
+    })
+
+    // 9 of 14 cookie retries timed out at 8s (2026-10-19 to 10-21): the
+    // logged-in stream start needs its own, longer budget.
+    it('gives the cookies retry its own budget, longer than the plain one', async () => {
+        readableCookies()
+        script(SIGN_IN)
+        const cookiesProc = makeFakeProc()
+        mockSpawn.mockImplementationOnce(() => cookiesProc)
+
+        // Real setImmediate so the scripted sign-in failure still fires.
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+        try {
+            const promise = streamViaYtDlp(validUrl)
+            let settled = false
+            promise.catch(() => undefined).finally(() => (settled = true))
+            await new Promise((resolve) => setImmediate(resolve))
+            await new Promise((resolve) => setImmediate(resolve))
+            expect(mockSpawn).toHaveBeenCalledTimes(2)
+
+            jest.advanceTimersByTime(YTDLP_STREAM_START_TIMEOUT_MS)
+            await Promise.resolve()
+            expect(settled).toBe(false)
+            expect(cookiesProc.kill).not.toHaveBeenCalled()
+
+            jest.advanceTimersByTime(
+                YTDLP_COOKIES_STREAM_START_TIMEOUT_MS -
+                    YTDLP_STREAM_START_TIMEOUT_MS,
+            )
+            await expect(promise).rejects.toThrow('yt-dlp: timed out')
+            expect(cookiesProc.kill).toHaveBeenCalled()
+        } finally {
+            jest.useRealTimers()
+        }
     })
 })
 
