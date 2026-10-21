@@ -39,6 +39,7 @@ import {
 } from './bridgeExhaustedError'
 import {
     classifyYtDlpFailure,
+    countYtDlpFailure,
     isYtDlpBlocked,
     recordYtDlpFailure,
     recordYtDlpSuccess,
@@ -73,6 +74,21 @@ const broadSearchTried = new WeakSet<object>()
 // Tracks whose all-exhausted event was already sent, so the final throw can
 // carry the marker that lets handlePlayerError skip its duplicate exception.
 const reportedExhausted = new WeakSet<object>()
+
+// Tracks whose play already counted one failure toward the yt-dlp block
+// breaker. The cached URL, the search and the broad retry (or the fallback
+// pass's URL attempt) often fail on the same video or for the same reason,
+// and two counts from one track opened the breaker for every guild. Later
+// failures of the same play still reach the extraction metric.
+const breakerCounted = new WeakSet<object>()
+
+function recordPlayYtDlpFailure(track: BridgeTrack, error: unknown): void {
+    if (breakerCounted.has(track)) {
+        countYtDlpFailure(error)
+        return
+    }
+    if (recordYtDlpFailure(error)) breakerCounted.add(track)
+}
 
 function noteFirstYouTubeFailure(track: BridgeTrack, error: unknown): void {
     if (!firstYouTubeFailure.has(track)) {
@@ -129,7 +145,7 @@ async function attemptYtDlpUrl(
         return stream
     } catch (ytdlpError) {
         const durationMs = observeStage('ytdlp_url', startedAt, 'fail')
-        recordYtDlpFailure(ytdlpError)
+        recordPlayYtDlpFailure(track, ytdlpError)
         addBreadcrumb(
             'YouTube extraction failed via yt-dlp URL',
             'music.youtube-extraction',
@@ -267,7 +283,7 @@ async function attemptYtDlpSearch(
         return outcome.stream
     } catch (ytSearchError) {
         const durationMs = observeStage('ytdlp_search', startedAt, 'fail')
-        recordYtDlpFailure(ytSearchError)
+        recordPlayYtDlpFailure(track, ytSearchError)
         addBreadcrumb(
             'YouTube extraction failed via search',
             'music.youtube-extraction',
@@ -383,7 +399,7 @@ async function attemptBroadYtDlpSearch(
         return outcome.stream
     } catch (broadError) {
         const durationMs = observeStage('ytdlp_search_broad', startedAt, 'fail')
-        recordYtDlpFailure(broadError)
+        recordPlayYtDlpFailure(track, broadError)
         addBreadcrumb(
             'YouTube broad search retry failed',
             'music.youtube-extraction',
@@ -429,7 +445,7 @@ async function attemptCachedSpotifySource(
         return { stream, killSwitch: false }
     } catch (error) {
         const durationMs = observeStage('ytdlp_search', startedAt, 'fail')
-        recordYtDlpFailure(error)
+        recordPlayYtDlpFailure(track, error)
         addBreadcrumb(
             'YouTube extraction failed via cached Spotify source',
             'music.youtube-extraction',
@@ -791,6 +807,9 @@ function logAllStagesExhausted(
 const exhaustedPasses = new WeakMap<object, string | null>()
 // Passes whose first failure already sent the all-exhausted event.
 const reportedPasses = new WeakSet<object>()
+// Passes whose first call already counted toward the yt-dlp block breaker:
+// the second call is the same play, so its URL attempt must not count again.
+const breakerCountedPasses = new WeakSet<object>()
 
 function currentPassKey(ext: unknown): object | null {
     try {
@@ -813,6 +832,7 @@ export async function createResilientStream(
             track,
             exhaustedPasses.get(passKey) ?? null,
             reportedPasses.has(passKey),
+            breakerCountedPasses.has(passKey),
         )
     }
 
@@ -830,6 +850,7 @@ export async function createResilientStream(
         if (passKey) {
             exhaustedPasses.set(passKey, track.url ?? null)
             if (isReportedBridgeExhausted(error)) reportedPasses.add(passKey)
+            if (breakerCounted.has(track)) breakerCountedPasses.add(passKey)
         }
         debugLog({
             message: 'Bridge: failed',
@@ -851,6 +872,7 @@ async function retryExhaustedPass(
     track: BridgeTrack,
     failedUrl: string | null,
     reported: boolean,
+    breakerAlreadyCounted: boolean,
 ): Promise<Readable> {
     const url = track.url
     const canRescue =
@@ -859,6 +881,8 @@ async function retryExhaustedPass(
         !isHost(url as string, 'open.spotify.com') &&
         !isYtDlpBlocked()
     if (canRescue) {
+        if (breakerAlreadyCounted) breakerCounted.add(track)
+        else breakerCounted.delete(track)
         const stream = await attemptYtDlpUrl(track, cleanTitle(track.title))
         if (stream) return stream
     }
@@ -912,6 +936,7 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     // failure class so this play's event is fingerprinted by its own cause.
     firstYouTubeFailure.delete(track)
     reportedExhausted.delete(track)
+    breakerCounted.delete(track)
     clearBridgeStamps(track)
 
     // YouTube is answering media downloads with 403: skip yt-dlp instead of

@@ -210,6 +210,17 @@ describe('ytdlpBlockBreaker (#2653)', () => {
         expect(isYtDlpBlocked(5)).toBe(true)
     })
 
+    it('reports whether a failure counted toward the streak', () => {
+        const budgetMiss = new Error(
+            'yt-dlp: timed out waiting for stream start',
+        )
+        markYtDlpBudgetMiss(budgetMiss)
+
+        expect(recordYtDlpFailure(FORBIDDEN, 1)).toBe(true)
+        expect(recordYtDlpFailure(AGE_GATE, 2)).toBe(false)
+        expect(recordYtDlpFailure(budgetMiss, 3)).toBe(false)
+    })
+
     it('two bot-check failures open the block (#2744)', () => {
         recordYtDlpFailure(BOTCHECK, 1_000)
         recordYtDlpFailure(BOTCHECK, 2_000)

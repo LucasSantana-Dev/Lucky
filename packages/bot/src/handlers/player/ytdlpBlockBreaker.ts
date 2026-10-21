@@ -27,6 +27,12 @@ import { isExtractorDegraded, setExtractorDegraded } from './extractorHealth'
 // still counts it as 'timeout', but like 'other' it neither counts toward
 // the streak nor breaks it.
 //
+// One bridge play counts at most once (the bridge checks the return value of
+// recordYtDlpFailure). Its cached URL, search, broad retry and discord-player's
+// fallback pass often fail on the same video or for the same reason, so before
+// that a single track could open the breaker alone and switch yt-dlp off for
+// every guild. The threshold now means two plays.
+//
 // The breaker only clears the youtube degraded gauge it set itself, so a
 // boot-time registration failure (playerFactory) is never cleared by a
 // later yt-dlp success. The gauge clears when the block expires, even if
@@ -85,15 +91,16 @@ export function countYtDlpFailure(error: unknown): void {
     extractionFailuresTotal.inc({ type: classifyYtDlpFailure(error) })
 }
 
-export function recordYtDlpFailure(error: unknown, now = Date.now()): void {
+/** Returns whether the failure counted toward the streak. */
+export function recordYtDlpFailure(error: unknown, now = Date.now()): boolean {
     const type = classifyYtDlpFailure(error)
     extractionFailuresTotal.inc({ type })
     // 'forbidden' and 'botcheck' are access-denial signals.
     // 'timeout' and 'empty' also count: repeated hangs or no-output results
     // indicate YouTube is degraded, not per-track issues (#2742).
-    if (type === 'other') return
+    if (type === 'other') return false
     if (typeof error === 'object' && error !== null && budgetMisses.has(error))
-        return
+        return false
     if (now - lastForbiddenAt >= FORBIDDEN_WINDOW_MS) consecutiveForbidden = 0
     lastForbiddenAt = now
     consecutiveForbidden += 1
@@ -101,6 +108,7 @@ export function recordYtDlpFailure(error: unknown, now = Date.now()): void {
         blockedUntil = now + YTDLP_BLOCK_COOLDOWN_MS
         markBreakerDegraded()
     }
+    return true
 }
 
 export function recordYtDlpSuccess(): void {

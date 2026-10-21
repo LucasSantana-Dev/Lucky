@@ -21,12 +21,18 @@ const mockSpotifyCacheInc = jest.fn()
 const mockGetSpotifySource = jest.fn()
 const mockSetSpotifySource = jest.fn()
 const mockSetSpotifySourceNegative = jest.fn()
+const mockExtractionFailuresInc = jest.fn()
 
 jest.mock('../../utils/monitoring/prometheus', () => ({
     playStageSeconds: { observe: (...args: unknown[]) => mockObserve(...args) },
     spotifyCacheTotal: {
         inc: (...args: unknown[]) => mockSpotifyCacheInc(...args),
     },
+    // Only reached by the real breaker in the one-count-per-play suite.
+    extractionFailuresTotal: {
+        inc: (...args: unknown[]) => mockExtractionFailuresInc(...args),
+    },
+    musicExtractorDegradedGauge: { set: jest.fn() },
 }))
 
 const NEGATIVE_SENTINEL = '__negative__'
@@ -107,6 +113,7 @@ jest.mock('./youtubeiNativeStream', () => ({
 const mockIsYtDlpBlocked = jest.fn(() => false)
 const mockRecordYtDlpFailure = jest.fn()
 const mockRecordYtDlpSuccess = jest.fn()
+const mockCountYtDlpFailure = jest.fn()
 jest.mock('./ytdlpBlockBreaker', () => ({
     classifyYtDlpFailure: (error: unknown) =>
         (
@@ -117,6 +124,7 @@ jest.mock('./ytdlpBlockBreaker', () => ({
     isYtDlpBlocked: () => mockIsYtDlpBlocked(),
     recordYtDlpFailure: (...args: unknown[]) => mockRecordYtDlpFailure(...args),
     recordYtDlpSuccess: () => mockRecordYtDlpSuccess(),
+    countYtDlpFailure: (...args: unknown[]) => mockCountYtDlpFailure(...args),
 }))
 
 import { isReportedBridgeExhausted } from './bridgeExhaustedError'
@@ -1749,5 +1757,160 @@ describe('youtubei native stage', () => {
         await createResilientStream(track)
 
         expect(mockClearBridgeStamps).toHaveBeenCalledWith(track)
+    })
+})
+
+// ---------------------------------------------------------------------------
+// One bridge play counts at most once toward the block breaker
+// ---------------------------------------------------------------------------
+
+describe('yt-dlp block breaker counts one failure per play', () => {
+    type Breaker = typeof import('./ytdlpBlockBreaker')
+    const breaker = jest.requireActual('./ytdlpBlockBreaker') as Breaker
+    const forbidden = () => new Error('ERROR: HTTP Error 403: Forbidden')
+    const botcheck = () =>
+        new Error("ERROR: Sign in to confirm you're not a bot")
+    const makeExt = (scope: object) => ({
+        context: { getContext: () => scope },
+    })
+    const failureTypes = () =>
+        mockExtractionFailuresInc.mock.calls.map(
+            (c) => (c[0] as { type: string }).type,
+        )
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockCleanTitle.mockReturnValue('Test Track')
+        mockCleanAuthor.mockReturnValue('Test Artist')
+        mockCleanSearchQuery.mockReturnValue('test track test artist')
+        mockExtractSongCore.mockReturnValue(null)
+        mockIsAvailable.mockReturnValue(true)
+        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+        // The real breaker, so the test sees whether it opens.
+        breaker.recordYtDlpSuccess()
+        mockIsYtDlpBlocked.mockImplementation(() => breaker.isYtDlpBlocked())
+        mockRecordYtDlpFailure.mockImplementation((error) =>
+            breaker.recordYtDlpFailure(error),
+        )
+        mockRecordYtDlpSuccess.mockImplementation(() =>
+            breaker.recordYtDlpSuccess(),
+        )
+        mockCountYtDlpFailure.mockImplementation((error) =>
+            breaker.countYtDlpFailure(error),
+        )
+    })
+
+    afterEach(() => {
+        breaker.recordYtDlpSuccess()
+        mockIsYtDlpBlocked.mockImplementation(() => false)
+        mockRecordYtDlpFailure.mockReset()
+        mockRecordYtDlpSuccess.mockReset()
+        mockCountYtDlpFailure.mockReset()
+        mockStreamViaYtDlp.mockReset()
+        mockSearchYtDlpCandidates.mockReset()
+    })
+
+    it('does not open on a stale Spotify cache hit and a fresh search of the same video', async () => {
+        mockGetSpotifySource.mockResolvedValue(
+            'https://www.youtube.com/watch?v=vid123',
+        )
+        mockSearchYtDlpCandidates.mockResolvedValue([hit()])
+        mockStreamViaYtDlp.mockRejectedValue(forbidden())
+
+        await createResilientStream(
+            makeTrack({ url: 'https://open.spotify.com/track/stale' }),
+        )
+
+        expect(mockStreamViaYtDlp).toHaveBeenCalledTimes(2)
+        expect(breaker.isYtDlpBlocked()).toBe(false)
+        // The metric still sees both failures.
+        expect(failureTypes()).toEqual(['forbidden', 'forbidden'])
+    })
+
+    it('does not open on an empty search followed by a failed broad retry', async () => {
+        mockSearchYtDlpCandidates
+            .mockRejectedValueOnce(new Error('yt-dlp exited without output'))
+            .mockRejectedValueOnce(botcheck())
+
+        await createResilientStream(
+            makeTrack({ url: 'https://open.spotify.com/track/niche' }),
+        )
+
+        expect(mockSearchYtDlpCandidates).toHaveBeenCalledTimes(2)
+        expect(breaker.isYtDlpBlocked()).toBe(false)
+        expect(failureTypes()).toEqual(['empty', 'botcheck'])
+    })
+
+    it("does not open on a URL failure and discord-player's fallback pass", async () => {
+        mockStreamViaYtDlp.mockRejectedValue(forbidden())
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
+        const ext = makeExt({ id: 'one-play' })
+
+        await expect(
+            createResilientStream(
+                makeTrack({ url: 'https://youtube.com/watch?v=a' }),
+                ext,
+            ),
+        ).rejects.toThrow('Bridge exhausted')
+        await expect(
+            createResilientStream(
+                makeTrack({ url: 'https://youtube.com/watch?v=b' }),
+                ext,
+            ),
+        ).rejects.toThrow('Bridge exhausted')
+
+        expect(mockStreamViaYtDlp).toHaveBeenCalledTimes(2)
+        expect(breaker.isYtDlpBlocked()).toBe(false)
+        expect(failureTypes()).toEqual(['forbidden', 'forbidden'])
+    })
+
+    it('still counts a later failure when the first one of the play did not count', async () => {
+        mockStreamViaYtDlp
+            .mockRejectedValueOnce(new Error('Video unavailable'))
+            .mockRejectedValue(forbidden())
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
+        const ext = makeExt({ id: 'other-then-403' })
+
+        await createResilientStream(
+            makeTrack({ url: 'https://youtube.com/watch?v=a' }),
+            ext,
+        ).catch(() => undefined)
+        await createResilientStream(
+            makeTrack({ url: 'https://youtube.com/watch?v=b' }),
+            ext,
+        ).catch(() => undefined)
+        expect(breaker.isYtDlpBlocked()).toBe(false)
+
+        await createResilientStream(
+            makeTrack({ url: 'https://youtube.com/watch?v=c' }),
+        ).catch(() => undefined)
+
+        expect(breaker.isYtDlpBlocked()).toBe(true)
+    })
+
+    it('still opens on two separate failing plays', async () => {
+        mockSearchYtDlpCandidates.mockResolvedValue([hit()])
+        mockStreamViaYtDlp.mockRejectedValue(forbidden())
+
+        await createResilientStream(
+            makeTrack({ url: 'https://open.spotify.com/track/one' }),
+        )
+        expect(breaker.isYtDlpBlocked()).toBe(false)
+        await createResilientStream(
+            makeTrack({ url: 'https://open.spotify.com/track/two' }),
+        )
+
+        expect(breaker.isYtDlpBlocked()).toBe(true)
+    })
+
+    it('counts a replay of the same Track instance as a new play', async () => {
+        mockSearchYtDlpCandidates.mockResolvedValue([hit()])
+        mockStreamViaYtDlp.mockRejectedValue(forbidden())
+        const track = makeTrack({ url: 'https://open.spotify.com/track/again' })
+
+        await createResilientStream(track)
+        await createResilientStream(track)
+
+        expect(breaker.isYtDlpBlocked()).toBe(true)
     })
 })
