@@ -13,6 +13,7 @@ import {
     queryRequestsVersion,
 } from '../../../../../utils/music/searchQueryCleaner'
 import { isHostedYoutubeEnabled } from '../../../../../config/featureFlags'
+import { ensureTrackMetadata } from './trackMetadataHydration'
 
 const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
 const ATTACHMENT_EXTRACTOR_ID = 'com.discord-player.attachmentextractor'
@@ -163,7 +164,9 @@ function rerankThenNotify(
 ): (result: SearchResult) => Promise<SearchResult> {
     const rerank = preferExactMatch(query)
     return async (result) => {
-        const ranked = await rerank(result)
+        // Before the notify: the early reply must not show a blank title,
+        // and a track with no metadata must be rejected before play starts.
+        const ranked = await ensureTrackMetadata(await rerank(result))
         if (onSearchResolved && ranked.tracks.length > 0) {
             try {
                 onSearchResolved(ranked)
