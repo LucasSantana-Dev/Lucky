@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.64.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.63.3...v2.64.0) (2026-10-21)
+
+
+### Features
+
+* **bot:** bgutil po_token provider for yt-dlp, opt-in by env ([#2912](https://github.com/LucasSantana-Dev/Lucky/issues/2912)) ([e9d532e](https://github.com/LucasSantana-Dev/Lucky/commit/e9d532eb48bde46e00224b533b057893211d7eb2))
+* **bot:** spotify isrc lookup and resolution cache for both sources ([#2915](https://github.com/LucasSantana-Dev/Lucky/issues/2915)) ([0f26956](https://github.com/LucasSantana-Dev/Lucky/commit/0f269569d0f133b77b6c32ad5a6614cd06cbeef1))
+* **bot:** youtubei native stream stage in the bridge before soundcloud ([#2913](https://github.com/LucasSantana-Dev/Lucky/issues/2913)) ([d3d4845](https://github.com/LucasSantana-Dev/Lucky/commit/d3d484525af026fd034f5593bc8712dcbce9f848))
+
+
+### Bug Fixes
+
+* **bot:** count one yt-dlp block breaker failure per play ([#2916](https://github.com/LucasSantana-Dev/Lucky/issues/2916)) ([56ee925](https://github.com/LucasSantana-Dev/Lucky/commit/56ee92501c786b2358abe072f8775b7cd80d3c50))
+* **bot:** fill or reject a YouTube track with no title before play ([#2910](https://github.com/LucasSantana-Dev/Lucky/issues/2910)) ([bf5962e](https://github.com/LucasSantana-Dev/Lucky/commit/bf5962e5e26bd933bec700207b8191d8d31c8cb8))
+* **bot:** honest stream failure copy and a kill-switch guardrail test ([#2914](https://github.com/LucasSantana-Dev/Lucky/issues/2914)) ([8b2a91c](https://github.com/LucasSantana-Dev/Lucky/commit/8b2a91c18dd00562ffccb970574a0e069d2223e1))
+* **bot:** score soundcloud title without the trailing artist ([#2908](https://github.com/LucasSantana-Dev/Lucky/issues/2908)) ([4b3df3c](https://github.com/LucasSantana-Dev/Lucky/commit/4b3df3c6ef160e79330df38cef0502f7b0de665d))
+* **frontend:** add cloudflareinsights.com to CSP connect-src ([#2884](https://github.com/LucasSantana-Dev/Lucky/issues/2884)) ([a47ccb2](https://github.com/LucasSantana-Dev/Lucky/commit/a47ccb24075c72ee4d36cd49a13ed337302b0b81))
+
 ## [2.63.3](https://github.com/LucasSantana-Dev/Lucky/compare/v2.63.2...v2.63.3) (2026-10-20)
 
 
