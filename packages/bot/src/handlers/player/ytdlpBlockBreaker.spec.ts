@@ -21,6 +21,7 @@ import {
     classifyYtDlpFailure,
     countYtDlpFailure,
     isYtDlpBlocked,
+    markYtDlpBudgetMiss,
     recordYtDlpFailure,
     recordYtDlpSuccess,
 } from './ytdlpBlockBreaker'
@@ -190,6 +191,23 @@ describe('ytdlpBlockBreaker (#2653)', () => {
         recordYtDlpFailure(FORBIDDEN, 3)
 
         expect(isYtDlpBlocked(3)).toBe(true)
+    })
+
+    it('a budget-miss timeout is counted but neither opens nor breaks the streak', () => {
+        const budgetMiss = new Error(
+            'yt-dlp: timed out waiting for stream start',
+        )
+        markYtDlpBudgetMiss(budgetMiss)
+
+        recordYtDlpFailure(budgetMiss, 1)
+        recordYtDlpFailure(budgetMiss, 2)
+        expect(isYtDlpBlocked(2)).toBe(false)
+        expect(mockInc).toHaveBeenCalledWith({ type: 'timeout' })
+
+        recordYtDlpFailure(FORBIDDEN, 3)
+        recordYtDlpFailure(budgetMiss, 4)
+        recordYtDlpFailure(FORBIDDEN, 5)
+        expect(isYtDlpBlocked(5)).toBe(true)
     })
 
     it('two bot-check failures open the block (#2744)', () => {

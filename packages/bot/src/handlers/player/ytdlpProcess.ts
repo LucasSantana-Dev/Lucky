@@ -7,7 +7,11 @@ import type { Readable } from 'node:stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
-import { classifyYtDlpFailure, countYtDlpFailure } from './ytdlpBlockBreaker'
+import {
+    classifyYtDlpFailure,
+    countYtDlpFailure,
+    markYtDlpBudgetMiss,
+} from './ytdlpBlockBreaker'
 
 // Absolute path, not a bare "yt-dlp" resolved via PATH lookup (CWE-426):
 // the Dockerfile symlinks the venv binary to this fixed location. Override
@@ -268,6 +272,10 @@ export function streamViaYtDlp(
         ).catch((retryError: unknown) => {
             if (needsSignIn(retryError))
                 warnCookiesRejected(process.env.YTDLP_COOKIES_FILE)
+            // A slow logged-in start must not open the block breaker; see
+            // markYtDlpBudgetMiss.
+            if (classifyYtDlpFailure(retryError) === 'timeout')
+                markYtDlpBudgetMiss(retryError)
             throw retryError
         })
     })
