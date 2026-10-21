@@ -34,6 +34,7 @@ jest.mock('./ytdlpProcess', () => ({
     streamViaYtDlp: jest.fn(),
     streamViaYtDlpSearch: jest.fn(),
 }))
+jest.mock('./spotifyIsrc', () => ({ useSpotifyApiForIsrc: jest.fn() }))
 jest.mock('./soundcloudMatcher', () => ({
     streamViaSoundCloud: jest.fn(),
     findMatchingSoundCloudResult: jest.fn(),

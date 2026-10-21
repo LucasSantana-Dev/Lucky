@@ -200,6 +200,22 @@ export async function streamViaSoundCloud(
     trackDuration?: string,
     options: SoundCloudMatchOptions = {},
 ): Promise<Readable> {
+    return (await resolveViaSoundCloud(query, trackDuration, options)).stream
+}
+
+/**
+ * What a validated SoundCloud match resolved to: the upload's permalink (an
+ * identifier that stays valid, unlike a stream URL) and its duration, so a
+ * caller can cache it and replay it with streamSoundCloudTrack.
+ */
+export type SoundCloudMatch = { id: string; durationSec?: number }
+
+/** streamViaSoundCloud that also returns which upload it matched. */
+export async function resolveViaSoundCloud(
+    query: string,
+    trackDuration?: string,
+    options: SoundCloudMatchOptions = {},
+): Promise<{ stream: Readable; match: SoundCloudMatch }> {
     if (!query.trim()) {
         throw new Error('SoundCloud: empty query')
     }
@@ -258,6 +274,29 @@ export async function streamViaSoundCloud(
         data: { query, track: match.name, uploader: match.user?.name },
     })
 
+    const stream = await streamMatch(match)
+    return {
+        stream,
+        match: {
+            id: match.permalink ?? match.url,
+            ...(typeof match.durationInSec === 'number'
+                ? { durationSec: match.durationInSec }
+                : {}),
+        },
+    }
+}
+
+/**
+ * Streams a SoundCloud upload resolved earlier (a cached permalink), with no
+ * search or validation: the match was validated when it was cached.
+ */
+export async function streamSoundCloudTrack(id: string): Promise<Readable> {
+    return streamMatch({ name: id, url: id, permalink: id })
+}
+
+async function streamMatch(
+    match: Pick<SoundCloudSearchResult, 'name' | 'url' | 'permalink'>,
+): Promise<Readable> {
     // SoundCloud now lists an adaptive `abr_sq` HLS transcoding last, and
     // play-dl 1.9.7 always streams the last HLS format, whose URL answers
     // 404. The AAC formats before it are fMP4 segments, and play-dl drops

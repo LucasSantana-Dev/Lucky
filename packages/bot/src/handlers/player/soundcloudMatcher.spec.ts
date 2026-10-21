@@ -25,6 +25,8 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 import {
+    resolveViaSoundCloud,
+    streamSoundCloudTrack,
     streamViaSoundCloud,
     findMatchingSoundCloudResult,
     parseDurationString,
@@ -1086,6 +1088,38 @@ describe('streamViaSoundCloud', () => {
                     error: 'yt-dlp exited with code 1',
                 },
             }),
+        )
+    })
+
+    it('names the match by its permalink so the bridge can cache it', async () => {
+        mockStreamViaYtDlp.mockResolvedValue(new PassThrough())
+        mockSearch.mockResolvedValue([
+            {
+                ...makeResult('Song Name', 210),
+                permalink: 'https://soundcloud.com/artist/song-name',
+            },
+        ])
+
+        const { match } = await resolveViaSoundCloud('song name', '3:30')
+
+        expect(match).toEqual({
+            id: 'https://soundcloud.com/artist/song-name',
+            durationSec: 210,
+        })
+    })
+
+    it('replays a cached match by id without searching', async () => {
+        const ytdlpReadable = new PassThrough()
+        mockStreamViaYtDlp.mockResolvedValue(ytdlpReadable)
+
+        const result = await streamSoundCloudTrack(
+            'https://soundcloud.com/artist/song-name',
+        )
+
+        expect(result).toBe(ytdlpReadable)
+        expect(mockSearch).not.toHaveBeenCalled()
+        expect(mockStreamViaYtDlp).toHaveBeenCalledWith(
+            'https://soundcloud.com/artist/song-name',
         )
     })
 

@@ -23,9 +23,26 @@ jest.mock('simple-ytdl-core', () => ({
 jest.mock('node:child_process', () => ({
     spawn: (...args: unknown[]) => mockSpawn(...args),
 }))
+// The bridge calls resolveViaSoundCloud; tests drive its stream through
+// mockStreamViaSoundCloud and its match through mockSoundCloudMatch.
+const mockSoundCloudMatch = jest.fn(() => ({
+    id: 'https://soundcloud.com/test-artist/test-track',
+    durationSec: 210,
+}))
+const mockStreamSoundCloudTrack = jest.fn()
 jest.mock('./soundcloudMatcher', () => ({
-    streamViaSoundCloud: (...args: unknown[]) =>
-        mockStreamViaSoundCloud(...args),
+    resolveViaSoundCloud: async (...args: unknown[]) => ({
+        stream: await mockStreamViaSoundCloud(...args),
+        match: mockSoundCloudMatch(),
+    }),
+    streamSoundCloudTrack: (...args: unknown[]) =>
+        mockStreamSoundCloudTrack(...args),
+}))
+const mockEnsureSpotifyIsrc = jest.fn()
+jest.mock('./spotifyIsrc', () => ({
+    ensureSpotifyIsrc: (...args: unknown[]) => mockEnsureSpotifyIsrc(...args),
+    trackIsrc: (track: { metadata?: unknown }) =>
+        (track.metadata as { isrc?: string } | null)?.isrc ?? null,
 }))
 jest.mock('../../services/musicManagement/search/providerHealth', () => ({
     providerHealthService: {

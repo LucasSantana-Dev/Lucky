@@ -16,6 +16,7 @@ import {
 import { refreshSoundCloudClientId } from './soundcloudMatcher'
 import { setExtractorDegraded } from './extractorHealth'
 import { logSpotifyApiFailures } from './spotifyApiFailureLog'
+import { useSpotifyApiForIsrc } from './spotifyIsrc'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
 
 type CreatePlayerParams = {
@@ -114,6 +115,8 @@ export const registerSpotifyExtractor = async (
         }
         setExtractorDegraded('spotify', false)
         logSpotifyApiFailures(registered)
+        // After the wrap above, so ISRC lookups share its 429 block.
+        useSpotifyApiForIsrc(registered)
         infoLog({
             message: 'Registered SpotifyExtractor (priority 1)',
             // Without both credentials the extractor scrapes an anonymous
