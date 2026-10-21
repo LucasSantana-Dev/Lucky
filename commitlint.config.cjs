@@ -6,13 +6,13 @@ const Configuration = {
             rules: {
                 // Prevent @mentions in subjects: release-please turns them into
                 // GitHub profile links in CHANGELOG.md (#2697).
-                "lucky/no-at-mention": ({ subject }) => {
+                "lucky/no-at-mention": ({ subject, scope }) => {
                     // Remove backtick-wrapped code spans first; GitHub does not
                     // expand @mentions inside code, so `@everyone` is safe.
-                    const bare = (subject ?? "").replace(/`[^`]+`/g, "")
+                    const bare = [subject ?? "", scope ?? ""].join(" ").replace(/`[^`]+`/g, "")
                     return [
                         !/@\w/.test(bare),
-                        "subject must not contain bare @mentions; wrap in backticks: `@everyone`",
+                        "subject and scope must not contain bare @mentions; wrap in backticks: `@everyone`",
                     ]
                 },
             },
