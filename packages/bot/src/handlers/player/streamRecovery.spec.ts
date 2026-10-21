@@ -163,6 +163,50 @@ describe('streamRecovery', () => {
             expect(recordSuccessMock).toHaveBeenCalledWith('youtube')
         })
 
+        it('does not recover a replacement it queued, so a blocked source cannot loop', async () => {
+            const songA = {
+                url: 'https://youtube.com/watch?v=a',
+                title: 'Tem Café',
+                requestedBy: { id: 'user-1' },
+            }
+            const songB = {
+                url: 'https://youtube.com/watch?v=b',
+                title: 'Tem Café (GR6 Filmes)',
+                requestedBy: { id: 'user-1' },
+            }
+            // YouTube offers the other version each time, as it did on
+            // 2026-10-21 while the yt-dlp breaker was open.
+            const search = jest
+                .fn()
+                .mockResolvedValueOnce({ tracks: [songB] })
+                .mockResolvedValueOnce({ tracks: [songA] })
+            const queue = {
+                guild: { id: 'guild-1', name: 'Guild 1' },
+                metadata: { requestedBy: { id: 'user-1' } },
+                currentTrack: songA,
+                player: { search },
+                insertTrack: jest.fn(),
+                node: { skip: jest.fn(), play: jest.fn() },
+            }
+
+            await recoverFromStreamExtractionError(queue as any, songA as any)
+            await recoverFromStreamExtractionError(queue as any, songB as any)
+
+            expect(search).toHaveBeenCalledTimes(1)
+            expect(queue.insertTrack).toHaveBeenCalledTimes(1)
+            expect(queue.insertTrack).toHaveBeenCalledWith(songB, 0)
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message:
+                        'Stream failed on a recovery replacement, not recovering again',
+                }),
+            )
+            expect(notifyChannelStreamFailedMock).toHaveBeenCalledWith(
+                queue,
+                'Tem Café (GR6 Filmes)',
+            )
+        })
+
         it('gives up when no requester is available', async () => {
             const queue = {
                 guild: { id: 'guild-1', name: 'Guild 1' },
