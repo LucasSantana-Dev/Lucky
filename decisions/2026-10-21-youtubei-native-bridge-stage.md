@@ -5,9 +5,10 @@
 - Deciders: Lucas Santana
 - Method: prod logs over the last 60 days (Loki), a read of discord-player-youtubei 3.1.0 and
   simple-ytdl-core 1.1.1, and a local smoke run of the native path
-- Amends: `2026-06-18-youtube-extraction-reliability.md` (decision 4, the escalation ladder:
-  the po_token step runs in process through youtubei.js before any yt-dlp provider sidecar).
-  The Lavalink revisit trigger of `2026-08-03-lavalink-reeval-stays-deferred.md` stands.
+- Relates to: `2026-06-18-youtube-extraction-reliability.md` (decision 4, the escalation
+  ladder). Its 2026-10-21 amendment (#2912) gives yt-dlp a bgutil po_token sidecar. This record
+  adds a second, independent client inside the bridge and does not change that rung. The
+  Lavalink revisit trigger of `2026-08-03-lavalink-reeval-stays-deferred.md` stands.
 
 ## Context
 
@@ -40,9 +41,10 @@
 
 ## Alternatives considered
 
-- **bgutil po_token provider for yt-dlp now.** A sidecar service and a yt-dlp plugin to keep in
-  step. The in-process path costs no new service and uses packages already in the image. It
-  is the next step if this stage does not hold.
+- **Rely on the bgutil sidecar alone (#2912).** It is opt-in by env and fixes the yt-dlp path
+  only: if yt-dlp itself times out or the sidecar is down, the play still drops to SoundCloud.
+  The two do not exclude each other. This stage costs no new service and uses packages
+  already in the image.
 - **Drop the `createStream` override and let the extractor stream.** That loses the bridge's
   validation, breaker, telemetry and SoundCloud fallback for every play.
 - **Lavalink now.** Its trigger has not fired (one window above 5%, not two).
@@ -71,5 +73,7 @@ Same `query_range` call shape as the 2026-08-03 ADR (RFC3339 bounds), from the d
 ## Revisit when
 
 - 14 days after deploy: if the stage serves almost no plays and its failures are bot checks,
-  move to the bgutil provider for yt-dlp.
+  remove it rather than keep a stage that only adds latency before SoundCloud.
+- If #2912's sidecar goes on in the same window, read the two separately: the yt-dlp stages'
+  "Bridge: streamed via" lines measure the sidecar, the youtubei line measures this stage.
 - 2026-11-20 (the second 30-day window): read the exhaustion rate against the Lavalink trigger.

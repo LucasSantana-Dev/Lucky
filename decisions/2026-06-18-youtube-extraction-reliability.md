@@ -1,6 +1,6 @@
 # YouTube extraction reliability: classify-and-measure first, weekly yt-dlp refresh, defer Lavalink behind a gate
 
-- Status: accepted-with-revisions (measurement made real + bounded; big bets data-gated; escalation ladder amended by `2026-10-21-youtubei-native-bridge-stage.md`)
+- Status: accepted-with-revisions (measurement made real + bounded; big bets data-gated)
 - Date: 2026-06-18
 - Method: /research-and-decide (web research → decision-critic Opus artifact-only → plan → ADR)
 
