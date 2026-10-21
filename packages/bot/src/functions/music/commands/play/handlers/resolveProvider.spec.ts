@@ -594,6 +594,32 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
         await pending
     })
 
+    it('rejects a track with no title before play starts and before the early reply', async () => {
+        const onSearchResolved = jest.fn()
+        const startPlayback = jest.fn()
+        const player: any = {
+            play: jest.fn(async (_c: unknown, _q: unknown, opts: any) => {
+                await opts.afterSearch(searchResultOf(''))
+                startPlayback()
+                return { track: {} }
+            }),
+        }
+
+        await expect(
+            resolveQueryWithFallbacks(
+                player,
+                channel,
+                'https://soundcloud.com/a/b',
+                'default',
+                QueryType.AUTO,
+                {},
+                onSearchResolved,
+            ),
+        ).rejects.toMatchObject({ name: 'TrackMetadataUnavailableError' })
+        expect(startPlayback).not.toHaveBeenCalled()
+        expect(onSearchResolved).not.toHaveBeenCalled()
+    })
+
     it('is not called for an empty result', async () => {
         const onSearchResolved = jest.fn()
         const player: any = {
