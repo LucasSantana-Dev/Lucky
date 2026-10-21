@@ -34,6 +34,14 @@ describe('resolveActualStreamSource', () => {
         expect(resolveActualStreamSource(track)).toBe('youtubei-native')
     })
 
+    it('ignores a bridge-source stamp with an unknown value', () => {
+        const track = {
+            metadata: { [STREAM_BRIDGE_SOURCE_METADATA_KEY]: 'something-else' },
+            extractor: { identifier: SPOTIFY_IDENTIFIER },
+        }
+        expect(resolveActualStreamSource(track)).toBe('youtube')
+    })
+
     it('returns youtube when resolved by the YouTube extractor with no fallback stamp', () => {
         const track = {
             metadata: {},

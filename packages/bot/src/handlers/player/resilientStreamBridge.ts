@@ -589,7 +589,8 @@ async function attemptYoutubeiNative(
         warnLog({
             message: 'Bridge: youtubei failed, falling back to SoundCloud',
             data: {
-                error: (error as Error).message,
+                // googlevideo errors can carry signed stream URLs.
+                error: scrubUrls((error as Error).message),
                 videoId: plan.urlVideoId ?? undefined,
                 query: plan.query,
                 cleanedTitle,
