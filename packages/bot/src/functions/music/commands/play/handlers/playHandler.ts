@@ -15,6 +15,7 @@ import { collaborativePlaylistService } from '../../../../../services/musicRecom
 import { moveUserTrackToPriority } from '../../../../../services/musicManagement/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../../utils/music/nowPlayingEmbed'
 import { registerNowPlayingMessage } from '../../../../../handlers/player/nowPlayingDisplay'
+import { streamFailedDescription } from '../../../../../handlers/player/streamFailureNotifier'
 import { resolveGuildQueue } from '../../../../../services/musicManagement/queueResolver'
 import {
     isUnknownInteractionError,
@@ -555,7 +556,7 @@ async function reportStartFailure(
     })
     const embed = createErrorEmbed(
         'Play Error',
-        `Could not start **${track.title || 'this track'}**: no audio source responded. It may be unavailable in your region. Try another version of the song.`,
+        streamFailedDescription(track.title),
     )
     if (earlyReply) {
         await earlyReply.sent
