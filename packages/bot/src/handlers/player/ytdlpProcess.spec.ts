@@ -33,6 +33,7 @@ import {
     YTDLP_SEARCH_RESOLVE_TIMEOUT_MS,
     YTDLP_STREAM_START_TIMEOUT_MS,
     __resetYtdlpCookiesLogStateForTests,
+    __resetYtdlpPotLogStateForTests,
 } from './ytdlpProcess'
 import {
     isYtDlpBlocked,
@@ -395,6 +396,140 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
                 message: 'Bridge: yt-dlp cookies file applied',
             }),
         )
+    })
+})
+
+// ---------------------------------------------------------------------------
+// streamViaYtDlp: po_token provider (ADR 2026-06-18 amendment 2026-10-21)
+// ---------------------------------------------------------------------------
+
+describe('streamViaYtDlp: po_token provider', () => {
+    const youtubeUrl = 'https://www.youtube.com/watch?v=abc123'
+    const providerUrl = 'http://bgutil-pot:4416'
+    const originalEnv = process.env.YTDLP_POT_PROVIDER_URL
+    const SIGN_IN =
+        "ERROR: [youtube] abc123: Sign in to confirm you're not a bot\n"
+
+    function procThat(outcome: 'ok' | string) {
+        const proc = makeFakeProc()
+        setImmediate(() => {
+            if (outcome === 'ok') {
+                proc.stdout.emit('data', Buffer.from('bytes'))
+                return
+            }
+            proc.stderr.emit('data', Buffer.from(outcome))
+            proc.emit('close', 1)
+        })
+        return proc
+    }
+
+    function script(...outcomes: Array<'ok' | string>) {
+        for (const outcome of outcomes) {
+            mockSpawn.mockImplementationOnce(() => procThat(outcome))
+        }
+    }
+
+    const spawnArgs = (call: number) =>
+        mockSpawn.mock.calls[call]?.[1] as string[]
+
+    const potArgs = [
+        '--plugin-dirs',
+        '/opt/ytdlp-plugins',
+        '--extractor-args',
+        `youtubepot-bgutilhttp:base_url=${providerUrl}`,
+    ]
+
+    beforeEach(() => {
+        __resetYtdlpPotLogStateForTests()
+        __resetYtdlpCookiesLogStateForTests()
+        mockSpawn.mockReset()
+        mockInfoLog.mockReset()
+        mockWarnLog.mockReset()
+    })
+
+    afterEach(() => {
+        if (originalEnv === undefined) delete process.env.YTDLP_POT_PROVIDER_URL
+        else process.env.YTDLP_POT_PROVIDER_URL = originalEnv
+    })
+
+    it('adds no plugin dir or extractor args when unset', async () => {
+        delete process.env.YTDLP_POT_PROVIDER_URL
+        script('ok')
+
+        await streamViaYtDlp(youtubeUrl)
+
+        expect(spawnArgs(0)).not.toContain('--plugin-dirs')
+        expect(spawnArgs(0)).not.toContain('--extractor-args')
+    })
+
+    it('loads the plugin and passes the provider URL on a YouTube target', async () => {
+        process.env.YTDLP_POT_PROVIDER_URL = providerUrl
+        script('ok')
+
+        await streamViaYtDlp(youtubeUrl)
+
+        const args = spawnArgs(0)
+        const at = args.indexOf('--plugin-dirs')
+        expect(args.slice(at, at + potArgs.length)).toEqual(potArgs)
+        // The URL stays the last argument.
+        expect(args[args.length - 1]).toBe(youtubeUrl)
+    })
+
+    it('keeps the provider on the cookies retry too', async () => {
+        process.env.YTDLP_POT_PROVIDER_URL = providerUrl
+        process.env.YTDLP_COOKIES_FILE = '/app/secrets/youtube-cookies.txt'
+        mockStatSync.mockReturnValue({ isFile: () => true })
+        mockAccessSync.mockReturnValue(undefined)
+        script(SIGN_IN, 'ok')
+
+        await streamViaYtDlp(youtubeUrl)
+
+        expect(spawnArgs(0)).toEqual(expect.arrayContaining(potArgs))
+        expect(spawnArgs(1)).toEqual(expect.arrayContaining(potArgs))
+        expect(spawnArgs(1)).toContain('--cookies')
+        delete process.env.YTDLP_COOKIES_FILE
+    })
+
+    it('leaves SoundCloud through yt-dlp untouched', async () => {
+        process.env.YTDLP_POT_PROVIDER_URL = providerUrl
+        script('ok')
+
+        await streamViaYtDlp('https://soundcloud.com/artist/track')
+
+        expect(spawnArgs(0)).not.toContain('--plugin-dirs')
+    })
+
+    it.each([
+        'bgutil-pot:4416',
+        'file:///etc/passwd',
+        'http://bgutil-pot:4416;other=1',
+    ])('ignores a malformed provider URL (%s) and warns once', async (bad) => {
+        process.env.YTDLP_POT_PROVIDER_URL = bad
+        script('ok', 'ok')
+
+        await streamViaYtDlp(youtubeUrl)
+        await streamViaYtDlp(youtubeUrl)
+
+        expect(spawnArgs(0)).not.toContain('--plugin-dirs')
+        expect(spawnArgs(1)).not.toContain('--plugin-dirs')
+        expect(mockWarnLog).toHaveBeenCalledTimes(1)
+    })
+
+    it('logs the configured provider once, by origin only', async () => {
+        process.env.YTDLP_POT_PROVIDER_URL =
+            'http://user:secret@bgutil-pot:4416'
+        script('ok', 'ok')
+
+        await streamViaYtDlp(youtubeUrl)
+        await streamViaYtDlp(youtubeUrl)
+
+        const potLogs = mockInfoLog.mock.calls.filter(
+            ([entry]) =>
+                (entry as { message: string }).message ===
+                'Bridge: yt-dlp po_token provider configured',
+        )
+        expect(potLogs).toHaveLength(1)
+        expect(JSON.stringify(potLogs[0])).not.toContain('secret')
     })
 })
 

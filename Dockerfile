@@ -42,6 +42,13 @@ FROM node:${NODE_VERSION} AS base-runtime
 # without it yt-dlp skips solving and formats can go missing (#2664). yt-dlp
 # only accepts the yt-dlp-ejs version it pins, so it comes in through the
 # `default` extra, which carries that pin; yt-dlp itself floats on rebuilds.
+# bgutil-ytdlp-pot-provider is the yt-dlp plugin for the po_token sidecar
+# (ADR 2026-06-18, amendment 2026-10-21). Pinned to the version of the
+# bgutil-pot image in docker-compose.yml: bump both together. --target puts it
+# in /opt/ytdlp-plugins/<package>/, outside the venv's site-packages, so yt-dlp
+# only loads it when the bot passes --plugin-dirs (YTDLP_POT_PROVIDER_URL set).
+# It has no dependencies, hence --no-deps.
+ARG BGUTIL_POT_PROVIDER_VERSION=2.0.2
 RUN apk add --no-cache \
     python3 \
     py3-pip \
@@ -52,6 +59,9 @@ RUN apk add --no-cache \
     && python3 -m venv /opt/ytdlp \
     && /opt/ytdlp/bin/pip install --no-cache-dir --upgrade pip 'yt-dlp[default]' \
     && ln -s /opt/ytdlp/bin/yt-dlp /usr/local/bin/yt-dlp \
+    && /opt/ytdlp/bin/pip install --no-cache-dir --no-deps \
+        --target /opt/ytdlp-plugins/bgutil-ytdlp-pot-provider \
+        "bgutil-ytdlp-pot-provider==${BGUTIL_POT_PROVIDER_VERSION}" \
     && rm -rf /var/cache/apk/* /root/.cache \
     && npm install -g npm@latest \
     && npm cache clean --force

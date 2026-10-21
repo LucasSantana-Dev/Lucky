@@ -1,6 +1,7 @@
 # YouTube extraction reliability: classify-and-measure first, weekly yt-dlp refresh, defer Lavalink behind a gate
 
 - Status: accepted-with-revisions (measurement made real + bounded; big bets data-gated)
+- Amended: 2026-10-21 (step 2 of the escalation ladder, bgutil po_token provider; see the end)
 - Date: 2026-06-18
 - Method: /research-and-decide (web research → decision-critic Opus artifact-only → plan → ADR)
 
@@ -104,3 +105,63 @@ Lavalink behind a firm gate. (Incorporates the decision-critic's three revisions
   po_token need.
 - **A 403/"Sign in to confirm" cluster appears** → cookies → po_token provider.
 - **yt-dlp proves to break faster than weekly** → daily rebuild or Lavalink.
+
+## Amendment (2026-10-21): step 2 of the ladder, a bgutil po_token provider
+
+Status: accepted. Implements point 4's second rung ("a po_token provider (bgutil) only if
+cookies prove insufficient"). Lavalink stays behind its own gate (two consecutive 30d windows
+above 5% exhaustion); this amendment does not touch it.
+
+### Why now: cookies were applied and still insufficient
+
+- Trigger: 10 "Sign in to confirm you're not a bot" lines in 7 days (at the cookie trigger of
+  about 10 a week), and last-30d exhaustion at 10.4% (2.7% the window before), above point 3's
+  5% escalation bar.
+- Loki (`{container_name="lucky-bot"}`): all 10 bot-check failures fell on 2026-10-19, 10:03 to
+  18:07 UTC, across 3 guilds. "Bridge: yt-dlp cookies file applied" was logged in that process
+  at 10:03:00, right before the first failure, and "YTDLP_COOKIES_FILE is set but not a readable
+  file" never appears. Since #2653 cookies only apply on a sign-in retry, and the error the
+  bridge logs is the retry's own error, so each of the 10 failures is a cookie retry that got
+  the bot check again. Cookies were present and applied; they were insufficient.
+- On 2026-10-20 the cookie retry recovered both sign-in challenges (no failure after either
+  "cookies file applied" line). Cookies work some days and not others, so they are not a
+  dependable last rung.
+- Since 2026-10-06 a logged-in session makes yt-dlp pick web clients that need a GVS PO token
+  (comment in `ytdlpProcess.ts`): without a provider, the cookie path is the one that lacks it.
+
+### Decision
+
+1. **Sidecar:** the `brainicism/bgutil-ytdlp-pot-provider` HTTP server (Node flavor) as the
+   `bgutil-pot` service in `docker-compose.yml`, pinned to `2.0.2` by digest, behind a `pot`
+   profile. The deploy script neither starts nor requires profiled services (the tunnel
+   precedent), so a stopped sidecar never fails or rolls back a deploy. No host port; it only
+   joins `lucky-network` (the server is unauthenticated).
+2. **Plugin:** the `bgutil-ytdlp-pot-provider` PyPI package at `2.0.2`, installed with pip
+   `--target` into its own folder under `/opt/ytdlp-plugins`, outside the yt-dlp venv's
+   site-packages. yt-dlp loads it only when the bot passes `--plugin-dirs /opt/ytdlp-plugins`.
+   Plugin and image versions move together (`BGUTIL_POT_PROVIDER_VERSION` in the Dockerfile,
+   the image tag in compose).
+3. **Opt-in by env:** the bot adds `--plugin-dirs` and
+   `--extractor-args youtubepot-bgutilhttp:base_url=<url>` to every YouTube stream spawn (first
+   attempt, 403 retry and cookie retry) only when `YTDLP_POT_PROVIDER_URL` is an http(s) URL.
+   Unset means the exact pre-amendment command line. SoundCloud spawns and the flat candidate
+   search never get it.
+4. **Fallback:** if the sidecar is down, the plugin's `/ping` fails (connection refused or
+   unresolvable host) and yt-dlp extracts without a PO token, the same as with the provider
+   unset. Measured locally with yt-dlp 2026.08.19: no measurable overhead when no PO token is
+   requested, about 1 s when one is.
+5. **Rebuild safety:** yt-dlp still floats on image rebuilds while the plugin is pinned, and the
+   plugin imports yt-dlp's PO token framework. `ci.yml` and `docker-publish.yml` import the
+   plugin inside the built image, so a yt-dlp release that breaks it fails the build instead of
+   production.
+
+### Success and rollback
+
+- Success: over the 14 days after the sidecar is on, "Sign in to confirm you're not a bot" stays
+  under about 10 a week and the 30d exhaustion rate trends back toward the 2.7% baseline. Same
+  Loki queries as the 2026-08-03 re-evaluation.
+- Rollback: unset `YTDLP_POT_PROVIDER_URL` and recreate the bot (back to the exact previous
+  command line), then `docker compose --profile pot stop bgutil-pot`. No data migrates.
+- Escalate: if the bot check persists while yt-dlp `-v` shows
+  `Generating a gvs PO Token ... via bgutil HTTP server`, the cheaper rungs are spent and the
+  Lavalink gate is the next read.
