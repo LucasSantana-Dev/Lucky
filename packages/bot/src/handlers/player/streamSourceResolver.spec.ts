@@ -1,6 +1,9 @@
 import { describe, it, expect } from '@jest/globals'
 import { resolveActualStreamSource } from './streamSourceResolver'
-import { STREAM_BRIDGE_FALLBACK_METADATA_KEY } from './streamFallbackState'
+import {
+    STREAM_BRIDGE_FALLBACK_METADATA_KEY,
+    STREAM_BRIDGE_SOURCE_METADATA_KEY,
+} from './streamFallbackState'
 
 // Real extractor identifiers, kept in sync with streamSourceResolver.ts's own
 // hardcoded constants (not imported from the extractor packages themselves —
@@ -19,6 +22,24 @@ describe('resolveActualStreamSource', () => {
             extractor: { identifier: SPOTIFY_IDENTIFIER },
         }
         expect(resolveActualStreamSource(track)).toBe('soundcloud-bridge')
+    })
+
+    it('returns youtubei-native when the bridge youtubei stage streamed it', () => {
+        const track = {
+            metadata: {
+                [STREAM_BRIDGE_SOURCE_METADATA_KEY]: 'youtubei-native',
+            },
+            extractor: { identifier: SPOTIFY_IDENTIFIER },
+        }
+        expect(resolveActualStreamSource(track)).toBe('youtubei-native')
+    })
+
+    it('ignores a bridge-source stamp with an unknown value', () => {
+        const track = {
+            metadata: { [STREAM_BRIDGE_SOURCE_METADATA_KEY]: 'something-else' },
+            extractor: { identifier: SPOTIFY_IDENTIFIER },
+        }
+        expect(resolveActualStreamSource(track)).toBe('youtube')
     })
 
     it('returns youtube when resolved by the YouTube extractor with no fallback stamp', () => {

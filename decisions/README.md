@@ -1,10 +1,11 @@
 # Architecture Decision Records
 
-146 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
+147 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
-## Accepted (137)
+## Accepted (138)
 
+- [2026-10-21 - youtubei.js native stream as a bridge stage between yt-dlp and SoundCloud](2026-10-21-youtubei-native-bridge-stage.md) - _Accepted (a second YouTube client next to the yt-dlp ladder of `2026-06-18-youtube-extraction-reliability.md`)_
 - [2026-10-18 - Music-first amendments from the 2026-10-08 business review: activation fixes, spend gates, no recruiting](2026-10-18-music-first-business-review-amendments.md) - _Accepted (amends decisions 2, 5 and 6 of `2026-09-27-music-first-positioning.md`)_
 - [2026-10-07 - Brand identity: retro Japanese print maneki-neko, Edo purple, custom LUCKY lettering](2026-10-07-brand-retro-maneki-edo-purple.md) - _Accepted (supersedes `2026-10-07-brand-purple-gold-wordmark-family.md`)_
 - [2026-10-07 - The pitch leads with the weekly recap; thumbs feedback moves onto the now-playing message](2026-10-07-pitch-leads-with-weekly-recap.md) - _Accepted (amends the pitch of `2026-09-27-music-first-positioning.md`)_

@@ -9,6 +9,17 @@ const mockSpawn = jest.fn()
 const mockStreamViaSoundCloud = jest.fn()
 const mockIsAvailable = jest.fn()
 
+// The youtubei stage runs for real too; its packages are mocked so a load
+// (the first thing it does once past the guard) can be asserted against.
+const mockGetInnertube = jest.fn()
+const mockCreateAdaptiveStream = jest.fn()
+jest.mock('discord-player-youtubei', () => ({
+    getInnertube: (...args: unknown[]) => mockGetInnertube(...args),
+}))
+jest.mock('simple-ytdl-core', () => ({
+    createAdaptiveStreamMultiStep: (...args: unknown[]) =>
+        mockCreateAdaptiveStream(...args),
+}))
 jest.mock('node:child_process', () => ({
     spawn: (...args: unknown[]) => mockSpawn(...args),
 }))
@@ -90,6 +101,8 @@ describe('createResilientStream: HOSTED_YOUTUBE_ENABLED = false (#2475 follow-up
 
         expect(result).toBe('soundcloud-stream')
         expect(mockSpawn).not.toHaveBeenCalled()
+        expect(mockGetInnertube).not.toHaveBeenCalled()
+        expect(mockCreateAdaptiveStream).not.toHaveBeenCalled()
     })
 
     it('never spawns yt-dlp for a Spotify-sourced track, falls straight to SoundCloud', async () => {
@@ -100,5 +113,7 @@ describe('createResilientStream: HOSTED_YOUTUBE_ENABLED = false (#2475 follow-up
 
         expect(result).toBe('soundcloud-stream')
         expect(mockSpawn).not.toHaveBeenCalled()
+        expect(mockGetInnertube).not.toHaveBeenCalled()
+        expect(mockCreateAdaptiveStream).not.toHaveBeenCalled()
     })
 })

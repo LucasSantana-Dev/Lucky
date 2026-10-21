@@ -84,8 +84,25 @@ jest.mock('./ytdlpProcess', () => ({
     searchYtDlpCandidates: (...args: unknown[]) =>
         mockSearchYtDlpCandidates(...args),
 }))
+const mockStampBridgeSource = jest.fn()
+const mockClearBridgeStamps = jest.fn()
 jest.mock('./streamFallbackState', () => ({
     stampFallbackStage: (...args: unknown[]) => mockStampFallbackStage(...args),
+    stampBridgeSource: (...args: unknown[]) => mockStampBridgeSource(...args),
+    clearBridgeStamps: (...args: unknown[]) => mockClearBridgeStamps(...args),
+}))
+// Off by default so the yt-dlp and SoundCloud suites below see the chain
+// they were written for; the youtubei suite turns it on.
+const mockIsHostedYoutubeEnabled = jest.fn(() => false)
+jest.mock('../../config/featureFlags', () => ({
+    isHostedYoutubeEnabled: () => mockIsHostedYoutubeEnabled(),
+}))
+const mockStreamViaYoutubei = jest.fn()
+const mockSearchYoutubeiCandidates = jest.fn()
+jest.mock('./youtubeiNativeStream', () => ({
+    streamViaYoutubei: (...args: unknown[]) => mockStreamViaYoutubei(...args),
+    searchYoutubeiCandidates: (...args: unknown[]) =>
+        mockSearchYoutubeiCandidates(...args),
 }))
 const mockIsYtDlpBlocked = jest.fn(() => false)
 const mockRecordYtDlpFailure = jest.fn()
@@ -1556,5 +1573,181 @@ describe('YouTube search hit validation', () => {
             'youtube-extraction-exhausted',
             'no_match',
         ])
+    })
+})
+
+describe('youtubei native stage', () => {
+    const spotifyUrl = 'https://open.spotify.com/track/123'
+    const spotifyTrack = () => makeTrack({ url: spotifyUrl })
+    const youtubeTrack = () =>
+        makeTrack({ url: 'https://www.youtube.com/watch?v=abcdefghijk' })
+    const nativeStream = new EventEmitter() as any
+    const stageCalls = () => mockObserve.mock.calls.map((c) => c[0])
+    const exhaustedStages = () =>
+        (
+            mockWarnLog.mock.calls.find(
+                (c) =>
+                    (c[0] as { message: string }).message ===
+                    'Bridge: all stages exhausted',
+            )?.[0] as { data: { stages: string[] } }
+        ).data.stages
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockIsHostedYoutubeEnabled.mockReturnValue(true)
+        mockCleanTitle.mockReturnValue('Test Track')
+        mockCleanAuthor.mockReturnValue('Test Artist')
+        mockCleanSearchQuery.mockReturnValue('test track test artist')
+        mockExtractSongCore.mockReturnValue(null)
+        mockIsAvailable.mockReturnValue(true)
+        mockIsYtDlpBlocked.mockReturnValue(false)
+        mockStreamViaYtDlp.mockRejectedValue(
+            new Error("Sign in to confirm you're not a bot"),
+        )
+        mockSearchYtDlpCandidates.mockRejectedValue(
+            new Error("Sign in to confirm you're not a bot"),
+        )
+        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+    })
+
+    afterAll(() => {
+        mockIsHostedYoutubeEnabled.mockReturnValue(false)
+    })
+
+    it('streams the YouTube URL video via youtubei when yt-dlp fails', async () => {
+        mockStreamViaYoutubei.mockResolvedValue(nativeStream)
+        const track = youtubeTrack()
+
+        await expect(createResilientStream(track)).resolves.toBe(nativeStream)
+
+        expect(mockStreamViaYoutubei).toHaveBeenCalledWith('abcdefghijk')
+        expect(mockSearchYoutubeiCandidates).not.toHaveBeenCalled()
+        expect(mockStreamViaSoundCloud).not.toHaveBeenCalled()
+        expect(mockStampBridgeSource).toHaveBeenCalledWith(
+            track,
+            'youtubei-native',
+        )
+        expect(stageCalls()).toEqual([
+            { stage: 'ytdlp_url', outcome: 'fail' },
+            { stage: 'youtubei_native', outcome: 'ok' },
+            { stage: 'bridge_total', outcome: 'ok' },
+        ])
+        expect(mockInfoLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Bridge: streamed via youtubei',
+                data: expect.objectContaining({
+                    stage: 'youtubei-native',
+                    videoId: 'abcdefghijk',
+                }),
+            }),
+        )
+    })
+
+    it('streams a validated youtubei search hit for a Spotify track and caches it', async () => {
+        mockSearchYoutubeiCandidates.mockResolvedValue([hit({ id: 'yti1' })])
+        mockStreamViaYoutubei.mockResolvedValue(nativeStream)
+
+        await expect(createResilientStream(spotifyTrack())).resolves.toBe(
+            nativeStream,
+        )
+
+        expect(mockSearchYoutubeiCandidates).toHaveBeenCalledWith(
+            'test track test artist official audio',
+        )
+        expect(mockStreamViaYoutubei).toHaveBeenCalledWith('yti1')
+        expect(mockSetSpotifySource).toHaveBeenCalledWith(
+            spotifyUrl,
+            expect.stringContaining('yti1'),
+        )
+    })
+
+    it('runs while the yt-dlp breaker is open', async () => {
+        mockIsYtDlpBlocked.mockReturnValue(true)
+        mockSearchYoutubeiCandidates.mockResolvedValue([hit()])
+        mockStreamViaYoutubei.mockResolvedValue(nativeStream)
+
+        await expect(createResilientStream(spotifyTrack())).resolves.toBe(
+            nativeStream,
+        )
+        expect(mockSearchYtDlpCandidates).not.toHaveBeenCalled()
+    })
+
+    it('falls to SoundCloud when youtubei fails, and lists the stage when all exhaust', async () => {
+        mockStreamViaYoutubei.mockRejectedValue(
+            new Error('youtubei stream timed out after 8000ms'),
+        )
+        await expect(createResilientStream(youtubeTrack())).resolves.toBe(
+            fakeStream,
+        )
+        expect(mockStampBridgeSource).not.toHaveBeenCalled()
+        expect(mockStampFallbackStage).toHaveBeenCalledWith(
+            expect.anything(),
+            'soundcloud-full',
+        )
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Bridge: youtubei failed, falling back to SoundCloud',
+            }),
+        )
+
+        jest.clearAllMocks()
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
+        await expect(createResilientStream(youtubeTrack())).rejects.toThrow(
+            'Bridge exhausted',
+        )
+        expect(exhaustedStages()).toEqual([
+            'yt-dlp-url',
+            'youtubei-native',
+            'soundcloud-full',
+            'soundcloud-title',
+        ])
+    })
+
+    it('falls to SoundCloud when no youtubei search hit validates', async () => {
+        mockSearchYoutubeiCandidates.mockResolvedValue([
+            hit({ id: 'radio1', channel: 'Musicolor Radio' }),
+        ])
+
+        await expect(createResilientStream(spotifyTrack())).resolves.toBe(
+            fakeStream,
+        )
+        expect(mockStreamViaYoutubei).not.toHaveBeenCalled()
+        expect(mockObserve).toHaveBeenCalledWith(
+            { stage: 'youtubei_native', outcome: 'fail' },
+            expect.any(Number),
+        )
+    })
+
+    it('skips the youtubei search when the yt-dlp search found no valid hit', async () => {
+        mockSearchYtDlpCandidates.mockResolvedValue([
+            hit({ id: 'long1', durationSec: 400 }),
+        ])
+
+        await createResilientStream(spotifyTrack())
+
+        expect(mockSearchYoutubeiCandidates).not.toHaveBeenCalled()
+        expect(mockStreamViaSoundCloud).toHaveBeenCalled()
+    })
+
+    it('is skipped entirely with HOSTED_YOUTUBE_ENABLED off', async () => {
+        mockIsHostedYoutubeEnabled.mockReturnValue(false)
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
+
+        await expect(createResilientStream(youtubeTrack())).rejects.toThrow(
+            'Bridge exhausted',
+        )
+
+        expect(mockStreamViaYoutubei).not.toHaveBeenCalled()
+        expect(mockSearchYoutubeiCandidates).not.toHaveBeenCalled()
+        expect(exhaustedStages()).not.toContain('youtubei-native')
+    })
+
+    it('clears the previous play stamps before resolving', async () => {
+        mockStreamViaYtDlp.mockResolvedValue(fakeStream)
+        const track = youtubeTrack()
+
+        await createResilientStream(track)
+
+        expect(mockClearBridgeStamps).toHaveBeenCalledWith(track)
     })
 })
