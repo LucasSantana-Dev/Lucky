@@ -1053,7 +1053,7 @@ describe('play command: early reply and start failure (#2741)', () => {
 
         expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Play Error',
-            expect.stringContaining('Could not start **Song A**'),
+            expect.stringContaining("Couldn't find the original of **Song A**"),
         )
         expect(interaction.editReply).toHaveBeenCalledTimes(1)
         expect(interaction.editReply).toHaveBeenCalledWith({
