@@ -1,5 +1,8 @@
 import {
+    clearBridgeStamps,
     getStreamBridgeFallbackLabel,
+    getStreamBridgeSource,
+    stampBridgeSource,
     stampFallbackStage,
     STREAM_BRIDGE_FALLBACK_METADATA_KEY,
 } from './streamFallbackState'
@@ -119,5 +122,46 @@ describe('stampFallbackStage', () => {
             isAutoplay: true,
             [STREAM_BRIDGE_FALLBACK_METADATA_KEY]: 'soundcloud-core',
         })
+    })
+})
+
+describe('bridge source stamp', () => {
+    function trackWith(metadata: unknown) {
+        const track = {
+            metadata,
+            setMetadata: jest.fn((m: unknown) => {
+                track.metadata = m
+            }),
+        }
+        return track
+    }
+
+    it('stamps youtubei-native, keeping existing metadata', () => {
+        const track = trackWith({ isAutoplay: true })
+        stampBridgeSource(track as never, 'youtubei-native')
+        expect(getStreamBridgeSource(track)).toBe('youtubei-native')
+        expect(track.metadata).toMatchObject({ isAutoplay: true })
+    })
+
+    it('reads nothing from an unstamped track', () => {
+        expect(getStreamBridgeSource({})).toBeUndefined()
+        expect(getStreamBridgeSource({ metadata: null })).toBeUndefined()
+    })
+
+    it('clears both bridge stamps and keeps the rest', () => {
+        const track = trackWith({
+            isAutoplay: true,
+            [STREAM_BRIDGE_FALLBACK_METADATA_KEY]: 'soundcloud-full',
+            streamBridgeSource: 'youtubei-native',
+        })
+        clearBridgeStamps(track as never)
+        expect(track.metadata).toEqual({ isAutoplay: true })
+    })
+
+    it('does not touch metadata without stamps', () => {
+        const track = trackWith({ isAutoplay: true })
+        clearBridgeStamps(track as never)
+        clearBridgeStamps(trackWith(null) as never)
+        expect(track.setMetadata).not.toHaveBeenCalled()
     })
 })

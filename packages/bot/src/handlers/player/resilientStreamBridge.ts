@@ -22,6 +22,12 @@ import {
 } from '../../utils/monitoring/prometheus'
 import { searchYtDlpCandidates, streamViaYtDlp } from './ytdlpProcess'
 import {
+    searchYoutubeiCandidates,
+    streamViaYoutubei,
+} from './youtubeiNativeStream'
+import { isHostedYoutubeEnabled } from '../../config/featureFlags'
+import { extractYouTubeVideoId } from '../../services/musicRecommendation/autoplay/scoringUtils'
+import {
     pickYouTubeCandidate,
     youtubeWatchUrl,
     type RejectedYouTubeCandidate,
@@ -44,6 +50,8 @@ import {
     isNegativeEntry,
 } from './spotifySourceCache'
 import {
+    clearBridgeStamps,
+    stampBridgeSource,
     stampFallbackStage,
     type StreamBridgeFallbackStage,
 } from './streamFallbackState'
@@ -76,6 +84,7 @@ type BridgeStage =
     | 'ytdlp_url'
     | 'ytdlp_search'
     | 'ytdlp_search_broad'
+    | 'youtubei_native'
     | 'soundcloud_full'
     | 'soundcloud_title'
     | 'soundcloud_core'
@@ -440,6 +449,158 @@ async function attemptCachedSpotifySource(
     }
 }
 
+// The track's own YouTube video id, when its URL is a YouTube watch link.
+function youtubeUrlVideoId(track: BridgeTrack): string | null {
+    return track.url && isHost(track.url, 'youtube.com', 'youtu.be')
+        ? extractYouTubeVideoId(track.url)
+        : null
+}
+
+async function pickYoutubeiSearchHit(
+    query: string,
+    cleanedTitle: string,
+    cleanedAuthor: string,
+    track: BridgeTrack,
+) {
+    const candidates = await searchYoutubeiCandidates(query)
+    return pickYouTubeCandidate(
+        {
+            title: cleanedTitle,
+            author: cleanedAuthor,
+            sourceTitle: track.title,
+            duration: track.duration,
+        },
+        candidates,
+    )
+}
+
+type YoutubeiPlan =
+    | { urlVideoId: string; query?: undefined }
+    | { urlVideoId: null; query: string }
+
+// What the youtubei stage would try for this track, or null to skip it: off
+// with HOSTED_YOUTUBE_ENABLED, and no search when the yt-dlp search already
+// reached YouTube and found no valid hit (same catalog, same miss).
+function planYoutubeiNative(
+    track: BridgeTrack,
+    cleanedTitle: string,
+    cleanedAuthor: string,
+): YoutubeiPlan | null {
+    if (!isHostedYoutubeEnabled()) return null
+    const urlVideoId = youtubeUrlVideoId(track)
+    if (urlVideoId) return { urlVideoId }
+    const searchMissed = ['no_match', 'empty'].includes(
+        firstYouTubeFailure.get(track) ?? '',
+    )
+    if (!cleanedTitle || searchMissed) return null
+    return {
+        urlVideoId: null,
+        query: `${cleanSearchQuery(cleanedTitle, cleanedAuthor)} official audio`,
+    }
+}
+
+function logYoutubeiStreamed(
+    track: BridgeTrack,
+    cleanedTitle: string,
+    plan: YoutubeiPlan,
+    pick: ScoredYouTubeCandidate | null,
+    durationMs: number,
+): void {
+    addBreadcrumb(
+        'YouTube stream resolved via youtubei',
+        'music.youtube-extraction',
+        'info',
+    )
+    infoLog({
+        message: 'Bridge: streamed via youtubei',
+        data: {
+            stage: 'youtubei-native',
+            title: cleanedTitle || track.title,
+            ...(pick
+                ? { query: plan.query, ...describePick(pick) }
+                : { videoId: plan.urlVideoId }),
+            durationMs,
+        },
+    })
+}
+
+// Second YouTube client (youtubei.js), tried after every yt-dlp stage failed
+// or the 403 breaker skipped them, before SoundCloud. A YouTube URL streams
+// that video; anything else streams the top validated search hit. A failed
+// attempt appends its label to `youtubeStages` for the exhausted event.
+async function attemptYoutubeiNative(
+    track: BridgeTrack,
+    cleanedTitle: string,
+    cleanedAuthor: string,
+    youtubeStages: string[],
+): Promise<Readable | null> {
+    const plan = planYoutubeiNative(track, cleanedTitle, cleanedAuthor)
+    if (!plan) return null
+    const startedAt = Date.now()
+    try {
+        const hit = plan.query
+            ? await pickYoutubeiSearchHit(
+                  plan.query,
+                  cleanedTitle,
+                  cleanedAuthor,
+                  track,
+              )
+            : null
+        if (hit && !hit.pick) {
+            const durationMs = observeStage(
+                'youtubei_native',
+                startedAt,
+                'fail',
+            )
+            warnLog({
+                message:
+                    'Bridge: no validated youtubei search hit, falling back to SoundCloud',
+                data: {
+                    query: plan.query,
+                    cleanedTitle,
+                    trackDuration: track.duration,
+                    rejected: hit.rejected,
+                    durationMs,
+                },
+            })
+            youtubeStages.push('youtubei-native')
+            return null
+        }
+        const pick = hit?.pick ?? null
+        const stream = await streamViaYoutubei(
+            pick ? pick.id : (plan.urlVideoId as string),
+        )
+        const durationMs = observeStage('youtubei_native', startedAt, 'ok')
+        stampBridgeSource(track, 'youtubei-native')
+        if (pick && track.url && isHost(track.url, 'open.spotify.com')) {
+            void setSpotifySource(track.url, youtubeWatchUrl(pick.id))
+        }
+        logYoutubeiStreamed(track, cleanedTitle, plan, pick, durationMs)
+        return stream
+    } catch (error) {
+        const durationMs = observeStage('youtubei_native', startedAt, 'fail')
+        addBreadcrumb(
+            'YouTube extraction failed via youtubei',
+            'music.youtube-extraction',
+            'warning',
+            { error: scrubUrls((error as Error).message) },
+        )
+        noteFirstYouTubeFailure(track, error)
+        warnLog({
+            message: 'Bridge: youtubei failed, falling back to SoundCloud',
+            data: {
+                error: (error as Error).message,
+                videoId: plan.urlVideoId ?? undefined,
+                query: plan.query,
+                cleanedTitle,
+                durationMs,
+            },
+        })
+        youtubeStages.push('youtubei-native')
+        return null
+    }
+}
+
 async function attemptSoundCloud(
     query: string,
     track: BridgeTrack,
@@ -745,6 +906,7 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     // failure class so this play's event is fingerprinted by its own cause.
     firstYouTubeFailure.delete(track)
     reportedExhausted.delete(track)
+    clearBridgeStamps(track)
 
     // YouTube is answering media downloads with 403: skip yt-dlp instead of
     // paying 4-10 s per play for a known failure (#2653).
@@ -814,6 +976,14 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
 
     // Neither yt-dlp branch ran (no URL): do not claim yt-dlp was attempted.
     if (youtubeStages.length === 0) youtubeStages = ['yt-dlp-not-attempted']
+
+    const nativeStream = await attemptYoutubeiNative(
+        track,
+        cleanedTitle,
+        cleanedAuthor,
+        youtubeStages,
+    )
+    if (nativeStream) return nativeStream
 
     if (!cleanedTitle) {
         warnLog({

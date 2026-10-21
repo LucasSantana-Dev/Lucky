@@ -1,10 +1,11 @@
 # Architecture Decision Records
 
-146 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
+147 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
-## Accepted (137)
+## Accepted (138)
 
+- [2026-10-21 - youtubei.js native stream as a bridge stage between yt-dlp and SoundCloud](2026-10-21-youtubei-native-bridge-stage.md) - _Accepted (amends decision 4 of `2026-06-18-youtube-extraction-reliability.md`)_
 - [2026-10-18 - Music-first amendments from the 2026-10-08 business review: activation fixes, spend gates, no recruiting](2026-10-18-music-first-business-review-amendments.md) - _Accepted (amends decisions 2, 5 and 6 of `2026-09-27-music-first-positioning.md`)_
 - [2026-10-07 - Brand identity: retro Japanese print maneki-neko, Edo purple, custom LUCKY lettering](2026-10-07-brand-retro-maneki-edo-purple.md) - _Accepted (supersedes `2026-10-07-brand-purple-gold-wordmark-family.md`)_
 - [2026-10-07 - The pitch leads with the weekly recap; thumbs feedback moves onto the now-playing message](2026-10-07-pitch-leads-with-weekly-recap.md) - _Accepted (amends the pitch of `2026-09-27-music-first-positioning.md`)_
@@ -54,7 +55,7 @@
 - [2026-06-21 - Move Message via Context Menu (relocate, not archive)](2026-06-21-move-message-context-menu.md)
 - [2026-06-18 - In-bot growth: a utility-first activation aid, not an acquisition lever](2026-06-18-in-bot-growth.md) - _accepted-with-revisions (in-bot = activation/retention; acquisition stays external)_
 - [2026-06-18 - Invite permission scope: graceful checks first, then a curated default + on-demand escalation](2026-06-18-invite-permission-scope.md) - _accepted-with-revisions (sequenced — #2 graceful checks ship BEFORE #1 the invite integer)_
-- [2026-06-18 - YouTube extraction reliability: classify-and-measure first, weekly yt-dlp refresh, defer Lavalink behind a gate](2026-06-18-youtube-extraction-reliability.md) - _accepted-with-revisions (measurement made real + bounded; big bets data-gated)_
+- [2026-06-18 - YouTube extraction reliability: classify-and-measure first, weekly yt-dlp refresh, defer Lavalink behind a gate](2026-06-18-youtube-extraction-reliability.md) - _accepted-with-revisions (measurement made real + bounded; big bets data-gated; escalation ladder amended by `2026-10-21-youtubei-native-bridge-stage.md`)_
 - [2026-06-17 - Growth channel sequencing: measure first, then directories, defer App Directory + SEO](2026-06-17-growth-channel-sequencing.md) - _accepted-with-revisions (sequencing gated behind a 2-week measurement sprint)_
 - [2026-06-17 - Hotfix to prod: a committed runbook over the workflow_dispatch fast-path](2026-06-17-hotfix-runbook-workflow-dispatch.md)
 - [2026-06-17 - ADR: Reactivate Renovate (App) + add a dark-period health guard](2026-06-17-renovate-reactivation.md)
