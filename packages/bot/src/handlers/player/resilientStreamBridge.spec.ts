@@ -1092,6 +1092,16 @@ describe('Spotify source cache', () => {
             )
         })
 
+        it('reads the URL key when the ISRC lookup throws', async () => {
+            mockEnsureSpotifyIsrc.mockRejectedValueOnce(new Error('boom'))
+            searchStreams()
+
+            const result = await createResilientStream(spotifyTrack())
+
+            expect(result).toBe(fakeStream)
+            expect(mockGetSpotifySource).toHaveBeenCalledWith(spotifyUrl, null)
+        })
+
         it('replays a cached SoundCloud match without any YouTube stage', async () => {
             mockGetSpotifySource.mockResolvedValueOnce(cachedSc)
             mockStreamSoundCloudTrack.mockResolvedValueOnce(fakeStream)
@@ -1300,11 +1310,10 @@ describe('empty YouTube search retry', () => {
 
         await createResilientStream(spotifyTrack())
 
-        expect(mockSetSpotifySource).not.toHaveBeenCalledWith(
-            expect.anything(),
-            expect.objectContaining({ source: 'youtube' }),
-            expect.anything(),
+        const cachedSources = mockSetSpotifySource.mock.calls.map(
+            (call) => (call[1] as { source: string }).source,
         )
+        expect(cachedSources).not.toContain('youtube')
     })
 
     it('falls back to SoundCloud when the broad retry is empty too', async () => {

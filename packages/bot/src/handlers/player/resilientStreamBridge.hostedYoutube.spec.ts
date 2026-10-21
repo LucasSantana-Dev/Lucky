@@ -38,7 +38,7 @@ jest.mock('./soundcloudMatcher', () => ({
     streamSoundCloudTrack: (...args: unknown[]) =>
         mockStreamSoundCloudTrack(...args),
 }))
-const mockEnsureSpotifyIsrc = jest.fn()
+const mockEnsureSpotifyIsrc = jest.fn().mockResolvedValue(null)
 jest.mock('./spotifyIsrc', () => ({
     ensureSpotifyIsrc: (...args: unknown[]) => mockEnsureSpotifyIsrc(...args),
     trackIsrc: (track: { metadata?: unknown }) =>

@@ -984,7 +984,12 @@ async function readSpotifyCache(
     cleanedTitle: string,
     ytDlpBlocked: boolean,
 ): Promise<SpotifyCacheRead> {
-    const isrc = await ensureSpotifyIsrc(track)
+    let isrc: string | null = null
+    try {
+        isrc = await ensureSpotifyIsrc(track)
+    } catch {
+        // A failed lookup only means the URL key is used.
+    }
     const cached = await getSpotifySource(track.url as string, isrc).catch(
         () => null,
     )
