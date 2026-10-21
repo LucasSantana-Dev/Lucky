@@ -218,7 +218,13 @@ describe('createResilientStream: kill-switch guardrail', () => {
 
             expect(result).toBe('soundcloud-stream')
             expectNoYoutubeReached()
-            expect(setSpotifySource).not.toHaveBeenCalled()
+            // Only the SoundCloud match that played is cached.
+            expect(setSpotifySource).toHaveBeenCalledTimes(1)
+            expect(setSpotifySource).toHaveBeenCalledWith(
+                SPOTIFY_URL,
+                expect.objectContaining({ source: 'soundcloud' }),
+                null,
+            )
         },
     )
 
@@ -234,9 +240,11 @@ describe('createResilientStream: kill-switch guardrail', () => {
     })
 
     it('a cached YouTube source for a Spotify track is not streamed and the cache is kept', async () => {
-        jest.mocked(getSpotifySource).mockResolvedValue(
-            'https://www.youtube.com/watch?v=cached1',
-        )
+        jest.mocked(getSpotifySource).mockResolvedValue({
+            source: 'youtube',
+            id: 'cached1',
+            method: 'ytdlp-search',
+        })
 
         const result = await createResilientStream(
             makeTrack(SPOTIFY_URL) as never,

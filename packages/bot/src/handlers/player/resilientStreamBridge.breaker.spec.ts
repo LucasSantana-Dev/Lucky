@@ -15,8 +15,15 @@ jest.mock('./ytdlpProcess', () => ({
         mockSearchYtDlpCandidates(...args),
 }))
 jest.mock('./soundcloudMatcher', () => ({
-    streamViaSoundCloud: (...args: unknown[]) =>
-        mockStreamViaSoundCloud(...args),
+    resolveViaSoundCloud: async (...args: unknown[]) => ({
+        stream: await mockStreamViaSoundCloud(...args),
+        match: { id: 'https://soundcloud.com/artist/song' },
+    }),
+    streamSoundCloudTrack: jest.fn(),
+}))
+jest.mock('./spotifyIsrc', () => ({
+    ensureSpotifyIsrc: jest.fn(async () => null),
+    trackIsrc: () => null,
 }))
 jest.mock('./spotifySourceCache', () => ({
     getSpotifySource: (...args: unknown[]) => mockGetSpotifySource(...args),
@@ -113,9 +120,11 @@ describe('block breaker: one streak failure per play', () => {
     })
 
     it('cache hit then a fresh search of the same video counts once', async () => {
-        mockGetSpotifySource.mockResolvedValue(
-            'https://www.youtube.com/watch?v=vid123',
-        )
+        mockGetSpotifySource.mockResolvedValue({
+            source: 'youtube',
+            id: 'vid123',
+            method: 'ytdlp-search',
+        })
         mockStreamViaYtDlp.mockRejectedValue(botcheck())
 
         await expect(
