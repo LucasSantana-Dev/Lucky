@@ -1,4 +1,4 @@
-import type { GuildQueue } from 'discord-player'
+import type { GuildQueue, Track } from 'discord-player'
 import { debugLog, warnLog } from '@lucky/shared/utils'
 import {
     cleanTitle,
@@ -8,13 +8,14 @@ import {
 import { isHost } from '../../utils/general/urlHost'
 import { isYtDlpBlocked } from './ytdlpBlockBreaker'
 import { searchYtDlpCandidates } from './ytdlpProcess'
-import { pickYouTubeCandidate, youtubeWatchUrl } from './youtubeSearchMatcher'
+import { pickYouTubeCandidate } from './youtubeSearchMatcher'
 import {
     getSpotifySource,
     isNegativeEntry,
     normalizeCacheKey,
     setSpotifySource,
 } from './spotifySourceCache'
+import { ensureSpotifyIsrc } from './spotifyIsrc'
 
 // Cache key (Spotify URL without `?si=`) -> in-flight prefetch. playerStart can fire for the same next
 // track more than once (replays, quick skips), and each prefetch spawns
@@ -70,9 +71,14 @@ export async function prefetchNextSpotifyTrack(
 
 async function resolveAndCache(
     spotifyUrl: string,
-    nextTrack: { title: string; author: string; duration?: string },
+    nextTrack: Pick<
+        Track,
+        'title' | 'author' | 'duration' | 'url' | 'metadata' | 'setMetadata'
+    >,
 ): Promise<void> {
-    const already = await getSpotifySource(spotifyUrl).catch(() => null)
+    // Also leaves the ISRC on the queued track, so its play skips the lookup.
+    const isrc = await ensureSpotifyIsrc(nextTrack)
+    const already = await getSpotifySource(spotifyUrl, isrc).catch(() => null)
     if (already !== null) return // already cached (positive or negative)
 
     const cleanedTitle = cleanTitle(nextTrack.title)
@@ -99,10 +105,23 @@ async function resolveAndCache(
         }
 
         // Playback may have cached a result while the search ran.
-        const current = await getSpotifySource(spotifyUrl).catch(() => null)
+        const current = await getSpotifySource(spotifyUrl, isrc).catch(
+            () => null,
+        )
         if (current !== null && !isNegativeEntry(current)) return
 
-        await setSpotifySource(spotifyUrl, youtubeWatchUrl(pick.id))
+        await setSpotifySource(
+            spotifyUrl,
+            {
+                source: 'youtube',
+                id: pick.id,
+                ...(typeof pick.durationSec === 'number'
+                    ? { matchedDurationSec: pick.durationSec }
+                    : {}),
+                method: 'prefetch-ytdlp-search',
+            },
+            isrc,
+        )
         debugLog({
             message: 'Prefetch: cached YouTube URL for next Spotify track',
             data: { title: nextTrack.title, cleanedTitle, videoId: pick.id },

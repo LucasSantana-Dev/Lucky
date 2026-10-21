@@ -25,9 +25,26 @@ jest.mock('simple-ytdl-core', () => ({
 jest.mock('node:child_process', () => ({
     spawn: (...args: unknown[]) => mockSpawn(...args),
 }))
+// The bridge calls resolveViaSoundCloud; tests drive its stream through
+// mockStreamViaSoundCloud and its match through mockSoundCloudMatch.
+const mockSoundCloudMatch = jest.fn(() => ({
+    id: 'https://soundcloud.com/test-artist/test-track',
+    durationSec: 210,
+}))
+const mockStreamSoundCloudTrack = jest.fn()
 jest.mock('./soundcloudMatcher', () => ({
-    streamViaSoundCloud: (...args: unknown[]) =>
-        mockStreamViaSoundCloud(...args),
+    resolveViaSoundCloud: async (...args: unknown[]) => ({
+        stream: await mockStreamViaSoundCloud(...args),
+        match: mockSoundCloudMatch(),
+    }),
+    streamSoundCloudTrack: (...args: unknown[]) =>
+        mockStreamSoundCloudTrack(...args),
+}))
+const mockEnsureSpotifyIsrc = jest.fn().mockResolvedValue(null)
+jest.mock('./spotifyIsrc', () => ({
+    ensureSpotifyIsrc: (...args: unknown[]) => mockEnsureSpotifyIsrc(...args),
+    trackIsrc: (track: { metadata?: unknown }) =>
+        (track.metadata as { isrc?: string } | null)?.isrc ?? null,
 }))
 jest.mock('../../services/musicManagement/search/providerHealth', () => ({
     providerHealthService: {
@@ -201,7 +218,13 @@ describe('createResilientStream: kill-switch guardrail', () => {
 
             expect(result).toBe('soundcloud-stream')
             expectNoYoutubeReached()
-            expect(setSpotifySource).not.toHaveBeenCalled()
+            // Only the SoundCloud match that played is cached.
+            expect(setSpotifySource).toHaveBeenCalledTimes(1)
+            expect(setSpotifySource).toHaveBeenCalledWith(
+                SPOTIFY_URL,
+                expect.objectContaining({ source: 'soundcloud' }),
+                null,
+            )
         },
     )
 
@@ -217,9 +240,11 @@ describe('createResilientStream: kill-switch guardrail', () => {
     })
 
     it('a cached YouTube source for a Spotify track is not streamed and the cache is kept', async () => {
-        jest.mocked(getSpotifySource).mockResolvedValue(
-            'https://www.youtube.com/watch?v=cached1',
-        )
+        jest.mocked(getSpotifySource).mockResolvedValue({
+            source: 'youtube',
+            id: 'cached1',
+            method: 'ytdlp-search',
+        })
 
         const result = await createResilientStream(
             makeTrack(SPOTIFY_URL) as never,

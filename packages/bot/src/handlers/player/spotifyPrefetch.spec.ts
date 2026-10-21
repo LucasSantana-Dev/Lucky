@@ -10,6 +10,7 @@ const mockCleanAuthor = jest.fn()
 const mockCleanSearchQuery = jest.fn()
 const mockDebugLog = jest.fn()
 const mockWarnLog = jest.fn()
+const mockEnsureSpotifyIsrc = jest.fn()
 
 jest.mock('./ytdlpBlockBreaker', () => ({
     isYtDlpBlocked: () => mockIsYtDlpBlocked(),
@@ -28,6 +29,9 @@ jest.mock('./spotifySourceCache', () => ({
     setSpotifySource: (...args: unknown[]) => mockSetSpotifySource(...args),
     isNegativeEntry: (value: string) => value === '__neg__',
     normalizeCacheKey: (url: string) => url.replace(/\?si=[^&]*$/, ''),
+}))
+jest.mock('./spotifyIsrc', () => ({
+    ensureSpotifyIsrc: (...args: unknown[]) => mockEnsureSpotifyIsrc(...args),
 }))
 jest.mock('../../utils/music/searchQueryCleaner', () => ({
     cleanTitle: (...args: unknown[]) => mockCleanTitle(...args),
@@ -63,6 +67,7 @@ describe('prefetchNextSpotifyTrack', () => {
         mockIsYtDlpBlocked.mockReturnValue(false)
         mockGetSpotifySource.mockResolvedValue(null)
         mockSetSpotifySource.mockResolvedValue(undefined)
+        mockEnsureSpotifyIsrc.mockResolvedValue(null)
         mockCleanTitle.mockReturnValue('Test')
         mockCleanAuthor.mockReturnValue('Artist')
         mockCleanSearchQuery.mockReturnValue('test artist')
@@ -135,7 +140,39 @@ describe('prefetchNextSpotifyTrack', () => {
         expect(mockSearchYtDlpCandidates).toHaveBeenCalledTimes(1)
         expect(mockSetSpotifySource).toHaveBeenCalledWith(
             spotifyUrl,
-            'https://www.youtube.com/watch?v=new123',
+            {
+                source: 'youtube',
+                id: 'new123',
+                method: 'prefetch-ytdlp-search',
+            },
+            null,
+        )
+    })
+
+    it('looks up the ISRC and keys the cache read and write with it', async () => {
+        mockEnsureSpotifyIsrc.mockResolvedValueOnce('USRC17607839')
+        mockPickYouTubeCandidate.mockReturnValue({
+            pick: { id: 'new123', score: 1, durationSec: 200 },
+            rejected: [],
+        })
+        const track = makeTrack()
+
+        await prefetchNextSpotifyTrack(makeQueue(track))
+
+        expect(mockEnsureSpotifyIsrc).toHaveBeenCalledWith(track)
+        expect(mockGetSpotifySource).toHaveBeenCalledWith(
+            spotifyUrl,
+            'USRC17607839',
+        )
+        expect(mockSetSpotifySource).toHaveBeenCalledWith(
+            spotifyUrl,
+            {
+                source: 'youtube',
+                id: 'new123',
+                matchedDurationSec: 200,
+                method: 'prefetch-ytdlp-search',
+            },
+            'USRC17607839',
         )
     })
 
@@ -168,7 +205,12 @@ describe('prefetchNextSpotifyTrack', () => {
         expect(mockSetSpotifySource).toHaveBeenCalledTimes(1)
         expect(mockSetSpotifySource).toHaveBeenCalledWith(
             spotifyUrl,
-            'https://www.youtube.com/watch?v=new123',
+            {
+                source: 'youtube',
+                id: 'new123',
+                method: 'prefetch-ytdlp-search',
+            },
+            null,
         )
         expect(mockDebugLog).toHaveBeenCalledTimes(1)
     })
@@ -219,7 +261,12 @@ describe('prefetchNextSpotifyTrack', () => {
 
         expect(mockSetSpotifySource).toHaveBeenCalledWith(
             spotifyUrl,
-            'https://www.youtube.com/watch?v=new123',
+            {
+                source: 'youtube',
+                id: 'new123',
+                method: 'prefetch-ytdlp-search',
+            },
+            null,
         )
     })
 
@@ -234,7 +281,12 @@ describe('prefetchNextSpotifyTrack', () => {
         expect(mockSetSpotifySource).toHaveBeenCalledTimes(1)
         expect(mockSetSpotifySource).toHaveBeenCalledWith(
             spotifyUrl,
-            'https://www.youtube.com/watch?v=new123',
+            {
+                source: 'youtube',
+                id: 'new123',
+                method: 'prefetch-ytdlp-search',
+            },
+            null,
         )
         expect(mockWarnLog).toHaveBeenCalledTimes(1)
         expect(mockWarnLog).toHaveBeenCalledWith(
