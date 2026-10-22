@@ -96,6 +96,18 @@ export function __resetYtdlpCookiesLogStateForTests(): void {
     cookiesRejectedWarnedAt = 0
 }
 
+// Since 2026-10-19 the plain attempt hits YouTube's bot-check on nearly every
+// request. While a recent plain bot-check is remembered, skip that wasted
+// attempt and go straight to the cookies path. A 403 on the cookies attempt
+// signals that cookies are also degraded; clear the shortcut and let plain
+// run on the next call.
+export const PLAIN_BOTCHECK_SKIP_WINDOW_MS = 15 * 60_000
+let lastPlainBotCheckAt = 0
+
+export function __resetPlainBotCheckStateForTests(): void {
+    lastPlainBotCheckAt = 0
+}
+
 function warnCookiesRejected(cookiesFile: string | undefined): void {
     const now = Date.now()
     if (now - cookiesRejectedWarnedAt < COOKIES_REJECTED_WARN_COOLDOWN_MS)
@@ -282,6 +294,33 @@ export function streamViaYtDlp(
     } catch (err) {
         return Promise.reject(err)
     }
+    // Fast-path: while the plain attempt has been hitting the bot-check
+    // recently, skip it and go straight to cookies, saving the ~1.6 s of
+    // wasted budget (#2921). A 403 on the cookies path means cookies are also
+    // blocked; clear the shortcut so plain runs again on the next call.
+    if (
+        isYoutubeYtDlpTarget(url) &&
+        Date.now() - lastPlainBotCheckAt < PLAIN_BOTCHECK_SKIP_WINDOW_MS
+    ) {
+        const cookiesArgs = ytdlpCookiesArgs()
+        if (cookiesArgs.length > 0) {
+            return spawnTimed(
+                url,
+                'cookies',
+                cookiesArgs,
+                Math.max(timeoutMs, YTDLP_COOKIES_STREAM_START_TIMEOUT_MS),
+            ).catch((retryError: unknown) => {
+                if (needsSignIn(retryError))
+                    warnCookiesRejected(process.env.YTDLP_COOKIES_FILE)
+                if (classifyYtDlpFailure(retryError) === 'timeout')
+                    markYtDlpBudgetMiss(retryError)
+                if (classifyYtDlpFailure(retryError) === 'forbidden')
+                    lastPlainBotCheckAt = 0
+                throw retryError
+            })
+        }
+    }
+
     // Cookies only answer a sign-in challenge (#2653). Since 2026-10-06 a
     // logged-in session makes yt-dlp use web clients that need a GVS PO
     // token, so every cookie-backed download got HTTP 403, while the same
@@ -324,6 +363,9 @@ async function retryOnce(
     // Count the first sign-in challenge too: the cookies retry may
     // recover it, and the breaker only sees a failed retry (#2864).
     if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
+    // Bot-check on the plain attempt: enable the fast-path skip (#2921).
+    if (isYoutubeYtDlpTarget(url) && classifyYtDlpFailure(error) === 'botcheck')
+        lastPlainBotCheckAt = Date.now()
     try {
         // Never less than the caller asked for.
         return await spawnTimed(
@@ -339,6 +381,12 @@ async function retryOnce(
         // markYtDlpBudgetMiss.
         if (classifyYtDlpFailure(retryError) === 'timeout')
             markYtDlpBudgetMiss(retryError)
+        // 403 on the cookies retry: cookies are also blocked; clear the shortcut.
+        if (
+            isYoutubeYtDlpTarget(url) &&
+            classifyYtDlpFailure(retryError) === 'forbidden'
+        )
+            lastPlainBotCheckAt = 0
         throw retryError
     }
 }
