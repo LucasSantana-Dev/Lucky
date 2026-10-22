@@ -162,6 +162,10 @@ above 5% exhaustion); this amendment does not touch it.
   Loki queries as the 2026-08-03 re-evaluation.
 - Rollback: unset `YTDLP_POT_PROVIDER_URL` and recreate the bot (back to the exact previous
   command line), then `docker compose --profile pot stop bgutil-pot`. No data migrates.
+- Recreate the bot with `IMAGE_TAG` set to the tag it already runs. Without it the compose
+  image falls back to `:latest`, a stale local image. On 2026-10-22 a manual
+  `docker compose up -d --no-deps bot` started that image, which has no plugin directory, so
+  every YouTube spawn failed with `Invalid plugin directory` for about 5 minutes.
 - Escalate: if the bot check persists while yt-dlp `-v` shows
   `Generating a gvs PO Token ... via bgutil HTTP server`, the cheaper rungs are spent and the
   Lavalink gate is the next read.
