@@ -14,6 +14,7 @@ import {
     debugLog,
     errorLog,
     infoLog,
+    warnLog,
     parseIntEnv,
 } from '@lucky/shared/utils'
 
@@ -391,9 +392,17 @@ export class WeeklyDigestService {
 
             return guides
         } catch (error: unknown) {
-            errorLog({
-                message: 'Failed to fetch RSS feed for guides',
-                error: error as Error,
+            // A 404 or network hiccup on an external feed is not actionable;
+            // log at warn so it doesn't page oncall (LUCKY-4X).
+            warnLog({
+                message: 'rss feed unavailable — skipping guides section',
+                data: {
+                    feedUrl:
+                        process.env.CRIATIVARIA_GUIDES_FEED_URL ||
+                        'https://criativaria.com.br/rss.xml',
+                    reason:
+                        error instanceof Error ? error.message : String(error),
+                },
             })
             return []
         }
