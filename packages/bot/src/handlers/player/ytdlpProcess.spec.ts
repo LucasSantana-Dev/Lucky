@@ -30,9 +30,11 @@ import {
     searchYtDlpCandidates,
     streamViaYtDlp,
     streamViaYtDlpSearch,
+    PLAIN_BOTCHECK_SKIP_WINDOW_MS,
     YTDLP_COOKIES_STREAM_START_TIMEOUT_MS,
     YTDLP_SEARCH_RESOLVE_TIMEOUT_MS,
     YTDLP_STREAM_START_TIMEOUT_MS,
+    __resetPlainBotCheckStateForTests,
     __resetYtdlpCookiesLogStateForTests,
     __resetYtdlpPotLogStateForTests,
 } from './ytdlpProcess'
@@ -136,6 +138,7 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
 
     beforeEach(() => {
         __resetYtdlpCookiesLogStateForTests()
+        __resetPlainBotCheckStateForTests()
         mockSpawn.mockReset()
         mockStatSync.mockReset()
         mockMkdtempSync.mockClear()
@@ -255,7 +258,9 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
 
     it('warns once that the cookies are rejected when the cookies retry hits the sign-in check again', async () => {
         readableCookies()
-        script(SIGN_IN, SIGN_IN, SIGN_IN, SIGN_IN)
+        // Play 1: plain → sign-in → cookies → sign-in (warns, records bot-check).
+        // Play 2: fast-path shortcut → cookies → sign-in (cooldown suppresses warn).
+        script(SIGN_IN, SIGN_IN, SIGN_IN)
 
         await expect(streamViaYtDlp(validUrl)).rejects.toThrow(
             'Sign in to confirm',
@@ -264,16 +269,17 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
             'Sign in to confirm',
         )
 
-        expect(mockSpawn).toHaveBeenCalledTimes(4)
+        expect(mockSpawn).toHaveBeenCalledTimes(3)
         expect(cookiesRejectedWarns()).toHaveLength(1)
         expect(cookiesRejectedWarns()[0]?.[0]).toMatchObject({
             data: { cookiesFile: cookiesPath },
         })
     })
 
-    it('does not blame the cookies when the cookies retry streams or fails for another reason', async () => {
+    it('does not blame the cookies when the fast-path cookies attempt fails with 403', async () => {
         readableCookies()
-        script(SIGN_IN, 'ok', SIGN_IN, FORBIDDEN)
+        // Play 1 activates the shortcut; play 2 uses fast-path → 403 (not a sign-in, no warn).
+        script(SIGN_IN, 'ok', FORBIDDEN)
 
         await streamViaYtDlp(validUrl)
         await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
@@ -388,7 +394,8 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         )
 
         readableCookies()
-        script(SIGN_IN, 'ok', SIGN_IN, 'ok')
+        // Second call uses the fast-path (shortcut activated by first call).
+        script(SIGN_IN, 'ok', 'ok')
         await streamViaYtDlp(validUrl)
         await streamViaYtDlp(validUrl)
         const applied = mockInfoLog.mock.calls.filter(
@@ -407,9 +414,13 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
 
     it('logs one timing line per YouTube attempt, with its kind and outcome', async () => {
         readableCookies()
-        script(SIGN_IN, 'ok', FORBIDDEN, FORBIDDEN)
+        // Play 1: plain:botcheck → cookies:ok (activates fast-path shortcut).
+        // Play 2: fast-path cookies:forbidden (clears shortcut).
+        // Play 3: plain:forbidden → forbidden_retry:forbidden.
+        script(SIGN_IN, 'ok', FORBIDDEN, FORBIDDEN, FORBIDDEN)
 
         await streamViaYtDlp(validUrl)
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
         await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
 
         const ms = expect.any(Number)
@@ -423,6 +434,12 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
             {
                 attempt: 'cookies',
                 outcome: 'ok',
+                ms,
+                timeoutMs: YTDLP_COOKIES_STREAM_START_TIMEOUT_MS,
+            },
+            {
+                attempt: 'cookies',
+                outcome: 'forbidden',
                 ms,
                 timeoutMs: YTDLP_COOKIES_STREAM_START_TIMEOUT_MS,
             },
@@ -447,6 +464,87 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         await streamViaYtDlp('https://soundcloud.com/artist/track')
 
         expect(attemptLogs()).toEqual([])
+    })
+
+    // ---------------------------------------------------------------------------
+    // Fast-path: skip plain while bot-check is active (#2921)
+    // ---------------------------------------------------------------------------
+
+    it('skips the plain attempt while bot-check is active within the window', async () => {
+        readableCookies()
+        // First play activates the shortcut via plain → bot-check → cookies → ok.
+        script(SIGN_IN, 'ok')
+        await streamViaYtDlp(validUrl)
+
+        // Second play: shortcut active → only one spawn (cookies), no plain.
+        script('ok')
+        await streamViaYtDlp(validUrl)
+
+        expect(mockSpawn).toHaveBeenCalledTimes(3)
+        expect(spawnArgs(2)).toContain('--cookies')
+    })
+
+    it('a 403 from the fast-path cookies clears the shortcut and reverts to plain', async () => {
+        readableCookies()
+        // Play 1: plain → bot-check → cookies → ok (shortcut activated).
+        script(SIGN_IN, 'ok')
+        await streamViaYtDlp(validUrl)
+
+        // Play 2: fast-path → cookies → 403 (clears shortcut).
+        script(FORBIDDEN)
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
+
+        // Play 3: shortcut cleared → tries plain again (no --cookies on first spawn).
+        script('ok')
+        await streamViaYtDlp(validUrl)
+
+        expect(mockSpawn).toHaveBeenCalledTimes(4)
+        expect(spawnArgs(3)).not.toContain('--cookies')
+    })
+
+    it('reverts to plain after the bot-check window expires', async () => {
+        readableCookies()
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+        try {
+            script(SIGN_IN, 'ok')
+            await streamViaYtDlp(validUrl)
+
+            // Advance past the 15-minute window.
+            jest.advanceTimersByTime(PLAIN_BOTCHECK_SKIP_WINDOW_MS)
+
+            script('ok')
+            await streamViaYtDlp(validUrl)
+
+            expect(mockSpawn).toHaveBeenCalledTimes(3)
+            expect(spawnArgs(2)).not.toContain('--cookies')
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    it('fast-path uses the cookies budget and does not open the block breaker on timeout', async () => {
+        readableCookies()
+        // Activate the shortcut.
+        script(SIGN_IN, 'ok')
+        await streamViaYtDlp(validUrl)
+
+        const fastPathProc = makeFakeProc()
+        mockSpawn.mockImplementationOnce(() => fastPathProc)
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+        try {
+            recordYtDlpSuccess()
+            const promise = streamViaYtDlp(validUrl)
+            jest.advanceTimersByTime(YTDLP_COOKIES_STREAM_START_TIMEOUT_MS)
+            const err = await promise.catch((e: unknown) => e)
+            expect(String(err)).toContain('timed out')
+
+            recordYtDlpFailure(err, 1_000)
+            recordYtDlpFailure(err, 2_000)
+            expect(isYtDlpBlocked(2_000)).toBe(false)
+            recordYtDlpSuccess()
+        } finally {
+            jest.useRealTimers()
+        }
     })
 
     // 9 of 14 cookie retries timed out at 8s (2026-10-19 to 10-21): the
@@ -569,7 +667,10 @@ describe('streamViaYtDlp: po_token provider', () => {
     beforeEach(() => {
         __resetYtdlpPotLogStateForTests()
         __resetYtdlpCookiesLogStateForTests()
+        __resetPlainBotCheckStateForTests()
         mockSpawn.mockReset()
+        mockStatSync.mockReset()
+        mockAccessSync.mockReset()
         mockInfoLog.mockReset()
         mockWarnLog.mockReset()
     })
