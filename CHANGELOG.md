@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.64.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.64.0...v2.64.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **bot:** stream recovery never recovers its own replacement ([#2918](https://github.com/LucasSantana-Dev/Lucky/issues/2918)) ([b5d6ffc](https://github.com/LucasSantana-Dev/Lucky/commit/b5d6ffcf9bd24668459e9164fc926b279cb7a381))
+
+
+### Performance Improvements
+
+* **bot:** skip plain yt-dlp attempt while youtube bot-checks it ([#2923](https://github.com/LucasSantana-Dev/Lucky/issues/2923)) ([9c0b326](https://github.com/LucasSantana-Dev/Lucky/commit/9c0b326195a3f27fe96a199e7cd767ff3361bef7))
+
 ## [2.64.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.63.3...v2.64.0) (2026-10-21)
 
 
