@@ -30,3 +30,16 @@ export function getBotInviteUrl(): string {
 }
 
 export { BOT_INVITE_PERMISSIONS }
+
+/**
+ * URL the landing page "Add to Discord" CTA should point to. Routes through
+ * the backend's /api/add endpoint so the OAuth state carries source=landing,
+ * enabling guild_join_sources attribution (#2861).
+ */
+export function getLandingAddUrl(): string {
+    const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '').replace(
+        /\/+$/,
+        '',
+    )
+    return `${apiBase || '/api'}/add?source=landing`
+}

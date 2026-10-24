@@ -125,7 +125,7 @@ describe('Landing', () => {
         ).toBeInTheDocument()
     })
 
-    test('renders Add to Discord primary CTA in hero and nav when invite URL is set', () => {
+    test('renders Add to Discord primary CTA in hero and nav via the attributed add route', () => {
         render(<Landing />)
         const inviteLinks = screen.getAllByRole('link', {
             name: /Add to Discord/i,
@@ -134,34 +134,25 @@ describe('Landing', () => {
         inviteLinks.forEach((link) => {
             expect(link).toHaveAttribute(
                 'href',
-                expect.stringContaining('discord.com/oauth2/authorize'),
+                expect.stringMatching(/\/api\/add\?source=landing$/),
             )
             expect(link).toHaveAttribute('target', '_blank')
             expect(link).toHaveAttribute('rel', 'noopener noreferrer')
         })
     })
 
-    test('falls back to the public default client id when env var not set', () => {
-        const originalEnv = { ...import.meta.env }
-        ;(import.meta.env as Record<string, unknown>).VITE_DISCORD_CLIENT_ID =
-            ''
-        try {
-            render(<Landing />)
-            // With no env override, the CTA stays enabled and links to the
-            // bundled public Application ID — no operator config required.
-            const inviteLinks = screen.getAllByRole('link', {
-                name: /Add to Discord/i,
-            })
-            expect(inviteLinks.length).toBeGreaterThanOrEqual(2)
-            inviteLinks.forEach((link) => {
-                expect(link).toHaveAttribute(
-                    'href',
-                    expect.stringContaining('client_id=962198089161134131'),
-                )
-            })
-        } finally {
-            Object.assign(import.meta.env, originalEnv)
-        }
+    test('CTA never links straight to discord.com so the landing source is recorded', () => {
+        // The OAuth authorize URL (and its public default client id) is now
+        // built by the backend /api/add route; see backend invite.test.ts.
+        render(<Landing />)
+        const inviteLinks = screen.getAllByRole('link', {
+            name: /Add to Discord/i,
+        })
+        expect(inviteLinks.length).toBeGreaterThanOrEqual(2)
+        inviteLinks.forEach((link) => {
+            expect(link.getAttribute('href')).not.toContain('discord.com')
+            expect(link.getAttribute('href')).toContain('source=landing')
+        })
     })
 
     test('dashboard nav button triggers login', () => {
@@ -267,7 +258,9 @@ describe('Landing', () => {
         expect(screen.queryByText('/automod')).not.toBeInTheDocument()
         expect(screen.queryByText('/cc create')).not.toBeInTheDocument()
         expect(screen.getAllByText(/music/i).length).toBeGreaterThanOrEqual(2)
-        expect(screen.getByText('+ more commands with /help')).toBeInTheDocument()
+        expect(
+            screen.getByText('+ more commands with /help'),
+        ).toBeInTheDocument()
     })
 
     test('renders stack list with all six services', () => {
