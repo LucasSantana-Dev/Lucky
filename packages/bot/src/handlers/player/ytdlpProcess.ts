@@ -221,14 +221,13 @@ function ytdlpPotProviderArgs(url: string): string[] {
 export const YTDLP_STREAM_START_TIMEOUT_MS = 8_000
 
 // The cookies retry runs a logged-in session, and that stream start is slower
-// than a cookie-less one. Since 2026-10-19 the plain attempt hits the
-// bot-check on nearly every play (19 bot-checks in 3 days), so this retry is
-// the live path. Under the 8s budget 9 of 14 cookie retries (2026-10-19 to
-// 10-21) timed out and the play fell to SoundCloud; the 5 that streamed took
-// 5.8-7.5s. Those timeouts are cut at 8s, so the logs cannot give a p99:
-// this budget is a measurement ceiling, to be set just above the p99 of the
-// "Bridge: yt-dlp attempt" logs (attempt=cookies) once they accumulate.
-export const YTDLP_COOKIES_STREAM_START_TIMEOUT_MS = 15_000
+// than a cookie-less one. Measured in prod from the "Bridge: yt-dlp attempt"
+// logs (attempt=cookies), 2026-10-21 20:30 to 2026-10-24 21:05 UTC, under the
+// 15s measurement ceiling that #2911 set: n=13, all streamed, 0 timeouts;
+// p50 8.2s, p90 9.6s, p99 10.6s, max 10.7s. Set just above that max (the
+// #2141 convention), with a margin for the small sample. Before #2911, 9 of
+// 14 cookie retries (2026-10-19 to 10-21) were cut at the 8s plain budget.
+export const YTDLP_COOKIES_STREAM_START_TIMEOUT_MS = 12_000
 
 // Only streamViaYtDlpSearch (single-shot ytsearch1) uses this. The bridge's
 // search path lists candidates first (YTDLP_SEARCH_RESOLVE_TIMEOUT_MS) and
