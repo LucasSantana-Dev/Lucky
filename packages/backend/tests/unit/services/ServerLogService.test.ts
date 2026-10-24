@@ -71,7 +71,7 @@ describe('ServerLogService', () => {
                         guildId: GUILD_A,
                         type: 'message_delete',
                         action: 'Message deleted',
-                        details: JSON.stringify({ content: 'deleted text' }),
+                        details: { content: 'deleted text' },
                         userId: USER_A,
                         channelId: 'ch-1',
                     }),
