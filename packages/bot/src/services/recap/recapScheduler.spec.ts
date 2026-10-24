@@ -180,7 +180,7 @@ describe('RecapScheduler (#2678)', () => {
     it.each([
         ['text', undefined],
         ['card', ATTACH_PERMS],
-    ])('a %s recap carries the off button', async (_kind, perms) => {
+    ])('a %s recap carries the play and off buttons', async (_kind, perms) => {
         getWeeklyRecapMock.mockResolvedValue(recap(12))
         const { client, send } = makeClient('text', perms ? { perms } : {})
 
@@ -188,6 +188,10 @@ describe('RecapScheduler (#2678)', () => {
 
         const [row] = send.mock.calls[0][0].components
         expect(row.toJSON().components).toEqual([
+            expect.objectContaining({
+                custom_id: 'recap_mix',
+                label: 'music.recap.mixButton',
+            }),
             expect.objectContaining({
                 custom_id: 'recap_off',
                 label: 'music.recap.offButton',
