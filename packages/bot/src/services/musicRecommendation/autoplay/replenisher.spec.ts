@@ -20,12 +20,6 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
 }))
 
-// skipCircuitBreaker (imported transitively via replenisher) pulls in this shared
-// service, whose real module loads prismaClient (import.meta). Factory-mock it.
-jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
-    getAutoplaySkipRateForGuild: jest.fn(),
-}))
-
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: jest.fn(),
@@ -528,7 +522,7 @@ describe('replenishQueue', () => {
             new Error('Test error'),
         )
 
-        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+        await expect(replenishQueue(queue)).resolves.toBe(false)
 
         const { errorLog } = require('@lucky/shared/utils')
         expect(errorLog).toHaveBeenCalledWith(
@@ -886,7 +880,7 @@ describe('replenishQueue', () => {
         })
 
         // Verify replenishQueue executes without error
-        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+        await expect(replenishQueue(queue)).resolves.toBe(true)
 
         // Verify guildSettingsService.getGuildSettings was called
         expect(guildSettingsService.getGuildSettings).toHaveBeenCalledWith(
@@ -906,7 +900,7 @@ describe('replenishQueue', () => {
         })
 
         // Verify replenishQueue executes without error
-        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+        await expect(replenishQueue(queue)).resolves.toBe(true)
 
         // Verify guildSettingsService.getGuildSettings was called
         expect(guildSettingsService.getGuildSettings).toHaveBeenCalledWith(
@@ -925,7 +919,7 @@ describe('replenishQueue', () => {
         })
 
         // Verify replenishQueue executes without error
-        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+        await expect(replenishQueue(queue)).resolves.toBe(true)
 
         // Verify guildSettingsService.getGuildSettings was called
         expect(guildSettingsService.getGuildSettings).toHaveBeenCalledWith(

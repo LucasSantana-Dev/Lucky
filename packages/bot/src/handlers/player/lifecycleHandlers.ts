@@ -15,7 +15,10 @@ import * as voiceStatus from './voiceChannelStatusService'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
 import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
-import { replenishQueue } from '../../services/musicManagement/queueOperations'
+import {
+    replenishQueue,
+    waitForReplenish,
+} from '../../services/musicManagement/queueOperations'
 import { isReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
@@ -306,8 +309,22 @@ export const setupLifecycleHandlers = (player: {
             !isReplenishSuppressed(guildId)
         ) {
             await replenishQueue(queue)
-        } else if (!isAutoplayEnabled || !queue.currentTrack) {
+        } else if (!isAutoplayEnabled) {
             musicWatchdogService.markIntentionalStop(guildId)
+        } else if (!queue.currentTrack) {
+            // A refill started on playerStart can still be running when the
+            // last track ends. Marking a stop here would block exhaustion
+            // recovery and the watchdog, and the late tracks would sit
+            // unplayed (#2932). Wait for it first.
+            await waitForReplenish(guildId)
+            if (queue.tracks.size === 0) {
+                musicWatchdogService.markIntentionalStop(guildId)
+            } else if (
+                !queue.node.isPlaying() &&
+                !musicWatchdogService.isIntentionalStop(guildId)
+            ) {
+                await queue.node.play()
+            }
         }
         // else: autoplay would apply but is suppressed/intentional-stop —
         // leave the queue empty without forcing markIntentionalStop; the

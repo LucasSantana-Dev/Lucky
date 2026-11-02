@@ -2,6 +2,7 @@ import type { CustomClient } from '../../types'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { musicSessionSnapshotService } from '../musicRecommendation/sessionSnapshots'
+import { QUEUE_LEAVE_OPTIONS } from './queueLeaveOptions'
 
 const STARTUP_MAX_AGE_MS = 30 * 60 * 1_000
 
@@ -84,6 +85,7 @@ export async function restoreSessionsOnStartup(
 
             const queue = client.player.nodes.create(guild, {
                 metadata: { channel: null, requestedBy: null },
+                ...QUEUE_LEAVE_OPTIONS,
             })
 
             if (!queue.connection) {

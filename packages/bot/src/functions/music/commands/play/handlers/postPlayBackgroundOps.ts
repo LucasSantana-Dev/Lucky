@@ -5,7 +5,6 @@ import { errorLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
 import { blendAutoplayTracks } from '../../../../../services/musicManagement/queueManipulation'
 import { applyStoredAutoplayPreference } from './autoplayPreference'
-import { clearAutoplayPause } from '../../../../../services/musicRecommendation/autoplay/skipCircuitBreaker'
 import { clearSessionMoodCache } from '../../../../../services/musicRecommendation/autoplay/replenisher'
 import { maybeAutoEnableRecap } from '../../../../../services/recap/recapAutoEnable'
 
@@ -24,7 +23,7 @@ const AUTOPLAY_PREFERENCE_RETRY_DELAY_MS = 150
 /**
  * Runs one post-play background op in isolation. A failure is recorded (telemetry
  * breadcrumb + error log) but NEVER cascades to the other ops — fixing #1085, where
- * a single shared try/catch meant a `clearAutoplayPause` or preference-load failure
+ * a single shared try/catch meant a mood-cache or preference-load failure
  * silently skipped the remaining work.
  */
 async function runIsolated(
@@ -87,9 +86,6 @@ export async function runPostPlayBackgroundOps(
     // ops below depend on `queue.repeatMode`, possibly mutated by
     // applyStoredAutoplayPreference, so they must stay sequential.
     await Promise.all([
-        runIsolated('clearAutoplayPause', guildId, () =>
-            clearAutoplayPause(guildId),
-        ),
         runIsolated('clearSessionMoodCache', guildId, () =>
             clearSessionMoodCache(guildId),
         ),

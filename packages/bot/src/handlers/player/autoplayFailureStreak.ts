@@ -1,3 +1,5 @@
+import { setReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
+
 // Autoplay picks that fail to stream in a row, per guild. A dead source
 // (2026-10-20: yt-dlp blocked, SoundCloud only DRM or remixes) turns autoplay
 // into a loop of pick, exhaust, skip every few seconds, with one channel
@@ -15,4 +17,13 @@ export function recordAutoplayStreamFailure(guildId: string): number {
 
 export function resetAutoplayFailureStreak(guildId: string): void {
     streaks.delete(guildId)
+}
+
+/**
+ * Someone turned autoplay back on: forget the failures that stopped it and
+ * the 1h block that came with them, or the toggle does nothing (#2932).
+ */
+export function resumeAutoplay(guildId: string): void {
+    streaks.delete(guildId)
+    setReplenishSuppressed(guildId, 0)
 }

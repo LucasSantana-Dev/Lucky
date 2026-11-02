@@ -17,10 +17,6 @@ jest.mock('@lucky/shared/utils', () => ({
     warnLog: jest.fn(),
 }))
 
-jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
-    getAutoplaySkipRateForGuild: jest.fn(),
-}))
-
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: jest.fn(),
@@ -93,10 +89,6 @@ jest.mock('./lastFmSeeder', () => ({
 
 jest.mock('./seedSimilarityCollector', () => ({
     collectSeedSimilarCandidates: jest.fn(),
-}))
-
-jest.mock('./skipCircuitBreaker', () => ({
-    evaluateSkipRateBreaker: jest.fn(),
 }))
 
 jest.mock('../../../spotify/spotifyApi', () => ({
@@ -256,9 +248,6 @@ describe('replenisher seam functions', () => {
         createArtistTagFetcher.mockReturnValue(jest.fn().mockResolvedValue([]))
         hasGenreTag.mockReturnValue(false)
 
-        const { evaluateSkipRateBreaker } = require('./skipCircuitBreaker')
-        evaluateSkipRateBreaker.mockResolvedValue(true)
-
         const { getArtistPopularity } = require('../../../spotify/spotifyApi')
         getArtistPopularity.mockResolvedValue(50)
 
@@ -299,16 +288,6 @@ describe('replenisher seam functions', () => {
 
             const result = await evaluateGatingChecks(queue)
             expect(result).toBeNull()
-        })
-
-        it('calls evaluateSkipRateBreaker and returns null if false', async () => {
-            const queue = createGuildQueue()
-            const { evaluateSkipRateBreaker } = require('./skipCircuitBreaker')
-            evaluateSkipRateBreaker.mockResolvedValue(false)
-
-            const result = await evaluateGatingChecks(queue)
-            expect(result).toBeNull()
-            expect(evaluateSkipRateBreaker).toHaveBeenCalledWith(queue)
         })
 
         it('returns {currentTrack, missingTracks} when gating passes', async () => {

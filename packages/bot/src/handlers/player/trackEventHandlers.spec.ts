@@ -291,6 +291,31 @@ describe('trackHandlers autoplay replenishment', () => {
         ).resolves.toBeUndefined()
     })
 
+    it('retries the refill after 5s when the first one reports a failure', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        replenishQueueMock.mockResolvedValueOnce(false)
+
+        await handlers.playerStart(queue, createTrack())
+        expect(replenishQueueMock).toHaveBeenCalledTimes(1)
+
+        await jest.advanceTimersByTimeAsync(5000)
+        expect(replenishQueueMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('does not retry the refill when it succeeds', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        replenishQueueMock.mockResolvedValueOnce(true)
+
+        await handlers.playerStart(queue, createTrack())
+        await jest.advanceTimersByTimeAsync(5000)
+
+        expect(replenishQueueMock).toHaveBeenCalledTimes(1)
+    })
+
     it('does not record feedback on playerFinish when track played < 80%', async () => {
         jest.useFakeTimers()
         const handlers = setupHandlers()
@@ -1220,6 +1245,20 @@ describe('track history when a queue is deleted mid-play', () => {
             skipped,
             150,
         )
+    })
+
+    it('starts the autoplay failure streak over when the queue is deleted', async () => {
+        const { recordAutoplayStreamFailure } = jest.requireActual<
+            typeof import('./autoplayFailureStreak')
+        >('./autoplayFailureStreak')
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        recordAutoplayStreamFailure('guild-1')
+        recordAutoplayStreamFailure('guild-1')
+
+        await handlers.queueDelete(queue)
+
+        expect(recordAutoplayStreamFailure('guild-1')).toBe(1)
     })
 
     it('does not record again when a skip already recorded the play', async () => {

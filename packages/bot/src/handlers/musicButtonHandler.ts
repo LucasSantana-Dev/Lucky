@@ -25,6 +25,7 @@ import type { CustomClient } from '../types'
 import { buildListPageEmbed } from '../utils/general/responseEmbeds'
 import { levelService } from '@lucky/shared/services'
 import { setReplenishSuppressed } from '../services/musicManagement/replenishSuppressionStore'
+import { resumeAutoplay } from './player/autoplayFailureStreak'
 import {
     captureAutoplayTrack,
     maybePromptAutoplayFeedback,
@@ -283,6 +284,7 @@ async function handleLoop(
     const nextIdx = (currentIdx + 1) % LOOP_MODE_ORDER.length
     const newMode = LOOP_MODE_ORDER[nextIdx]
     queue.setRepeatMode(newMode)
+    if (newMode === QueueRepeatMode.AUTOPLAY) resumeAutoplay(queue.guild.id)
 
     const modeName = LOOP_MODE_NAMES[newMode] ?? 'Off'
     await interaction.followUp({

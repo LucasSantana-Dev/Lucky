@@ -5,7 +5,9 @@ import {
     handleSkip,
     handlePrevious,
     handlePlay,
+    handleRepeat,
 } from './commandHandlers'
+import { repeatModeToEnum } from './mappers'
 
 const publishStateMock = jest.fn()
 const buildQueueStateMock = jest.fn()
@@ -19,6 +21,12 @@ jest.mock('discord-player', () => ({
         YOUTUBE_SEARCH: 'youtubeSearch',
         SOUNDCLOUD_SEARCH: 'soundcloudSearch',
     },
+    QueueRepeatMode: { OFF: 0, TRACK: 1, QUEUE: 2, AUTOPLAY: 3 },
+}))
+
+const resumeAutoplayMock = jest.fn()
+jest.mock('../player/autoplayFailureStreak', () => ({
+    resumeAutoplay: (...args: unknown[]) => resumeAutoplayMock(...args),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -419,5 +427,42 @@ describe('handlePlay', () => {
 
         expect(result.success).toBe(false)
         expect(result.error).toBe('No results found')
+    })
+})
+
+describe('handleRepeat', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        buildQueueStateMock.mockResolvedValue({ guildId: 'guild-1' })
+    })
+
+    it('clears the autoplay failure stop when autoplay is turned on (#2932)', async () => {
+        jest.mocked(repeatModeToEnum).mockReturnValueOnce(3)
+        const setRepeatMode = jest.fn()
+        resolveGuildQueueMock.mockReturnValue({ queue: { setRepeatMode } })
+
+        await handleRepeat(
+            {} as any,
+            {
+                id: 'cmd-r',
+                guildId: 'guild-1',
+                data: { mode: 'autoplay' },
+            } as any,
+        )
+
+        expect(setRepeatMode).toHaveBeenCalledWith(3)
+        expect(resumeAutoplayMock).toHaveBeenCalledWith('guild-1')
+    })
+
+    it('leaves the failure stop alone for other modes', async () => {
+        const setRepeatMode = jest.fn()
+        resolveGuildQueueMock.mockReturnValue({ queue: { setRepeatMode } })
+
+        await handleRepeat(
+            {} as any,
+            { id: 'cmd-r', guildId: 'guild-1', data: { mode: 'off' } } as any,
+        )
+
+        expect(resumeAutoplayMock).not.toHaveBeenCalled()
     })
 })
