@@ -52,8 +52,9 @@ export function textSearchBlockOptions(query: string): {
  * top hit as tracks[0] with no relevance re-ranking, so a short/ambiguous
  * query like "Prince" can surface a same-genre act (e.g. Prince Royce)
  * ahead of the artist the query actually names. This promotes a candidate
- * whose title or author exactly matches the query, leaving descriptive
- * queries (where no exact match exists) untouched.
+ * whose title or author exactly matches the query or, failing that, whose
+ * title and author together make up the query ("song artist" in either
+ * order), leaving descriptive queries untouched.
  *
  * It also demotes a top candidate carrying an unrequested version marker
  * (remix, sped up, 8D audio, etc. — see noiseTerms.json) when an earlier or
@@ -62,6 +63,15 @@ export function textSearchBlockOptions(query: string): {
  * ranked first (#2133). A query that names the version itself (e.g. "Song
  * Remix") is left alone — nothing here overrides an explicit request.
  */
+function wordsOf(value: string): string[] {
+    return value
+        .normalize('NFD')
+        .replaceAll(/\p{M}/gu, '')
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}]+/u)
+        .filter(Boolean)
+}
+
 export function preferExactMatch(
     query: string,
 ): (result: SearchResult) => Promise<SearchResult> {
@@ -108,11 +118,24 @@ export function preferExactMatch(
             }
         }
 
-        const bestIndex = tracks.findIndex((track) => {
+        let bestIndex = tracks.findIndex((track) => {
             const author = track.author?.trim().toLowerCase()
             const title = track.title?.trim().toLowerCase()
             return author === normalizedQuery || title === normalizedQuery
         })
+        if (bestIndex === -1) {
+            // "halo beyonce" / "beyonce halo": every word of the title and
+            // of the author is in the query, in any order. A cover titled
+            // "Halo (Beyoncé Cover)" carries an extra word and stays put.
+            const queryWords = new Set(wordsOf(normalizedQuery))
+            const covered = (value?: string) => {
+                const words = wordsOf(value ?? '')
+                return words.length > 0 && words.every((w) => queryWords.has(w))
+            }
+            bestIndex = tracks.findIndex(
+                (track) => covered(track.title) && covered(track.author),
+            )
+        }
         if (bestIndex <= 0) return workingResult
 
         const reordered = [...tracks]

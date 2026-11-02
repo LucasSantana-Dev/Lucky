@@ -190,6 +190,36 @@ describe('collectSeedSimilarCandidates', () => {
         expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
     })
 
+    it('retries with artist and song swapped for a "Song - Artist" title', async () => {
+        getSimilarTracksMock.mockImplementation(async (artist: unknown) =>
+            artist === 'Michael Jackson'
+                ? [{ title: 'Sim', artist: 'SimA', match: 1 }]
+                : [],
+        )
+        // No author overlap, so the parser reads the title as "Artist - Song".
+        splitArtistAndSongMock.mockReturnValue({
+            artist: 'Thriller',
+            song: 'Michael Jackson',
+        })
+        searchLastFmQueryMock.mockResolvedValue([createTrack('Sim', 'SimA')])
+        const ctx = createAutoplayContext({
+            currentTrack: createTrack(
+                'Thriller - Michael Jackson',
+                'MoonWalker777',
+            ),
+        })
+        const candidates = new Map()
+        await collectSeedSimilarCandidates(ctx, createUser(), candidates)
+
+        expect(getSimilarTracksMock).toHaveBeenNthCalledWith(
+            3,
+            'Michael Jackson',
+            'Thriller',
+            expect.any(Number),
+        )
+        expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
+    })
+
     it('does not reparse the title when the author lookup already found similars', async () => {
         getSimilarTracksMock.mockResolvedValue([
             { title: 'Sim', artist: 'SimA', match: 1 },

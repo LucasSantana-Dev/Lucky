@@ -93,7 +93,12 @@ async function fetchSeedSimilarForTrack(
     // usually carries "Artist - Song": retry with those. Matters most while
     // Spotify is down and /play lands on YouTube (2026-10-19).
     const parsed = splitArtistAndSong(title, author)
-    return parsed ? fetchSeedSimilar(parsed.artist, parsed.song) : similar
+    if (!parsed) return similar
+    const fromTitle = await fetchSeedSimilar(parsed.artist, parsed.song)
+    if (fromTitle.length > 0) return fromTitle
+    // "Song - Artist" uploads: with no author overlap the parser reads the
+    // title as "Artist - Song", so the pair above comes out swapped.
+    return fetchSeedSimilar(parsed.song, parsed.artist)
 }
 
 /**
