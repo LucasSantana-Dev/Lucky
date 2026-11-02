@@ -171,6 +171,92 @@ describe('candidateScorer', () => {
             expect(result.score).toBe(-Infinity)
         })
 
+        describe('skip storm tightens instead of loosening (#2934)', () => {
+            const mood = (recentSkipCount: number, restless = false) => ({
+                dominantLocale: null,
+                deepDiveArtist: null,
+                preferLong: false,
+                preferShort: false,
+                restless,
+                recentSkipCount,
+            })
+
+            it('still rejects an off-genre candidate after 3 skips', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack(),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(),
+                    sessionMood: mood(3, true),
+                    genreContext: {
+                        candidateTags: ['thrash metal', 'metal', 'rock'],
+                        currentTrackTags: ['rap', 'hip hop', 'trap'],
+                        sessionGenreFamilies: new Set(['rap_hiphop']),
+                    },
+                })
+                expect(result.score).toBe(-Infinity)
+            })
+
+            it('keeps failing closed on an untagged candidate after 3 skips', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        author: 'Untagged Mainstream',
+                        source: 'youtube',
+                    }),
+                    currentTrack: createTrack({ author: 'Rapper' }),
+                    recentArtists: new Set(),
+                    sessionMood: mood(3, true),
+                    genreContext: {
+                        candidateTags: [],
+                        currentTrackTags: ['hip hop'],
+                        sessionGenreFamilies: new Set(['rap_hiphop']),
+                    },
+                })
+                expect(result.signals).toContain('genre family drift')
+            })
+
+            it('doubles the family penalty after 3 skips', () => {
+                const currentTrackTags = ['rap', 'hip hop']
+                const candidateTags = ['rock', 'metal']
+                const score = (skips: number) =>
+                    calculateRecommendationScore({
+                        candidate: createTrack({ author: 'Rocker' }),
+                        currentTrack: createTrack({ author: 'Rapper' }),
+                        recentArtists: new Set(),
+                        sessionMood: mood(skips),
+                        genreContext: {
+                            candidateTags,
+                            currentTrackTags,
+                            sessionGenreFamilies: new Set(),
+                        },
+                    }).score
+                const penalty = calculateGenreFamilyPenalty(
+                    currentTrackTags,
+                    candidateTags,
+                )
+                expect(penalty).toBeLessThan(0)
+                expect(score(3) - score(0)).toBeCloseTo(penalty, 5)
+            })
+
+            it('drops the novelty and discovery boosts when restless', () => {
+                const score = (restless: boolean) =>
+                    calculateRecommendationScore({
+                        candidate: createTrack({
+                            author: 'Brand New',
+                            source: 'youtube',
+                        }),
+                        currentTrack: createTrack({ author: 'Someone' }),
+                        recentArtists: new Set(),
+                        sessionMood: mood(restless ? 3 : 0, restless),
+                    })
+                const calm = score(false)
+                const restless = score(true)
+                expect(calm.signals).toContain('session novelty')
+                expect(restless.signals).not.toContain('session novelty')
+                expect(restless.signals).not.toContain('restless discovery')
+                expect(restless.score).toBeLessThan(calm.score)
+            })
+        })
+
         it.each([
             [
                 'long tracks',

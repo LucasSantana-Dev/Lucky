@@ -297,6 +297,35 @@ describe('candidateCollector', () => {
             )
         })
 
+        it.each([
+            [0.5, 0.25],
+            [-0.2, -0.2],
+        ])(
+            'weighs a spotify-rec title-search hit below a Last.fm similar (#2934): %d -> %d',
+            async (raw, expected) => {
+                searchSeedCandidatesMock.mockResolvedValue([
+                    createTrack({ title: 'Title Hit', author: 'Hit Artist' }),
+                ])
+                calculateRecommendationScoreMock.mockReturnValue({
+                    score: raw,
+                    signals: [],
+                })
+                const ctx = createAutoplayContext({
+                    queue: createGuildQueue(),
+                    currentTrack: createTrack(),
+                })
+
+                const result = await collectRecommendationCandidates(
+                    ctx,
+                    [createTrack()],
+                    null,
+                )
+
+                const [entry] = Array.from(result.values())
+                expect(entry.score).toBeCloseTo(expected, 5)
+            },
+        )
+
         it('should exclude disliked candidates', async () => {
             const dislikedTrack = createTrack({
                 title: 'Bad Track',

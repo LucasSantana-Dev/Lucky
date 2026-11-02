@@ -15,7 +15,10 @@ import {
 } from './autoplay/candidateCollector'
 import { calculateRecommendationScore } from './autoplay/candidateScorer'
 import type { SessionMood } from './autoplay/sessionMood'
-import { createArtistTagFetcher } from './autoplay/artistTagCache'
+import {
+    createArtistTagFetcher,
+    type ArtistTagFetcher,
+} from './autoplay/artistTagCache'
 import type { AutoplayAuditCollector } from './autoplay/autoplayAudit'
 import {
     cleanSearchQuery,
@@ -50,13 +53,14 @@ export interface CandidateContext {
     genreContext?: {
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
+        getArtistTags?: ArtistTagFetcher
     }
     auditCollector?: AutoplayAuditCollector
 }
 
 function addGenreTrackCandidate(
     track: Track,
-    tag: string,
+    candidateTags: string[],
     ctx: CandidateContext,
 ): void {
     if (
@@ -87,7 +91,7 @@ function addGenreTrackCandidate(
         dislikedWeights: ctx.dislikedTrackKeys,
         sessionMood: ctx.sessionMood,
         genreContext: {
-            candidateTags: [tag.toLowerCase()],
+            candidateTags,
             currentTrackTags: ctx.genreContext?.currentTrackTags,
             sessionGenreFamilies: ctx.genreContext?.sessionGenreFamilies,
         },
@@ -207,6 +211,8 @@ export async function collectGenreCandidates(
     requestedBy: User,
     ctx: CandidateContext,
 ): Promise<void> {
+    const getArtistTags =
+        ctx.genreContext?.getArtistTags ?? createArtistTagFetcher()
     for (const tag of genres.slice(0, MAX_GENRES)) {
         if (ctx.candidates.size >= AUTOPLAY_BUFFER_SIZE) break
         let seeds: Awaited<ReturnType<typeof getTagTopTracks>> = []
@@ -224,8 +230,18 @@ export async function collectGenreCandidates(
                     cleanSearchQuery(seed.title, seed.artist),
                     requestedBy,
                 )
-                for (const track of results)
-                    addGenreTrackCandidate(track, tag, ctx)
+                for (const track of results) {
+                    // Score on the artist's real tags (#2934): the configured
+                    // tag would pass the genre check for any search hit.
+                    const artistTags = await getArtistTags(track.author)
+                    addGenreTrackCandidate(
+                        track,
+                        artistTags.length > 0
+                            ? artistTags
+                            : [tag.toLowerCase()],
+                        ctx,
+                    )
+                }
             } catch (err: unknown) {
                 logAndSwallow(err, 'candidateFallback.searchLastFmQuery', {
                     tag,

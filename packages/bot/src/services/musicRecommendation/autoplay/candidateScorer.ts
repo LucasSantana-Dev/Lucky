@@ -358,13 +358,10 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     // Mirrors the cross-locale veto above and replaces the post-selection
     // `enrichWithAudioFeatures` pass that depended on Spotify's deprecated
     // audio-features endpoint.
-    // Skip the hard veto during skip storms so the candidate pool broadens.
+    // The veto stays on during skip storms (#2934): skips mean the picks drifted,
+    // so broadening the pool would only drift further.
     const inSkipStorm = (sessionMood?.recentSkipCount ?? 0) >= 3
-    if (
-        !inSkipStorm &&
-        sessionGenreFamilies.size > 0 &&
-        candidateTags.length > 0
-    ) {
+    if (sessionGenreFamilies.size > 0 && candidateTags.length > 0) {
         const candidateFamilies = getGenreFamilies(candidateTags)
         if (candidateFamilies.size > 0) {
             let intersects = false
@@ -395,8 +392,8 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     // otherwise slip through (fail-open — the core of the Prince→Drake drift).
     // Treat untagged candidates as assumed cross-genre and demote them, but
     // keep them in the pool (penalty, not hard reject) so the queue never
-    // stalls; relaxed during skip storms so the pool can broaden.
-    if (!inSkipStorm && candidateTags.length === 0 && sessionHasStrongFamily) {
+    // stalls.
+    if (candidateTags.length === 0 && sessionHasStrongFamily) {
         // Seed-derived untagged candidates are vetted-related to the seed, so a
         // mild penalty (don't assume cross-genre); un-vetted untagged candidates
         // keep the strong fail-closed penalty that blocks mainstream drift.
@@ -491,6 +488,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         }
     } else if (
         !skipNoveltyBoost &&
+        !sessionMood?.restless &&
         !recentArtists.has(candidateArtist) &&
         !isDeepDive
     ) {
@@ -552,12 +550,6 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         if (sessionMood.preferShort && durationMs > 0 && durationMs < 180_000) {
             score += SCORE_ACOUSTICNESS_MATCH
             signals.push('quick hit match')
-        }
-        if (sessionMood.restless) {
-            if (!recentArtists.has(candidateArtist)) {
-                score += SCORE_ACOUSTICNESS_MATCH
-                signals.push('restless discovery')
-            }
         }
     }
 
@@ -635,7 +627,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
             candidateTags,
         )
         if (inSkipStorm) {
-            familyPenalty *= 0.5
+            familyPenalty *= 2
         }
         if (familyPenalty !== 0) {
             score += familyPenalty

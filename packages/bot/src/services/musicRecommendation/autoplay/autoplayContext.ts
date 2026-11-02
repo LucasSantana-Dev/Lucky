@@ -20,6 +20,8 @@ export interface AutoplayContext {
     preferredArtistKeys: Set<string>
     blockedArtistKeys: Set<string>
     currentTrack: Track
+    /** Newest requested or kept track (#2934); seeds the similar lookup. */
+    anchorTrack?: Track
     recentArtists: Set<string>
     autoplayMode: 'similar' | 'discover' | 'popular'
     artistFrequency: Map<string, number>

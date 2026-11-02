@@ -166,6 +166,10 @@ describe('collectGenreCandidates', () => {
         cleanSearchQueryMock.mockImplementation(
             (t: unknown, a: unknown) => `${t} ${a}`,
         )
+        artistTagFetcherMock.mockResolvedValue([])
+        createArtistTagFetcherMock.mockReturnValue((...args: unknown[]) =>
+            artistTagFetcherMock(...args),
+        )
     })
 
     function createCtx() {
@@ -187,6 +191,41 @@ describe('collectGenreCandidates', () => {
             autoplayMode: 'similar' as const,
         }
     }
+
+    it.each([
+        [
+            ['metal', 'thrash metal'],
+            ['metal', 'thrash metal'],
+        ],
+        [[], ['rock']],
+    ])(
+        'scores a genre pick on its artist tags %j, not the configured tag (#2934)',
+        async (artistTags, expectedTags) => {
+            getTagTopTracksMock.mockResolvedValue([
+                { title: 'Seed', artist: 'Artist' },
+            ])
+            searchLastFmQueryMock.mockResolvedValue([
+                { title: 'T1', author: 'A1', url: 'u1', durationMS: 180_000 },
+            ])
+            artistTagFetcherMock.mockResolvedValue(artistTags)
+
+            await collectGenreCandidates(
+                { player: { search: jest.fn() } } as never,
+                ['rock'],
+                { id: 'user-1' } as never,
+                createCtx(),
+            )
+
+            expect(artistTagFetcherMock).toHaveBeenCalledWith('A1')
+            expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    genreContext: expect.objectContaining({
+                        candidateTags: expectedTags,
+                    }),
+                }),
+            )
+        },
+    )
 
     it('does nothing when genres array is empty', async () => {
         const queue = { player: { search: jest.fn() } } as never
