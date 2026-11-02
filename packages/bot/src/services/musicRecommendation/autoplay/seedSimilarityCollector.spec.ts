@@ -220,6 +220,26 @@ describe('collectSeedSimilarCandidates', () => {
         expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
     })
 
+    it('skips the swapped retry when the title lookup fails rather than comes back empty', async () => {
+        getSimilarTracksMock.mockImplementation(async (artist: unknown) => {
+            if (artist === 'Thriller') throw new Error('Last.fm down')
+            return []
+        })
+        splitArtistAndSongMock.mockReturnValue({
+            artist: 'Thriller',
+            song: 'Michael Jackson',
+        })
+        const ctx = createAutoplayContext({
+            currentTrack: createTrack(
+                'Thriller - Michael Jackson',
+                'MoonWalker777',
+            ),
+        })
+        await collectSeedSimilarCandidates(ctx, createUser(), new Map())
+
+        expect(getSimilarTracksMock).toHaveBeenCalledTimes(2)
+    })
+
     it('does not reparse the title when the author lookup already found similars', async () => {
         getSimilarTracksMock.mockResolvedValue([
             { title: 'Sim', artist: 'SimA', match: 1 },

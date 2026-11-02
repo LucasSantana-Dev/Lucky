@@ -63,12 +63,14 @@ export function textSearchBlockOptions(query: string): {
  * ranked first (#2133). A query that names the version itself (e.g. "Song
  * Remix") is left alone — nothing here overrides an explicit request.
  */
+// Folds Latin accents ("Beyoncé" -> "beyonce") but keeps combining marks in
+// other scripts, where a vowel sign changes the word (Devanagari "कु" vs "क").
 function wordsOf(value: string): string[] {
     return value
         .normalize('NFD')
-        .replaceAll(/\p{M}/gu, '')
+        .replaceAll(/(\p{Script=Latin})\p{M}+/gu, '$1')
         .toLowerCase()
-        .split(/[^\p{L}\p{N}]+/u)
+        .split(/[^\p{L}\p{M}\p{N}]+/u)
         .filter(Boolean)
 }
 

@@ -1606,6 +1606,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- fix(bot): `/play` picks the right track when the artist follows the song name, and autoplay seeds retry a swapped "Song - Artist" upload title only after a genuine empty Last.fm result (#2936)
+
 ## [2.17.0] - 2026-06-08
 
 ### Added

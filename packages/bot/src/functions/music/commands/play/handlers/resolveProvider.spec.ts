@@ -935,6 +935,33 @@ describe('preferExactMatch', () => {
 
             expect(result.setTracks).not.toHaveBeenCalled()
         })
+
+        it('keeps vowel signs in non-Latin scripts when matching words', async () => {
+            const tracks = [
+                makeMockTrack('Other', 'Someone'),
+                makeMockTrack('कु', 'राम'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('क राम')(result as any)
+
+            expect(result.setTracks).not.toHaveBeenCalled()
+        })
+
+        it('matches a non-Latin title and author given in either order', async () => {
+            const tracks = [
+                makeMockTrack('Other', 'Someone'),
+                makeMockTrack('कु', 'राम'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('राम कु')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[1],
+                tracks[0],
+            ])
+        })
     })
 })
 
