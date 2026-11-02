@@ -28,6 +28,7 @@ import {
 import { clearVotes } from '../../services/musicManagement/voteSkipStore'
 import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
 import { normalizeTrackKey } from '../../services/musicRecommendation/autoplay/scoringUtils'
+import { clearSessionMoodCache } from '../../services/musicRecommendation/autoplay/replenisher'
 import {
     isReplenishSuppressed,
     setReplenishSuppressed,
@@ -274,6 +275,55 @@ function playedSeconds(
     return Math.max(0, Math.round(playedMs / 1000))
 }
 
+// An autoplay pick of real length (>20s) that ended before
+// OUTCOME_ACCEPT_PLAY_RATIO was rejected by the room: the track, and its
+// artist at a share of `strength`, become implicit dislikes for the guild and
+// every listener in the channel (#2933). Returns whether it was a rejection.
+function recordEarlyAutoplayRejection(
+    queue: GuildQueue,
+    track: Track | undefined,
+    startTime: number | undefined,
+    strength: number,
+): track is Track {
+    if (!track || !startTime || !track.durationMS) return false
+    if (track.durationMS <= 20_000 || !isRecommendationAutoplay(track)) {
+        return false
+    }
+    const ratio = (Date.now() - startTime) / track.durationMS
+    if (ratio >= OUTCOME_ACCEPT_PLAY_RATIO) return false
+
+    const listenerIds = queue.channel
+        ? [...queue.channel.members.values()]
+              .filter((member) => !member.user.bot)
+              .map((member) => member.id)
+        : []
+    recommendationFeedbackService.recordAutoplayRejection(
+        queue.guild.id,
+        listenerIds,
+        track,
+        strength,
+    )
+    clearSessionMoodCache(queue.guild.id)
+    return true
+}
+
+// Picks already buffered were scored before the rejection; drop the ones by
+// the rejected artist so the next refill replaces them.
+function dropQueuedAutoplayPicksByArtist(
+    queue: GuildQueue,
+    track: Track,
+): void {
+    const artistOf = (t: Track) =>
+        normalizeTrackKey(t.title, t.author).split('::')[1]
+    const artist = artistOf(track)
+    if (!artist) return
+    for (const queued of queue.tracks.toArray()) {
+        if (isRecommendationAutoplay(queued) && artistOf(queued) === artist) {
+            queue.removeTrack(queued)
+        }
+    }
+}
+
 async function scrobbleAndRecord(
     queue: GuildQueue,
     track: Track | undefined,
@@ -306,6 +356,11 @@ const handlePlayerFinish = async (
         // queued next). Recording or scrobbling it would log a song nobody
         // heard. The autoplay and queue-exhaustion handling below still runs.
         const neverStarted = track !== undefined && startTime === undefined
+
+        // discord-player v7 routes some manual skips through playerFinish.
+        if (recordEarlyAutoplayRejection(queue, track, startTime, 1)) {
+            dropQueuedAutoplayPicksByArtist(queue, track)
+        }
 
         if (!recordedOnSkip && !neverStarted) {
             await scrobbleAndRecord(queue, track, played)
@@ -379,6 +434,9 @@ const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
         const startTime = track ? takeTrackPlayStart(track) : undefined
         if (!track || startTime === undefined) return
         const played = playedSeconds(startTime, queue.guild.id)
+        // A stop early in an autoplay pick is a mild rejection; a late stop
+        // just ends the session.
+        recordEarlyAutoplayRejection(queue, track, startTime, 0.5)
 
         debugLog({
             message: 'Queue deleted mid-track, recording the interrupted play',
@@ -411,6 +469,12 @@ const handlePlayerSkip = async (
                 currentTrack: queue.currentTrack?.title ?? 'none',
             },
         })
+        // Before the awaited writes below, so a refill that runs meanwhile
+        // already sees the rejection.
+        if (recordEarlyAutoplayRejection(queue, track, startTime, 1)) {
+            dropQueuedAutoplayPicksByArtist(queue, track)
+        }
+
         // ERR_NO_STREAM: the stream never started, so there is no play to
         // record or scrobble, and no playerFinish follows.
         if (reason !== 'ERR_NO_STREAM') {
@@ -440,19 +504,6 @@ const handlePlayerSkip = async (
                     const current =
                         guildRecentSkipCounts.get(queue.guild.id) ?? 0
                     guildRecentSkipCounts.set(queue.guild.id, current + 1)
-
-                    // Guild-scope dislike for autoplay tracks: ensures the signal reaches the
-                    // scorer even when requestedBy is null/undefined in the replenisher context.
-                    if (isRecommendationAutoplay(track)) {
-                        const trackKey = normalizeTrackKey(
-                            track.title,
-                            track.author,
-                        )
-                        recommendationFeedbackService.recordGuildImplicitDislike(
-                            queue.guild.id,
-                            trackKey,
-                        )
-                    }
                 }
                 // Record the autoplay recommendation outcome on skip — duration-
                 // agnostic, consistent with the playerFinish path: a skip before

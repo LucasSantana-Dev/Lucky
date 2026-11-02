@@ -279,6 +279,24 @@ describe('candidateCollector', () => {
             expect(searchSeedCandidatesMock).toHaveBeenCalled()
         })
 
+        it('passes the recency-decay indices to the scorer (#2933)', async () => {
+            searchSeedCandidatesMock.mockResolvedValue([
+                createTrack({ title: 'Seed Result', author: 'Seed Artist' }),
+            ])
+            const recentArtistIndices = new Map([['seed artist', 0]])
+            const ctx = createAutoplayContext({
+                queue: createGuildQueue(),
+                currentTrack: createTrack(),
+                recentArtistIndices,
+            })
+
+            await collectRecommendationCandidates(ctx, [createTrack()], null)
+
+            expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
+                expect.objectContaining({ recentArtistIndices }),
+            )
+        })
+
         it('should exclude disliked candidates', async () => {
             const dislikedTrack = createTrack({
                 title: 'Bad Track',

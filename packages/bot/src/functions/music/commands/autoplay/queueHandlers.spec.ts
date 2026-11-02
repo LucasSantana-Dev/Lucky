@@ -8,6 +8,7 @@ const mockCreateEmbed = jest.fn().mockReturnValue({ type: 'embed' })
 const mockCreateErrorEmbed = jest.fn().mockReturnValue({ type: 'error-embed' })
 const mockDebugLog = jest.fn()
 const mockGetByDiscordId = jest.fn()
+const mockRecordAutoplayRejection = jest.fn()
 
 jest.mock('../../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => mockInteractionReply(...args),
@@ -22,6 +23,13 @@ jest.mock('../../../../utils/general/embeds', () => ({
     createErrorEmbed: (...args: unknown[]) => mockCreateErrorEmbed(...args),
     EMBED_COLORS: { AUTOPLAY: '#7289DA', ERROR: '#FF0000' },
     EMOJIS: { AUTOPLAY: '📻' },
+}))
+
+jest.mock('../../../../services/musicRecommendation/feedbackService', () => ({
+    recommendationFeedbackService: {
+        recordAutoplayRejection: (...args: unknown[]) =>
+            mockRecordAutoplayRejection(...args),
+    },
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -257,6 +265,20 @@ describe('handleSkipAutoplayTrack', () => {
 
         expect((queue as any).removeTrack).toHaveBeenCalledWith(1)
         expect(mockReplenishQueue).toHaveBeenCalledWith(queue)
+    })
+
+    it('records the removed pick as a rejection by the invoking user (#2933)', async () => {
+        const tracks = [makeTrack(false), makeTrack(true)]
+        const queue = makeQueue(tracks)
+
+        await handleSkipAutoplayTrack(interaction, queue)
+
+        expect(mockRecordAutoplayRejection).toHaveBeenCalledWith(
+            'guild-123',
+            ['user-1'],
+            tracks[1],
+            1,
+        )
     })
 })
 

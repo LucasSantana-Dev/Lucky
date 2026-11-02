@@ -125,6 +125,7 @@ export async function collectRecommendationCandidates(
                 blockedArtistKeys: ctx.blockedArtistKeys,
                 autoplayMode: ctx.autoplayMode,
                 artistFrequency: ctx.artistFrequency,
+                recentArtistIndices: ctx.recentArtistIndices,
                 implicitDislikeKeys: ctx.implicitDislikeKeys,
                 implicitLikeKeys: ctx.implicitLikeKeys,
                 dislikedWeights: ctx.dislikedWeights,

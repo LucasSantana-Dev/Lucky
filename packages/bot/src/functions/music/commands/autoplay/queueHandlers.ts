@@ -1,5 +1,6 @@
 import { interactionReply } from '../../../../utils/general/interactionReply'
 import { replenishQueue } from '../../../../services/musicManagement/queueOperations'
+import { recommendationFeedbackService } from '../../../../services/musicRecommendation/feedbackService'
 import {
     createEmbed,
     createErrorEmbed,
@@ -41,6 +42,12 @@ async function handleSkipAutoplayTrack(
         const track = queue.tracks.at(i)
         if (track && isAutoplayTrack(track)) {
             queue.removeTrack(i)
+            recommendationFeedbackService.recordAutoplayRejection(
+                queue.guild.id,
+                [interaction.user.id],
+                track,
+                1,
+            )
             skipped = true
             debugLog({
                 message: 'Skipped autoplay track',
