@@ -8,6 +8,9 @@ import { setReplenishSuppressed } from '../../services/musicManagement/replenish
 export const AUTOPLAY_FAILURE_STREAK_LIMIT = 3
 
 const streaks = new Map<string, number>()
+// Guilds whose current refill suppression came from a failure stop, so
+// resuming autoplay lifts only that one and never a /clear block.
+const failureStopped = new Set<string>()
 
 export function recordAutoplayStreamFailure(guildId: string): number {
     const count = (streaks.get(guildId) ?? 0) + 1
@@ -17,13 +20,23 @@ export function recordAutoplayStreamFailure(guildId: string): number {
 
 export function resetAutoplayFailureStreak(guildId: string): void {
     streaks.delete(guildId)
+    failureStopped.delete(guildId)
+}
+
+export function stopAutoplayAfterFailures(
+    guildId: string,
+    suppressionMs: number,
+): void {
+    setReplenishSuppressed(guildId, suppressionMs)
+    failureStopped.add(guildId)
 }
 
 /**
  * Someone turned autoplay back on: forget the failures that stopped it and
- * the 1h block that came with them, or the toggle does nothing (#2932).
+ * the 1h block that came with them, or the toggle does nothing (#2932). A
+ * suppression set by anything else (/clear) stays.
  */
 export function resumeAutoplay(guildId: string): void {
     streaks.delete(guildId)
-    setReplenishSuppressed(guildId, 0)
+    if (failureStopped.delete(guildId)) setReplenishSuppressed(guildId, 0)
 }

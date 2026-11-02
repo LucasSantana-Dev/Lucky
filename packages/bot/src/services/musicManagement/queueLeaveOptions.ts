@@ -1,5 +1,6 @@
 /**
- * How long a queue lingers in voice once it is empty or the channel is.
+ * How long a queue stays connected after its track list is empty or the
+ * voice channel empties.
  * discord-player defaults both cooldowns to 0, so a queue created without
  * these leaves the moment it runs dry, before an autoplay refill lands (#2932).
  */

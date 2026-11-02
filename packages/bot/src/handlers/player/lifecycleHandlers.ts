@@ -1,7 +1,7 @@
 import type { GuildQueue } from 'discord-player'
 import type { Client, VoiceState } from 'discord.js'
 import { ChannelType } from 'discord.js'
-import { infoLog, debugLog, warnLog } from '@lucky/shared/utils'
+import { infoLog, debugLog, warnLog, errorLog } from '@lucky/shared/utils'
 import {
     createErrorEmbed,
     createWarningEmbed,
@@ -323,7 +323,15 @@ export const setupLifecycleHandlers = (player: {
                 !queue.node.isPlaying() &&
                 !musicWatchdogService.isIntentionalStop(guildId)
             ) {
-                await queue.node.play()
+                try {
+                    await queue.node.play()
+                } catch (error) {
+                    errorLog({
+                        message: 'Failed to restart playback after late refill',
+                        error,
+                        data: { guildId },
+                    })
+                }
             }
         }
         // else: autoplay would apply but is suppressed/intentional-stop —

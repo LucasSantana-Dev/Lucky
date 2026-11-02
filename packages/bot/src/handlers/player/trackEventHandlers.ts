@@ -164,6 +164,15 @@ async function handleQueueReplenishment(
                 data: { guildId: queue.guild.id },
             })
             setTimeout(() => {
+                // /clear, /stop or a repeat-mode change in the last 5s means
+                // autoplay should stay quiet, so the retry must not refill.
+                const guildId = queue.guild.id
+                if (
+                    queue.repeatMode !== QueueRepeatMode.AUTOPLAY ||
+                    isReplenishSuppressed(guildId) ||
+                    musicWatchdogService.isIntentionalStop(guildId)
+                )
+                    return
                 void refill().then((ok) => {
                     if (ok) return
                     // errorLog, not warnLog: this is the second consecutive
