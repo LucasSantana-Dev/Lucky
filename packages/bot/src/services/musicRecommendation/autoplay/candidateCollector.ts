@@ -23,6 +23,13 @@ export {
     upsertScoredCandidate,
 } from './candidateContracts'
 
+/**
+ * `spotify-rec` is a Spotify title text search, not a similarity lookup, so
+ * its hits count for half (#2934). That keeps them below the weakest Last.fm
+ * similar of equal base score (seed-similar scales by `0.5 + 0.5 * match`).
+ */
+export const SPOTIFY_REC_WEIGHT = 0.5
+
 export const SERTANEJO_TAGS = [
     'sertanejo',
     'sertanejo universitário',
@@ -142,7 +149,8 @@ export async function collectRecommendationCandidates(
                 candidates,
                 candidate,
                 {
-                    score: rec.score,
+                    // Halve gains only; a penalty keeps its full weight.
+                    score: Math.min(rec.score, rec.score * SPOTIFY_REC_WEIGHT),
                     source: 'spotify-rec',
                     signals: rec.signals,
                 },

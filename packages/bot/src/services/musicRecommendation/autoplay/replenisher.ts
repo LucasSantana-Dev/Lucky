@@ -44,6 +44,7 @@ import {
 } from './diversitySelector'
 import { collectLastFmCandidates } from './lastFmSeeder'
 import { collectSeedSimilarCandidates } from './seedSimilarityCollector'
+import { isAnchorTrack, selectAnchorSeeds } from './anchorSeeds'
 import { serializeBasis } from './recommendationBasis'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
 import { primaryArtistKey } from '../../../utils/music/trackNormalization'
@@ -218,7 +219,6 @@ async function _replenishQueue(
             allHistoryTracks,
             sessionMood,
             historyTracks,
-            seedTracks,
             requestedBy,
             vcMemberIds,
             allMemberIds,
@@ -262,14 +262,32 @@ async function _replenishQueue(
             historyTracks,
             persistentHistory,
         )
+        // Seed and genre-anchor only on tracks people asked for or kept
+        // (#2934): skipped or unvetted autoplay picks must not steer the
+        // next picks, or the session drifts one pick at a time.
+        const anchorSignals = {
+            likedWeights,
+            implicitLikeKeys,
+            implicitDislikeKeys: mergedImplicitDislikeKeys,
+        }
+        const seedTracks = selectAnchorSeeds(
+            currentTrack,
+            allHistoryTracks,
+            anchorSignals,
+            HISTORY_SEED_LIMIT + 1,
+        )
+        const anchorTrack = seedTracks[0]
+        const anchorHistory = allHistoryTracks.filter((t) =>
+            isAnchorTrack(t, anchorSignals),
+        )
         // Built once and shared with the collectors below, as before the
         // decomposition: the fetcher carries a per-pass memo cache.
         const getArtistTags = await buildArtistTagFetcher(requestedBy)
         const { currentTrackTags, sessionGenreFamilies, blockSertanejo } =
             await buildGenreTagContext(
                 queue,
-                currentTrack,
-                allHistoryTracks,
+                anchorTrack,
+                anchorHistory,
                 guildSettings,
                 getArtistTags,
             )
@@ -284,6 +302,7 @@ async function _replenishQueue(
             preferredArtistKeys,
             blockedArtistKeys,
             currentTrack,
+            anchorTrack,
             recentArtists,
             autoplayMode,
             artistFrequency,
@@ -913,6 +932,7 @@ export async function collectAllCandidates(
                         autoplayContext.genreContext.currentTrackTags,
                     sessionGenreFamilies:
                         autoplayContext.genreContext.sessionGenreFamilies,
+                    getArtistTags: autoplayContext.genreContext.getArtistTags,
                 },
                 auditCollector: autoplayContext.auditCollector,
             },

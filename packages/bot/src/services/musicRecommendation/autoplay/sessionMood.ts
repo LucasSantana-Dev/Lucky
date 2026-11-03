@@ -44,7 +44,7 @@ export function detectSessionMood(
         author?: string
         durationMS?: number
         duration?: string
-        isAutoplay?: boolean
+        metadata?: unknown
         title?: string
     }[],
     recentSkipCount: number = 0,
@@ -99,7 +99,9 @@ export function detectSessionMood(
     const recentForRestless = historyTracks.slice(0, 10)
     if (recentForRestless.length >= 5) {
         const autoplayCount = recentForRestless.filter(
-            (t) => t.isAutoplay === true,
+            (t) =>
+                (t.metadata as { isAutoplay?: boolean } | undefined)
+                    ?.isAutoplay === true,
         ).length
         const autoplayRatio = autoplayCount / recentForRestless.length
         const uniqueArtists = new Set(
