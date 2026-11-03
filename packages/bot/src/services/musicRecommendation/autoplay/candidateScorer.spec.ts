@@ -247,12 +247,14 @@ describe('candidateScorer', () => {
                         currentTrack: createTrack({ author: 'Someone' }),
                         recentArtists: new Set(),
                         sessionMood: mood(restless ? 3 : 0, restless),
+                        autoplayMode: 'discover',
                     })
                 const calm = score(false)
                 const restless = score(true)
                 expect(calm.signals).toContain('session novelty')
+                expect(calm.signals).toContain('discovery boost')
                 expect(restless.signals).not.toContain('session novelty')
-                expect(restless.signals).not.toContain('restless discovery')
+                expect(restless.signals).not.toContain('discovery boost')
                 expect(restless.score).toBeLessThan(calm.score)
             })
         })

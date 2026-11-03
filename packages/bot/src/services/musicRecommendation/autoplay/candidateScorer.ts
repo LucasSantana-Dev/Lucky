@@ -666,7 +666,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     }
 
     if (autoplayMode === 'discover') {
-        if (!recentArtists.has(candidateArtist)) {
+        if (!recentArtists.has(candidateArtist) && !sessionMood?.restless) {
             score += SCORE_IMPLICIT_LIKE
             signals.push('discovery boost')
         }

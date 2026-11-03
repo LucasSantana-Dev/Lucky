@@ -163,6 +163,7 @@ describe('collectSeedSimilarCandidates', () => {
         })
         await collectSeedSimilarCandidates(ctx, createUser(), new Map())
 
+        expect(getSimilarTracksMock).toHaveBeenCalledTimes(1)
         expect(getSimilarTracksMock).toHaveBeenCalledWith(
             'Prince',
             'Kiss',

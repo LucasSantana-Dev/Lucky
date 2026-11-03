@@ -277,7 +277,7 @@ async function _replenishQueue(
             await buildGenreTagContext(
                 queue,
                 anchorTrack,
-                anchorHistory.length > 0 ? anchorHistory : allHistoryTracks,
+                anchorHistory,
                 guildSettings,
                 getArtistTags,
             )
