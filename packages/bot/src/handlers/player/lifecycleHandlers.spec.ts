@@ -16,7 +16,7 @@ const watchdogClearIntentionalStopMock = jest.fn()
 const watchdogIsIntentionalStopMock = jest.fn(() => false)
 const watchdogRegisterRecoveryControllerMock = jest.fn()
 const replenishQueueMock = jest.fn()
-const waitForReplenishMock = jest.fn(() => Promise.resolve())
+const waitForReplenishMock = jest.fn(() => Promise.resolve(true))
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
@@ -464,6 +464,20 @@ describe('setupLifecycleHandlers', () => {
 
             await expect(emptyQueueHandler()(queue)).resolves.toBeUndefined()
             expect(errorLogMock).toHaveBeenCalled()
+        })
+
+        it('does not stop when the in-flight refill failed, so its retry can run', async () => {
+            waitForReplenishMock.mockResolvedValueOnce(false)
+            const queue = {
+                guild: { id: 'guild-10', name: 'Guild 10' },
+                repeatMode: 3,
+                currentTrack: null,
+                tracks: { size: 0 },
+            } as unknown as GuildQueue
+
+            await emptyQueueHandler()(queue)
+
+            expect(watchdogMarkIntentionalStopMock).not.toHaveBeenCalled()
         })
 
         it('marks intentional stop when the refill added nothing', async () => {
