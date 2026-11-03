@@ -1659,6 +1659,21 @@ describe('autoplay rejection feedback (#2933)', () => {
         )
     })
 
+    it('an early stop with nobody left in the channel records no rejection', async () => {
+        const handlers = setupHandlers()
+        const track = pick('a', 'Artist A')
+        const queue = makeQueue()
+        ;(queue as any).channel = {
+            members: new Map([['bot-1', { id: 'bot-1', user: { bot: true } }]]),
+        }
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(30_000)
+        await handlers.queueDelete(queue)
+
+        expect(recordAutoplayRejectionMock).not.toHaveBeenCalled()
+    })
+
     it('a late stop records no rejection', async () => {
         const handlers = setupHandlers()
         const track = pick('a', 'Artist A')
