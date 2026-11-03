@@ -63,4 +63,22 @@ describe('waitForReplenish', () => {
         await flush()
         expect(settled).toBe(true)
     })
+
+    it('reports a failed refill so the caller can leave the retry running', async () => {
+        jest.mocked(premiumService.isPremium).mockRejectedValueOnce(
+            new Error('db down'),
+        )
+        const queue = {
+            guild: { id: 'fail-guild' },
+            currentTrack: { title: 'Song', author: 'Band', url: 'u' },
+            tracks: { size: 0, toArray: () => [] },
+        } as unknown as GuildQueue
+
+        await expect(replenishQueue(queue)).resolves.toBe(false)
+        await expect(waitForReplenish('fail-guild')).resolves.toBe(false)
+    })
+
+    it('reports success when no refill is in flight', async () => {
+        await expect(waitForReplenish('idle-guild')).resolves.toBe(true)
+    })
 })
