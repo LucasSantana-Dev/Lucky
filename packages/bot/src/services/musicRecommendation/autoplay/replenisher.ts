@@ -177,7 +177,7 @@ export function replenishQueue(
  */
 export async function waitForReplenish(guildId: string): Promise<boolean> {
     let lock: Promise<boolean> | undefined
-    let succeeded = true
+    let succeeded: boolean
     do {
         lock = replenishLocks.get(guildId)
         succeeded = (await lock) ?? true
