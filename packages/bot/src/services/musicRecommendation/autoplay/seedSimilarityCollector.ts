@@ -125,8 +125,9 @@ export async function collectSeedSimilarCandidates(
     candidates: Map<string, ScoredTrack>,
     auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {
-    const seedArtist = ctx.currentTrack.author?.trim()
-    const seedTitle = ctx.currentTrack.title?.trim()
+    const seed = ctx.anchorTrack ?? ctx.currentTrack
+    const seedArtist = seed.author?.trim()
+    const seedTitle = seed.title?.trim()
     if (!seedArtist || !seedTitle) return
 
     const similar = await fetchSeedSimilarForTrack(seedArtist, seedTitle)
@@ -171,6 +172,7 @@ export async function collectSeedSimilarCandidates(
                 blockedArtistKeys: ctx.blockedArtistKeys,
                 autoplayMode: ctx.autoplayMode,
                 artistFrequency: ctx.artistFrequency,
+                recentArtistIndices: ctx.recentArtistIndices,
                 implicitDislikeKeys: ctx.implicitDislikeKeys,
                 implicitLikeKeys: ctx.implicitLikeKeys,
                 dislikedWeights: ctx.dislikedWeights,

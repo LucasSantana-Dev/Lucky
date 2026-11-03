@@ -35,6 +35,7 @@ import {
     resolvePlayErrorMessage,
 } from './playErrorMessage'
 import { watchStreamStartFailures } from './streamStartWatcher'
+import { QUEUE_LEAVE_OPTIONS } from '../../../../../services/musicManagement/queueLeaveOptions'
 import {
     closePlayStartWatch,
     openPlayStartWatch,
@@ -274,10 +275,7 @@ export async function executePlayHandler({
                     vcMemberIds,
                 },
                 connectionTimeout: ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-                leaveOnEmpty: true,
-                leaveOnEmptyCooldown: 30_000,
-                leaveOnEnd: true,
-                leaveOnEndCooldown: 300_000,
+                ...QUEUE_LEAVE_OPTIONS,
             },
             requestedBy: interaction.user,
             searchEngine,

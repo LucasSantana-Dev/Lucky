@@ -15,7 +15,10 @@ import {
 } from './autoplay/candidateCollector'
 import { calculateRecommendationScore } from './autoplay/candidateScorer'
 import type { SessionMood } from './autoplay/sessionMood'
-import { createArtistTagFetcher } from './autoplay/artistTagCache'
+import {
+    createArtistTagFetcher,
+    type ArtistTagFetcher,
+} from './autoplay/artistTagCache'
 import type { AutoplayAuditCollector } from './autoplay/autoplayAudit'
 import {
     cleanSearchQuery,
@@ -29,6 +32,8 @@ const MAX_AUTOPLAY_DURATION_MS = 10 * 60 * 1000
 const GENRE_SCORE_BOOST = 0.1
 const MAX_GENRES = 3
 const MAX_TRACKS_PER_GENRE = 20
+// Tag lookups per search: each is a Last.fm call.
+const MAX_TAGGED_RESULTS_PER_SEARCH = 3
 
 export interface CandidateContext {
     candidates: Map<string, ScoredTrack>
@@ -50,15 +55,12 @@ export interface CandidateContext {
     genreContext?: {
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
+        getArtistTags?: ArtistTagFetcher
     }
     auditCollector?: AutoplayAuditCollector
 }
 
-function addGenreTrackCandidate(
-    track: Track,
-    tag: string,
-    ctx: CandidateContext,
-): void {
+function isGenreTrackAllowed(track: Track, ctx: CandidateContext): boolean {
     if (
         !shouldIncludeCandidate(
             track,
@@ -67,10 +69,17 @@ function addGenreTrackCandidate(
             ctx.candidates,
         )
     )
-        return
+        return false
     const key = normalizeTrackKey(track.title, track.author)
     const dislikedWeight = ctx.dislikedTrackKeys.get(key)
-    if (dislikedWeight !== undefined && dislikedWeight > 0.5) return
+    return dislikedWeight === undefined || dislikedWeight <= 0.5
+}
+
+function addGenreTrackCandidate(
+    track: Track,
+    candidateTags: string[],
+    ctx: CandidateContext,
+): void {
     const rec = calculateRecommendationScore({
         candidate: track,
         currentTrack: ctx.currentTrack,
@@ -87,7 +96,7 @@ function addGenreTrackCandidate(
         dislikedWeights: ctx.dislikedTrackKeys,
         sessionMood: ctx.sessionMood,
         genreContext: {
-            candidateTags: [tag.toLowerCase()],
+            candidateTags,
             currentTrackTags: ctx.genreContext?.currentTrackTags,
             sessionGenreFamilies: ctx.genreContext?.sessionGenreFamilies,
         },
@@ -207,6 +216,8 @@ export async function collectGenreCandidates(
     requestedBy: User,
     ctx: CandidateContext,
 ): Promise<void> {
+    const getArtistTags =
+        ctx.genreContext?.getArtistTags ?? createArtistTagFetcher()
     for (const tag of genres.slice(0, MAX_GENRES)) {
         if (ctx.candidates.size >= AUTOPLAY_BUFFER_SIZE) break
         let seeds: Awaited<ReturnType<typeof getTagTopTracks>> = []
@@ -224,8 +235,29 @@ export async function collectGenreCandidates(
                     cleanSearchQuery(seed.title, seed.artist),
                     requestedBy,
                 )
-                for (const track of results)
-                    addGenreTrackCandidate(track, tag, ctx)
+                const allowed = results
+                    .filter((track) => isGenreTrackAllowed(track, ctx))
+                    .slice(0, MAX_TAGGED_RESULTS_PER_SEARCH)
+                // Score on the artist's real tags (#2934): the configured tag
+                // would pass the genre check for any search hit. A failed
+                // lookup stays untagged so the scorer's fail-closed path runs.
+                const tagged = await Promise.all(
+                    allowed.map(async (track) => ({
+                        track,
+                        tags: await getArtistTags(track.author).catch(
+                            (err: unknown) => {
+                                logAndSwallow(
+                                    err,
+                                    'candidateFallback.getArtistTags',
+                                    { author: track.author },
+                                )
+                                return [] as string[]
+                            },
+                        ),
+                    })),
+                )
+                for (const { track, tags } of tagged)
+                    addGenreTrackCandidate(track, tags, ctx)
             } catch (err: unknown) {
                 logAndSwallow(err, 'candidateFallback.searchLastFmQuery', {
                     tag,

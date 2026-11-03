@@ -5,6 +5,7 @@ import type {
 } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 import type { CustomClient } from '../types'
+import { QUEUE_LEAVE_OPTIONS } from '../services/musicManagement/queueLeaveOptions'
 
 class ValidationError extends Error {
     constructor(
@@ -37,7 +38,10 @@ export const createQueue = async ({
         })
     }
 
-    const queue = client.player.nodes.create(interaction.guild)
+    const queue = client.player.nodes.create(
+        interaction.guild,
+        QUEUE_LEAVE_OPTIONS,
+    )
 
     // Enable autoplay by default
     queue.setRepeatMode(3) // QueueRepeatMode.AUTOPLAY

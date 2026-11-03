@@ -2,7 +2,6 @@ import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import { QueueRepeatMode } from 'discord-player'
 import type { GuildQueue, Track } from 'discord-player'
 
-const clearAutoplayPause = jest.fn<(guildId: string) => void>()
 const applyStoredAutoplayPreference =
     jest.fn<(queue: unknown, guildId: string) => Promise<void>>()
 const blendAutoplayTracks =
@@ -13,12 +12,6 @@ const maybeAutoEnableRecap =
 const addBreadcrumb = jest.fn()
 const errorLog = jest.fn()
 
-jest.mock(
-    '../../../../../services/musicRecommendation/autoplay/skipCircuitBreaker',
-    () => ({
-        clearAutoplayPause: (id: string) => clearAutoplayPause(id),
-    }),
-)
 jest.mock('./autoplayPreference', () => ({
     applyStoredAutoplayPreference: (q: unknown, id: string) =>
         applyStoredAutoplayPreference(q, id),
@@ -59,8 +52,6 @@ function failedOps(): string[] {
 describe('runPostPlayBackgroundOps', () => {
     beforeEach(() => {
         // Explicitly clear and reset all mock implementations to prevent test pollution
-        clearAutoplayPause.mockClear()
-        clearAutoplayPause.mockReturnValue(undefined)
         applyStoredAutoplayPreference.mockClear()
         applyStoredAutoplayPreference.mockResolvedValue(undefined)
         blendAutoplayTracks.mockClear()
@@ -82,15 +73,14 @@ describe('runPostPlayBackgroundOps', () => {
             isPlaylist: false,
         })
 
-        expect(clearAutoplayPause).toHaveBeenCalledWith(guildId)
         expect(clearSessionMoodCache).toHaveBeenCalledWith(guildId)
         expect(applyStoredAutoplayPreference).toHaveBeenCalledTimes(1)
         expect(blendAutoplayTracks).toHaveBeenCalledTimes(1)
         expect(failedOps()).toEqual([])
     })
 
-    it('isolates a clearAutoplayPause failure — the other ops still run', async () => {
-        clearAutoplayPause.mockImplementation(() => {
+    it('isolates a clearSessionMoodCache failure: the other ops still run', async () => {
+        clearSessionMoodCache.mockImplementation(() => {
             throw new Error('boom')
         })
 
@@ -105,7 +95,7 @@ describe('runPostPlayBackgroundOps', () => {
         // cascade is broken: preference + blend still execute
         expect(applyStoredAutoplayPreference).toHaveBeenCalledTimes(1)
         expect(blendAutoplayTracks).toHaveBeenCalledTimes(1)
-        expect(failedOps()).toEqual(['clearAutoplayPause'])
+        expect(failedOps()).toEqual(['clearSessionMoodCache'])
     })
 
     it('retries a transient applyStoredAutoplayPreference failure then succeeds', async () => {
@@ -151,7 +141,7 @@ describe('runPostPlayBackgroundOps', () => {
             isPlaylist: false,
         })
 
-        expect(clearAutoplayPause).toHaveBeenCalledTimes(1)
+        expect(clearSessionMoodCache).toHaveBeenCalledTimes(1)
         expect(applyStoredAutoplayPreference).not.toHaveBeenCalled()
         expect(blendAutoplayTracks).not.toHaveBeenCalled()
     })

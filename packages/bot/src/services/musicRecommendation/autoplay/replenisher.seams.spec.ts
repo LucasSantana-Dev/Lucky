@@ -17,10 +17,6 @@ jest.mock('@lucky/shared/utils', () => ({
     warnLog: jest.fn(),
 }))
 
-jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
-    getAutoplaySkipRateForGuild: jest.fn(),
-}))
-
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: jest.fn(),
@@ -46,6 +42,7 @@ jest.mock('../../../services/musicRecommendation/feedbackService', () => ({
         getPreferredArtistKeys: jest.fn(),
         getBlockedArtistKeys: jest.fn(),
         getGuildImplicitDislikeKeys: jest.fn(),
+        getGuildImplicitArtistDislikeWeights: jest.fn(),
     },
 }))
 
@@ -93,10 +90,6 @@ jest.mock('./lastFmSeeder', () => ({
 
 jest.mock('./seedSimilarityCollector', () => ({
     collectSeedSimilarCandidates: jest.fn(),
-}))
-
-jest.mock('./skipCircuitBreaker', () => ({
-    evaluateSkipRateBreaker: jest.fn(),
 }))
 
 jest.mock('../../../spotify/spotifyApi', () => ({
@@ -199,6 +192,9 @@ describe('replenisher seam functions', () => {
         recommendationFeedbackService.getGuildImplicitDislikeKeys.mockReturnValue(
             new Set(),
         )
+        recommendationFeedbackService.getGuildImplicitArtistDislikeWeights.mockReturnValue(
+            new Map(),
+        )
 
         const {
             trackHistoryService,
@@ -256,9 +252,6 @@ describe('replenisher seam functions', () => {
         createArtistTagFetcher.mockReturnValue(jest.fn().mockResolvedValue([]))
         hasGenreTag.mockReturnValue(false)
 
-        const { evaluateSkipRateBreaker } = require('./skipCircuitBreaker')
-        evaluateSkipRateBreaker.mockResolvedValue(true)
-
         const { getArtistPopularity } = require('../../../spotify/spotifyApi')
         getArtistPopularity.mockResolvedValue(50)
 
@@ -299,16 +292,6 @@ describe('replenisher seam functions', () => {
 
             const result = await evaluateGatingChecks(queue)
             expect(result).toBeNull()
-        })
-
-        it('calls evaluateSkipRateBreaker and returns null if false', async () => {
-            const queue = createGuildQueue()
-            const { evaluateSkipRateBreaker } = require('./skipCircuitBreaker')
-            evaluateSkipRateBreaker.mockResolvedValue(false)
-
-            const result = await evaluateGatingChecks(queue)
-            expect(result).toBeNull()
-            expect(evaluateSkipRateBreaker).toHaveBeenCalledWith(queue)
         })
 
         it('returns {currentTrack, missingTracks} when gating passes', async () => {
@@ -426,6 +409,87 @@ describe('replenisher seam functions', () => {
             expect(result.mergedImplicitDislikeKeys).toContain('guild-key-1')
         })
 
+        it('applies every voice member track votes and implicit keys (#2933)', async () => {
+            const queue = createGuildQueue()
+            const requestedBy = createUser()
+
+            const {
+                recommendationFeedbackService,
+            } = require('../../../services/musicRecommendation/feedbackService')
+            recommendationFeedbackService.getDislikedTrackWeights.mockImplementation(
+                async (_guildId: string, userId: string) =>
+                    userId === 'listener-2'
+                        ? new Map([['song::artist', 0.8]])
+                        : new Map([['song::artist', 0.3]]),
+            )
+            recommendationFeedbackService.getLikedTrackWeights.mockImplementation(
+                async (_guildId: string, userId: string) =>
+                    userId === 'listener-2'
+                        ? new Map([['liked::band', 1]])
+                        : new Map([['requester-liked::band', 0.6]]),
+            )
+            recommendationFeedbackService.getImplicitDislikeKeys.mockImplementation(
+                async (userId: string) =>
+                    userId === 'listener-2'
+                        ? new Set(['skipped::band'])
+                        : new Set(['requester-skipped::band']),
+            )
+            recommendationFeedbackService.getImplicitLikeKeys.mockImplementation(
+                async (userId: string) =>
+                    userId === 'listener-2'
+                        ? new Set(['loved::band'])
+                        : new Set(['requester-loved::band']),
+            )
+
+            const result = await fetchFeedbackAndHistoryData(
+                queue,
+                requestedBy,
+                ['listener-2'],
+                [requestedBy.id, 'listener-2'],
+                [],
+            )
+
+            expect(result.dislikedWeights.get('song::artist')).toBe(0.8)
+            expect(result.likedWeights.get('liked::band')).toBe(1)
+            expect(result.likedWeights.get('requester-liked::band')).toBe(0.6)
+            expect(result.dislikedArtistWeights.get('artist')).toBe(0.8)
+            expect(result.mergedImplicitDislikeKeys).toContain('skipped::band')
+            expect(result.mergedImplicitDislikeKeys).toContain(
+                'requester-skipped::band',
+            )
+            expect(result.implicitLikeKeys).toContain('loved::band')
+            expect(result.implicitLikeKeys).toContain('requester-loved::band')
+        })
+
+        it('adds guild implicit artist dislikes to the artist weights, capped (#2933)', async () => {
+            const queue = createGuildQueue()
+            const requestedBy = createUser()
+
+            const {
+                recommendationFeedbackService,
+            } = require('../../../services/musicRecommendation/feedbackService')
+            recommendationFeedbackService.getDislikedTrackWeights.mockResolvedValue(
+                new Map([['song::artist', 1.5]]),
+            )
+            recommendationFeedbackService.getGuildImplicitArtistDislikeWeights.mockReturnValue(
+                new Map([
+                    ['artist', 1],
+                    ['skippedband', 0.5],
+                ]),
+            )
+
+            const result = await fetchFeedbackAndHistoryData(
+                queue,
+                requestedBy,
+                [],
+                [requestedBy.id],
+                [],
+            )
+
+            expect(result.dislikedArtistWeights.get('artist')).toBe(2)
+            expect(result.dislikedArtistWeights.get('skippedband')).toBe(0.5)
+        })
+
         it('logs a debug note, not a warning, when persistent history is empty', async () => {
             const queue = createGuildQueue()
             const { warnLog, debugLog } = require('@lucky/shared/utils')
@@ -530,6 +594,25 @@ describe('replenisher seam functions', () => {
             )
 
             expect(result.artistFrequency.size).toBeGreaterThan(0)
+        })
+
+        it('keeps skipped plays out of artist frequency, keyed like the scorer (#2933)', () => {
+            const history = [
+                { author: 'Beyoncé', isAutoplay: false },
+                { author: 'Beyoncé', isAutoplay: false },
+                { author: 'Skipped Band', isAutoplay: false, skipped: true },
+            ]
+
+            const result = buildExclusionAndDerivedSignals(
+                createGuildQueue(),
+                createTrack(),
+                [],
+                [],
+                history,
+            )
+
+            expect(result.artistFrequency.get('beyoncé')).toBe(2)
+            expect(result.artistFrequency.has('skippedband')).toBe(false)
         })
 
         it('logs exclusion set details', () => {

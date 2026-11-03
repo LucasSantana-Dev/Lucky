@@ -1,6 +1,12 @@
 import type { Track, GuildQueue } from 'discord-player'
 import { QueueRepeatMode } from 'discord-player'
-import { infoLog, debugLog, errorLog, telemetryLog } from '@lucky/shared/utils'
+import {
+    infoLog,
+    debugLog,
+    errorLog,
+    telemetryLog,
+    warnLog,
+} from '@lucky/shared/utils'
 import { addTrackToHistory } from '../../utils/music/duplicateDetection'
 import { resolveActualStreamSource } from './streamSourceResolver'
 import { replenishQueue } from '../../services/musicManagement/queueOperations'
@@ -20,8 +26,11 @@ import {
     clearIdleTimer,
 } from '../../services/musicManagement/idleDisconnect'
 import { clearVotes } from '../../services/musicManagement/voteSkipStore'
-import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
-import { normalizeTrackKey } from '../../services/musicRecommendation/autoplay/scoringUtils'
+import {
+    dropQueuedAutoplayPicksByArtist,
+    listenerIds,
+    rejectAutoplayPick,
+} from './autoplayRejection'
 import {
     isReplenishSuppressed,
     setReplenishSuppressed,
@@ -137,10 +146,11 @@ async function handleQueueReplenishment(
         getTrackRequesterId(track),
     )
     if (autoplayEnabled && queue.repeatMode === QueueRepeatMode.AUTOPLAY) {
-        try {
-            await replenishQueue(queue, undefined, () =>
+        const refill = () =>
+            replenishQueue(queue, undefined, () =>
                 getRecentSkipCount(queue.guild.id),
             )
+        if (await refill()) {
             debugLog({
                 message: 'Queue replenished after track start',
                 data: {
@@ -149,24 +159,33 @@ async function handleQueueReplenishment(
                     queueSize: queue.tracks.size,
                 },
             })
-        } catch (error) {
-            errorLog({
+        } else {
+            // replenishQueue logs and swallows its own errors, so a failure
+            // shows up as false here, never as a throw.
+            warnLog({
                 message: 'Replenish failed, retrying in 5s',
-                error: String(error),
+                data: { guildId: queue.guild.id },
             })
             setTimeout(() => {
-                replenishQueue(queue, undefined, () =>
-                    getRecentSkipCount(queue.guild.id),
-                ).catch((retryErr: unknown) => {
+                // /clear, /stop or a repeat-mode change in the last 5s means
+                // autoplay should stay quiet, so the retry must not refill.
+                const guildId = queue.guild.id
+                if (
+                    queue.repeatMode !== QueueRepeatMode.AUTOPLAY ||
+                    isReplenishSuppressed(guildId) ||
+                    musicWatchdogService.isIntentionalStop(guildId)
+                )
+                    return
+                void refill().then((ok) => {
+                    if (ok) return
                     // errorLog, not warnLog: this is the second consecutive
                     // failure, so autoplay has stopped for this guild and will
                     // not retry again. warn only adds a Sentry breadcrumb,
-                    // which is transmitted solely if some later error fires —
+                    // which is transmitted solely if some later error fires,
                     // so the moment autoplay died was invisible (#1995).
                     errorLog({
                         message:
-                            'Replenish retry failed — autoplay stopped for this guild',
-                        error: retryErr,
+                            'Replenish retry failed: autoplay stopped for this guild',
                         data: { guildId: queue.guild.id },
                     })
                 })
@@ -267,6 +286,27 @@ function playedSeconds(
     return Math.max(0, Math.round(playedMs / 1000))
 }
 
+// An autoplay pick of real length (>20s) that ended before
+// OUTCOME_ACCEPT_PLAY_RATIO of audio actually played (pauses excluded) was
+// rejected by the room. Returns whether it was a rejection.
+function recordEarlyAutoplayRejection(
+    queue: GuildQueue,
+    track: Track | undefined,
+    startTime: number | undefined,
+    strength: number,
+): track is Track {
+    if (!track || !startTime || !track.durationMS) return false
+    if (track.durationMS <= 20_000 || !isRecommendationAutoplay(track)) {
+        return false
+    }
+    const now = Date.now()
+    const playedMs = now - startTime - getPausedMs(queue.guild.id, now)
+    if (playedMs / track.durationMS >= OUTCOME_ACCEPT_PLAY_RATIO) return false
+
+    rejectAutoplayPick(queue, track, strength)
+    return true
+}
+
 async function scrobbleAndRecord(
     queue: GuildQueue,
     track: Track | undefined,
@@ -299,6 +339,11 @@ const handlePlayerFinish = async (
         // queued next). Recording or scrobbling it would log a song nobody
         // heard. The autoplay and queue-exhaustion handling below still runs.
         const neverStarted = track !== undefined && startTime === undefined
+
+        // discord-player v7 routes some manual skips through playerFinish.
+        if (recordEarlyAutoplayRejection(queue, track, startTime, 1)) {
+            dropQueuedAutoplayPicksByArtist(queue, track)
+        }
 
         if (!recordedOnSkip && !neverStarted) {
             await scrobbleAndRecord(queue, track, played)
@@ -362,6 +407,9 @@ const handlePlayerFinish = async (
  * is a stream that never started (no playerStart, no entry).
  */
 const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
+    // A /stop or disconnect ends the session; its failures must not count
+    // against the next one.
+    resetAutoplayFailureStreak(queue.guild.id)
     try {
         const lastStarted = takeGuildLastStartedTrack(queue.guild.id)
         const track = queue.currentTrack ?? lastStarted
@@ -369,6 +417,12 @@ const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
         const startTime = track ? takeTrackPlayStart(track) : undefined
         if (!track || startTime === undefined) return
         const played = playedSeconds(startTime, queue.guild.id)
+        // A stop early in an autoplay pick is a mild rejection; a late stop
+        // just ends the session. An empty channel means the empty-channel
+        // leave or a disconnect ended it, not a listener.
+        if (listenerIds(queue).length > 0) {
+            recordEarlyAutoplayRejection(queue, track, startTime, 0.5)
+        }
 
         debugLog({
             message: 'Queue deleted mid-track, recording the interrupted play',
@@ -401,6 +455,12 @@ const handlePlayerSkip = async (
                 currentTrack: queue.currentTrack?.title ?? 'none',
             },
         })
+        // Before the awaited writes below, so a refill that runs meanwhile
+        // already sees the rejection.
+        if (recordEarlyAutoplayRejection(queue, track, startTime, 1)) {
+            dropQueuedAutoplayPicksByArtist(queue, track)
+        }
+
         // ERR_NO_STREAM: the stream never started, so there is no play to
         // record or scrobble, and no playerFinish follows.
         if (reason !== 'ERR_NO_STREAM') {
@@ -430,19 +490,6 @@ const handlePlayerSkip = async (
                     const current =
                         guildRecentSkipCounts.get(queue.guild.id) ?? 0
                     guildRecentSkipCounts.set(queue.guild.id, current + 1)
-
-                    // Guild-scope dislike for autoplay tracks: ensures the signal reaches the
-                    // scorer even when requestedBy is null/undefined in the replenisher context.
-                    if (isRecommendationAutoplay(track)) {
-                        const trackKey = normalizeTrackKey(
-                            track.title,
-                            track.author,
-                        )
-                        recommendationFeedbackService.recordGuildImplicitDislike(
-                            queue.guild.id,
-                            trackKey,
-                        )
-                    }
                 }
                 // Record the autoplay recommendation outcome on skip — duration-
                 // agnostic, consistent with the playerFinish path: a skip before

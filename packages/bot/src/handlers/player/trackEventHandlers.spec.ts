@@ -13,6 +13,7 @@ import {
     getRecentSkipCount,
     __resetTrackHandlerCachesForTests,
 } from './autoplayOutcomeTracking'
+import { isReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 
 const QueueRepeatMode = {
     OFF: 0,
@@ -130,6 +131,7 @@ jest.mock('./streamSourceResolver', () => ({
 }))
 
 const recordGuildImplicitDislikeMock = jest.fn()
+const recordAutoplayRejectionMock = jest.fn()
 
 jest.mock('../../services/musicRecommendation/feedbackService', () => ({
     recommendationFeedbackService: {
@@ -137,7 +139,15 @@ jest.mock('../../services/musicRecommendation/feedbackService', () => ({
             recordImplicitFeedbackMock(...args),
         recordGuildImplicitDislike: (...args: unknown[]) =>
             recordGuildImplicitDislikeMock(...args),
+        recordAutoplayRejection: (...args: unknown[]) =>
+            recordAutoplayRejectionMock(...args),
     },
+}))
+
+const clearSessionMoodCacheMock = jest.fn()
+jest.mock('../../services/musicRecommendation/autoplay/replenisher', () => ({
+    clearSessionMoodCache: (...args: unknown[]) =>
+        clearSessionMoodCacheMock(...args),
 }))
 
 const recordRecommendationOutcomeMock = jest.fn()
@@ -191,6 +201,7 @@ function createQueue(repeatMode: QueueRepeatMode): GuildQueue {
         },
         tracks: {
             size: 1,
+            toArray: () => [],
         },
         repeatMode,
     } as unknown as GuildQueue
@@ -289,6 +300,58 @@ describe('trackHandlers autoplay replenishment', () => {
                 createTrack(),
             ),
         ).resolves.toBeUndefined()
+    })
+
+    it('retries the refill after 5s when the first one reports a failure', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        replenishQueueMock.mockResolvedValueOnce(false)
+
+        await handlers.playerStart(queue, createTrack())
+        expect(replenishQueueMock).toHaveBeenCalledTimes(1)
+
+        await jest.advanceTimersByTimeAsync(5000)
+        expect(replenishQueueMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('skips the 5s retry once a refill suppression has landed', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        replenishQueueMock.mockResolvedValueOnce(false)
+
+        await handlers.playerStart(queue, createTrack())
+        jest.mocked(isReplenishSuppressed).mockReturnValue(true)
+        await jest.advanceTimersByTimeAsync(5000)
+        jest.mocked(isReplenishSuppressed).mockReturnValue(false)
+
+        expect(replenishQueueMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('skips the 5s retry once autoplay was turned off', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        replenishQueueMock.mockResolvedValueOnce(false)
+
+        await handlers.playerStart(queue, createTrack())
+        ;(queue as { repeatMode: number }).repeatMode = QueueRepeatMode.OFF
+        await jest.advanceTimersByTimeAsync(5000)
+
+        expect(replenishQueueMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not retry the refill when it succeeds', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        replenishQueueMock.mockResolvedValueOnce(true)
+
+        await handlers.playerStart(queue, createTrack())
+        await jest.advanceTimersByTimeAsync(5000)
+
+        expect(replenishQueueMock).toHaveBeenCalledTimes(1)
     })
 
     it('does not record feedback on playerFinish when track played < 80%', async () => {
@@ -1222,6 +1285,20 @@ describe('track history when a queue is deleted mid-play', () => {
         )
     })
 
+    it('starts the autoplay failure streak over when the queue is deleted', async () => {
+        const { recordAutoplayStreamFailure } = jest.requireActual<
+            typeof import('./autoplayFailureStreak')
+        >('./autoplayFailureStreak')
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        recordAutoplayStreamFailure('guild-1')
+        recordAutoplayStreamFailure('guild-1')
+
+        await handlers.queueDelete(queue)
+
+        expect(recordAutoplayStreamFailure('guild-1')).toBe(1)
+    })
+
     it('does not record again when a skip already recorded the play', async () => {
         const handlers = setupHandlers()
         const track = {
@@ -1431,5 +1508,198 @@ describe('track history when a queue is deleted mid-play', () => {
         expect(addTrackToHistoryMock).toHaveBeenCalledWith(track, 'guild-1', {
             playDuration: 8,
         })
+    })
+})
+
+describe('autoplay rejection feedback (#2933)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        guildRecentSkipCounts.clear()
+        featureEnabledMock.mockResolvedValue(true)
+        replenishQueueMock.mockResolvedValue(undefined)
+        addTrackToHistoryMock.mockResolvedValue(undefined)
+        sendNowPlayingEmbedMock.mockResolvedValue(undefined)
+        updateLastFmNowPlayingMock.mockResolvedValue(undefined)
+        scrobbleCurrentTrackIfLastFmMock.mockResolvedValue(undefined)
+        saveSnapshotMock.mockResolvedValue(undefined)
+        recordImplicitFeedbackMock.mockResolvedValue(undefined)
+        recordRecommendationOutcomeMock.mockResolvedValue(undefined)
+        jest.useFakeTimers()
+    })
+
+    afterEach(() => {
+        jest.useRealTimers()
+    })
+
+    function pick(id: string, author: string, isAutoplay = true): Track {
+        return {
+            id,
+            title: `Song ${id}`,
+            author,
+            url: `https://example.com/${id}`,
+            durationMS: 200_000,
+            metadata: isAutoplay ? { isAutoplay: true } : {},
+        } as unknown as Track
+    }
+
+    function makeQueue(queued: Track[] = []): GuildQueue {
+        const base = createQueue(QueueRepeatMode.AUTOPLAY) as unknown as {
+            tracks: { size: number }
+        }
+        const tracks = [...queued]
+        return {
+            ...base,
+            currentTrack: null,
+            channel: {
+                members: new Map([
+                    ['u1', { id: 'u1', user: { bot: false } }],
+                    ['bot-1', { id: 'bot-1', user: { bot: true } }],
+                ]),
+            },
+            tracks: {
+                get size() {
+                    return tracks.length
+                },
+                toArray: () => [...tracks],
+            },
+            removeTrack: jest.fn((t: Track) => {
+                tracks.splice(tracks.indexOf(t), 1)
+            }),
+        } as unknown as GuildQueue
+    }
+
+    it('an early skip of an autoplay pick is recorded for the listeners before the history write', async () => {
+        const handlers = setupHandlers()
+        const track = pick('a', 'Artist A')
+        const queue = makeQueue()
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(10_000)
+        await handlers.playerSkip(queue, track, 'MANUAL')
+
+        expect(recordAutoplayRejectionMock).toHaveBeenCalledWith(
+            'guild-1',
+            ['u1'],
+            track,
+            1,
+        )
+        expect(
+            recordAutoplayRejectionMock.mock.invocationCallOrder[0],
+        ).toBeLessThan(addTrackToHistoryMock.mock.invocationCallOrder[0])
+        expect(clearSessionMoodCacheMock).toHaveBeenCalledWith('guild-1')
+    })
+
+    it('a skip drops queued autoplay picks by the same artist only', async () => {
+        const handlers = setupHandlers()
+        const track = pick('a', 'Artist A')
+        const sameArtistPick = pick('b', 'Artist A')
+        const requested = pick('c', 'Artist A', false)
+        const otherPick = pick('d', 'Artist D')
+        const queue = makeQueue([sameArtistPick, requested, otherPick])
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(10_000)
+        await handlers.playerSkip(queue, track, 'MANUAL')
+
+        expect(queue.removeTrack).toHaveBeenCalledTimes(1)
+        expect(queue.removeTrack).toHaveBeenCalledWith(sameArtistPick)
+    })
+
+    it('a late skip or a requested track records no rejection', async () => {
+        const handlers = setupHandlers()
+        const late = pick('a', 'Artist A')
+        const requested = pick('b', 'Artist B', false)
+        const queue = makeQueue()
+
+        await handlers.playerStart(queue, late)
+        jest.advanceTimersByTime(100_000)
+        await handlers.playerSkip(queue, late, 'MANUAL')
+        await handlers.playerStart(queue, requested)
+        jest.advanceTimersByTime(10_000)
+        await handlers.playerSkip(queue, requested, 'MANUAL')
+
+        expect(recordAutoplayRejectionMock).not.toHaveBeenCalled()
+    })
+
+    it('judges the skip by audio played, not by time spent paused', async () => {
+        const handlers = setupHandlers()
+        const track = pick('a', 'Artist A')
+        const queue = makeQueue()
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(10_000)
+        handlers.playerPause(queue)
+        jest.advanceTimersByTime(80_000)
+        handlers.playerResume(queue)
+        jest.advanceTimersByTime(10_000)
+        await handlers.playerSkip(queue, track, 'MANUAL')
+
+        expect(recordAutoplayRejectionMock).toHaveBeenCalledWith(
+            'guild-1',
+            ['u1'],
+            track,
+            1,
+        )
+    })
+
+    it('a stop early in an autoplay pick is a mild rejection', async () => {
+        const handlers = setupHandlers()
+        const track = pick('a', 'Artist A')
+        const queue = makeQueue()
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(30_000)
+        await handlers.queueDelete(queue)
+
+        expect(recordAutoplayRejectionMock).toHaveBeenCalledWith(
+            'guild-1',
+            ['u1'],
+            track,
+            0.5,
+        )
+    })
+
+    it('an early stop with nobody left in the channel records no rejection', async () => {
+        const handlers = setupHandlers()
+        const track = pick('a', 'Artist A')
+        const queue = makeQueue()
+        ;(queue as any).channel = {
+            members: new Map([['bot-1', { id: 'bot-1', user: { bot: true } }]]),
+        }
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(30_000)
+        await handlers.queueDelete(queue)
+
+        expect(recordAutoplayRejectionMock).not.toHaveBeenCalled()
+    })
+
+    it('a late stop records no rejection', async () => {
+        const handlers = setupHandlers()
+        const track = pick('a', 'Artist A')
+        const queue = makeQueue()
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(100_000)
+        await handlers.queueDelete(queue)
+
+        expect(recordAutoplayRejectionMock).not.toHaveBeenCalled()
+    })
+
+    it('a skip that arrives as an early playerFinish is a rejection', async () => {
+        const handlers = setupHandlers()
+        const track = pick('a', 'Artist A')
+        const queue = makeQueue()
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(10_000)
+        await handlers.playerFinish(queue, track)
+
+        expect(recordAutoplayRejectionMock).toHaveBeenCalledWith(
+            'guild-1',
+            ['u1'],
+            track,
+            1,
+        )
     })
 })

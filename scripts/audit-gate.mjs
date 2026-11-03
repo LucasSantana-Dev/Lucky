@@ -41,7 +41,35 @@ const TRANSITIVE = Symbol('transitive');
  * are accepted, so a new CVE in an already-listed package is not silently
  * inherited by the acceptance.
  */
-const ACCEPTED = {};
+const ACCEPTED = {
+    zod: {
+        reason:
+            'Only the copy nested under @infisical/sdk (zod 3.x) is reported; the ' +
+            "workspace's own zod is ^4.6.7 and clean. The SDK runs its zod schemas " +
+            'on inputs for dynamic-secret providers, which Lucky never calls: ' +
+            'packages/shared/src/config/environment.ts only logs in and lists ' +
+            'secrets once at startup, from operator-set env vars. The memory DoS ' +
+            'needs attacker-sized input to a constrained collection schema, so ' +
+            'there is no path to it. No 3.x fix exists and @infisical/sdk@5.0.2 ' +
+            '(latest) still depends on zod ^3.23.8.',
+        until: '@infisical/sdk ships on zod >=4.6.6 (tracked in #2947)',
+        // The workspace zod is direct and must stay clean: if the direct copy
+        // is ever flagged, that is real exposure and must block.
+        requireTransitive: true,
+        // Pin the accepted copy by install path, so a zod flagged anywhere
+        // else in the tree blocks instead of riding on this acceptance.
+        onlyAt: ['node_modules/@infisical/sdk/node_modules/zod'],
+        advisories: {
+            1243066:
+                'GHSA-mrhx-c7xc-m3w5: zod can exhaust memory validating oversized constrained collections',
+        },
+    },
+    '@infisical/sdk': {
+        reason: 'Reported only because of its nested zod, accepted above.',
+        until: 'same exit as the zod entry',
+        advisories: TRANSITIVE,
+    },
+};
 
 // The policy above is only worth something if every entry actually carries its
 // justification. Enforce it rather than trusting the comment.
@@ -110,6 +138,17 @@ for (const [name, vulnerability] of Object.entries(vulnerabilities)) {
         blocking.push({
             ...summary,
             why: 'accepted only while transitive, but is now a direct production dependency',
+        });
+        continue;
+    }
+
+    const outside = entry.onlyAt
+        ? (vulnerability.nodes ?? []).filter((node) => !entry.onlyAt.includes(node))
+        : [];
+    if (outside.length > 0) {
+        blocking.push({
+            ...summary,
+            why: `accepted only at ${entry.onlyAt.join(', ')}, but also found at ${outside.join(', ')}`,
         });
         continue;
     }

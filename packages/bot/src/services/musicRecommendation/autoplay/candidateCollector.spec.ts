@@ -279,6 +279,53 @@ describe('candidateCollector', () => {
             expect(searchSeedCandidatesMock).toHaveBeenCalled()
         })
 
+        it('passes the recency-decay indices to the scorer (#2933)', async () => {
+            searchSeedCandidatesMock.mockResolvedValue([
+                createTrack({ title: 'Seed Result', author: 'Seed Artist' }),
+            ])
+            const recentArtistIndices = new Map([['seed artist', 0]])
+            const ctx = createAutoplayContext({
+                queue: createGuildQueue(),
+                currentTrack: createTrack(),
+                recentArtistIndices,
+            })
+
+            await collectRecommendationCandidates(ctx, [createTrack()], null)
+
+            expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
+                expect.objectContaining({ recentArtistIndices }),
+            )
+        })
+
+        it.each([
+            [0.5, 0.25],
+            [-0.2, -0.2],
+        ])(
+            'weighs a spotify-rec title-search hit below a Last.fm similar (#2934): %d -> %d',
+            async (raw, expected) => {
+                searchSeedCandidatesMock.mockResolvedValue([
+                    createTrack({ title: 'Title Hit', author: 'Hit Artist' }),
+                ])
+                calculateRecommendationScoreMock.mockReturnValue({
+                    score: raw,
+                    signals: [],
+                })
+                const ctx = createAutoplayContext({
+                    queue: createGuildQueue(),
+                    currentTrack: createTrack(),
+                })
+
+                const result = await collectRecommendationCandidates(
+                    ctx,
+                    [createTrack()],
+                    null,
+                )
+
+                const [entry] = Array.from(result.values())
+                expect(entry.score).toBeCloseTo(expected, 5)
+            },
+        )
+
         it('should exclude disliked candidates', async () => {
             const dislikedTrack = createTrack({
                 title: 'Bad Track',

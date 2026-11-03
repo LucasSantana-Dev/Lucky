@@ -155,6 +155,22 @@ describe('collectSeedSimilarCandidates', () => {
         expect((call?.[2] as { source: string })?.source).toBe('seed-similar')
     })
 
+    it('grounds on the anchor track when the current pick is unvetted (#2934)', async () => {
+        getSimilarTracksMock.mockResolvedValue([])
+        const ctx = createAutoplayContext({
+            currentTrack: createTrack('Drifted Pick', 'Stranger'),
+            anchorTrack: createTrack('Kiss', 'Prince'),
+        })
+        await collectSeedSimilarCandidates(ctx, createUser(), new Map())
+
+        expect(getSimilarTracksMock).toHaveBeenCalledTimes(1)
+        expect(getSimilarTracksMock).toHaveBeenCalledWith(
+            'Prince',
+            'Kiss',
+            expect.any(Number),
+        )
+    })
+
     it('retries with the artist from a YouTube title when the channel author finds nothing', async () => {
         getSimilarTracksMock.mockImplementation(async (artist: unknown) =>
             artist === 'Michael Jackson'
