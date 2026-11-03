@@ -426,19 +426,19 @@ describe('replenisher seam functions', () => {
                 async (_guildId: string, userId: string) =>
                     userId === 'listener-2'
                         ? new Map([['liked::band', 1]])
-                        : new Map(),
+                        : new Map([['requester-liked::band', 0.6]]),
             )
             recommendationFeedbackService.getImplicitDislikeKeys.mockImplementation(
                 async (userId: string) =>
                     userId === 'listener-2'
                         ? new Set(['skipped::band'])
-                        : new Set(),
+                        : new Set(['requester-skipped::band']),
             )
             recommendationFeedbackService.getImplicitLikeKeys.mockImplementation(
                 async (userId: string) =>
                     userId === 'listener-2'
                         ? new Set(['loved::band'])
-                        : new Set(),
+                        : new Set(['requester-loved::band']),
             )
 
             const result = await fetchFeedbackAndHistoryData(
@@ -451,9 +451,14 @@ describe('replenisher seam functions', () => {
 
             expect(result.dislikedWeights.get('song::artist')).toBe(0.8)
             expect(result.likedWeights.get('liked::band')).toBe(1)
+            expect(result.likedWeights.get('requester-liked::band')).toBe(0.6)
             expect(result.dislikedArtistWeights.get('artist')).toBe(0.8)
             expect(result.mergedImplicitDislikeKeys).toContain('skipped::band')
+            expect(result.mergedImplicitDislikeKeys).toContain(
+                'requester-skipped::band',
+            )
             expect(result.implicitLikeKeys).toContain('loved::band')
+            expect(result.implicitLikeKeys).toContain('requester-loved::band')
         })
 
         it('adds guild implicit artist dislikes to the artist weights, capped (#2933)', async () => {

@@ -8,7 +8,8 @@ const mockCreateEmbed = jest.fn().mockReturnValue({ type: 'embed' })
 const mockCreateErrorEmbed = jest.fn().mockReturnValue({ type: 'error-embed' })
 const mockDebugLog = jest.fn()
 const mockGetByDiscordId = jest.fn()
-const mockRecordAutoplayRejection = jest.fn()
+const mockRejectAutoplayPick = jest.fn()
+const mockDropQueuedAutoplayPicksByArtist = jest.fn()
 
 jest.mock('../../../../utils/general/interactionReply', () => ({
     interactionReply: (...args: unknown[]) => mockInteractionReply(...args),
@@ -25,11 +26,10 @@ jest.mock('../../../../utils/general/embeds', () => ({
     EMOJIS: { AUTOPLAY: '📻' },
 }))
 
-jest.mock('../../../../services/musicRecommendation/feedbackService', () => ({
-    recommendationFeedbackService: {
-        recordAutoplayRejection: (...args: unknown[]) =>
-            mockRecordAutoplayRejection(...args),
-    },
+jest.mock('../../../../handlers/player/autoplayRejection', () => ({
+    rejectAutoplayPick: (...args: unknown[]) => mockRejectAutoplayPick(...args),
+    dropQueuedAutoplayPicksByArtist: (...args: unknown[]) =>
+        mockDropQueuedAutoplayPicksByArtist(...args),
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -267,18 +267,30 @@ describe('handleSkipAutoplayTrack', () => {
         expect(mockReplenishQueue).toHaveBeenCalledWith(queue)
     })
 
-    it('records the removed pick as a rejection by the invoking user (#2933)', async () => {
+    it('records a listener skip as a room rejection (#2933)', async () => {
         const tracks = [makeTrack(false), makeTrack(true)]
         const queue = makeQueue(tracks)
+        ;(queue as any).channel = { members: new Map([['user-1', {}]]) }
 
         await handleSkipAutoplayTrack(interaction, queue)
 
-        expect(mockRecordAutoplayRejection).toHaveBeenCalledWith(
-            'guild-123',
-            ['user-1'],
+        expect(mockRejectAutoplayPick).toHaveBeenCalledWith(queue, tracks[1], 1)
+        expect(mockDropQueuedAutoplayPicksByArtist).toHaveBeenCalledWith(
+            queue,
             tracks[1],
-            1,
         )
+    })
+
+    it('removes the pick but records no feedback when the invoker is not listening', async () => {
+        const tracks = [makeTrack(false), makeTrack(true)]
+        const queue = makeQueue(tracks)
+        ;(queue as any).channel = { members: new Map([['other', {}]]) }
+        mockRejectAutoplayPick.mockClear()
+
+        await handleSkipAutoplayTrack(interaction, queue)
+
+        expect((queue as any).removeTrack).toHaveBeenCalledWith(1)
+        expect(mockRejectAutoplayPick).not.toHaveBeenCalled()
     })
 })
 

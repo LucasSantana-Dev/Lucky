@@ -1,6 +1,9 @@
 import { interactionReply } from '../../../../utils/general/interactionReply'
 import { replenishQueue } from '../../../../services/musicManagement/queueOperations'
-import { recommendationFeedbackService } from '../../../../services/musicRecommendation/feedbackService'
+import {
+    dropQueuedAutoplayPicksByArtist,
+    rejectAutoplayPick,
+} from '../../../../handlers/player/autoplayRejection'
 import {
     createEmbed,
     createErrorEmbed,
@@ -42,12 +45,11 @@ async function handleSkipAutoplayTrack(
         const track = queue.tracks.at(i)
         if (track && isAutoplayTrack(track)) {
             queue.removeTrack(i)
-            recommendationFeedbackService.recordAutoplayRejection(
-                queue.guild.id,
-                [interaction.user.id],
-                track,
-                1,
-            )
+            // Only a listener's skip is the room's feedback.
+            if (queue.channel?.members.has(interaction.user.id)) {
+                rejectAutoplayPick(queue, track, 1)
+                dropQueuedAutoplayPicksByArtist(queue, track)
+            }
             skipped = true
             debugLog({
                 message: 'Skipped autoplay track',

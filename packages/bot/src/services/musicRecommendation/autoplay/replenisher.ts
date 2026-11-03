@@ -484,6 +484,8 @@ function addCappedWeights(
     return merged
 }
 
+const MAX_FEEDBACK_MEMBERS = 10
+
 /**
  * Fetch feedback and history data: liked/disliked weights, persistent history,
  * guild settings, implicit signals, preferred/blocked artists, replay frequency.
@@ -514,9 +516,14 @@ export async function fetchFeedbackAndHistoryData(
     autoplayMode: 'similar' | 'discover' | 'popular'
     replayFrequency: { trackIds: Set<string>; artists: Set<string> }
 }> {
-    // Every listener's votes count, not just the requester's (#2933). An
-    // empty id keeps the old single-lookup behaviour when nobody is known.
-    const feedbackUserIds = allMemberIds.length > 0 ? allMemberIds : ['']
+    // Every listener's votes count, not just the requester's (#2933). Each id
+    // costs several DB reads per refill, so a crowded channel is capped (the
+    // requester comes first). An empty id keeps the old single-lookup
+    // behaviour when nobody is known.
+    const feedbackUserIds =
+        allMemberIds.length > 0
+            ? allMemberIds.slice(0, MAX_FEEDBACK_MEMBERS)
+            : ['']
     const [
         likedWeights,
         dislikedWeights,
