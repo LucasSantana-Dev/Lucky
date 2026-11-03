@@ -103,7 +103,7 @@ export function popularityBoost(
 // Concurrency lock: prevents duplicate queue insertions when playerStart and
 // playerFinish events fire within milliseconds (playerStart + playerFinish) cannot both read
 // the same exclusion sets and independently select the same track.
-const replenishLocks = new Map<string, Promise<unknown>>()
+const replenishLocks = new Map<string, Promise<boolean>>()
 
 // Per-guild counter for query diversity across multiple replenish calls.
 const replenishCounters = new Map<string, number>()
@@ -170,21 +170,24 @@ export function replenishQueue(
     )
     replenishLocks.set(
         guildId,
-        next.catch(() => {}),
+        next.catch(() => false),
     )
     return next
 }
 
 /**
  * Settles once no refill is queued for this guild, including any queued
- * while it was waiting.
+ * while it was waiting. Resolves false when the last refill failed, so the
+ * caller can leave its retry running instead of marking a stop.
  */
-export async function waitForReplenish(guildId: string): Promise<void> {
-    let lock: Promise<unknown> | undefined
+export async function waitForReplenish(guildId: string): Promise<boolean> {
+    let lock: Promise<boolean> | undefined
+    let succeeded: boolean
     do {
         lock = replenishLocks.get(guildId)
-        await lock
+        succeeded = (await lock) ?? true
     } while (replenishLocks.get(guildId) !== lock)
+    return succeeded
 }
 
 async function _replenishQueue(

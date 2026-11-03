@@ -316,9 +316,13 @@ export const setupLifecycleHandlers = (player: {
             // last track ends. Marking a stop here would block exhaustion
             // recovery and the watchdog, and the late tracks would sit
             // unplayed (#2932). Wait for it first.
-            await waitForReplenish(guildId)
+            const refillSucceeded = await waitForReplenish(guildId)
             if (queue.tracks.size === 0) {
-                musicWatchdogService.markIntentionalStop(guildId)
+                // A failed refill already scheduled its retry; a stop mark
+                // would make that retry bail out.
+                if (refillSucceeded) {
+                    musicWatchdogService.markIntentionalStop(guildId)
+                }
             } else if (
                 !queue.node.isPlaying() &&
                 !musicWatchdogService.isIntentionalStop(guildId)
