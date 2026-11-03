@@ -8,6 +8,7 @@ import {
     handleRepeat,
 } from './commandHandlers'
 import { repeatModeToEnum } from './mappers'
+import { QueueRepeatMode } from 'discord-player'
 
 const publishStateMock = jest.fn()
 const buildQueueStateMock = jest.fn()
@@ -437,7 +438,9 @@ describe('handleRepeat', () => {
     })
 
     it('clears the autoplay failure stop when autoplay is turned on (#2932)', async () => {
-        jest.mocked(repeatModeToEnum).mockReturnValueOnce(3)
+        jest.mocked(repeatModeToEnum).mockReturnValueOnce(
+            QueueRepeatMode.AUTOPLAY,
+        )
         const setRepeatMode = jest.fn()
         resolveGuildQueueMock.mockReturnValue({ queue: { setRepeatMode } })
 

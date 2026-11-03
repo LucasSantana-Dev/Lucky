@@ -175,9 +175,16 @@ export function replenishQueue(
     return next
 }
 
-/** Settles once every refill already queued for this guild has finished. */
-export function waitForReplenish(guildId: string): Promise<void> {
-    return (replenishLocks.get(guildId) ?? Promise.resolve()).then(() => {})
+/**
+ * Settles once no refill is queued for this guild, including any queued
+ * while it was waiting.
+ */
+export async function waitForReplenish(guildId: string): Promise<void> {
+    let lock: Promise<unknown> | undefined
+    do {
+        lock = replenishLocks.get(guildId)
+        await lock
+    } while (replenishLocks.get(guildId) !== lock)
 }
 
 async function _replenishQueue(

@@ -19,6 +19,7 @@ import {
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { isUnknownInteractionError } from '../play/queryUtils'
+import { QUEUE_LEAVE_OPTIONS } from '../../../../services/musicManagement/queueLeaveOptions'
 
 const MAX_DISCOGRAPHY_ALBUMS = 25
 // A prolific artist's catalog can run into the hundreds of tracks once
@@ -195,10 +196,7 @@ export async function handleArtistDiscography({
                     },
                     connectionTimeout:
                         ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-                    leaveOnEmpty: true,
-                    leaveOnEmptyCooldown: 30_000,
-                    leaveOnEnd: true,
-                    leaveOnEndCooldown: 300_000,
+                    ...QUEUE_LEAVE_OPTIONS,
                 },
                 requestedBy: interaction.user,
                 searchEngine: QueryType.SPOTIFY_SONG,
