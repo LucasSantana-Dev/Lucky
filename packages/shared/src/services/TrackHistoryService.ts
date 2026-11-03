@@ -12,6 +12,7 @@ export interface TrackHistoryEntry {
     guildId: string
     playedBy?: string
     isAutoplay?: boolean
+    skipped?: boolean
 }
 
 /** Input data for adding a track to history. */
@@ -56,6 +57,7 @@ interface TrackHistoryRow {
     guildId: string
     playedBy: string | null
     isAutoplay: boolean
+    skipped: boolean
 }
 
 /** Infers a coarse source label from a track URL. */
@@ -105,6 +107,7 @@ export class TrackHistoryService {
             guildId: row.guildId,
             playedBy: row.playedBy ?? undefined,
             isAutoplay: row.isAutoplay,
+            skipped: row.skipped,
         }
     }
 
