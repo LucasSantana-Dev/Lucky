@@ -4,7 +4,7 @@ import { normalizeTrackKey } from '../../services/musicRecommendation/autoplay/s
 import { clearSessionMoodCache } from '../../services/musicRecommendation/autoplay/replenisher'
 import { isRecommendationAutoplay } from './autoplayOutcomeTracking'
 
-function listenerIds(queue: GuildQueue): string[] {
+export function listenerIds(queue: GuildQueue): string[] {
     return queue.channel
         ? [...queue.channel.members.values()]
               .filter((member) => !member.user.bot)

@@ -28,6 +28,7 @@ import {
 import { clearVotes } from '../../services/musicManagement/voteSkipStore'
 import {
     dropQueuedAutoplayPicksByArtist,
+    listenerIds,
     rejectAutoplayPick,
 } from './autoplayRejection'
 import {
@@ -417,8 +418,11 @@ const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
         if (!track || startTime === undefined) return
         const played = playedSeconds(startTime, queue.guild.id)
         // A stop early in an autoplay pick is a mild rejection; a late stop
-        // just ends the session.
-        recordEarlyAutoplayRejection(queue, track, startTime, 0.5)
+        // just ends the session. An empty channel means the empty-channel
+        // leave or a disconnect ended it, not a listener.
+        if (listenerIds(queue).length > 0) {
+            recordEarlyAutoplayRejection(queue, track, startTime, 0.5)
+        }
 
         debugLog({
             message: 'Queue deleted mid-track, recording the interrupted play',

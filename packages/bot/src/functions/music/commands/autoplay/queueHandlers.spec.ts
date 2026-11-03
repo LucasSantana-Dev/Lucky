@@ -286,11 +286,13 @@ describe('handleSkipAutoplayTrack', () => {
         const queue = makeQueue(tracks)
         ;(queue as any).channel = { members: new Map([['other', {}]]) }
         mockRejectAutoplayPick.mockClear()
+        mockDropQueuedAutoplayPicksByArtist.mockClear()
 
         await handleSkipAutoplayTrack(interaction, queue)
 
         expect((queue as any).removeTrack).toHaveBeenCalledWith(1)
         expect(mockRejectAutoplayPick).not.toHaveBeenCalled()
+        expect(mockDropQueuedAutoplayPicksByArtist).not.toHaveBeenCalled()
     })
 })
 
