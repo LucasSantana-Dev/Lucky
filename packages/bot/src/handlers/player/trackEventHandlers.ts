@@ -26,9 +26,10 @@ import {
     clearIdleTimer,
 } from '../../services/musicManagement/idleDisconnect'
 import { clearVotes } from '../../services/musicManagement/voteSkipStore'
-import { recommendationFeedbackService } from '../../services/musicRecommendation/feedbackService'
-import { normalizeTrackKey } from '../../services/musicRecommendation/autoplay/scoringUtils'
-import { clearSessionMoodCache } from '../../services/musicRecommendation/autoplay/replenisher'
+import {
+    dropQueuedAutoplayPicksByArtist,
+    rejectAutoplayPick,
+} from './autoplayRejection'
 import {
     isReplenishSuppressed,
     setReplenishSuppressed,
@@ -285,9 +286,8 @@ function playedSeconds(
 }
 
 // An autoplay pick of real length (>20s) that ended before
-// OUTCOME_ACCEPT_PLAY_RATIO was rejected by the room: the track, and its
-// artist at a share of `strength`, become implicit dislikes for the guild and
-// every listener in the channel (#2933). Returns whether it was a rejection.
+// OUTCOME_ACCEPT_PLAY_RATIO of audio actually played (pauses excluded) was
+// rejected by the room. Returns whether it was a rejection.
 function recordEarlyAutoplayRejection(
     queue: GuildQueue,
     track: Track | undefined,
@@ -298,39 +298,12 @@ function recordEarlyAutoplayRejection(
     if (track.durationMS <= 20_000 || !isRecommendationAutoplay(track)) {
         return false
     }
-    const ratio = (Date.now() - startTime) / track.durationMS
-    if (ratio >= OUTCOME_ACCEPT_PLAY_RATIO) return false
+    const now = Date.now()
+    const playedMs = now - startTime - getPausedMs(queue.guild.id, now)
+    if (playedMs / track.durationMS >= OUTCOME_ACCEPT_PLAY_RATIO) return false
 
-    const listenerIds = queue.channel
-        ? [...queue.channel.members.values()]
-              .filter((member) => !member.user.bot)
-              .map((member) => member.id)
-        : []
-    recommendationFeedbackService.recordAutoplayRejection(
-        queue.guild.id,
-        listenerIds,
-        track,
-        strength,
-    )
-    clearSessionMoodCache(queue.guild.id)
+    rejectAutoplayPick(queue, track, strength)
     return true
-}
-
-// Picks already buffered were scored before the rejection; drop the ones by
-// the rejected artist so the next refill replaces them.
-function dropQueuedAutoplayPicksByArtist(
-    queue: GuildQueue,
-    track: Track,
-): void {
-    const artistOf = (t: Track) =>
-        normalizeTrackKey(t.title, t.author).split('::')[1]
-    const artist = artistOf(track)
-    if (!artist) return
-    for (const queued of queue.tracks.toArray()) {
-        if (isRecommendationAutoplay(queued) && artistOf(queued) === artist) {
-            queue.removeTrack(queued)
-        }
-    }
 }
 
 async function scrobbleAndRecord(

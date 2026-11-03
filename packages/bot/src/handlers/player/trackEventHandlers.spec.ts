@@ -1621,6 +1621,27 @@ describe('autoplay rejection feedback (#2933)', () => {
         expect(recordAutoplayRejectionMock).not.toHaveBeenCalled()
     })
 
+    it('judges the skip by audio played, not by time spent paused', async () => {
+        const handlers = setupHandlers()
+        const track = pick('a', 'Artist A')
+        const queue = makeQueue()
+
+        await handlers.playerStart(queue, track)
+        jest.advanceTimersByTime(10_000)
+        handlers.playerPause(queue)
+        jest.advanceTimersByTime(80_000)
+        handlers.playerResume(queue)
+        jest.advanceTimersByTime(10_000)
+        await handlers.playerSkip(queue, track, 'MANUAL')
+
+        expect(recordAutoplayRejectionMock).toHaveBeenCalledWith(
+            'guild-1',
+            ['u1'],
+            track,
+            1,
+        )
+    })
+
     it('a stop early in an autoplay pick is a mild rejection', async () => {
         const handlers = setupHandlers()
         const track = pick('a', 'Artist A')
