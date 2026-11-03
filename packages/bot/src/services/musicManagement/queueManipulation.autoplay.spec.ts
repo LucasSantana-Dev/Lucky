@@ -124,6 +124,7 @@ jest.mock('../../services/musicRecommendation/feedbackService', () => ({
             getImplicitLikeKeysMock(...args),
         getGuildImplicitDislikeKeys: (...args: unknown[]) =>
             getGuildImplicitDislikeKeysMock(...args),
+        getGuildImplicitArtistDislikeWeights: () => new Map(),
     },
 }))
 
