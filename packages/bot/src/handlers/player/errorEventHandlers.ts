@@ -26,8 +26,8 @@ import {
     AUTOPLAY_FAILURE_STREAK_LIMIT,
     recordAutoplayStreamFailure,
     resetAutoplayFailureStreak,
+    stopAutoplayAfterFailures,
 } from './autoplayFailureStreak'
-import { setReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 import { settlePlayStartWatch } from './playStartWatch'
 import {
     handleYouTubeParserError,
@@ -178,7 +178,7 @@ function handleAutoplayStreamFailure(queue: GuildQueue): void {
 
     resetAutoplayFailureStreak(guildId)
     queue.tracks.clear()
-    setReplenishSuppressed(guildId, AUTOPLAY_STOP_SUPPRESSION_MS)
+    stopAutoplayAfterFailures(guildId, AUTOPLAY_STOP_SUPPRESSION_MS)
     warnLog({
         message: 'Autoplay stopped after consecutive stream failures',
         data: { guildId, failedCount: count },

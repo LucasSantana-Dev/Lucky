@@ -13,6 +13,7 @@ import {
     getRecentSkipCount,
     __resetTrackHandlerCachesForTests,
 } from './autoplayOutcomeTracking'
+import { isReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 
 const QueueRepeatMode = {
     OFF: 0,
@@ -312,6 +313,33 @@ describe('trackHandlers autoplay replenishment', () => {
 
         await jest.advanceTimersByTimeAsync(5000)
         expect(replenishQueueMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('skips the 5s retry once a refill suppression has landed', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        replenishQueueMock.mockResolvedValueOnce(false)
+
+        await handlers.playerStart(queue, createTrack())
+        jest.mocked(isReplenishSuppressed).mockReturnValue(true)
+        await jest.advanceTimersByTimeAsync(5000)
+        jest.mocked(isReplenishSuppressed).mockReturnValue(false)
+
+        expect(replenishQueueMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('skips the 5s retry once autoplay was turned off', async () => {
+        jest.useFakeTimers()
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.AUTOPLAY)
+        replenishQueueMock.mockResolvedValueOnce(false)
+
+        await handlers.playerStart(queue, createTrack())
+        ;(queue as { repeatMode: number }).repeatMode = QueueRepeatMode.OFF
+        await jest.advanceTimersByTimeAsync(5000)
+
+        expect(replenishQueueMock).toHaveBeenCalledTimes(1)
     })
 
     it('does not retry the refill when it succeeds', async () => {

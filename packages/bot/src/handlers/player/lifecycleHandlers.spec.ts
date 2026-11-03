@@ -3,6 +3,7 @@ import type { GuildQueue } from 'discord-player'
 
 const debugLogMock = jest.fn()
 const infoLogMock = jest.fn()
+const errorLogMock = jest.fn()
 const warnLogMock = jest.fn()
 const restoreSnapshotMock = jest.fn()
 const saveSnapshotMock = jest.fn()
@@ -21,6 +22,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
+    errorLog: (...args: unknown[]) => errorLogMock(...args),
 }))
 
 jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
@@ -442,6 +444,26 @@ describe('setupLifecycleHandlers', () => {
             expect(waitForReplenishMock).toHaveBeenCalledWith('guild-7')
             expect(watchdogMarkIntentionalStopMock).not.toHaveBeenCalled()
             expect(play).toHaveBeenCalled()
+        })
+
+        it('logs instead of rejecting when restarting playback throws', async () => {
+            const tracks = { size: 0 }
+            waitForReplenishMock.mockImplementationOnce(async () => {
+                tracks.size = 1
+            })
+            const queue = {
+                guild: { id: 'guild-9', name: 'Guild 9' },
+                repeatMode: 3,
+                currentTrack: null,
+                tracks,
+                node: {
+                    isPlaying: () => false,
+                    play: jest.fn(() => Promise.reject(new Error('no voice'))),
+                },
+            } as unknown as GuildQueue
+
+            await expect(emptyQueueHandler()(queue)).resolves.toBeUndefined()
+            expect(errorLogMock).toHaveBeenCalled()
         })
 
         it('marks intentional stop when the refill added nothing', async () => {
