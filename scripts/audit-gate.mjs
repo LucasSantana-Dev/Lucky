@@ -52,10 +52,13 @@ const ACCEPTED = {
             'needs attacker-sized input to a constrained collection schema, so ' +
             'there is no path to it. No 3.x fix exists and @infisical/sdk@5.0.2 ' +
             '(latest) still depends on zod ^3.23.8.',
-        until: '@infisical/sdk ships on zod >=4.6.6 (tracked in #2929)',
+        until: '@infisical/sdk ships on zod >=4.6.6 (tracked in #2947)',
         // The workspace zod is direct and must stay clean: if the direct copy
         // is ever flagged, that is real exposure and must block.
         requireTransitive: true,
+        // Pin the accepted copy by install path, so a zod flagged anywhere
+        // else in the tree blocks instead of riding on this acceptance.
+        onlyAt: ['node_modules/@infisical/sdk/node_modules/zod'],
         advisories: {
             1243066:
                 'GHSA-mrhx-c7xc-m3w5: zod can exhaust memory validating oversized constrained collections',
@@ -135,6 +138,17 @@ for (const [name, vulnerability] of Object.entries(vulnerabilities)) {
         blocking.push({
             ...summary,
             why: 'accepted only while transitive, but is now a direct production dependency',
+        });
+        continue;
+    }
+
+    const outside = entry.onlyAt
+        ? (vulnerability.nodes ?? []).filter((node) => !entry.onlyAt.includes(node))
+        : [];
+    if (outside.length > 0) {
+        blocking.push({
+            ...summary,
+            why: `accepted only at ${entry.onlyAt.join(', ')}, but also found at ${outside.join(', ')}`,
         });
         continue;
     }
