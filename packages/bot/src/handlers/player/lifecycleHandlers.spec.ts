@@ -3,6 +3,7 @@ import type { GuildQueue } from 'discord-player'
 
 const debugLogMock = jest.fn()
 const infoLogMock = jest.fn()
+const errorLogMock = jest.fn()
 const warnLogMock = jest.fn()
 const restoreSnapshotMock = jest.fn()
 const saveSnapshotMock = jest.fn()
@@ -15,11 +16,13 @@ const watchdogClearIntentionalStopMock = jest.fn()
 const watchdogIsIntentionalStopMock = jest.fn(() => false)
 const watchdogRegisterRecoveryControllerMock = jest.fn()
 const replenishQueueMock = jest.fn()
+const waitForReplenishMock = jest.fn(() => Promise.resolve())
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
+    errorLog: (...args: unknown[]) => errorLogMock(...args),
 }))
 
 jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
@@ -47,6 +50,7 @@ jest.mock('../../services/musicManagement/watchdog', () => ({
 
 jest.mock('../../services/musicManagement/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
+    waitForReplenish: (...args: unknown[]) => waitForReplenishMock(...args),
 }))
 
 const ensureStageSpeakerMock = jest.fn<() => Promise<string>>()
@@ -404,6 +408,78 @@ describe('setupLifecycleHandlers', () => {
 
         expect(replenishQueueMock).toHaveBeenCalledWith(queue)
         expect(watchdogMarkIntentionalStopMock).not.toHaveBeenCalled()
+    })
+
+    describe('emptyQueue with autoplay on and nothing playing', () => {
+        function emptyQueueHandler() {
+            const handlers: Record<string, PlayerEventHandler> = {}
+            setupLifecycleHandlers({
+                events: {
+                    on: jest.fn(
+                        (event: string, handler: PlayerEventHandler) => {
+                            handlers[event] = handler
+                        },
+                    ),
+                },
+            })
+            return handlers.emptyQueue
+        }
+
+        it('waits for the in-flight refill and does not stop when it added tracks', async () => {
+            const tracks = { size: 0 }
+            waitForReplenishMock.mockImplementationOnce(async () => {
+                tracks.size = 2
+            })
+            const play = jest.fn()
+            const queue = {
+                guild: { id: 'guild-7', name: 'Guild 7' },
+                repeatMode: 3,
+                currentTrack: null,
+                tracks,
+                node: { isPlaying: () => false, play },
+            } as unknown as GuildQueue
+
+            await emptyQueueHandler()(queue)
+
+            expect(waitForReplenishMock).toHaveBeenCalledWith('guild-7')
+            expect(watchdogMarkIntentionalStopMock).not.toHaveBeenCalled()
+            expect(play).toHaveBeenCalled()
+        })
+
+        it('logs instead of rejecting when restarting playback throws', async () => {
+            const tracks = { size: 0 }
+            waitForReplenishMock.mockImplementationOnce(async () => {
+                tracks.size = 1
+            })
+            const queue = {
+                guild: { id: 'guild-9', name: 'Guild 9' },
+                repeatMode: 3,
+                currentTrack: null,
+                tracks,
+                node: {
+                    isPlaying: () => false,
+                    play: jest.fn(() => Promise.reject(new Error('no voice'))),
+                },
+            } as unknown as GuildQueue
+
+            await expect(emptyQueueHandler()(queue)).resolves.toBeUndefined()
+            expect(errorLogMock).toHaveBeenCalled()
+        })
+
+        it('marks intentional stop when the refill added nothing', async () => {
+            const queue = {
+                guild: { id: 'guild-8', name: 'Guild 8' },
+                repeatMode: 3,
+                currentTrack: null,
+                tracks: { size: 0 },
+            } as unknown as GuildQueue
+
+            await emptyQueueHandler()(queue)
+
+            expect(watchdogMarkIntentionalStopMock).toHaveBeenCalledWith(
+                'guild-8',
+            )
+        })
     })
 
     it('marks intentional stop on emptyQueue when autoplay is disabled', async () => {

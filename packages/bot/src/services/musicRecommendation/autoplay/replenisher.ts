@@ -50,7 +50,6 @@ import {
     interleaveByArtist,
 } from '../candidateFallback'
 import { buildVcContributionWeights } from './vcWeights'
-import { evaluateSkipRateBreaker } from './skipCircuitBreaker'
 import { getRejectionCounts } from './candidateContracts'
 
 // Autoplay backfill target. Reduced from 8→2 to prevent over-queueing: when
@@ -99,7 +98,7 @@ export function popularityBoost(
 // Concurrency lock: prevents duplicate queue insertions when playerStart and
 // playerFinish events fire within milliseconds (playerStart + playerFinish) cannot both read
 // the same exclusion sets and independently select the same track.
-const replenishLocks = new Map<string, Promise<void>>()
+const replenishLocks = new Map<string, Promise<unknown>>()
 
 // Per-guild counter for query diversity across multiple replenish calls.
 const replenishCounters = new Map<string, number>()
@@ -149,11 +148,16 @@ async function cancelPendingRecommendations(
     })
 }
 
+/**
+ * Resolves false when the refill failed (already logged), so a caller that
+ * can retry knows to. It never rejects: several callers are event listeners
+ * with no catch of their own.
+ */
 export function replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
     skipStateProvider?: SkipStateProvider,
-): Promise<void> {
+): Promise<boolean> {
     const guildId = queue.guild.id
     const prev = replenishLocks.get(guildId) ?? Promise.resolve()
     const next = prev.then(() =>
@@ -166,11 +170,23 @@ export function replenishQueue(
     return next
 }
 
+/**
+ * Settles once no refill is queued for this guild, including any queued
+ * while it was waiting.
+ */
+export async function waitForReplenish(guildId: string): Promise<void> {
+    let lock: Promise<unknown> | undefined
+    do {
+        lock = replenishLocks.get(guildId)
+        await lock
+    } while (replenishLocks.get(guildId) !== lock)
+}
+
 async function _replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
     skipStateProvider?: SkipStateProvider,
-): Promise<void> {
+): Promise<boolean> {
     const startTime = Date.now()
     const guildId = queue.guild.id
     const sourcesCounts: Record<string, number | { skipped: true }> = {
@@ -188,7 +204,7 @@ async function _replenishQueue(
         })
 
         const gatingResult = await evaluateGatingChecks(queue, finishedTrack)
-        if (!gatingResult) return
+        if (!gatingResult) return true
         const { currentTrack, missingTracks } = gatingResult
 
         const {
@@ -319,8 +335,10 @@ async function _replenishQueue(
             startTime,
             allHistoryTracks,
         )
+        return true
     } catch (error) {
         errorLog({ message: 'Error replenishing queue:', error })
+        return false
     }
 }
 
@@ -350,10 +368,6 @@ export async function evaluateGatingChecks(
     ).length
     const missingTracks = bufferSize - autoplayInQueue
     if (missingTracks <= 0) return null
-
-    // Autoplay skip-rate circuit breaker: check if we should pause replenishment
-    const shouldContinue = await evaluateSkipRateBreaker(queue)
-    if (!shouldContinue) return null
 
     return { currentTrack, missingTracks }
 }

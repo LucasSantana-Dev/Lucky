@@ -1,6 +1,12 @@
 import type { Track, GuildQueue } from 'discord-player'
 import { QueueRepeatMode } from 'discord-player'
-import { infoLog, debugLog, errorLog, telemetryLog } from '@lucky/shared/utils'
+import {
+    infoLog,
+    debugLog,
+    errorLog,
+    telemetryLog,
+    warnLog,
+} from '@lucky/shared/utils'
 import { addTrackToHistory } from '../../utils/music/duplicateDetection'
 import { resolveActualStreamSource } from './streamSourceResolver'
 import { replenishQueue } from '../../services/musicManagement/queueOperations'
@@ -137,10 +143,11 @@ async function handleQueueReplenishment(
         getTrackRequesterId(track),
     )
     if (autoplayEnabled && queue.repeatMode === QueueRepeatMode.AUTOPLAY) {
-        try {
-            await replenishQueue(queue, undefined, () =>
+        const refill = () =>
+            replenishQueue(queue, undefined, () =>
                 getRecentSkipCount(queue.guild.id),
             )
+        if (await refill()) {
             debugLog({
                 message: 'Queue replenished after track start',
                 data: {
@@ -149,24 +156,33 @@ async function handleQueueReplenishment(
                     queueSize: queue.tracks.size,
                 },
             })
-        } catch (error) {
-            errorLog({
+        } else {
+            // replenishQueue logs and swallows its own errors, so a failure
+            // shows up as false here, never as a throw.
+            warnLog({
                 message: 'Replenish failed, retrying in 5s',
-                error: String(error),
+                data: { guildId: queue.guild.id },
             })
             setTimeout(() => {
-                replenishQueue(queue, undefined, () =>
-                    getRecentSkipCount(queue.guild.id),
-                ).catch((retryErr: unknown) => {
+                // /clear, /stop or a repeat-mode change in the last 5s means
+                // autoplay should stay quiet, so the retry must not refill.
+                const guildId = queue.guild.id
+                if (
+                    queue.repeatMode !== QueueRepeatMode.AUTOPLAY ||
+                    isReplenishSuppressed(guildId) ||
+                    musicWatchdogService.isIntentionalStop(guildId)
+                )
+                    return
+                void refill().then((ok) => {
+                    if (ok) return
                     // errorLog, not warnLog: this is the second consecutive
                     // failure, so autoplay has stopped for this guild and will
                     // not retry again. warn only adds a Sentry breadcrumb,
-                    // which is transmitted solely if some later error fires —
+                    // which is transmitted solely if some later error fires,
                     // so the moment autoplay died was invisible (#1995).
                     errorLog({
                         message:
-                            'Replenish retry failed — autoplay stopped for this guild',
-                        error: retryErr,
+                            'Replenish retry failed: autoplay stopped for this guild',
                         data: { guildId: queue.guild.id },
                     })
                 })
@@ -362,6 +378,9 @@ const handlePlayerFinish = async (
  * is a stream that never started (no playerStart, no entry).
  */
 const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
+    // A /stop or disconnect ends the session; its failures must not count
+    // against the next one.
+    resetAutoplayFailureStreak(queue.guild.id)
     try {
         const lastStarted = takeGuildLastStartedTrack(queue.guild.id)
         const track = queue.currentTrack ?? lastStarted

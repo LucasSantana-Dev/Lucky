@@ -5,6 +5,7 @@ import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
 import { parseIntEnv } from '@lucky/shared/utils/env'
 import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
 import { isReplenishSuppressed } from './replenishSuppressionStore'
+import { QUEUE_LEAVE_OPTIONS } from './queueLeaveOptions'
 
 export type RecoveryAction =
     'none' | 'rejoin' | 'requeue_current' | 'play_next' | 'failed'
@@ -403,7 +404,8 @@ export class MusicWatchdogService {
                 data: { guildId, voiceChannelId, snapshotAgeMs: ageMs },
             })
 
-            const queue = existingQueue ?? player.nodes.create(guild)
+            const queue =
+                existingQueue ?? player.nodes.create(guild, QUEUE_LEAVE_OPTIONS)
             // A queue created here is ours to clean up. Returning without
             // deleting it leaves an unconnected node registered for the guild,
             // which the next scan then reads as a live session.

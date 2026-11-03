@@ -13,6 +13,7 @@ export {
     removeTrackFromQueue,
     moveTrackInQueue,
     replenishQueue,
+    waitForReplenish,
 } from './queueManipulation'
 
 export async function addTracksToQueue(
