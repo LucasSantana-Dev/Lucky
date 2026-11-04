@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { MessageFlags, PermissionFlagsBits } from 'discord.js'
+import {
+    ButtonBuilder,
+    ButtonStyle,
+    MessageFlags,
+    PermissionFlagsBits,
+} from 'discord.js'
 import type { ButtonInteraction } from 'discord.js'
 import type { TFunction } from 'i18next'
 
@@ -16,6 +21,14 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 jest.mock('../../i18n/translatorForInteraction', () => ({
     translatorForInteraction: async () => (key: string) => key,
+}))
+jest.mock('./recapMixButton', () => ({
+    buildRecapMixButton: (t: (key: string) => string) =>
+        new ButtonBuilder()
+            .setCustomId('recap_mix')
+            .setLabel(t('music.recap.mixButton'))
+            .setStyle(ButtonStyle.Primary),
+    RECAP_MIX_BUTTON_ID: 'recap_mix',
 }))
 
 import {
@@ -50,14 +63,22 @@ describe('recap off button (#2738)', () => {
         disableRecapMock.mockResolvedValue(true)
     })
 
-    it('builds one localized button', () => {
+    it('builds a row with mix and off buttons in order', () => {
         const t = ((key: string) => key) as unknown as TFunction
-        expect(buildRecapOffRow(t).toJSON().components).toEqual([
+        const components = buildRecapOffRow(t).toJSON().components
+        expect(components).toHaveLength(2)
+        expect(components[0]).toEqual(
+            expect.objectContaining({
+                custom_id: 'recap_mix',
+                label: 'music.recap.mixButton',
+            }),
+        )
+        expect(components[1]).toEqual(
             expect.objectContaining({
                 custom_id: RECAP_OFF_BUTTON_ID,
                 label: 'music.recap.offButton',
             }),
-        ])
+        )
     })
 
     it('turns the recap off and removes the button', async () => {
