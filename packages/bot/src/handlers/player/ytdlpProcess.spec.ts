@@ -608,6 +608,13 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         }
     })
 
+    // Prod 2026-10-21 to 10-24 (n=13 cookies retries, 0 timeouts at the 15s
+    // ceiling): p99 10.6s, max 10.7s. Pins the budget above that max so a
+    // regression to the 8s plain budget, or below the measured tail, fails.
+    it('keeps the cookies budget above the measured p100 of a logged-in start', () => {
+        expect(YTDLP_COOKIES_STREAM_START_TIMEOUT_MS).toBeGreaterThan(10_732)
+    })
+
     async function startCookiesRetry(timeoutMs?: number) {
         readableCookies()
         script(SIGN_IN)
