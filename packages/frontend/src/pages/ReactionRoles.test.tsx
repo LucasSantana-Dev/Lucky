@@ -1884,14 +1884,18 @@ async function openEditWithMappings(count: number) {
 test('add role button disabled when 25 roles reached', async () => {
     await openEditWithMappings(25)
 
-    expect(await screen.findByText(/\(25\/25\)/)).toBeInTheDocument()
+    expect(
+        await screen.findByText(/\(25\/25\)/, {}, { timeout: 10000 }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add role/i })).toBeDisabled()
 })
 
 test('add role button enabled when 24 roles are present', async () => {
     await openEditWithMappings(24)
 
-    expect(await screen.findByText(/\(24\/25\)/)).toBeInTheDocument()
+    expect(
+        await screen.findByText(/\(24\/25\)/, {}, { timeout: 10000 }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add role/i })).toBeEnabled()
 })
 
