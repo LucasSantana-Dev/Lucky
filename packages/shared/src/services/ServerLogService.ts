@@ -1,3 +1,4 @@
+import { Prisma } from '../generated/prisma/client.js'
 import { getPrismaClient } from '../utils/database/prismaClient.js'
 import * as helpers from './serverLogHelpers.js'
 
@@ -76,7 +77,8 @@ export interface SerializedServerLog {
     createdAt: string
 }
 
-/** `details` is persisted as a JSON string; parse it back to an object safely. */
+/** Normalises `details` from a persisted row to a plain object.
+ * The string branch handles rows written before the 20261019 backfill. */
 function parseLogDetails(details: unknown): Record<string, unknown> {
     if (details == null) {
         return {}
@@ -154,7 +156,7 @@ export class ServerLogService {
                 guildId,
                 type,
                 action,
-                details: JSON.stringify(details),
+                details: details as Prisma.InputJsonValue,
                 userId: options?.userId,
                 channelId: options?.channelId,
                 moderatorId: options?.moderatorId,

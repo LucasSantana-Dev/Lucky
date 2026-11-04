@@ -26,7 +26,7 @@ describe('serializeServerLog', () => {
             action: 'Message deleted',
             userId: 'u1',
             channelId: 'c1',
-            details: JSON.stringify({ messageId: 'm1', content: 'hi' }),
+            details: { messageId: 'm1', content: 'hi' },
             createdAt,
         })
 
@@ -49,14 +49,14 @@ describe('serializeServerLog', () => {
         ).toBe('info')
     })
 
-    it('parses stringified details and surfaces details.username as userName', () => {
+    it('surfaces details.username as userName', () => {
         const result = serializeServerLog({
             id: 'log-2',
             guildId: 'g1',
             type: 'member_join',
             action: 'Member joined',
             userId: 'u9',
-            details: JSON.stringify({ username: 'Alice' }),
+            details: { username: 'Alice' },
             createdAt,
         })
         expect(result.userName).toBe('Alice')
@@ -70,7 +70,7 @@ describe('serializeServerLog', () => {
             type: 'role_update',
             action: 'Roles updated',
             userId: 'u42',
-            details: JSON.stringify({ addedRoles: ['r1'], removedRoles: [] }),
+            details: { addedRoles: ['r1'], removedRoles: [] },
             createdAt,
         })
         expect(result.userName).toBe('u42')
@@ -85,7 +85,7 @@ describe('serializeServerLog', () => {
             type: 'role_update',
             action: 'Roles updated',
             userId: 'u77',
-            details: JSON.stringify({ username: '' }),
+            details: { username: '' },
             createdAt,
         })
         expect(result.userName).toBe('u77')
