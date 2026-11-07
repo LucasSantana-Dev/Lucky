@@ -43,7 +43,7 @@ jest.mock('@lucky/shared/constants', () => ({
 }))
 
 import { WeeklyDigestService } from './WeeklyDigestService'
-import { getPrismaClient, errorLog } from '@lucky/shared/utils'
+import { getPrismaClient, errorLog, warnLog } from '@lucky/shared/utils'
 
 const mockPrismaClient = {
     weeklyDigestSnapshot: {
@@ -647,9 +647,9 @@ describe('WeeklyDigestService', () => {
             await svc.tick()
             // digest still sent without guides section (fail-soft)
             expect(digestChannel.send).toHaveBeenCalled()
-            expect(errorLog).toHaveBeenCalledWith(
+            expect(warnLog).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    message: 'Failed to fetch RSS feed for guides',
+                    message: 'rss feed unavailable — skipping guides section',
                 }),
             )
         })
