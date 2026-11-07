@@ -47,6 +47,17 @@ export function textSearchBlockOptions(query: string): {
         : { blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS }
 }
 
+// Folds Latin accents ("Beyoncé" -> "beyonce") but keeps combining marks in
+// other scripts, where a vowel sign changes the word (Devanagari "कु" vs "क").
+function wordsOf(value: string): string[] {
+    return value
+        .normalize('NFD')
+        .replaceAll(/(\p{Script=Latin})\p{M}+/gu, '$1')
+        .toLowerCase()
+        .split(/[^\p{L}\p{M}\p{N}]+/u)
+        .filter(Boolean)
+}
+
 /**
  * Some extractors (Spotify's raw search API in particular) return their own
  * top hit as tracks[0] with no relevance re-ranking, so a short/ambiguous
@@ -63,17 +74,6 @@ export function textSearchBlockOptions(query: string): {
  * ranked first (#2133). A query that names the version itself (e.g. "Song
  * Remix") is left alone — nothing here overrides an explicit request.
  */
-// Folds Latin accents ("Beyoncé" -> "beyonce") but keeps combining marks in
-// other scripts, where a vowel sign changes the word (Devanagari "कु" vs "क").
-function wordsOf(value: string): string[] {
-    return value
-        .normalize('NFD')
-        .replaceAll(/(\p{Script=Latin})\p{M}+/gu, '$1')
-        .toLowerCase()
-        .split(/[^\p{L}\p{M}\p{N}]+/u)
-        .filter(Boolean)
-}
-
 export function preferExactMatch(
     query: string,
 ): (result: SearchResult) => Promise<SearchResult> {
