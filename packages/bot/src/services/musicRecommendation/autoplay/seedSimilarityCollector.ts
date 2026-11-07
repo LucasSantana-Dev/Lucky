@@ -42,29 +42,31 @@ const similarCache = new Map<
     { tracks: SimilarTrack[]; expiresAt: number }
 >()
 
+// Resolves to null when Last.fm times out or errors, so callers can tell a
+// failed lookup from a genuine "no similar tracks".
 async function fetchSeedSimilar(
     artist: string,
     title: string,
-): Promise<SimilarTrack[]> {
+): Promise<SimilarTrack[] | null> {
     const key = `${artist.toLowerCase()}::${title.toLowerCase()}`
     const now = Date.now()
     const cached = similarCache.get(key)
     if (cached && cached.expiresAt > now) return cached.tracks
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined
-    const timeout = new Promise<SimilarTrack[]>((resolve) => {
-        timeoutId = setTimeout(() => resolve([]), SEED_SIMILAR_TIMEOUT_MS)
+    const timeout = new Promise<null>((resolve) => {
+        timeoutId = setTimeout(() => resolve(null), SEED_SIMILAR_TIMEOUT_MS)
     })
     const tracks = await Promise.race([
         getSimilarTracks(artist, cleanTitle(title), MAX_SEED_SIMILAR),
         timeout,
     ])
-        .catch(() => [] as SimilarTrack[])
+        .catch(() => null)
         .finally(() => {
             if (timeoutId) clearTimeout(timeoutId)
         })
 
-    if (tracks.length > 0) {
+    if (tracks && tracks.length > 0) {
         // Drop any existing (expired) entry for this key first so the size
         // check reflects live capacity — Map.set updates in place without
         // reordering, which would otherwise leave the cache under capacity
@@ -86,14 +88,22 @@ async function fetchSeedSimilarForTrack(
     author: string,
     title: string,
 ): Promise<SimilarTrack[]> {
-    const similar = await fetchSeedSimilar(author, title)
+    const similar = (await fetchSeedSimilar(author, title)) ?? []
     if (similar.length > 0) return similar
     // A YouTube upload's author is the channel ("MoonWalker777"), which
     // Last.fm does not know, so the lookup above finds nothing. Its title
     // usually carries "Artist - Song": retry with those. Matters most while
     // Spotify is down and /play lands on YouTube (2026-10-19).
     const parsed = splitArtistAndSong(title, author)
-    return parsed ? fetchSeedSimilar(parsed.artist, parsed.song) : similar
+    if (!parsed) return similar
+    const fromTitle = await fetchSeedSimilar(parsed.artist, parsed.song)
+    // A timeout or error is not a "no match": stop here instead of chaining
+    // a third lookup onto a slow Last.fm.
+    if (fromTitle === null) return []
+    if (fromTitle.length > 0) return fromTitle
+    // "Song - Artist" uploads: with no author overlap the parser reads the
+    // title as "Artist - Song", so the pair above comes out swapped.
+    return (await fetchSeedSimilar(parsed.song, parsed.artist)) ?? []
 }
 
 /**

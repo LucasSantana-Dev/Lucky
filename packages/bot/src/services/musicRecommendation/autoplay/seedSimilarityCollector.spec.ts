@@ -206,6 +206,56 @@ describe('collectSeedSimilarCandidates', () => {
         expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
     })
 
+    it('retries with artist and song swapped for a "Song - Artist" title', async () => {
+        getSimilarTracksMock.mockImplementation(async (artist: unknown) =>
+            artist === 'Michael Jackson'
+                ? [{ title: 'Sim', artist: 'SimA', match: 1 }]
+                : [],
+        )
+        // No author overlap, so the parser reads the title as "Artist - Song".
+        splitArtistAndSongMock.mockReturnValue({
+            artist: 'Thriller',
+            song: 'Michael Jackson',
+        })
+        searchLastFmQueryMock.mockResolvedValue([createTrack('Sim', 'SimA')])
+        const ctx = createAutoplayContext({
+            currentTrack: createTrack(
+                'Thriller - Michael Jackson',
+                'MoonWalker777',
+            ),
+        })
+        const candidates = new Map()
+        await collectSeedSimilarCandidates(ctx, createUser(), candidates)
+
+        expect(getSimilarTracksMock).toHaveBeenNthCalledWith(
+            3,
+            'Michael Jackson',
+            'Thriller',
+            expect.any(Number),
+        )
+        expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('skips the swapped retry when the title lookup fails rather than comes back empty', async () => {
+        getSimilarTracksMock.mockImplementation(async (artist: unknown) => {
+            if (artist === 'Thriller') throw new Error('Last.fm down')
+            return []
+        })
+        splitArtistAndSongMock.mockReturnValue({
+            artist: 'Thriller',
+            song: 'Michael Jackson',
+        })
+        const ctx = createAutoplayContext({
+            currentTrack: createTrack(
+                'Thriller - Michael Jackson',
+                'MoonWalker777',
+            ),
+        })
+        await collectSeedSimilarCandidates(ctx, createUser(), new Map())
+
+        expect(getSimilarTracksMock).toHaveBeenCalledTimes(2)
+    })
+
     it('does not reparse the title when the author lookup already found similars', async () => {
         getSimilarTracksMock.mockResolvedValue([
             { title: 'Sim', artist: 'SimA', match: 1 },
