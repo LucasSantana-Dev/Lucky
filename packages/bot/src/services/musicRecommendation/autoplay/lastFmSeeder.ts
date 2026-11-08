@@ -18,6 +18,7 @@ import {
 import type { AutoplayContext } from './autoplayContext'
 import { calculateRecommendationScore } from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'
+import { getGenreFamilies } from '../../../utils/music/trackNormalization'
 import {
     shouldIncludeCandidate,
     upsertScoredCandidate,
@@ -138,12 +139,29 @@ export async function collectLastFmCandidates(
     const currentTrackTags = ctx.genreContext.currentTrackTags ?? []
     const sessionGenreFamilies =
         ctx.genreContext.sessionGenreFamilies ?? new Set<string>()
+    const currentTrackFamilies = getGenreFamilies(currentTrackTags)
+    // Profile tracks are the listener's library, not the session's seed, so
+    // the flat Last.fm boost only applies when the hit shares a genre family
+    // with the session. Fail closed: unknown on either side means no boost
+    // (the track stays in the pool, #2956).
+    const earnsProfileBoost = (tags: string[]): boolean => {
+        const families = getGenreFamilies(tags)
+        if (families.size === 0) return false
+        for (const family of families) {
+            if (
+                sessionGenreFamilies.has(family) ||
+                currentTrackFamilies.has(family)
+            ) {
+                return true
+            }
+        }
+        return false
+    }
 
     for (const seed of seedSlice) {
         if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
-        const lovedBoost = isLovedSeed(requestedBy.id, seed.artist, seed.title)
-            ? LOVED_SEED_EXTRA_BOOST
-            : 0
+        const isLoved = isLovedSeed(requestedBy.id, seed.artist, seed.title)
+        const lovedBoost = isLoved ? LOVED_SEED_EXTRA_BOOST : 0
         const query = cleanSearchQuery(seed.title, seed.artist)
         const tracks = await searchLastFmQuery(ctx.queue, query, requestedBy)
         for (const track of tracks) {
@@ -193,8 +211,10 @@ export async function collectLastFmCandidates(
                 candidates,
                 track,
                 {
-                    score: rec.score + LASTFM_SCORE_BOOST + lovedBoost,
-                    source: 'lastfm-loved',
+                    score: earnsProfileBoost(tags)
+                        ? rec.score + LASTFM_SCORE_BOOST + lovedBoost
+                        : rec.score,
+                    source: isLoved ? 'lastfm-loved' : 'lastfm-profile',
                     signals: rec.signals,
                 },
                 auditCollector,
@@ -261,7 +281,10 @@ export async function collectLastFmCandidates(
                     track,
                     {
                         score:
-                            (rec.score + LASTFM_SCORE_BOOST) *
+                            (rec.score +
+                                (earnsProfileBoost(tags)
+                                    ? LASTFM_SCORE_BOOST
+                                    : 0)) *
                             (0.5 + 0.5 * Math.min(Math.max(s.match, 0), 1)),
                         source: 'lastfm-similar',
                         signals: rec.signals,
