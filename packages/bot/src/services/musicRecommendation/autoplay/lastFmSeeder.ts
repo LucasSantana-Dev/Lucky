@@ -16,9 +16,11 @@ import {
     cleanTitle,
 } from '../../../utils/music/searchQueryCleaner'
 import type { AutoplayContext } from './autoplayContext'
-import { calculateRecommendationScore } from './candidateScorer'
+import {
+    calculateRecommendationScore,
+    getGenreFamilies,
+} from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'
-import { getGenreFamilies } from '../../../utils/music/trackNormalization'
 import {
     shouldIncludeCandidate,
     upsertScoredCandidate,

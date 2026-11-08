@@ -65,6 +65,7 @@ jest.mock('../../../utils/music/searchQueryCleaner', () => ({
 jest.mock('./candidateScorer', () => ({
     calculateRecommendationScore: (...args: unknown[]) =>
         calculateRecommendationScoreMock(...args),
+    getGenreFamilies: jest.requireActual('./candidateScorer').getGenreFamilies,
 }))
 
 jest.mock('./candidateCollector', () => ({
@@ -535,6 +536,13 @@ describe('collectLastFmCandidates', () => {
 
         it('boosts a profile hit that shares a family with the session', async () => {
             const entry = await firstSeedScore(['trap'], trapSessionContext())
+            expect(entry.score).toBeCloseTo(0.7, 5)
+        })
+
+        it('recognises the scorer families, gospel_christian included', async () => {
+            const entry = await firstSeedScore(['gospel'], {
+                currentTrackTags: ['worship'],
+            })
             expect(entry.score).toBeCloseTo(0.7, 5)
         })
 

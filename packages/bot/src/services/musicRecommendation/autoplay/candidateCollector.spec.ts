@@ -377,6 +377,25 @@ describe('candidateCollector', () => {
                 expect(authors).toEqual(['John Mellencamp'])
             })
 
+            it('does not filter hits for a seed whose author is an uploader channel', async () => {
+                const authors = await collectFor(
+                    createTrack({
+                        title: 'Pink Houses',
+                        author: 'Some Records Channel',
+                        source: 'youtube',
+                    }),
+                    [
+                        createTrack({
+                            title: 'Pink Houses',
+                            author: 'John Mellencamp',
+                            url: 'https://open.spotify.com/track/ph',
+                        }),
+                    ],
+                )
+
+                expect(authors).toEqual(['John Mellencamp'])
+            })
+
             it('keeps only the seed artist hit for a non-latin title', async () => {
                 const authors = await collectFor(
                     createTrack({ title: 'ويلك', author: 'Joseph Attieh' }),
@@ -488,11 +507,11 @@ describe('candidateCollector', () => {
         it('should merge candidates from multiple seed tracks', async () => {
             const track1 = createTrack({
                 title: 'Track 1',
-                author: 'Test Artist',
+                author: 'Artist 1',
             })
             const track2 = createTrack({
                 title: 'Track 2',
-                author: 'Test Artist',
+                author: 'Artist 2',
             })
 
             // Return different results for different seeds
@@ -503,7 +522,10 @@ describe('candidateCollector', () => {
             })
 
             const queue = createGuildQueue()
-            const seedTracks = [createTrack(), createTrack()]
+            const seedTracks = [
+                createTrack({ author: 'Artist 1' }),
+                createTrack({ author: 'Artist 2' }),
+            ]
 
             const ctx = createAutoplayContext({
                 queue,
