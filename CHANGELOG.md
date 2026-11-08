@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.64.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.64.0...v2.64.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **bot:** autoplay keeps playing ([#2941](https://github.com/LucasSantana-Dev/Lucky/issues/2941)) ([8885def](https://github.com/LucasSantana-Dev/Lucky/commit/8885defe549c73adf8ffca4788cb3b909083d13c))
+* **bot:** autoplay stays on the session's vibe ([#2943](https://github.com/LucasSantana-Dev/Lucky/issues/2943)) ([0941601](https://github.com/LucasSantana-Dev/Lucky/commit/09416013ca4bff2f29c1532719a283bcfbe2b304))
+* **bot:** keep the refill retry alive on empty queue ([#2948](https://github.com/LucasSantana-Dev/Lucky/issues/2948)) ([b54143c](https://github.com/LucasSantana-Dev/Lucky/commit/b54143c0cebd43f2ec93ebfa0add96fb4db596e3))
+* **bot:** pick the right track when the artist follows the song ([#2936](https://github.com/LucasSantana-Dev/Lucky/issues/2936)) ([1c95683](https://github.com/LucasSantana-Dev/Lucky/commit/1c95683e2182289b38d6007fac338f63b43c6eed))
+* **bot:** stream recovery never recovers its own replacement ([#2918](https://github.com/LucasSantana-Dev/Lucky/issues/2918)) ([b5d6ffc](https://github.com/LucasSantana-Dev/Lucky/commit/b5d6ffcf9bd24668459e9164fc926b279cb7a381))
+* **deps:** clear audit gate advisories ([#2929](https://github.com/LucasSantana-Dev/Lucky/issues/2929)) ([#2946](https://github.com/LucasSantana-Dev/Lucky/issues/2946)) ([abead16](https://github.com/LucasSantana-Dev/Lucky/commit/abead166f9bbd1716bc3bbb455eed61c0f1b4972))
+
+
+### Performance Improvements
+
+* **bot:** skip plain yt-dlp attempt while youtube bot-checks it ([#2923](https://github.com/LucasSantana-Dev/Lucky/issues/2923)) ([9c0b326](https://github.com/LucasSantana-Dev/Lucky/commit/9c0b326195a3f27fe96a199e7cd767ff3361bef7))
+
 ## [2.64.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.63.3...v2.64.0) (2026-10-21)
 
 
