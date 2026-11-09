@@ -32,6 +32,19 @@ describe('moderation request-side frontend/backend contract', () => {
             expect(result.success).toBe(true)
         })
 
+        test('filters the backend does not support are not declared on the frontend type', () => {
+            const keys: Array<keyof ModerationCaseFilters> = [
+                'page',
+                'limit',
+                'type',
+                'search',
+            ]
+            const backendKeys = Object.keys(
+                moderationSchemas.casesQuery.shape,
+            ).sort()
+            expect([...keys].sort()).toEqual(backendKeys)
+        })
+
         test('empty filters object is accepted', () => {
             const result = moderationSchemas.casesQuery.safeParse({})
             expect(result.success).toBe(true)

@@ -41,9 +41,9 @@ describe('inferApiBase', () => {
         expect(inferApiBase()).toBe('/api')
     })
 
-    test('logs console.error on managed host with no configured base', () => {
+    test('logs console.warn on managed host with no configured base', () => {
         const consoleSpy = vi
-            .spyOn(console, 'error')
+            .spyOn(console, 'warn')
             .mockImplementation(() => undefined)
 
         const result = inferApiBase(undefined, {
@@ -58,9 +58,9 @@ describe('inferApiBase', () => {
         )
     })
 
-    test('no console.error when configured base is provided on managed host', () => {
+    test('no console.warn when configured base is provided on managed host', () => {
         const consoleSpy = vi
-            .spyOn(console, 'error')
+            .spyOn(console, 'warn')
             .mockImplementation(() => undefined)
 
         inferApiBase('https://api.lucassantana.tech/api', {

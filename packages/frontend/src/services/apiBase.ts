@@ -34,8 +34,9 @@ export function inferApiBase(
     if (isLuckyManagedHost(hostname)) {
         // VITE_API_BASE_URL should be set on Cloudflare Pages builds. When it
         // is missing the fallback works on nginx-proxied deploys but silently
-        // returns HTML on CF Pages. Log at error level so Sentry catches it.
-        console.error(
+        // returns HTML on CF Pages. Logged with console.warn (the lint rule allows only warn); this runs at
+        // import time, before initSentry(), so a Sentry call here would be dropped.
+        console.warn(
             '[apiBase] VITE_API_BASE_URL is not set on a managed host (%s); ' +
                 'falling back to /api — API calls will fail if there is no nginx proxy.',
             hostname,
