@@ -20,12 +20,6 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
 }))
 
-// skipCircuitBreaker (imported transitively via replenisher) pulls in this shared
-// service, whose real module loads prismaClient (import.meta). Factory-mock it.
-jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
-    getAutoplaySkipRateForGuild: jest.fn(),
-}))
-
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: jest.fn(),
@@ -52,6 +46,7 @@ jest.mock('../../../services/musicRecommendation/feedbackService', () => ({
         getPreferredArtistKeys: jest.fn(),
         getBlockedArtistKeys: jest.fn(),
         getGuildImplicitDislikeKeys: jest.fn(),
+        getGuildImplicitArtistDislikeWeights: jest.fn(),
     },
 }))
 
@@ -152,6 +147,9 @@ describe('replenishQueue', () => {
         feedbackSvc.getPreferredArtistKeys.mockResolvedValue(new Set())
         feedbackSvc.getBlockedArtistKeys.mockResolvedValue(new Set())
         feedbackSvc.getGuildImplicitDislikeKeys.mockReturnValue(new Set())
+        feedbackSvc.getGuildImplicitArtistDislikeWeights.mockReturnValue(
+            new Map(),
+        )
 
         const {
             trackHistoryService,
@@ -249,7 +247,7 @@ describe('replenishQueue', () => {
                     seedSimilar: { skipped: true },
                     lastfm: { skipped: true },
                     fallback: 0,
-                    genre: { skipped: true },
+                    genre: { skipped: true, reason: 'no-requester' },
                 }),
                 rejected: expect.objectContaining({
                     hardReject: 0,
@@ -528,7 +526,7 @@ describe('replenishQueue', () => {
             new Error('Test error'),
         )
 
-        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+        await expect(replenishQueue(queue)).resolves.toBe(false)
 
         const { errorLog } = require('@lucky/shared/utils')
         expect(errorLog).toHaveBeenCalledWith(
@@ -850,12 +848,19 @@ describe('replenishQueue', () => {
         )
         expect(auditCalls).toHaveLength(1)
         expect(auditCalls[0][0].data.selected).toEqual([])
+        // #2957: the mood and genre families the scorer vetoed against must
+        // reach the log, not just a locale string.
+        expect(auditCalls[0][0].data.sessionGenreFamilies).toEqual(
+            expect.any(Array),
+        )
+        expect(auditCalls[0][0].data).not.toHaveProperty('sessionMoodSummary')
+        expect(auditCalls[0][0].data).toHaveProperty('sessionMood')
         expect(auditCalls[0][0].data.sourceCounts).toEqual(
             expect.objectContaining({
                 recommendation: 0,
                 seedSimilar: { skipped: true },
                 lastfm: { skipped: true },
-                genre: { skipped: true },
+                genre: { skipped: true, reason: 'no-requester' },
             }),
         )
     })
@@ -886,7 +891,7 @@ describe('replenishQueue', () => {
         })
 
         // Verify replenishQueue executes without error
-        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+        await expect(replenishQueue(queue)).resolves.toBe(true)
 
         // Verify guildSettingsService.getGuildSettings was called
         expect(guildSettingsService.getGuildSettings).toHaveBeenCalledWith(
@@ -906,7 +911,7 @@ describe('replenishQueue', () => {
         })
 
         // Verify replenishQueue executes without error
-        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+        await expect(replenishQueue(queue)).resolves.toBe(true)
 
         // Verify guildSettingsService.getGuildSettings was called
         expect(guildSettingsService.getGuildSettings).toHaveBeenCalledWith(
@@ -925,7 +930,7 @@ describe('replenishQueue', () => {
         })
 
         // Verify replenishQueue executes without error
-        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+        await expect(replenishQueue(queue)).resolves.toBe(true)
 
         // Verify guildSettingsService.getGuildSettings was called
         expect(guildSettingsService.getGuildSettings).toHaveBeenCalledWith(

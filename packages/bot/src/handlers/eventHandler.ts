@@ -81,6 +81,10 @@ import {
     handleRecapOffButton,
     RECAP_OFF_BUTTON_ID,
 } from '../functions/music/recapOffButton'
+import {
+    handleRecapMixButton,
+    RECAP_MIX_BUTTON_ID,
+} from '../functions/music/recapMixButton'
 
 function handleClientReady(client: Client): void {
     client.once('clientReady', () => {
@@ -407,6 +411,7 @@ function buttonFamily(id: string): string | null {
         return 'reminder_stop_button'
     }
     if (id === RECAP_OFF_BUTTON_ID) return 'recap_off_button'
+    if (id === RECAP_MIX_BUTTON_ID) return 'recap_mix_button'
     return 'reaction_role_button'
 }
 
@@ -514,6 +519,11 @@ async function routeButtonInteraction(
     // "Turn off weekly recap" button on every recap (#2738).
     if (id === RECAP_OFF_BUTTON_ID) {
         await handleRecapOffButton(interaction)
+        return
+    }
+    // "Play this week's mix" button on every recap (#2739).
+    if (id === RECAP_MIX_BUTTON_ID) {
+        await handleRecapMixButton(interaction)
         return
     }
     return reactionRolesService.handleButtonInteraction(interaction)

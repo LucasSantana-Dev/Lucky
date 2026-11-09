@@ -883,6 +883,86 @@ describe('preferExactMatch', () => {
             ])
         })
     })
+
+    describe('song name followed by artist name', () => {
+        const resultOf = (tracks: ReturnType<typeof makeMockTrack>[]) => {
+            const result = {
+                hasPlaylist: () => false,
+                tracks,
+                setTracks: jest.fn(() => result),
+            }
+            return result
+        }
+
+        it('promotes the track whose title and author both appear in the query', async () => {
+            const tracks = [
+                makeMockTrack('Halo', 'Cover Nation'),
+                makeMockTrack('Halo', 'Beyoncé'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('halo beyonce')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[1],
+                tracks[0],
+            ])
+        })
+
+        it('promotes it when the artist comes first too', async () => {
+            const tracks = [
+                makeMockTrack('Halo', 'Cover Nation'),
+                makeMockTrack('Halo', 'Beyoncé'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('Beyonce Halo')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[1],
+                tracks[0],
+            ])
+        })
+
+        it('does not promote a cover that names the artist in its title', async () => {
+            const tracks = [
+                makeMockTrack('Halo', 'Some Label'),
+                makeMockTrack('Halo (Beyoncé Cover)', 'Cover Nation'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('halo beyonce')(result as any)
+
+            expect(result.setTracks).not.toHaveBeenCalled()
+        })
+
+        it('keeps vowel signs in non-Latin scripts when matching words', async () => {
+            const tracks = [
+                makeMockTrack('Other', 'Someone'),
+                makeMockTrack('कु', 'राम'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('क राम')(result as any)
+
+            expect(result.setTracks).not.toHaveBeenCalled()
+        })
+
+        it('matches a non-Latin title and author given in either order', async () => {
+            const tracks = [
+                makeMockTrack('Other', 'Someone'),
+                makeMockTrack('कु', 'राम'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('राम कु')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[1],
+                tracks[0],
+            ])
+        })
+    })
 })
 
 describe('emitPlayResolutionTelemetry', () => {

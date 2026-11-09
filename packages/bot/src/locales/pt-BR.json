@@ -44,7 +44,9 @@
             "notInVoice": "Entre em um canal de voz primeiro.",
             "nothingPlaying": "Nada está tocando no momento.",
             "youtubeDisabledTitle": "YouTube indisponível",
-            "youtubeDisabledDescription": "O YouTube não está disponível neste bot no momento. Tente um link do Spotify ou SoundCloud, ou busque pelo nome da música e do artista."
+            "youtubeDisabledDescription": "O YouTube não está disponível neste bot no momento. Tente um link do Spotify ou SoundCloud, ou busque pelo nome da música e do artista.",
+            "youtubePlaylistUnavailable": "Playlists do YouTube não estão disponíveis no momento. Cole o link de uma música só, ou digite o nome dela.",
+            "youtubeVideoUnavailable": "Não deu para tocar este link do YouTube agora. Tente digitar o nome da música e do artista."
         },
         "nowPlaying": "Tocando agora {{title}}, não pare",
         "onboarding": {
@@ -100,7 +102,13 @@
             "notTextChannel": "❌ Escolha um canal de texto para o resumo.",
             "missingPermissions": "❌ Não consigo postar em <#{{channel}}>. Preciso de Ver canal, Enviar mensagens e Inserir links lá.",
             "failed": "❌ Não consegui atualizar o resumo semanal. Tente de novo daqui a pouco.",
-            "needManageGuild": "Você precisa da permissão **Gerenciar servidor** para configurar o resumo semanal."
+            "needManageGuild": "Você precisa da permissão **Gerenciar servidor** para configurar o resumo semanal.",
+            "mixButton": "Tocar o mix da semana",
+            "mixNoVoice": "Entre em um canal de voz primeiro.",
+            "mixNoTracks": "Nenhuma música encontrada para o resumo desta semana.",
+            "mixQueued_one": "▶️ {{count}} música do resumo da semana foi adicionada à fila.",
+            "mixQueued_other": "▶️ {{count}} músicas do resumo da semana foram adicionadas à fila.",
+            "mixFailed": "❌ Não consegui iniciar o mix. Tente de novo daqui a pouco."
         },
         "thumbs": {
             "liked": "👍 **{{title}}** foi para as suas curtidas. O autoplay puxa músicas assim nas que você coloca.",

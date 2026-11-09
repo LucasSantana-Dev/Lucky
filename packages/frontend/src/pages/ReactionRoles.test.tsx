@@ -9,6 +9,9 @@ import type { ReactionRoleMessage } from '@/services/reactionRolesApi'
 vi.mock('@/stores/guildStore')
 vi.mock('@/services/api')
 
+// Heavy page suite under CPU contention: scoped budget, not a global one.
+vi.setConfig({ testTimeout: 15000, hookTimeout: 15000 })
+
 const mockGuild = {
     id: '123456',
     name: 'Test Guild',
@@ -1875,23 +1878,29 @@ async function openEditWithMappings(count: number) {
 
     render(<ReactionRoles />)
 
-    const editButtons = await screen.findAllByRole('button', {
-        name: /edit/i,
-    })
+    const editButtons = await screen.findAllByRole(
+        'button',
+        { name: /edit/i },
+        { timeout: 10000 },
+    )
     fireEvent.click(editButtons[0])
 }
 
 test('add role button disabled when 25 roles reached', async () => {
     await openEditWithMappings(25)
 
-    expect(await screen.findByText(/\(25\/25\)/)).toBeInTheDocument()
+    expect(
+        await screen.findByText(/\(25\/25\)/, {}, { timeout: 10000 }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add role/i })).toBeDisabled()
 })
 
 test('add role button enabled when 24 roles are present', async () => {
     await openEditWithMappings(24)
 
-    expect(await screen.findByText(/\(24\/25\)/)).toBeInTheDocument()
+    expect(
+        await screen.findByText(/\(24\/25\)/, {}, { timeout: 10000 }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /add role/i })).toBeEnabled()
 })
 

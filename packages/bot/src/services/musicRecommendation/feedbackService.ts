@@ -9,6 +9,13 @@ import {
 } from '@lucky/shared/utils/artistKey'
 import { cleanAuthor } from '../../utils/music/searchQueryCleaner'
 import { normalizeTrackKey } from '../../utils/music/trackNormalization'
+// The scorer keys candidates with this variant; implicit keys must match it.
+import { normalizeTrackKey as normalizeScoringTrackKey } from './autoplay/scoringUtils'
+
+// A rejection dislikes the artist at half the track's weight, summed per
+// artist and capped like vote-derived artist weights.
+const IMPLICIT_ARTIST_DISLIKE_SHARE = 0.5
+const IMPLICIT_ARTIST_DISLIKE_CAP = 2
 
 export type RecommendationFeedback = 'like' | 'dislike'
 export type ArtistFeedback = 'prefer' | 'block'
@@ -36,6 +43,12 @@ export class RecommendationFeedbackService {
     // Maps guildId -> (trackKey -> updatedAt timestamp).
     // Ensures skip signals reach the scorer even when requestedBy is undefined.
     private guildImplicitDislikeCache = new Map<string, Map<string, number>>()
+    // Implicit artist dislikes from rejected autoplay picks, per guild. Memory
+    // only, like the track-level implicit caches: a restart forgets them.
+    private guildImplicitArtistDislikeCache = new Map<
+        string,
+        Map<string, { weight: number; updatedAt: number }>
+    >()
 
     constructor(private readonly ttlDays = 30) {}
 
@@ -619,6 +632,75 @@ export class RecommendationFeedbackService {
 
         if (cache.size === 0) this.guildImplicitDislikeCache.delete(guildId)
 
+        return result
+    }
+
+    /**
+     * A listener rejected an autoplay pick (skip, or an early stop). The track
+     * becomes an implicit dislike for the guild and every listener; its artist
+     * gets half of `strength` as an implicit dislike weight, so the next refill
+     * steers away from the artist, not only from a track it already excludes.
+     */
+    recordAutoplayRejection(
+        guildId: string,
+        userIds: string[],
+        track: { title?: string; author?: string },
+        strength = 1,
+        now = Date.now(),
+    ): void {
+        const trackKey = normalizeScoringTrackKey(track.title, track.author)
+        for (const userId of userIds) {
+            void this.recordImplicitFeedback(
+                userId,
+                trackKey,
+                'implicit_dislike',
+            )
+        }
+        this.recordGuildImplicitDislike(guildId, trackKey, now)
+
+        const artist = trackKey.split('::')[1]
+        if (!guildId || !artist) return
+        let cache = this.guildImplicitArtistDislikeCache.get(guildId)
+        if (!cache) {
+            cache = new Map()
+            this.guildImplicitArtistDislikeCache.set(guildId, cache)
+        }
+        const previous = cache.get(artist)
+        const live =
+            previous && now - previous.updatedAt < this.implicitCacheTTL
+                ? previous.weight
+                : 0
+        cache.set(artist, {
+            weight: Math.min(
+                IMPLICIT_ARTIST_DISLIKE_CAP,
+                live + IMPLICIT_ARTIST_DISLIKE_SHARE * strength,
+            ),
+            updatedAt: now,
+        })
+        if (cache.size > 200) {
+            const oldest = [...cache.entries()].sort(
+                (a, b) => a[1].updatedAt - b[1].updatedAt,
+            )[0][0]
+            cache.delete(oldest)
+        }
+    }
+
+    getGuildImplicitArtistDislikeWeights(
+        guildId: string,
+        now = Date.now(),
+    ): Map<string, number> {
+        const cache = this.guildImplicitArtistDislikeCache.get(guildId)
+        const result = new Map<string, number>()
+        if (!cache) return result
+        for (const [artist, entry] of cache) {
+            if (now - entry.updatedAt < this.implicitCacheTTL) {
+                result.set(artist, entry.weight)
+            } else {
+                cache.delete(artist)
+            }
+        }
+        if (cache.size === 0)
+            this.guildImplicitArtistDislikeCache.delete(guildId)
         return result
     }
 }

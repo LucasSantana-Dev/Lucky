@@ -447,6 +447,63 @@ describe('diversitySelector', () => {
         })
     })
 
+    describe('reserved anchor slot (#2961)', () => {
+        const pick = (
+            title: string,
+            author: string,
+            score: number,
+            source: 'seed-similar' | 'lastfm-loved',
+        ) => ({
+            track: { title, author, source: 'youtube' } as Track,
+            score,
+            basis: { source, signals: [] },
+        })
+        const pool = () =>
+            new Map([
+                ['a', pick('Loved One', 'Loved A', 2.4, 'lastfm-loved')],
+                ['b', pick('Loved Two', 'Loved B', 2.3, 'lastfm-loved')],
+                ['c', pick('Seed Hit', 'Seed Artist', 1.9, 'seed-similar')],
+                ['d', pick('Related Hit', 'Related', 1.5, 'seed-similar')],
+            ])
+
+        test('keeps the best seed-similar pick when the anchor is reserved', () => {
+            const selected = selectDiverseCandidates(pool(), 2, 2, 5, '', true)
+            const titles = selected.map((c) => c.track.title)
+            expect(titles).toHaveLength(2)
+            expect(titles).toContain('Seed Hit')
+            expect(titles).toContain('Loved One')
+        })
+
+        test('ranks by score alone without the reservation', () => {
+            const selected = selectDiverseCandidates(pool(), 2, 2, 5, '')
+            expect(selected.map((c) => c.track.title)).toEqual([
+                'Loved One',
+                'Loved Two',
+            ])
+        })
+
+        test('does not reserve a seed-similar pick with no positive score', () => {
+            const candidates = pool()
+            candidates.set(
+                'c',
+                pick('Seed Hit', 'Seed Artist', -0.2, 'seed-similar'),
+            )
+            candidates.delete('d')
+            const selected = selectDiverseCandidates(
+                candidates,
+                2,
+                2,
+                5,
+                '',
+                true,
+            )
+            expect(selected.map((c) => c.track.title)).toEqual([
+                'Loved One',
+                'Loved Two',
+            ])
+        })
+    })
+
     describe('same-album soft penalty', () => {
         function makeCandidate(
             title: string,

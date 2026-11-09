@@ -142,72 +142,6 @@ describe('createModerationApi', () => {
             )
         })
 
-        test('passes userId filter in query string', async () => {
-            const api = createModerationApi(apiClient)
-            const filters: ModerationCaseFilters = {
-                userId: 'user-123',
-            }
-
-            vi.mocked(apiClient.get).mockResolvedValue({
-                data: { cases: [], total: 0 },
-                status: 200,
-                statusText: 'OK',
-                headers: {},
-                config: {} as any,
-            })
-
-            await api.getCases('guild-1', filters)
-
-            expect(apiClient.get).toHaveBeenCalledWith(
-                '/guilds/guild-1/moderation/cases',
-                { params: filters },
-            )
-        })
-
-        test('passes moderatorId filter in query string', async () => {
-            const api = createModerationApi(apiClient)
-            const filters: ModerationCaseFilters = {
-                moderatorId: 'mod-123',
-            }
-
-            vi.mocked(apiClient.get).mockResolvedValue({
-                data: { cases: [], total: 0 },
-                status: 200,
-                statusText: 'OK',
-                headers: {},
-                config: {} as any,
-            })
-
-            await api.getCases('guild-1', filters)
-
-            expect(apiClient.get).toHaveBeenCalledWith(
-                '/guilds/guild-1/moderation/cases',
-                { params: filters },
-            )
-        })
-
-        test('passes active filter in query string', async () => {
-            const api = createModerationApi(apiClient)
-            const filters: ModerationCaseFilters = {
-                active: true,
-            }
-
-            vi.mocked(apiClient.get).mockResolvedValue({
-                data: { cases: [], total: 0 },
-                status: 200,
-                statusText: 'OK',
-                headers: {},
-                config: {} as any,
-            })
-
-            await api.getCases('guild-1', filters)
-
-            expect(apiClient.get).toHaveBeenCalledWith(
-                '/guilds/guild-1/moderation/cases',
-                { params: filters },
-            )
-        })
-
         test('passes search filter in query string', async () => {
             const api = createModerationApi(apiClient)
             const filters: ModerationCaseFilters = {
@@ -236,9 +170,6 @@ describe('createModerationApi', () => {
                 page: 1,
                 limit: 10,
                 type: 'ban',
-                userId: 'user-123',
-                moderatorId: 'mod-1',
-                active: true,
                 search: 'raid',
             }
 

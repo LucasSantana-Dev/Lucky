@@ -11,9 +11,6 @@ export interface ModerationCaseFilters {
     page?: number
     limit?: number
     type?: ModerationActionType
-    userId?: string
-    moderatorId?: string
-    active?: boolean
     search?: string
 }
 

@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.64.2...v2.65.0) (2026-11-09)
+
+
+### Features
+
+* **invite:** record join source for /invite and the bot command ([#2966](https://github.com/LucasSantana-Dev/Lucky/issues/2966)) ([e068067](https://github.com/LucasSantana-Dev/Lucky/commit/e0680679bff0575a8b9b4475387fae2504c38633))
+
+
+### Bug Fixes
+
+* **bot:** search a failed YouTube link by its title on Spotify/SoundCloud ([#2967](https://github.com/LucasSantana-Dev/Lucky/issues/2967)) ([6150476](https://github.com/LucasSantana-Dev/Lucky/commit/615047639189cad25d4fad3e73976b615157b569))
+* **render:** bump tokio for RUSTSEC-2026-0386 ([#2964](https://github.com/LucasSantana-Dev/Lucky/issues/2964)) ([26a8485](https://github.com/LucasSantana-Dev/Lucky/commit/26a84859c3172b0856b5388e4071f94ca37a80de))
+
+## [2.64.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.64.1...v2.64.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **bot:** autoplay drops off-artist hits and gates profile boost ([#2958](https://github.com/LucasSantana-Dev/Lucky/issues/2958)) ([8397ac8](https://github.com/LucasSantana-Dev/Lucky/commit/8397ac89c660c736283aa5f42cbf9549b78175ff))
+* **bot:** autoplay mixes in seed and related artists ([#2962](https://github.com/LucasSantana-Dev/Lucky/issues/2962)) ([46ad0fd](https://github.com/LucasSantana-Dev/Lucky/commit/46ad0fdb1f414990070250277c80e07d22edccff))
+* **bot:** log full mood, genre families and vetoes in autoplay audit ([#2960](https://github.com/LucasSantana-Dev/Lucky/issues/2960)) ([85f6222](https://github.com/LucasSantana-Dev/Lucky/commit/85f62225ec62ab212f943e1074456d0df66c54fb))
+
+## [2.64.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.64.0...v2.64.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **bot:** autoplay keeps playing ([#2941](https://github.com/LucasSantana-Dev/Lucky/issues/2941)) ([8885def](https://github.com/LucasSantana-Dev/Lucky/commit/8885defe549c73adf8ffca4788cb3b909083d13c))
+* **bot:** autoplay stays on the session's vibe ([#2943](https://github.com/LucasSantana-Dev/Lucky/issues/2943)) ([0941601](https://github.com/LucasSantana-Dev/Lucky/commit/09416013ca4bff2f29c1532719a283bcfbe2b304))
+* **bot:** keep the refill retry alive on empty queue ([#2948](https://github.com/LucasSantana-Dev/Lucky/issues/2948)) ([b54143c](https://github.com/LucasSantana-Dev/Lucky/commit/b54143c0cebd43f2ec93ebfa0add96fb4db596e3))
+* **bot:** pick the right track when the artist follows the song ([#2936](https://github.com/LucasSantana-Dev/Lucky/issues/2936)) ([1c95683](https://github.com/LucasSantana-Dev/Lucky/commit/1c95683e2182289b38d6007fac338f63b43c6eed))
+* **bot:** stream recovery never recovers its own replacement ([#2918](https://github.com/LucasSantana-Dev/Lucky/issues/2918)) ([b5d6ffc](https://github.com/LucasSantana-Dev/Lucky/commit/b5d6ffcf9bd24668459e9164fc926b279cb7a381))
+* **deps:** clear audit gate advisories ([#2929](https://github.com/LucasSantana-Dev/Lucky/issues/2929)) ([#2946](https://github.com/LucasSantana-Dev/Lucky/issues/2946)) ([abead16](https://github.com/LucasSantana-Dev/Lucky/commit/abead166f9bbd1716bc3bbb455eed61c0f1b4972))
+
+
+### Performance Improvements
+
+* **bot:** skip plain yt-dlp attempt while youtube bot-checks it ([#2923](https://github.com/LucasSantana-Dev/Lucky/issues/2923)) ([9c0b326](https://github.com/LucasSantana-Dev/Lucky/commit/9c0b326195a3f27fe96a199e7cd767ff3361bef7))
+
 ## [2.64.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.63.3...v2.64.0) (2026-10-21)
 
 
@@ -1605,6 +1644,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **shared:** batch recommendation telemetry counts in one groupBy ([#1308](https://github.com/LucasSantana-Dev/Lucky/issues/1308)) ([e5a5973](https://github.com/LucasSantana-Dev/Lucky/commit/e5a5973d9c25d5926ab576b13265fe05c2d87032))
 
 ## [Unreleased]
+
+### Fixed
+- fix(bot): `/play` picks the right track when the artist follows the song name, and autoplay seeds retry a swapped "Song - Artist" upload title only after a genuine empty Last.fm result (#2935)
 
 ## [2.17.0] - 2026-06-08
 

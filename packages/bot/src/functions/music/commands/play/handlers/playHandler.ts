@@ -25,6 +25,8 @@ import {
     expandSoundCloudShortUrl,
     replyYoutubeDisabledIfNeeded,
 } from '../queryUtils'
+import { parseYoutubeLink } from '../queryDetector'
+import { translatorForInteraction } from '../../../../../i18n/translatorForInteraction'
 import {
     resolveQueryWithFallbacks,
     emitPlayResolutionTelemetry,
@@ -35,6 +37,7 @@ import {
     resolvePlayErrorMessage,
 } from './playErrorMessage'
 import { watchStreamStartFailures } from './streamStartWatcher'
+import { QUEUE_LEAVE_OPTIONS } from '../../../../../services/musicManagement/queueLeaveOptions'
 import {
     closePlayStartWatch,
     openPlayStartWatch,
@@ -175,7 +178,13 @@ export async function executePlayHandler({
     // editing the public defer below, which would strip the ephemeral flag.
     // Safe on the raw query: SoundCloud expansion/normalization below never
     // changes a youtube.com/youtu.be host.
-    if (await replyYoutubeDisabledIfNeeded(interaction, rawQuery, provider)) {
+    // A video or playlist link is not stopped here: resolveQueryWithFallbacks
+    // searches a video's title on Spotify/SoundCloud and answers a playlist
+    // with its own message, with or without YouTube.
+    if (
+        !parseYoutubeLink(rawQuery) &&
+        (await replyYoutubeDisabledIfNeeded(interaction, rawQuery, provider))
+    ) {
         markCommandOutcome(interaction, { outcome: 'user_error' })
         return
     }
@@ -274,10 +283,7 @@ export async function executePlayHandler({
                     vcMemberIds,
                 },
                 connectionTimeout: ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-                leaveOnEmpty: true,
-                leaveOnEmptyCooldown: 30_000,
-                leaveOnEnd: true,
-                leaveOnEndCooldown: 300_000,
+                ...QUEUE_LEAVE_OPTIONS,
             },
             requestedBy: interaction.user,
             searchEngine,
@@ -508,9 +514,15 @@ export async function executePlayHandler({
         })
         markCommandOutcome(interaction, classifyPlayFailure(error))
 
+        let t: ((key: string) => string) | undefined
+        try {
+            t = await translatorForInteraction(interaction)
+        } catch {
+            // English fallback text in resolvePlayErrorMessage
+        }
         const errorEmbed = createErrorEmbed(
             'Play Error',
-            resolvePlayErrorMessage(error, query),
+            resolvePlayErrorMessage(error, query, t),
         )
 
         if (early.reply) {
