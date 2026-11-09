@@ -24,6 +24,8 @@ export function recommendationSourceToPrisma(
             return PrismaRecommendationSource.SEED_SIMILAR
         case 'lastfm-loved':
             return PrismaRecommendationSource.LASTFM_LOVED
+        case 'lastfm-profile':
+            return PrismaRecommendationSource.LASTFM_PROFILE
         case 'lastfm-similar':
             return PrismaRecommendationSource.LASTFM_SIMILAR
         case 'lastfm-genre-fallback':

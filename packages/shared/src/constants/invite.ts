@@ -56,6 +56,9 @@ export const LANDING_SOURCES = [
     'botsgg',
     'meta',
     'landing',
+    'github',
+    'reddit',
+    'bot',
 ] as const
 
 export type LandingSource = (typeof LANDING_SOURCES)[number]
@@ -71,12 +74,21 @@ export const ADD_STATE_PREFIX = 'src.'
 
 const MAX_SOURCE_INPUT_LENGTH = 32
 
+/**
+ * `utm_source` values already published on listings, mapped to their allowlist
+ * name. The discord.bots.gg listing links `/invite?utm_source=discordbotsgg`.
+ */
+const SOURCE_ALIASES: Record<string, string> = {
+    discordbotsgg: 'botsgg',
+}
+
 /** Validate a raw `source` value: allowlist match or the safe fallback. */
 export function normalizeLandingSource(raw: unknown): string {
     if (typeof raw !== 'string' || raw.length > MAX_SOURCE_INPUT_LENGTH) {
         return FALLBACK_LANDING_SOURCE
     }
-    const value = raw.trim().toLowerCase()
+    const trimmed = raw.trim().toLowerCase()
+    const value = SOURCE_ALIASES[trimmed] ?? trimmed
     return (LANDING_SOURCES as readonly string[]).includes(value)
         ? value
         : FALLBACK_LANDING_SOURCE

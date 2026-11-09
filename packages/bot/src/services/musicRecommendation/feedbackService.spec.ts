@@ -768,6 +768,78 @@ describe('implicit feedback', () => {
         })
     })
 
+    describe('recordAutoplayRejection (#2933)', () => {
+        const track = {
+            title: 'Song (Official Video)',
+            author: 'Artist feat. X',
+        }
+        const trackKey = normalizeTrackKey(track.title, track.author)
+
+        it('records the track for the guild and every listener', async () => {
+            const service = new RecommendationFeedbackService(30)
+
+            service.recordAutoplayRejection('guild1', ['u1', 'u2'], track)
+
+            expect(
+                service.getGuildImplicitDislikeKeys('guild1').has(trackKey),
+            ).toBe(true)
+            expect(
+                (await service.getImplicitDislikeKeys('u1')).has(trackKey),
+            ).toBe(true)
+            expect(
+                (await service.getImplicitDislikeKeys('u2')).has(trackKey),
+            ).toBe(true)
+        })
+
+        it('dislikes the artist at half weight, under the scorer artist key', () => {
+            const service = new RecommendationFeedbackService(30)
+
+            service.recordAutoplayRejection('guild1', [], track)
+
+            const weights =
+                service.getGuildImplicitArtistDislikeWeights('guild1')
+            expect(weights.get(trackKey.split('::')[1])).toBe(0.5)
+        })
+
+        it('a mild rejection weighs the artist less', () => {
+            const service = new RecommendationFeedbackService(30)
+
+            service.recordAutoplayRejection('guild1', [], track, 0.5)
+
+            const weights =
+                service.getGuildImplicitArtistDislikeWeights('guild1')
+            expect(weights.get(trackKey.split('::')[1])).toBe(0.25)
+        })
+
+        it('repeated rejections add up to a cap', () => {
+            const service = new RecommendationFeedbackService(30)
+
+            for (let i = 0; i < 10; i++) {
+                service.recordAutoplayRejection('guild1', [], track)
+            }
+
+            const weights =
+                service.getGuildImplicitArtistDislikeWeights('guild1')
+            expect(weights.get(trackKey.split('::')[1])).toBe(2)
+        })
+
+        it('artist dislikes expire and stay per guild', () => {
+            const service = new RecommendationFeedbackService(30)
+            const now = 1000
+            const oldTime = now - 15 * 24 * 60 * 60 * 1000
+
+            service.recordAutoplayRejection('guild1', [], track, 1, oldTime)
+
+            expect(
+                service.getGuildImplicitArtistDislikeWeights('guild1', now)
+                    .size,
+            ).toBe(0)
+            expect(
+                service.getGuildImplicitArtistDislikeWeights('guild2').size,
+            ).toBe(0)
+        })
+    })
+
     it.each([
         ['Bohemian Rhapsody (Official Video)', 'Queen'],
         ['Song', 'A, B'],

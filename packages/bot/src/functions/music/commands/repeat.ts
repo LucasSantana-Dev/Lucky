@@ -6,6 +6,7 @@ import { createSuccessEmbed } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { requireQueue } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
+import { resumeAutoplay } from '../../../handlers/player/autoplayFailureStreak'
 
 /**
  * Handle track/queue repeat mode
@@ -123,6 +124,7 @@ export default new Command({
         )
 
         queue?.setRepeatMode(repeatMode)
+        if (repeatMode === QueueRepeatMode.AUTOPLAY) resumeAutoplay(guildId)
 
         await interactionReply({
             interaction,

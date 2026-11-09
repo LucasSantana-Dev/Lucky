@@ -42,6 +42,11 @@ jest.mock('../services/musicManagement/replenishSuppressionStore', () => ({
     setReplenishSuppressed: jest.fn(),
 }))
 
+const resumeAutoplayMock = jest.fn()
+jest.mock('./player/autoplayFailureStreak', () => ({
+    resumeAutoplay: (...args: unknown[]) => resumeAutoplayMock(...args),
+}))
+
 jest.mock('../services/musicRecommendation/feedbackService', () => ({
     recommendationFeedbackService: {
         setFeedback: (...args: unknown[]) => setFeedbackMock(...args),
@@ -344,5 +349,42 @@ describe('handleMusicButtonInteraction - autoplay feedback prompt', () => {
         await handleMusicButtonInteraction(resuming as never)
 
         expect(maybePromptMock).toHaveBeenLastCalledWith(resuming, null)
+    })
+})
+
+describe('handleMusicButtonInteraction - loop button (#2932)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+    })
+
+    it('clears the autoplay failure stop when the loop reaches autoplay', async () => {
+        const queue = createQueue({
+            repeatMode: 2,
+            setRepeatMode: jest.fn(),
+            guild: { id: 'guild-loop' },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+
+        await handleMusicButtonInteraction(
+            createInteraction(MUSIC_BUTTON_IDS.LOOP) as never,
+        )
+
+        expect(queue.setRepeatMode).toHaveBeenCalledWith(3)
+        expect(resumeAutoplayMock).toHaveBeenCalledWith('guild-loop')
+    })
+
+    it('leaves the failure stop alone for other loop modes', async () => {
+        const queue = createQueue({
+            repeatMode: 0,
+            setRepeatMode: jest.fn(),
+            guild: { id: 'guild-loop' },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+
+        await handleMusicButtonInteraction(
+            createInteraction(MUSIC_BUTTON_IDS.LOOP) as never,
+        )
+
+        expect(resumeAutoplayMock).not.toHaveBeenCalled()
     })
 })

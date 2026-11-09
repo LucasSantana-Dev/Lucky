@@ -24,6 +24,7 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: (...args: unknown[]) => errorLogMock(...args),
 }))
 
+jest.mock('./spotifyIsrc', () => ({ useSpotifyApiForIsrc: jest.fn() }))
 jest.mock('./extractorHealth', () => ({
     setExtractorDegraded: (...args: unknown[]) =>
         setExtractorDegradedMock(...args),

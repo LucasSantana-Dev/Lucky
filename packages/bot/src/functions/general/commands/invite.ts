@@ -9,17 +9,36 @@ import {
 } from '@lucky/shared/constants'
 
 /**
- * Build the OAuth2 invite URL for the bot using its application ID
+ * Build the invite URL. With a backend configured, link its `/invite` route so
+ * the join is recorded with source `bot`; forks without one get the plain
+ * Discord OAuth URL for their own application.
  */
 function buildInviteUrl(
     applicationId: string | undefined | null,
 ): string | null {
+    const backend = getBackendOrigin()
+    if (backend) {
+        return `${backend}/invite?utm_source=bot&utm_medium=command`
+    }
     if (!applicationId) return null
 
     // The same set as every other invite link (#2736).
     return `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(
         applicationId,
     )}&permissions=${BOT_INVITE_PERMISSIONS}&scope=bot%20applications.commands`
+}
+
+function getBackendOrigin(): string | null {
+    const raw = process.env.WEBAPP_BACKEND_URL?.trim()
+    if (!raw) return null
+    try {
+        const url = new URL(raw)
+        return url.protocol === 'https:' || url.protocol === 'http:'
+            ? url.origin
+            : null
+    } catch {
+        return null
+    }
 }
 
 export default new Command({

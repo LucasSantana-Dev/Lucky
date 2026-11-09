@@ -18,6 +18,23 @@ import { isExtractorDegraded, setExtractorDegraded } from './extractorHealth'
 // access-denial signals (#2744). The age gate ("Sign in to confirm your age")
 // is per-video and stays 'other'.
 //
+// A timeout of the cookies retry is a budget miss, not a YouTube-wide
+// signal: by then the plain attempt already got the bot-check, and a
+// logged-in stream start is normally slow (5.8-7.5s against the old 8s,
+// 2026-10-19 to 10-21). Counting it opened the breaker on slow starts and
+// switched YouTube off for everyone (52 exhausted vs 3 plays, 10-19T23:44Z
+// to 10-20T17:44Z). markYtDlpBudgetMiss tags such an error: the metric
+// still counts it as 'timeout', but like 'other' it neither counts toward
+// the streak nor breaks it.
+//
+// One play can reach yt-dlp up to three times: a cached URL then a fresh
+// search (often of the same video), an empty search then the broad one, or a
+// failed pass then discord-player's fallback hit. Counting each one let a
+// single bad upload open the breaker for every guild. With `play`, only the
+// first failure of that play that counts joins the streak; a budget miss or
+// 'other' does not use up the play, so a later bot-check in it still counts.
+// The metric still counts every attempt.
+//
 // The breaker only clears the youtube degraded gauge it set itself, so a
 // boot-time registration failure (playerFactory) is never cleared by a
 // later yt-dlp success. The gauge clears when the block expires, even if
@@ -34,6 +51,12 @@ let lastForbiddenAt = 0
 let blockedUntil = 0
 let degradedByBreaker = false
 let expiryTimer: ReturnType<typeof setTimeout> | undefined
+const budgetMisses = new WeakSet<object>()
+const countedPlays = new WeakSet<object>()
+
+export function markYtDlpBudgetMiss(error: unknown): void {
+    if (typeof error === 'object' && error !== null) budgetMisses.add(error)
+}
 
 export function classifyYtDlpFailure(error: unknown): YtDlpFailureType {
     const message = error instanceof Error ? error.message : String(error)
@@ -71,13 +94,23 @@ export function countYtDlpFailure(error: unknown): void {
     extractionFailuresTotal.inc({ type: classifyYtDlpFailure(error) })
 }
 
-export function recordYtDlpFailure(error: unknown, now = Date.now()): void {
+export function recordYtDlpFailure(
+    error: unknown,
+    now = Date.now(),
+    play?: object,
+): void {
     const type = classifyYtDlpFailure(error)
     extractionFailuresTotal.inc({ type })
     // 'forbidden' and 'botcheck' are access-denial signals.
     // 'timeout' and 'empty' also count: repeated hangs or no-output results
     // indicate YouTube is degraded, not per-track issues (#2742).
     if (type === 'other') return
+    if (typeof error === 'object' && error !== null && budgetMisses.has(error))
+        return
+    if (play) {
+        if (countedPlays.has(play)) return
+        countedPlays.add(play)
+    }
     if (now - lastForbiddenAt >= FORBIDDEN_WINDOW_MS) consecutiveForbidden = 0
     lastForbiddenAt = now
     consecutiveForbidden += 1

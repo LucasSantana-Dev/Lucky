@@ -1,4 +1,4 @@
-import { QueryType } from 'discord-player'
+import { QueryType, QueueRepeatMode } from 'discord-player'
 import { warnLog } from '@lucky/shared/utils'
 import type { CustomClient } from '../../types'
 import {
@@ -9,6 +9,7 @@ import {
 import { buildQueueState, repeatModeToEnum } from './mappers'
 import { resolveGuildQueue } from '../../services/musicManagement/queueResolver'
 import { setReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
+import { resumeAutoplay } from '../player/autoplayFailureStreak'
 import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from '../../functions/music/commands/play/handlers/resolveProvider'
 import { isUrl } from '../../functions/music/commands/play/queryUtils'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
@@ -194,7 +195,9 @@ export async function handleRepeat(
 ): Promise<Result> {
     const queue = getQueue(client, cmd.guildId)
     if (!queue) return fail(cmd.id, cmd.guildId, 'No active queue')
-    queue.setRepeatMode(repeatModeToEnum(cmd.data?.mode as string))
+    const mode = repeatModeToEnum(cmd.data?.mode as string)
+    queue.setRepeatMode(mode)
+    if (mode === QueueRepeatMode.AUTOPLAY) resumeAutoplay(cmd.guildId)
     return publishAndOk(client, cmd)
 }
 

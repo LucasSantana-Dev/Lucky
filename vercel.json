@@ -29,7 +29,7 @@
                 },
                 {
                     "key": "Content-Security-Policy",
-                    "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://cdn.discordapp.com https://cdn.discord.com; connect-src 'self' https://lucky-api.lucassantana.tech https://api.luk-homeserver.com.br https://*.sentry.io; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; report-uri /api/security/csp-report"
+                    "value": "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://cdn.discordapp.com https://cdn.discord.com; connect-src 'self' https://lucky-api.lucassantana.tech https://api.luk-homeserver.com.br https://*.sentry.io https://cloudflareinsights.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; report-uri /api/security/csp-report"
                 }
             ]
         }

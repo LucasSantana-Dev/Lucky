@@ -63,6 +63,9 @@ export function setupMiddleware(app: Express): void {
                         'https://lucky-api.lucassantana.tech',
                         'https://api.luk-homeserver.com.br',
                         'https://*.sentry.io',
+                        // Cloudflare Insights beacon sends data here; script
+                        // loads from static.cloudflareinsights.com (script-src).
+                        'https://cloudflareinsights.com',
                     ],
                     'worker-src': ["'self'", 'blob:'],
                     'frame-ancestors': ["'none'"],

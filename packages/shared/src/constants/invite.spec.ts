@@ -99,6 +99,9 @@ describe('landing source attribution (#2750)', () => {
         expect(normalizeLandingSource('topgg')).toBe('topgg')
         expect(normalizeLandingSource(' TopGG ')).toBe('topgg')
         expect(normalizeLandingSource('test')).toBe('unknown')
+        expect(normalizeLandingSource('discordbotsgg')).toBe('botsgg')
+        expect(normalizeLandingSource('GitHub')).toBe('github')
+        expect(normalizeLandingSource('bot')).toBe('bot')
     })
 
     it('collapses anything else to the fallback', () => {

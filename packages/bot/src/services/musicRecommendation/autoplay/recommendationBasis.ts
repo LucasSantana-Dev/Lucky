@@ -8,6 +8,7 @@ export type RecommendationSource =
     | 'spotify-taste'
     | 'seed-similar'
     | 'lastfm-loved'
+    | 'lastfm-profile'
     | 'lastfm-similar'
     | 'lastfm-genre-fallback'
     | 'artist-fallback'
@@ -46,6 +47,16 @@ export type RecommendationSignal =
     | 'replay frequent'
     | 'recency decay'
 
+/** Why `calculateRecommendationScore` returned a `-Infinity` hard-reject. */
+export type VetoReason =
+    | 'blocked-artist'
+    | 'too-long'
+    | 'ambient-noise'
+    | 'edm-mix'
+    | 'cross-locale'
+    | 'cross-genre'
+    | 'disliked'
+
 export interface RecommendationBasis {
     source: RecommendationSource
     signals: RecommendationSignal[]
@@ -67,6 +78,7 @@ export function serializeBasis(basis: RecommendationBasis): string {
         'spotify-taste': 'spotify taste',
         'seed-similar': 'seed similar',
         'lastfm-loved': 'last.fm loved',
+        'lastfm-profile': 'last.fm profile',
         'lastfm-similar': 'last.fm similar',
         'lastfm-genre-fallback': 'last.fm genre',
         'artist-fallback': 'artist fallback',
