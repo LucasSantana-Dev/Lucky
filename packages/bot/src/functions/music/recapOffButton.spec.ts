@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { MessageFlags, PermissionFlagsBits } from 'discord.js'
+import { ButtonStyle, MessageFlags, PermissionFlagsBits } from 'discord.js'
 import type { ButtonInteraction } from 'discord.js'
 import type { TFunction } from 'i18next'
 
@@ -16,6 +16,20 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 jest.mock('../../i18n/translatorForInteraction', () => ({
     translatorForInteraction: async () => (key: string) => key,
+}))
+jest.mock('@lucky/shared/services', () => ({ getWeeklyRecap: jest.fn() }))
+jest.mock('@lucky/shared/config', () => ({
+    ENVIRONMENT_CONFIG: { PLAYER: { CONNECTION_TIMEOUT: 5000 } },
+}))
+jest.mock('../../services/recap/recapWindow', () => ({
+    latestRecapBoundary: jest.fn(),
+    recapWindow: jest.fn(),
+}))
+jest.mock('../../services/musicManagement/queueResolver', () => ({
+    resolveGuildQueue: jest.fn(),
+}))
+jest.mock('../../utils/monitoring/prometheus', () => ({
+    recapMixPlayedTotal: { inc: jest.fn() },
 }))
 
 import {
@@ -50,14 +64,24 @@ describe('recap off button (#2738)', () => {
         disableRecapMock.mockResolvedValue(true)
     })
 
-    it('builds one localized button', () => {
+    it('builds a row with mix and off buttons in order', () => {
         const t = ((key: string) => key) as unknown as TFunction
-        expect(buildRecapOffRow(t).toJSON().components).toEqual([
+        const components = buildRecapOffRow(t).toJSON().components
+        expect(components).toHaveLength(2)
+        expect(components[0]).toEqual(
+            expect.objectContaining({
+                custom_id: 'recap_mix',
+                label: 'music.recap.mixButton',
+                style: ButtonStyle.Primary,
+                emoji: expect.objectContaining({ name: '▶️' }),
+            }),
+        )
+        expect(components[1]).toEqual(
             expect.objectContaining({
                 custom_id: RECAP_OFF_BUTTON_ID,
                 label: 'music.recap.offButton',
             }),
-        ])
+        )
     })
 
     it('turns the recap off and removes the button', async () => {
