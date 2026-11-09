@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.65.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.64.2...v2.65.0) (2026-11-09)
+
+
+### Features
+
+* **invite:** record join source for /invite and the bot command ([#2966](https://github.com/LucasSantana-Dev/Lucky/issues/2966)) ([e068067](https://github.com/LucasSantana-Dev/Lucky/commit/e0680679bff0575a8b9b4475387fae2504c38633))
+
+
+### Bug Fixes
+
+* **bot:** search a failed YouTube link by its title on Spotify/SoundCloud ([#2967](https://github.com/LucasSantana-Dev/Lucky/issues/2967)) ([6150476](https://github.com/LucasSantana-Dev/Lucky/commit/615047639189cad25d4fad3e73976b615157b569))
+* **render:** bump tokio for RUSTSEC-2026-0386 ([#2964](https://github.com/LucasSantana-Dev/Lucky/issues/2964)) ([26a8485](https://github.com/LucasSantana-Dev/Lucky/commit/26a84859c3172b0856b5388e4071f94ca37a80de))
+
 ## [2.64.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.64.1...v2.64.2) (2026-11-09)
 
 
