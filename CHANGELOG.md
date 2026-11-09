@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.64.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.64.1...v2.64.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **bot:** autoplay drops off-artist hits and gates profile boost ([#2958](https://github.com/LucasSantana-Dev/Lucky/issues/2958)) ([8397ac8](https://github.com/LucasSantana-Dev/Lucky/commit/8397ac89c660c736283aa5f42cbf9549b78175ff))
+* **bot:** autoplay mixes in seed and related artists ([#2962](https://github.com/LucasSantana-Dev/Lucky/issues/2962)) ([46ad0fd](https://github.com/LucasSantana-Dev/Lucky/commit/46ad0fdb1f414990070250277c80e07d22edccff))
+* **bot:** log full mood, genre families and vetoes in autoplay audit ([#2960](https://github.com/LucasSantana-Dev/Lucky/issues/2960)) ([85f6222](https://github.com/LucasSantana-Dev/Lucky/commit/85f62225ec62ab212f943e1074456d0df66c54fb))
+
 ## [2.64.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.64.0...v2.64.1) (2026-11-07)
 
 
