@@ -84,6 +84,7 @@ import {
     isYouTubeUrl,
     executePlayAtTop,
     expandSoundCloudShortUrl,
+    resolveSearchEngine,
 } from './queryUtils'
 
 describe('host matching', () => {
@@ -610,5 +611,17 @@ describe('uppercase scheme', () => {
                 'HTTPS://SOUNDCLOUD.COM/artist/track?in=artist/sets/mix',
             ),
         ).not.toContain('in=')
+    })
+})
+
+describe('resolveSearchEngine', () => {
+    it('treats a link with surrounding spaces as a link', () => {
+        expect(resolveSearchEngine('  https://youtu.be/dQw4w9WgXcQ ')).toBe(
+            'auto',
+        )
+    })
+
+    it('searches plain text on Spotify by default', () => {
+        expect(resolveSearchEngine('some song')).toBe('spotifySearch')
     })
 })
