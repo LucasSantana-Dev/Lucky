@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.66.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.65.0...v2.66.0) (2026-11-09)
+
+
+### Features
+
+* **bot:** play this week's mix button on the recap card ([#2881](https://github.com/LucasSantana-Dev/Lucky/issues/2881)) ([db6810a](https://github.com/LucasSantana-Dev/Lucky/commit/db6810aad5858a7c2dd8d913f4628fcb6bad31e0))
+
+
+### Bug Fixes
+
+* **growth:** record source for landing CTA and /invite utm_source ([#2882](https://github.com/LucasSantana-Dev/Lucky/issues/2882)) ([b0b17e3](https://github.com/LucasSantana-Dev/Lucky/commit/b0b17e35f33ff6b7909a485aa8e770d55e754522))
+* **shared:** stop double-encoding ServerLog.details ([#2878](https://github.com/LucasSantana-Dev/Lucky/issues/2878)) ([c699ffc](https://github.com/LucasSantana-Dev/Lucky/commit/c699ffca2492a2297f308617d167c79b53e3b886))
+* **test:** harden flaky page tests ([#2892](https://github.com/LucasSantana-Dev/Lucky/issues/2892)) ([71deb30](https://github.com/LucasSantana-Dev/Lucky/commit/71deb3012608e050186a17f893777408d33fe523))
+
 ## [2.65.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.64.2...v2.65.0) (2026-11-09)
 
 
