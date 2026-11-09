@@ -30,9 +30,13 @@ import {
     searchYtDlpCandidates,
     streamViaYtDlp,
     streamViaYtDlpSearch,
+    PLAIN_BOTCHECK_SKIP_WINDOW_MS,
+    YTDLP_COOKIES_STREAM_START_TIMEOUT_MS,
     YTDLP_SEARCH_RESOLVE_TIMEOUT_MS,
     YTDLP_STREAM_START_TIMEOUT_MS,
+    __resetPlainBotCheckStateForTests,
     __resetYtdlpCookiesLogStateForTests,
+    __resetYtdlpPotLogStateForTests,
 } from './ytdlpProcess'
 import {
     isYtDlpBlocked,
@@ -134,6 +138,7 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
 
     beforeEach(() => {
         __resetYtdlpCookiesLogStateForTests()
+        __resetPlainBotCheckStateForTests()
         mockSpawn.mockReset()
         mockStatSync.mockReset()
         mockMkdtempSync.mockClear()
@@ -253,7 +258,9 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
 
     it('warns once that the cookies are rejected when the cookies retry hits the sign-in check again', async () => {
         readableCookies()
-        script(SIGN_IN, SIGN_IN, SIGN_IN, SIGN_IN)
+        // Play 1: plain → sign-in → cookies → sign-in (warns, records bot-check).
+        // Play 2: fast-path shortcut → cookies → sign-in (cooldown suppresses warn).
+        script(SIGN_IN, SIGN_IN, SIGN_IN)
 
         await expect(streamViaYtDlp(validUrl)).rejects.toThrow(
             'Sign in to confirm',
@@ -262,16 +269,17 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
             'Sign in to confirm',
         )
 
-        expect(mockSpawn).toHaveBeenCalledTimes(4)
+        expect(mockSpawn).toHaveBeenCalledTimes(3)
         expect(cookiesRejectedWarns()).toHaveLength(1)
         expect(cookiesRejectedWarns()[0]?.[0]).toMatchObject({
             data: { cookiesFile: cookiesPath },
         })
     })
 
-    it('does not blame the cookies when the cookies retry streams or fails for another reason', async () => {
+    it('does not blame the cookies when the fast-path cookies attempt fails with 403', async () => {
         readableCookies()
-        script(SIGN_IN, 'ok', SIGN_IN, FORBIDDEN)
+        // Play 1 activates the shortcut; play 2 uses fast-path → 403 (not a sign-in, no warn).
+        script(SIGN_IN, 'ok', FORBIDDEN)
 
         await streamViaYtDlp(validUrl)
         await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
@@ -386,15 +394,370 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         )
 
         readableCookies()
-        script(SIGN_IN, 'ok', SIGN_IN, 'ok')
+        // Second call uses the fast-path (shortcut activated by first call).
+        script(SIGN_IN, 'ok', 'ok')
         await streamViaYtDlp(validUrl)
         await streamViaYtDlp(validUrl)
-        expect(mockInfoLog).toHaveBeenCalledTimes(1)
-        expect(mockInfoLog).toHaveBeenCalledWith(
-            expect.objectContaining({
-                message: 'Bridge: yt-dlp cookies file applied',
-            }),
+        const applied = mockInfoLog.mock.calls.filter(
+            (call) =>
+                (call[0] as { message?: string }).message ===
+                'Bridge: yt-dlp cookies file applied',
         )
+        expect(applied).toHaveLength(1)
+    })
+
+    const attemptLogs = () =>
+        mockInfoLog.mock.calls
+            .map((call) => call[0] as { message?: string; data?: unknown })
+            .filter((entry) => entry.message === 'Bridge: yt-dlp attempt')
+            .map((entry) => entry.data)
+
+    it('logs one timing line per YouTube attempt, with its kind and outcome', async () => {
+        readableCookies()
+        // Play 1: plain:botcheck → cookies:ok (activates fast-path shortcut).
+        // Play 2: fast-path cookies:forbidden (clears shortcut).
+        // Play 3: plain:forbidden → forbidden_retry:forbidden.
+        script(SIGN_IN, 'ok', FORBIDDEN, FORBIDDEN, FORBIDDEN)
+
+        await streamViaYtDlp(validUrl)
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
+
+        const ms = expect.any(Number)
+        expect(attemptLogs()).toEqual([
+            {
+                attempt: 'plain',
+                outcome: 'botcheck',
+                ms,
+                timeoutMs: YTDLP_STREAM_START_TIMEOUT_MS,
+            },
+            {
+                attempt: 'cookies',
+                outcome: 'ok',
+                ms,
+                timeoutMs: YTDLP_COOKIES_STREAM_START_TIMEOUT_MS,
+            },
+            {
+                attempt: 'cookies',
+                outcome: 'forbidden',
+                ms,
+                timeoutMs: YTDLP_COOKIES_STREAM_START_TIMEOUT_MS,
+            },
+            {
+                attempt: 'plain',
+                outcome: 'forbidden',
+                ms,
+                timeoutMs: YTDLP_STREAM_START_TIMEOUT_MS,
+            },
+            {
+                attempt: 'forbidden_retry',
+                outcome: 'forbidden',
+                ms,
+                timeoutMs: YTDLP_STREAM_START_TIMEOUT_MS,
+            },
+        ])
+    })
+
+    it('does not log attempt timings for SoundCloud', async () => {
+        script('ok')
+
+        await streamViaYtDlp('https://soundcloud.com/artist/track')
+
+        expect(attemptLogs()).toEqual([])
+    })
+
+    // ---------------------------------------------------------------------------
+    // Fast-path: skip plain while bot-check is active (#2921)
+    // ---------------------------------------------------------------------------
+
+    it('skips the plain attempt while bot-check is active within the window', async () => {
+        readableCookies()
+        // First play activates the shortcut via plain → bot-check → cookies → ok.
+        script(SIGN_IN, 'ok')
+        await streamViaYtDlp(validUrl)
+
+        // Second play: shortcut active → only one spawn (cookies), no plain.
+        script('ok')
+        await streamViaYtDlp(validUrl)
+
+        expect(mockSpawn).toHaveBeenCalledTimes(3)
+        expect(spawnArgs(2)).toContain('--cookies')
+    })
+
+    it('a 403 from the fast-path cookies clears the shortcut and reverts to plain', async () => {
+        readableCookies()
+        // Play 1: plain → bot-check → cookies → ok (shortcut activated).
+        script(SIGN_IN, 'ok')
+        await streamViaYtDlp(validUrl)
+
+        // Play 2: fast-path → cookies → 403 (clears shortcut).
+        script(FORBIDDEN)
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
+
+        // Play 3: shortcut cleared → tries plain again (no --cookies on first spawn).
+        script('ok')
+        await streamViaYtDlp(validUrl)
+
+        expect(mockSpawn).toHaveBeenCalledTimes(4)
+        expect(spawnArgs(3)).not.toContain('--cookies')
+    })
+
+    it('reverts to plain after the bot-check window expires', async () => {
+        readableCookies()
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+        try {
+            script(SIGN_IN, 'ok')
+            await streamViaYtDlp(validUrl)
+
+            // Advance past the 15-minute window.
+            jest.advanceTimersByTime(PLAIN_BOTCHECK_SKIP_WINDOW_MS)
+
+            script('ok')
+            await streamViaYtDlp(validUrl)
+
+            expect(mockSpawn).toHaveBeenCalledTimes(3)
+            expect(spawnArgs(2)).not.toContain('--cookies')
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    it('fast-path uses the cookies budget and does not open the block breaker on timeout', async () => {
+        readableCookies()
+        // Activate the shortcut.
+        script(SIGN_IN, 'ok')
+        await streamViaYtDlp(validUrl)
+
+        const fastPathProc = makeFakeProc()
+        mockSpawn.mockImplementationOnce(() => fastPathProc)
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+        try {
+            recordYtDlpSuccess()
+            const promise = streamViaYtDlp(validUrl)
+            jest.advanceTimersByTime(YTDLP_COOKIES_STREAM_START_TIMEOUT_MS)
+            const err = await promise.catch((e: unknown) => e)
+            expect(String(err)).toContain('timed out')
+
+            recordYtDlpFailure(err, 1_000)
+            recordYtDlpFailure(err, 2_000)
+            expect(isYtDlpBlocked(2_000)).toBe(false)
+            recordYtDlpSuccess()
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    // 9 of 14 cookie retries timed out at 8s (2026-10-19 to 10-21): the
+    // logged-in stream start needs its own, longer budget.
+    it('gives the cookies retry its own budget, longer than the plain one', async () => {
+        try {
+            const { promise, cookiesProc, isSettled } =
+                await startCookiesRetry()
+            jest.advanceTimersByTime(YTDLP_STREAM_START_TIMEOUT_MS)
+            await Promise.resolve()
+            expect(isSettled()).toBe(false)
+            expect(cookiesProc.kill).not.toHaveBeenCalled()
+
+            jest.advanceTimersByTime(
+                YTDLP_COOKIES_STREAM_START_TIMEOUT_MS -
+                    YTDLP_STREAM_START_TIMEOUT_MS,
+            )
+            await expect(promise).rejects.toThrow('yt-dlp: timed out')
+            expect(cookiesProc.kill).toHaveBeenCalled()
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    // A cookies-retry timeout fed the breaker and switched YouTube off for
+    // everyone on slow logged-in starts (52 exhausted vs 3 plays, 10-19/20).
+    it('does not let a cookies-retry timeout open the block breaker', async () => {
+        recordYtDlpSuccess()
+        let error: unknown
+        try {
+            const { promise } = await startCookiesRetry()
+            jest.advanceTimersByTime(YTDLP_COOKIES_STREAM_START_TIMEOUT_MS)
+            error = await promise.catch((e: unknown) => e)
+        } finally {
+            jest.useRealTimers()
+        }
+        expect(String(error)).toContain('timed out')
+
+        recordYtDlpFailure(error, 1_000)
+        recordYtDlpFailure(error, 2_000)
+
+        expect(isYtDlpBlocked(2_000)).toBe(false)
+        recordYtDlpSuccess()
+    })
+
+    // Runs up to the spawn of the cookies retry. Leaves fake timers on
+    // (except setImmediate, so the scripted sign-in failure still fires);
+    // the caller restores real timers.
+    it('keeps a caller budget longer than the cookies one on the retry', async () => {
+        const longer = YTDLP_COOKIES_STREAM_START_TIMEOUT_MS + 5_000
+        try {
+            const { promise, isSettled } = await startCookiesRetry(longer)
+            jest.advanceTimersByTime(YTDLP_COOKIES_STREAM_START_TIMEOUT_MS)
+            await Promise.resolve()
+            expect(isSettled()).toBe(false)
+
+            jest.advanceTimersByTime(5_000)
+            await expect(promise).rejects.toThrow('yt-dlp: timed out')
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    async function startCookiesRetry(timeoutMs?: number) {
+        readableCookies()
+        script(SIGN_IN)
+        const cookiesProc = makeFakeProc()
+        mockSpawn.mockImplementationOnce(() => cookiesProc)
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+        const promise = streamViaYtDlp(validUrl, timeoutMs)
+        let settled = false
+        promise.catch(() => undefined).finally(() => (settled = true))
+        await new Promise((resolve) => setImmediate(resolve))
+        await new Promise((resolve) => setImmediate(resolve))
+        expect(mockSpawn).toHaveBeenCalledTimes(2)
+        return { promise, cookiesProc, isSettled: () => settled }
+    }
+})
+
+// ---------------------------------------------------------------------------
+// streamViaYtDlp: po_token provider (ADR 2026-06-18 amendment 2026-10-21)
+// ---------------------------------------------------------------------------
+
+describe('streamViaYtDlp: po_token provider', () => {
+    const youtubeUrl = 'https://www.youtube.com/watch?v=abc123'
+    const providerUrl = 'http://bgutil-pot:4416'
+    const originalEnv = process.env.YTDLP_POT_PROVIDER_URL
+    const SIGN_IN =
+        "ERROR: [youtube] abc123: Sign in to confirm you're not a bot\n"
+
+    function procThat(outcome: 'ok' | string) {
+        const proc = makeFakeProc()
+        setImmediate(() => {
+            if (outcome === 'ok') {
+                proc.stdout.emit('data', Buffer.from('bytes'))
+                return
+            }
+            proc.stderr.emit('data', Buffer.from(outcome))
+            proc.emit('close', 1)
+        })
+        return proc
+    }
+
+    function script(...outcomes: Array<'ok' | string>) {
+        for (const outcome of outcomes) {
+            mockSpawn.mockImplementationOnce(() => procThat(outcome))
+        }
+    }
+
+    const spawnArgs = (call: number) =>
+        mockSpawn.mock.calls[call]?.[1] as string[]
+
+    const potArgs = [
+        '--plugin-dirs',
+        '/opt/ytdlp-plugins',
+        '--extractor-args',
+        `youtubepot-bgutilhttp:base_url=${providerUrl}`,
+    ]
+
+    beforeEach(() => {
+        __resetYtdlpPotLogStateForTests()
+        __resetYtdlpCookiesLogStateForTests()
+        __resetPlainBotCheckStateForTests()
+        mockSpawn.mockReset()
+        mockStatSync.mockReset()
+        mockAccessSync.mockReset()
+        mockInfoLog.mockReset()
+        mockWarnLog.mockReset()
+    })
+
+    afterEach(() => {
+        if (originalEnv === undefined) delete process.env.YTDLP_POT_PROVIDER_URL
+        else process.env.YTDLP_POT_PROVIDER_URL = originalEnv
+    })
+
+    it('adds no plugin dir or extractor args when unset', async () => {
+        delete process.env.YTDLP_POT_PROVIDER_URL
+        script('ok')
+
+        await streamViaYtDlp(youtubeUrl)
+
+        expect(spawnArgs(0)).not.toContain('--plugin-dirs')
+        expect(spawnArgs(0)).not.toContain('--extractor-args')
+    })
+
+    it('loads the plugin and passes the provider URL on a YouTube target', async () => {
+        process.env.YTDLP_POT_PROVIDER_URL = providerUrl
+        script('ok')
+
+        await streamViaYtDlp(youtubeUrl)
+
+        const args = spawnArgs(0)
+        const at = args.indexOf('--plugin-dirs')
+        expect(args.slice(at, at + potArgs.length)).toEqual(potArgs)
+        // The URL stays the last argument.
+        expect(args[args.length - 1]).toBe(youtubeUrl)
+    })
+
+    it('keeps the provider on the cookies retry too', async () => {
+        process.env.YTDLP_POT_PROVIDER_URL = providerUrl
+        process.env.YTDLP_COOKIES_FILE = '/app/secrets/youtube-cookies.txt'
+        mockStatSync.mockReturnValue({ isFile: () => true })
+        mockAccessSync.mockReturnValue(undefined)
+        script(SIGN_IN, 'ok')
+
+        await streamViaYtDlp(youtubeUrl)
+
+        expect(spawnArgs(0)).toEqual(expect.arrayContaining(potArgs))
+        expect(spawnArgs(1)).toEqual(expect.arrayContaining(potArgs))
+        expect(spawnArgs(1)).toContain('--cookies')
+        delete process.env.YTDLP_COOKIES_FILE
+    })
+
+    it('leaves SoundCloud through yt-dlp untouched', async () => {
+        process.env.YTDLP_POT_PROVIDER_URL = providerUrl
+        script('ok')
+
+        await streamViaYtDlp('https://soundcloud.com/artist/track')
+
+        expect(spawnArgs(0)).not.toContain('--plugin-dirs')
+    })
+
+    it.each([
+        'bgutil-pot:4416',
+        'file:///etc/passwd',
+        'http://bgutil-pot:4416;other=1',
+    ])('ignores a malformed provider URL (%s) and warns once', async (bad) => {
+        process.env.YTDLP_POT_PROVIDER_URL = bad
+        script('ok', 'ok')
+
+        await streamViaYtDlp(youtubeUrl)
+        await streamViaYtDlp(youtubeUrl)
+
+        expect(spawnArgs(0)).not.toContain('--plugin-dirs')
+        expect(spawnArgs(1)).not.toContain('--plugin-dirs')
+        expect(mockWarnLog).toHaveBeenCalledTimes(1)
+    })
+
+    it('logs the configured provider once, by origin only', async () => {
+        process.env.YTDLP_POT_PROVIDER_URL =
+            'http://user:secret@bgutil-pot:4416'
+        script('ok', 'ok')
+
+        await streamViaYtDlp(youtubeUrl)
+        await streamViaYtDlp(youtubeUrl)
+
+        const potLogs = mockInfoLog.mock.calls.filter(
+            ([entry]) =>
+                (entry as { message: string }).message ===
+                'Bridge: yt-dlp po_token provider configured',
+        )
+        expect(potLogs).toHaveLength(1)
+        expect(JSON.stringify(potLogs[0])).not.toContain('secret')
     })
 })
 

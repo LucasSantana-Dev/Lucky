@@ -166,6 +166,10 @@ describe('collectGenreCandidates', () => {
         cleanSearchQueryMock.mockImplementation(
             (t: unknown, a: unknown) => `${t} ${a}`,
         )
+        artistTagFetcherMock.mockResolvedValue([])
+        createArtistTagFetcherMock.mockReturnValue((...args: unknown[]) =>
+            artistTagFetcherMock(...args),
+        )
     })
 
     function createCtx() {
@@ -187,6 +191,132 @@ describe('collectGenreCandidates', () => {
             autoplayMode: 'similar' as const,
         }
     }
+
+    it.each([
+        [
+            ['metal', 'thrash metal'],
+            ['metal', 'thrash metal'],
+        ],
+        [[], []],
+    ])(
+        'scores a genre pick on its artist tags %j, not the configured tag (#2934)',
+        async (artistTags, expectedTags) => {
+            getTagTopTracksMock.mockResolvedValue([
+                { title: 'Seed', artist: 'Artist' },
+            ])
+            searchLastFmQueryMock.mockResolvedValue([
+                { title: 'T1', author: 'A1', url: 'u1', durationMS: 180_000 },
+            ])
+            artistTagFetcherMock.mockResolvedValue(artistTags)
+
+            await collectGenreCandidates(
+                { player: { search: jest.fn() } } as never,
+                ['rock'],
+                { id: 'user-1' } as never,
+                createCtx(),
+            )
+
+            expect(artistTagFetcherMock).toHaveBeenCalledWith('A1')
+            expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    genreContext: expect.objectContaining({
+                        candidateTags: expectedTags,
+                    }),
+                }),
+            )
+        },
+    )
+
+    it('passes the seed-artist streak to the scorer (#2961)', async () => {
+        getTagTopTracksMock.mockResolvedValue([
+            { title: 'Seed', artist: 'Artist' },
+        ])
+        searchLastFmQueryMock.mockResolvedValue([
+            { title: 'T1', author: 'A1', url: 'u1', durationMS: 180_000 },
+        ])
+
+        await collectGenreCandidates(
+            { player: { search: jest.fn() } } as never,
+            ['rock'],
+            { id: 'user-1' } as never,
+            { ...createCtx(), seedArtistStreak: 1 },
+        )
+
+        expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
+            expect.objectContaining({ seedArtistStreak: 1 }),
+        )
+    })
+
+    it('scores a pick as untagged when its tag lookup fails', async () => {
+        getTagTopTracksMock.mockResolvedValue([
+            { title: 'Seed', artist: 'Artist' },
+        ])
+        searchLastFmQueryMock.mockResolvedValue([
+            { title: 'T1', author: 'A1', url: 'u1', durationMS: 180_000 },
+        ])
+        artistTagFetcherMock.mockRejectedValue(new Error('lastfm down'))
+
+        await collectGenreCandidates(
+            { player: { search: jest.fn() } } as never,
+            ['rock'],
+            { id: 'user-1' } as never,
+            createCtx(),
+        )
+
+        expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                genreContext: expect.objectContaining({ candidateTags: [] }),
+            }),
+        )
+    })
+
+    it('skips the tag lookup for excluded and disliked picks', async () => {
+        getTagTopTracksMock.mockResolvedValue([
+            { title: 'Seed', artist: 'Artist' },
+        ])
+        searchLastFmQueryMock.mockResolvedValue([
+            { title: 'T1', author: 'A1', url: 'u1', durationMS: 180_000 },
+            { title: 'T2', author: 'A2', url: 'u2', durationMS: 180_000 },
+        ])
+        shouldIncludeCandidateMock.mockImplementation(
+            (track: { author: string }) => track.author !== 'A1',
+        )
+        const ctx = createCtx()
+        ctx.dislikedTrackKeys.set('key', 1)
+
+        await collectGenreCandidates(
+            { player: { search: jest.fn() } } as never,
+            ['rock'],
+            { id: 'user-1' } as never,
+            ctx,
+        )
+
+        expect(artistTagFetcherMock).not.toHaveBeenCalled()
+        expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
+    })
+
+    it('looks up tags for only the first few results of each search', async () => {
+        getTagTopTracksMock.mockResolvedValue([
+            { title: 'Seed', artist: 'Artist' },
+        ])
+        searchLastFmQueryMock.mockResolvedValue(
+            Array.from({ length: 6 }, (_, i) => ({
+                title: `T${i}`,
+                author: `A${i}`,
+                url: `u${i}`,
+                durationMS: 180_000,
+            })),
+        )
+
+        await collectGenreCandidates(
+            { player: { search: jest.fn() } } as never,
+            ['rock'],
+            { id: 'user-1' } as never,
+            createCtx(),
+        )
+
+        expect(artistTagFetcherMock).toHaveBeenCalledTimes(3)
+    })
 
     it('does nothing when genres array is empty', async () => {
         const queue = { player: { search: jest.fn() } } as never
@@ -354,6 +484,24 @@ describe('collectBroadFallbackCandidates', () => {
                     candidateTags: ['latin gospel', 'latin christian'],
                 }),
             }),
+        )
+    })
+
+    it('passes the seed-artist streak to the scorer (#2961)', async () => {
+        const searchMock = jest.fn().mockResolvedValue({
+            tracks: [
+                { title: 'Found', author: 'B', url: 'u2', durationMS: 180_000 },
+            ],
+        })
+        const ctx = createAutoplayContext({
+            queue: { player: { search: searchMock } } as never,
+            seedArtistStreak: 1,
+        })
+
+        await collectBroadFallbackCandidates(ctx, new Map())
+
+        expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
+            expect.objectContaining({ seedArtistStreak: 1 }),
         )
     })
 

@@ -1,6 +1,6 @@
 import type { Track } from 'discord-player'
 import type { SessionMood } from './sessionMood'
-import type { RecommendationSignal } from './recommendationBasis.js'
+import type { RecommendationSignal, VetoReason } from './recommendationBasis.js'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
 import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import { detectSpanishMarkers } from '../../../utils/music/languageHeuristics'
@@ -260,11 +260,19 @@ export interface ScoringContext {
      * that appeared recently get a penalty that decays to zero over RECENCY_WINDOW_TRACKS.
      */
     recentArtistIndices?: Map<string, number>
+    /**
+     * How many tracks in a row the current artist has played, current track
+     * included. The same-artist penalty applies only from 2 on, so autoplay
+     * can return to the original artist once (#2961). Unknown keeps it on.
+     */
+    seedArtistStreak?: number
 }
 
 export function calculateRecommendationScore(ctx: ScoringContext): {
     score: number
     signals: RecommendationSignal[]
+    /** Set only on a `-Infinity` score, so the audit log can name the veto. */
+    veto?: VetoReason
 } {
     const {
         candidate,
@@ -287,6 +295,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         replayFrequentTrackIds = new Set(),
         replayFrequentArtists = new Set(),
         recentArtistIndices = new Map<string, number>(),
+        seedArtistStreak,
     } = ctx
     const candidateTags = genreContext.candidateTags ?? []
     const currentTrackTags = genreContext.currentTrackTags ?? []
@@ -317,7 +326,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         hasArtistKey(blockedArtistKeys, candidateAuthor) ||
         hasArtistKey(blockedArtistKeys, candidateArtist)
     ) {
-        return { score: -Infinity, signals: [] }
+        return { score: -Infinity, signals: [], veto: 'blocked-artist' }
     }
 
     const MAX_CANDIDATE_DURATION_MS = 15 * 60 * 1000
@@ -325,15 +334,15 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         candidate.durationMS &&
         candidate.durationMS > MAX_CANDIDATE_DURATION_MS
     ) {
-        return { score: -Infinity, signals: [] }
+        return { score: -Infinity, signals: [], veto: 'too-long' }
     }
 
     const candidateTitle = candidate.title ?? ''
     if (AMBIENT_NOISE_RE.test(candidateTitle)) {
-        return { score: -Infinity, signals: [] }
+        return { score: -Infinity, signals: [], veto: 'ambient-noise' }
     }
     if (EDM_MIX_RE.test(candidateTitle)) {
-        return { score: -Infinity, signals: [] }
+        return { score: -Infinity, signals: [], veto: 'edm-mix' }
     }
 
     let score = 1
@@ -348,7 +357,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     if (sessionMood !== null && sessionMood.dominantLocale === null) {
         const candidateText = `${candidateTitle} ${candidate.author ?? ''}`
         if (detectSpanishMarkers(candidateText, candidateTags)) {
-            return { score: -Infinity, signals: [] }
+            return { score: -Infinity, signals: [], veto: 'cross-locale' }
         }
     }
 
@@ -358,13 +367,10 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     // Mirrors the cross-locale veto above and replaces the post-selection
     // `enrichWithAudioFeatures` pass that depended on Spotify's deprecated
     // audio-features endpoint.
-    // Skip the hard veto during skip storms so the candidate pool broadens.
+    // The veto stays on during skip storms (#2934): skips mean the picks drifted,
+    // so broadening the pool would only drift further.
     const inSkipStorm = (sessionMood?.recentSkipCount ?? 0) >= 3
-    if (
-        !inSkipStorm &&
-        sessionGenreFamilies.size > 0 &&
-        candidateTags.length > 0
-    ) {
+    if (sessionGenreFamilies.size > 0 && candidateTags.length > 0) {
         const candidateFamilies = getGenreFamilies(candidateTags)
         if (candidateFamilies.size > 0) {
             let intersects = false
@@ -383,7 +389,11 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
                     score += GENRE_PENALTY_WEAK
                     signals.push('genre family drift')
                 } else {
-                    return { score: -Infinity, signals: [] }
+                    return {
+                        score: -Infinity,
+                        signals: [],
+                        veto: 'cross-genre',
+                    }
                 }
             }
         }
@@ -395,8 +405,8 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     // otherwise slip through (fail-open — the core of the Prince→Drake drift).
     // Treat untagged candidates as assumed cross-genre and demote them, but
     // keep them in the pool (penalty, not hard reject) so the queue never
-    // stalls; relaxed during skip storms so the pool can broaden.
-    if (!inSkipStorm && candidateTags.length === 0 && sessionHasStrongFamily) {
+    // stalls.
+    if (candidateTags.length === 0 && sessionHasStrongFamily) {
         // Seed-derived untagged candidates are vetted-related to the seed, so a
         // mild penalty (don't assume cross-genre); un-vetted untagged candidates
         // keep the strong fail-closed penalty that blocks mainstream drift.
@@ -434,7 +444,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     const dislikedWeight = dislikedWeights.get(candidateKey)
     if (dislikedWeight !== undefined) {
         if (dislikedWeight > DISLIKE_WEIGHT_THRESHOLD) {
-            return { score: -Infinity, signals: [] }
+            return { score: -Infinity, signals: [], veto: 'disliked' }
         }
         score -= Math.abs(SCORE_DISLIKED_PENALTY) * dislikedWeight
         signals.push('old dislike')
@@ -471,7 +481,9 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     const isDeepDive =
         deepDiveArtist !== null && candidateArtist === deepDiveArtist
     if (candidateArtist === currentArtist) {
-        if (!isDeepDive) {
+        const artistRepeating =
+            seedArtistStreak === undefined || seedArtistStreak >= 2
+        if (!isDeepDive && artistRepeating) {
             // Same-artist penalty reuses the implicit-dislike weight but is a
             // distinct heuristic — do NOT emit the 'implicit dislike' signal
             // here or Phase D telemetry would conflate the two.
@@ -491,6 +503,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         }
     } else if (
         !skipNoveltyBoost &&
+        !sessionMood?.restless &&
         !recentArtists.has(candidateArtist) &&
         !isDeepDive
     ) {
@@ -552,12 +565,6 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         if (sessionMood.preferShort && durationMs > 0 && durationMs < 180_000) {
             score += SCORE_ACOUSTICNESS_MATCH
             signals.push('quick hit match')
-        }
-        if (sessionMood.restless) {
-            if (!recentArtists.has(candidateArtist)) {
-                score += SCORE_ACOUSTICNESS_MATCH
-                signals.push('restless discovery')
-            }
         }
     }
 
@@ -635,7 +642,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
             candidateTags,
         )
         if (inSkipStorm) {
-            familyPenalty *= 0.5
+            familyPenalty *= 2
         }
         if (familyPenalty !== 0) {
             score += familyPenalty
@@ -674,7 +681,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     }
 
     if (autoplayMode === 'discover') {
-        if (!recentArtists.has(candidateArtist)) {
+        if (!recentArtists.has(candidateArtist) && !sessionMood?.restless) {
             score += SCORE_IMPLICIT_LIKE
             signals.push('discovery boost')
         }

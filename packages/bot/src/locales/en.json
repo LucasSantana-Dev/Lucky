@@ -44,7 +44,9 @@
             "notInVoice": "Join a voice channel first.",
             "nothingPlaying": "Nothing is playing right now.",
             "youtubeDisabledTitle": "YouTube is unavailable",
-            "youtubeDisabledDescription": "YouTube isn't available on this bot right now. Try a Spotify or SoundCloud link, or just search by song and artist name."
+            "youtubeDisabledDescription": "YouTube isn't available on this bot right now. Try a Spotify or SoundCloud link, or just search by song and artist name.",
+            "youtubePlaylistUnavailable": "YouTube playlists aren't available right now. Paste the link of a single song, or just type its name.",
+            "youtubeVideoUnavailable": "Couldn't play this YouTube link right now. Try typing the song and artist name instead."
         },
         "nowPlaying": "Now playing {{title}}, don't stop",
         "onboarding": {

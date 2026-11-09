@@ -45,7 +45,7 @@ export function normalizeTrackKey(title?: string, author?: string): string {
 // sits in the last-150 history exclusion. Spread it to the artist instead.
 // Per artist the decayed weights (0.15..1 each) are summed, so two dislikes
 // weigh more than one, and capped so one heavily voted artist stays bounded.
-const ARTIST_FEEDBACK_WEIGHT_CAP = 2
+export const ARTIST_FEEDBACK_WEIGHT_CAP = 2
 
 /**
  * Fold per-track feedback weights ("<title>::<primaryartist>" keys) into

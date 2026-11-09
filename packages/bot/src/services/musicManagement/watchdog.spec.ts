@@ -248,7 +248,10 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         const service = new MusicWatchdogService()
         await service.scanOrphanSessions(player)
 
-        expect(nodes.create).toHaveBeenCalledWith(guild)
+        expect(nodes.create).toHaveBeenCalledWith(
+            guild,
+            expect.objectContaining({ leaveOnEndCooldown: 300_000 }),
+        )
         expect(queue.connect).toHaveBeenCalledWith(voiceChannel)
         expect(restoreSnapshotMock).toHaveBeenCalledWith(queue, undefined, {
             skipCurrentTrack: true,

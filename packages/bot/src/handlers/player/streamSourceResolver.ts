@@ -1,4 +1,7 @@
-import { getStreamBridgeFallbackLabel } from './streamFallbackState'
+import {
+    getStreamBridgeFallbackLabel,
+    getStreamBridgeSource,
+} from './streamFallbackState'
 
 // Hardcoded rather than imported from '@discord-player/extractor' /
 // 'discord-player-spotify' / 'discord-player-youtubei': those packages ship
@@ -15,7 +18,7 @@ const SPOTIFY_EXTRACTOR_IDENTIFIER =
 const SOUNDCLOUD_EXTRACTOR_IDENTIFIER = 'com.discord-player.soundcloudextractor'
 
 export type ActualStreamSource =
-    'youtube' | 'soundcloud-bridge' | 'soundcloud' | 'other'
+    'youtube' | 'youtubei-native' | 'soundcloud-bridge' | 'soundcloud' | 'other'
 
 type ResolvableTrack = {
     metadata?: unknown
@@ -35,6 +38,8 @@ type ResolvableTrack = {
  *   the query matched YouTube directly or was bridged there from Spotify
  *   (`SpotifyExtractor.stream()` always bridges, since Spotify gives
  *   metadata only). No fallback stamp means yt-dlp succeeded.
+ * - `youtubei-native`: yt-dlp failed and the bridge's youtubei.js stage
+ *   streamed the YouTube upload instead (`stampBridgeSource`).
  * - `soundcloud`: the dedicated `SoundCloudExtractor` handled the track
  *   itself (a soundcloud.com URL/search), never touching the bridge.
  * - `other`: Apple Music, Vimeo, Attachment, or any other extractor.
@@ -43,6 +48,7 @@ export function resolveActualStreamSource(
     track: ResolvableTrack,
 ): ActualStreamSource {
     if (getStreamBridgeFallbackLabel(track)) return 'soundcloud-bridge'
+    if (getStreamBridgeSource(track)) return 'youtubei-native'
 
     const identifier = track.extractor?.identifier
     if (identifier === SOUNDCLOUD_EXTRACTOR_IDENTIFIER) return 'soundcloud'

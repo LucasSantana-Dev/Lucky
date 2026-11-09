@@ -30,6 +30,7 @@ import { isUnknownInteractionError } from './play/queryUtils'
 import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from './play/handlers/resolveProvider'
 import { isHostedYoutubeEnabled } from '../../../config/featureFlags'
 import type { CustomClient } from '../../../types/CustomClient'
+import { QUEUE_LEAVE_OPTIONS } from '../../../services/musicManagement/queueLeaveOptions'
 
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 20
@@ -383,10 +384,7 @@ export default new Command({
                         },
                         connectionTimeout:
                             ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-                        leaveOnEmpty: true,
-                        leaveOnEmptyCooldown: 30_000,
-                        leaveOnEnd: true,
-                        leaveOnEndCooldown: 300_000,
+                        ...QUEUE_LEAVE_OPTIONS,
                     },
                     requestedBy: interaction.user,
                     searchEngine:

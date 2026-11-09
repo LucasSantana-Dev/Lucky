@@ -8,6 +8,7 @@ describe('recommendationSourceToPrisma', () => {
         ['spotify-taste', PrismaRecommendationSource.SPOTIFY_TASTE],
         ['seed-similar', PrismaRecommendationSource.SEED_SIMILAR],
         ['lastfm-loved', PrismaRecommendationSource.LASTFM_LOVED],
+        ['lastfm-profile', PrismaRecommendationSource.LASTFM_PROFILE],
         ['lastfm-similar', PrismaRecommendationSource.LASTFM_SIMILAR],
         [
             'lastfm-genre-fallback',
