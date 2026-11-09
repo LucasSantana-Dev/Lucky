@@ -140,6 +140,15 @@ describe('resolveQueryWithFallbacks with a YouTube link', () => {
         await expect(resolve(VIDEO_URL)).rejects.toBe(linkError)
     })
 
+    it('reports a non-search failure of the title search as is', async () => {
+        const voiceError = new Error('Cannot connect to voice')
+        player.play
+            .mockRejectedValueOnce(new NoResultError('No results found'))
+            .mockRejectedValue(voiceError)
+
+        await expect(resolve(VIDEO_URL)).rejects.toBe(voiceError)
+    })
+
     it('rethrows the link error when oEmbed has no title', async () => {
         const linkError = new NoResultError('No results found for link')
         player.play.mockRejectedValueOnce(linkError)

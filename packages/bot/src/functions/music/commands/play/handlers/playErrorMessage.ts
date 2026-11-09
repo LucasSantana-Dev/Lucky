@@ -32,12 +32,12 @@ export function resolvePlayErrorMessage(
     if (error instanceof YoutubePlaylistUnavailableError) {
         return t
             ? t('music.errors.youtubePlaylistUnavailable')
-            : 'YouTube playlists are not available right now. Paste the link of a single song, or type its name.'
+            : "YouTube playlists aren't available right now. Paste the link of a single song, or just type its name."
     }
     if (error instanceof YoutubeVideoUnavailableError) {
         return t
             ? t('music.errors.youtubeVideoUnavailable')
-            : 'Could not play this YouTube link right now. Try typing the song name instead.'
+            : "Couldn't play this YouTube link right now. Try typing the song and artist name instead."
     }
 
     const isNoResultsError =

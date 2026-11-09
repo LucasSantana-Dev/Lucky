@@ -124,6 +124,8 @@ describe('parseYoutubeLink', () => {
             'dQw4w9WgXcQ',
         ],
         ['https://www.youtube.com/shorts/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
+        ['https://www.youtube.com/embed/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
+        ['  https://youtu.be/dQw4w9WgXcQ  ', 'dQw4w9WgXcQ'],
     ])('reads %s as video %s', (url, videoId) => {
         expect(parseYoutubeLink(url)).toEqual({ kind: 'video', videoId })
     })
@@ -131,6 +133,7 @@ describe('parseYoutubeLink', () => {
     it.each([
         'https://www.youtube.com/playlist?list=PLabc',
         'https://music.youtube.com/playlist?list=OLAKabc',
+        'https://www.youtube.com/watch?list=PLabc',
     ])('reads %s as a playlist', (url) => {
         expect(parseYoutubeLink(url)).toEqual({ kind: 'playlist' })
     })

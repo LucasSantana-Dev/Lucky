@@ -144,6 +144,9 @@ describe('resolvePlayErrorMessage for YouTube links', () => {
     it('falls back to English without a translator', () => {
         expect(
             resolvePlayErrorMessage(new YoutubePlaylistUnavailableError()),
-        ).toMatch(/playlists are not available/i)
+        ).toMatch(/playlists aren't available/i)
+        expect(
+            resolvePlayErrorMessage(new YoutubeVideoUnavailableError()),
+        ).toMatch(/couldn't play this youtube link/i)
     })
 })

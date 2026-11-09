@@ -63,12 +63,19 @@ export function parseYoutubeLink(query: string): YoutubeLink | null {
     }
 
     const path = parsed.pathname.replace(/\/+$/, '')
-    if (path === '/watch') return video(parsed.searchParams.get('v'))
-    if (path.startsWith('/shorts/') || path.startsWith('/live/')) {
+    const hasList = Boolean(parsed.searchParams.get('list'))
+    if (path === '/watch') {
+        const id = parsed.searchParams.get('v')
+        if (!id && hasList) return { kind: 'playlist' }
+        return video(id)
+    }
+    if (
+        path.startsWith('/shorts/') ||
+        path.startsWith('/live/') ||
+        path.startsWith('/embed/')
+    ) {
         return video(path.split('/')[2])
     }
-    if (path === '/playlist' && parsed.searchParams.get('list')) {
-        return { kind: 'playlist' }
-    }
+    if (path === '/playlist' && hasList) return { kind: 'playlist' }
     return null
 }

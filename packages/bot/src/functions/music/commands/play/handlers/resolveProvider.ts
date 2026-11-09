@@ -362,9 +362,12 @@ async function resolveYoutubeLinkByTitle(
             },
         }
     } catch (textError) {
-        // Report the link's own failure when there was one; the title
-        // search is a best effort on top of it.
-        throw linkError ?? textError
+        // When the title search also found nothing, report the link's own
+        // failure; any other error (voice, stream) is the real problem.
+        if (linkError !== undefined && isLinkUnresolvedError(textError)) {
+            throw linkError
+        }
+        throw textError
     }
 }
 
