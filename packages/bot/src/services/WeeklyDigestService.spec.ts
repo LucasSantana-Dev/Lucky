@@ -649,7 +649,11 @@ describe('WeeklyDigestService', () => {
             expect(digestChannel.send).toHaveBeenCalled()
             expect(warnLog).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    message: 'rss feed unavailable — skipping guides section',
+                    message: 'rss feed unavailable, skipping guides section',
+                    error: expect.any(Error),
+                    data: expect.objectContaining({
+                        reason: 'Feed unavailable',
+                    }),
                 }),
             )
         })

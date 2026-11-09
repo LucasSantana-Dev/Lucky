@@ -395,7 +395,8 @@ export class WeeklyDigestService {
             // A 404 or network hiccup on an external feed is not actionable;
             // log at warn so it doesn't page oncall (LUCKY-4X).
             warnLog({
-                message: 'rss feed unavailable — skipping guides section',
+                message: 'rss feed unavailable, skipping guides section',
+                error,
                 data: {
                     feedUrl:
                         process.env.CRIATIVARIA_GUIDES_FEED_URL ||
