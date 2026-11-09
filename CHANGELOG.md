@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.66.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.66.0...v2.66.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **bot:** set the cookies retry budget just above the measured p100 (12s) ([#2928](https://github.com/LucasSantana-Dev/Lucky/issues/2928)) ([08c2ff7](https://github.com/LucasSantana-Dev/Lucky/commit/08c2ff7c3c71b07aeae3a1b83f994508414ca72b))
+
 ## [2.66.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.65.0...v2.66.0) (2026-11-09)
 
 
