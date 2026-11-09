@@ -1049,6 +1049,53 @@ describe('replenisher seam functions', () => {
             expect(callArgs[2]).toBe(5)
             expect(callArgs[4]).toBe('michael jackson')
         })
+
+        it('keeps the reserved anchor first after the popularity rerank (#2961)', async () => {
+            const { selectDiverseCandidates } = require('./diversitySelector')
+            const { interleaveByArtist } = require('../candidateFallback')
+            const { spotifyLinkService } = require('@lucky/shared/services')
+            const {
+                getArtistPopularity,
+            } = require('../../../spotify/spotifyApi')
+            const anchor = {
+                track: createTrack({ title: 'Anchor', author: 'Seed Artist' }),
+                score: 1,
+                basis: { source: 'seed-similar', signals: [] },
+            }
+            const liked = {
+                track: createTrack({ title: 'Liked', author: 'Big Star' }),
+                score: 0.95,
+                basis: { source: 'lastfm-loved', signals: [] },
+            }
+            selectDiverseCandidates.mockReturnValue([anchor, liked])
+            interleaveByArtist.mockImplementation((tracks: any[]) => tracks)
+            spotifyLinkService.getValidAccessToken.mockResolvedValue('token')
+            getArtistPopularity.mockImplementation(
+                async (_t: string, a: string) => (a === 'Big Star' ? 100 : 0),
+            )
+            const mood = {
+                deepDiveArtist: null,
+                preferLong: false,
+                preferShort: false,
+                restless: false,
+                dominantLocale: null,
+            }
+
+            const ranked = await selectAndRerankCandidates(
+                new Map(),
+                2,
+                mood,
+                createTrack(),
+                'similar',
+                { id: 'user-1' } as never,
+                true,
+            )
+
+            expect(ranked.map((t) => t.track.title)).toEqual([
+                'Anchor',
+                'Liked',
+            ])
+        })
     })
 
     describe('enqueueAndFinalize', () => {

@@ -227,6 +227,26 @@ describe('collectGenreCandidates', () => {
         },
     )
 
+    it('passes the seed-artist streak to the scorer (#2961)', async () => {
+        getTagTopTracksMock.mockResolvedValue([
+            { title: 'Seed', artist: 'Artist' },
+        ])
+        searchLastFmQueryMock.mockResolvedValue([
+            { title: 'T1', author: 'A1', url: 'u1', durationMS: 180_000 },
+        ])
+
+        await collectGenreCandidates(
+            { player: { search: jest.fn() } } as never,
+            ['rock'],
+            { id: 'user-1' } as never,
+            { ...createCtx(), seedArtistStreak: 1 },
+        )
+
+        expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
+            expect.objectContaining({ seedArtistStreak: 1 }),
+        )
+    })
+
     it('scores a pick as untagged when its tag lookup fails', async () => {
         getTagTopTracksMock.mockResolvedValue([
             { title: 'Seed', artist: 'Artist' },
@@ -464,6 +484,24 @@ describe('collectBroadFallbackCandidates', () => {
                     candidateTags: ['latin gospel', 'latin christian'],
                 }),
             }),
+        )
+    })
+
+    it('passes the seed-artist streak to the scorer (#2961)', async () => {
+        const searchMock = jest.fn().mockResolvedValue({
+            tracks: [
+                { title: 'Found', author: 'B', url: 'u2', durationMS: 180_000 },
+            ],
+        })
+        const ctx = createAutoplayContext({
+            queue: { player: { search: searchMock } } as never,
+            seedArtistStreak: 1,
+        })
+
+        await collectBroadFallbackCandidates(ctx, new Map())
+
+        expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
+            expect.objectContaining({ seedArtistStreak: 1 }),
         )
     })
 

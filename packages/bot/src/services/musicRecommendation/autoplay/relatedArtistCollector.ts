@@ -3,16 +3,16 @@ import { debugLog, warnLog } from '@lucky/shared/utils'
 import { getArtistTopTracks, getSimilarArtists } from '../../../lastfm'
 import { createArtistTagFetcher } from './artistTagCache'
 import { cleanSearchQuery } from '../../../utils/music/searchQueryCleaner'
-import type { AutoplayContext } from './autoplayContext'
-import { calculateRecommendationScore } from './candidateScorer'
-import { normalizeTrackKey } from './scoringUtils'
 import {
-    shouldIncludeCandidate,
-    upsertScoredCandidate,
-} from './candidateCollector'
+    primaryArtistKey,
+    primaryArtistName,
+} from '../../../utils/music/trackNormalization'
+import type { AutoplayContext } from './autoplayContext'
+import { normalizeTrackKey } from './scoringUtils'
 import type { ScoredTrack } from './diversitySelector'
 import type { AutoplayAuditCollector } from './autoplayAudit'
 import { searchLastFmQuery } from './lastFmSeeder'
+import { addSeedDerivedHits } from './seedDerivedHits'
 
 // Same boost as the seed-similar spine: these picks are seed-grounded too.
 const RELATED_ARTIST_BOOST = 0.25
@@ -131,7 +131,7 @@ async function collectRelatedArtistCandidatesUnsafe(
     auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {
     const seed = ctx.anchorTrack ?? ctx.currentTrack
-    const seedArtist = (seed.author ?? '').split(',')[0].trim()
+    const seedArtist = primaryArtistName(seed.author ?? '')
     if (!seedArtist) return
 
     const picks = await buildPicks(ctx, seedArtist)
@@ -139,62 +139,24 @@ async function collectRelatedArtistCandidatesUnsafe(
 
     const getArtistTags =
         ctx.genreContext.getArtistTags ?? createArtistTagFetcher()
-    const currentTrackTags = ctx.genreContext.currentTrackTags ?? []
-    const sessionGenreFamilies =
-        ctx.genreContext.sessionGenreFamilies ?? new Set<string>()
     const before = candidates.size
 
     for (const pick of picks) {
         const query = cleanSearchQuery(pick.title, pick.artist)
         const tracks = await searchLastFmQuery(ctx.queue, query, requestedBy)
-        const track = tracks.find((t) =>
-            shouldIncludeCandidate(
-                t,
-                ctx.excludedUrls,
-                ctx.excludedKeys,
-                candidates,
-            ),
-        )
-        if (!track) continue
-        const dislikedWeight = ctx.dislikedWeights.get(
-            normalizeTrackKey(track.title, track.author),
-        )
-        if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
-        const rec = calculateRecommendationScore({
-            candidate: track,
-            currentTrack: ctx.currentTrack,
-            recentArtists: ctx.recentArtists,
-            likedWeights: ctx.likedWeights,
-            likedArtistWeights: ctx.likedArtistWeights,
-            dislikedArtistWeights: ctx.dislikedArtistWeights,
-            preferredArtistKeys: ctx.preferredArtistKeys,
-            blockedArtistKeys: ctx.blockedArtistKeys,
-            autoplayMode: ctx.autoplayMode,
-            artistFrequency: ctx.artistFrequency,
-            recentArtistIndices: ctx.recentArtistIndices,
-            seedArtistStreak: ctx.seedArtistStreak,
-            implicitDislikeKeys: ctx.implicitDislikeKeys,
-            implicitLikeKeys: ctx.implicitLikeKeys,
-            dislikedWeights: ctx.dislikedWeights,
-            sessionMood: ctx.sessionMood,
-            skipNoveltyBoost: true,
-            seedDerived: true,
-            genreContext: {
-                candidateTags: await getArtistTags(track.author),
-                currentTrackTags,
-                sessionGenreFamilies,
-            },
-            replayFrequentTrackIds: ctx.replayFrequentTrackIds,
-            replayFrequentArtists: ctx.replayFrequentArtists,
-        })
-        upsertScoredCandidate(
+        // One track per pick, by the pick's artist: a cover or a title-only
+        // match must not take the seed-similar anchor slot.
+        const pickArtist = primaryArtistKey(pick.artist)
+        await addSeedDerivedHits(
+            ctx,
+            tracks,
             candidates,
-            track,
             {
-                score: (rec.score + RELATED_ARTIST_BOOST) * pick.weight,
-                source: 'seed-similar',
-                signals: rec.signals,
-                veto: rec.veto,
+                boost: RELATED_ARTIST_BOOST,
+                weight: pick.weight,
+                getArtistTags,
+                accept: (t) => primaryArtistKey(t.author) === pickArtist,
+                limit: 1,
             },
             auditCollector,
         )

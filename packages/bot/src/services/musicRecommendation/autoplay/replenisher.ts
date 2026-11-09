@@ -970,6 +970,7 @@ export async function collectAllCandidates(
                 implicitDislikeKeys: autoplayContext.implicitDislikeKeys,
                 implicitLikeKeys: autoplayContext.implicitLikeKeys,
                 sessionMood: autoplayContext.sessionMood,
+                seedArtistStreak: autoplayContext.seedArtistStreak,
                 genreContext: {
                     currentTrackTags:
                         autoplayContext.genreContext.currentTrackTags,
@@ -1053,6 +1054,11 @@ export async function selectAndRerankCandidates(
     )
 
     const enriched = selected
+    // The selector put the reserved anchor first; the rerank must not undo it.
+    const anchor =
+        reserveAnchor && enriched[0]?.basis.source === 'seed-similar'
+            ? enriched[0]
+            : undefined
 
     if (requestedBy?.id) {
         const token = await Promise.resolve(
@@ -1076,7 +1082,11 @@ export async function selectAndRerankCandidates(
                     track.score += popularityBoost(autoplayMode, popularity)
                 }),
             )
-            enriched.sort((a, b) => b.score - a.score)
+            enriched.sort(
+                (a, b) =>
+                    Number(b === anchor) - Number(a === anchor) ||
+                    b.score - a.score,
+            )
         }
     }
 

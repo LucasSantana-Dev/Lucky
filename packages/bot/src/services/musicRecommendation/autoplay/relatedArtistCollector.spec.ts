@@ -218,4 +218,112 @@ describe('collectRelatedArtistCandidates (#2961)', () => {
             ),
         ).toHaveLength(1)
     })
+    it.each(['Seed Artist feat. Guest', 'Seed Artist - Topic'])(
+        'looks up the primary artist of %j',
+        async (author) => {
+            await run(
+                createContext({
+                    currentTrack: createTrack('Seed Song', author),
+                }),
+            )
+
+            expect(getSimilarArtistsMock).toHaveBeenCalledWith(
+                'Seed Artist',
+                expect.any(Number),
+            )
+        },
+    )
+
+    it('skips a hit by another artist and takes the next one', async () => {
+        searchLastFmQueryMock.mockImplementation(
+            async (_queue: unknown, query: unknown) => {
+                const [title, author] = String(query).split(' | ')
+                return [
+                    createTrack(title, 'Cover Band'),
+                    createTrack(title, author),
+                ]
+            },
+        )
+
+        await run()
+
+        const added = (upsertScoredCandidateMock.mock.calls as Upsert[]).map(
+            ([, track]) => track.author,
+        )
+        expect(added).not.toContain('Cover Band')
+        expect(added).toContain('Seed Artist')
+    })
+
+    it('skips a disliked hit', async () => {
+        await run(
+            createContext({
+                dislikedWeights: new Map([
+                    [normalizeTrackKey('Hit A', 'Seed Artist'), 1],
+                ]),
+            }),
+        )
+
+        expect(upserts().map((u) => u.title)).not.toContain('Hit A')
+    })
+
+    it('tries the next hit when the first one is vetoed', async () => {
+        searchLastFmQueryMock.mockImplementation(
+            async (_queue: unknown, query: unknown) => {
+                const [title, author] = String(query).split(' | ')
+                return [
+                    createTrack(`${title} (Vetoed)`, author),
+                    createTrack(title, author),
+                ]
+            },
+        )
+        calculateRecommendationScoreMock.mockImplementation((input: unknown) =>
+            (input as { candidate: Track }).candidate.title.endsWith('(Vetoed)')
+                ? { score: -Infinity, signals: [], veto: 'genre' }
+                : { score: 0.5, signals: [] },
+        )
+
+        await run()
+
+        expect(upserts().map((u) => u.title)).toContain('Hit A')
+    })
+
+    it('still adds the other picks when one lookup times out', async () => {
+        jest.useFakeTimers()
+        try {
+            getArtistTopTracksMock.mockImplementation((artist: unknown) => {
+                if (artist === 'Close Band') return new Promise(() => {})
+                if (artist === 'Seed Artist')
+                    return Promise.resolve([
+                        { artist: 'Seed Artist', title: 'Hit A' },
+                    ])
+                return Promise.resolve([
+                    { artist: String(artist), title: `${artist} Hit` },
+                ])
+            })
+
+            const done = run()
+            await jest.advanceTimersByTimeAsync(2000)
+            await done
+
+            expect(upserts().map((u) => u.title)).toEqual([
+                'Hit A',
+                'Far Band Hit',
+            ])
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    it('refetches the Last.fm lookups after the cache expires', async () => {
+        const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000)
+        try {
+            await run()
+            now.mockReturnValue(1_000_000 + 60 * 60 * 1000 + 1)
+            await run()
+
+            expect(getSimilarArtistsMock).toHaveBeenCalledTimes(2)
+        } finally {
+            now.mockRestore()
+        }
+    })
 })

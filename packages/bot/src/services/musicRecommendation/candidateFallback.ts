@@ -52,6 +52,7 @@ export interface CandidateContext {
     implicitDislikeKeys?: Set<string>
     implicitLikeKeys?: Set<string>
     sessionMood?: SessionMood | null
+    seedArtistStreak?: number
     genreContext?: {
         currentTrackTags?: string[]
         sessionGenreFamilies?: Set<string>
@@ -95,6 +96,7 @@ function addGenreTrackCandidate(
         implicitLikeKeys: ctx.implicitLikeKeys,
         dislikedWeights: ctx.dislikedTrackKeys,
         sessionMood: ctx.sessionMood,
+        seedArtistStreak: ctx.seedArtistStreak,
         genreContext: {
             candidateTags,
             currentTrackTags: ctx.genreContext?.currentTrackTags,
@@ -186,6 +188,7 @@ export async function collectBroadFallbackCandidates(
                     implicitLikeKeys: ctx.implicitLikeKeys,
                     dislikedWeights: ctx.dislikedWeights,
                     sessionMood: ctx.sessionMood,
+                    seedArtistStreak: ctx.seedArtistStreak,
                     genreContext: {
                         candidateTags,
                         currentTrackTags,
