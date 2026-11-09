@@ -138,7 +138,9 @@ export class AutoplayAuditCollector {
             timestamp: now,
             seed,
             sessionMood: summarizeMood(sessionMood),
-            sessionGenreFamilies: Array.from(sessionGenreFamilies).sort(),
+            sessionGenreFamilies: Array.from(sessionGenreFamilies).sort(
+                (a, b) => a.localeCompare(b),
+            ),
             evaluated: capped.map((e) => ({
                 ...e,
                 score: serializeScore(e.score),
