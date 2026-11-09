@@ -20,12 +20,6 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
 }))
 
-// skipCircuitBreaker (imported transitively via replenisher) pulls in this shared
-// service, whose real module loads prismaClient (import.meta). Factory-mock it.
-jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
-    getAutoplaySkipRateForGuild: jest.fn(),
-}))
-
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: jest.fn(),
@@ -52,6 +46,7 @@ jest.mock('../../../services/musicRecommendation/feedbackService', () => ({
         getPreferredArtistKeys: jest.fn(),
         getBlockedArtistKeys: jest.fn(),
         getGuildImplicitDislikeKeys: jest.fn(),
+        getGuildImplicitArtistDislikeWeights: jest.fn(),
     },
 }))
 
@@ -134,6 +129,7 @@ function createGuildQueue(overrides: Partial<GuildQueue> = {}): GuildQueue {
         currentTrack: createTrack(),
         metadata: {},
         history: { tracks: { toArray: () => [] } },
+        addTrack: jest.fn(),
         ...overrides,
     } as GuildQueue
 }
@@ -151,6 +147,9 @@ describe('replenishQueue', () => {
         feedbackSvc.getPreferredArtistKeys.mockResolvedValue(new Set())
         feedbackSvc.getBlockedArtistKeys.mockResolvedValue(new Set())
         feedbackSvc.getGuildImplicitDislikeKeys.mockReturnValue(new Set())
+        feedbackSvc.getGuildImplicitArtistDislikeWeights.mockReturnValue(
+            new Map(),
+        )
 
         const {
             trackHistoryService,
@@ -248,7 +247,7 @@ describe('replenishQueue', () => {
                     seedSimilar: { skipped: true },
                     lastfm: { skipped: true },
                     fallback: 0,
-                    genre: { skipped: true },
+                    genre: { skipped: true, reason: 'no-requester' },
                 }),
                 rejected: expect.objectContaining({
                     hardReject: 0,
@@ -298,6 +297,112 @@ describe('replenishQueue', () => {
         expect(collectSeedSimilarCandidates).toHaveBeenCalled()
         expect(call[0].data.sources.seedSimilar).toBe(0)
         expect(call[0].data.hasRequester).toBe(true)
+    })
+
+    // #2870: all collectors returned empty — history replay fallback
+    // Production's exclusion set already contains every history URL, so the
+    // replay filter must not rely on it. Model that here.
+    function mockProductionExclusions(urls: string[]): void {
+        const {
+            buildExcludedUrls,
+            addSelectedTracks,
+        } = require('./diversitySelector')
+        buildExcludedUrls.mockReturnValue(new Set(urls))
+        addSelectedTracks.mockImplementation(
+            async (q: GuildQueue, selected: { track: Track }[]) => {
+                for (const s of selected) q.addTrack(s.track)
+            },
+        )
+    }
+
+    it('replays guild history when every collector returns empty', async () => {
+        const { warnLog } = require('@lucky/shared/utils')
+        const { addSelectedTracks } = require('./diversitySelector')
+        const historyTrack = createTrack({
+            id: 'hist1',
+            url: 'https://open.spotify.com/track/hist1',
+            title: 'History Song',
+        })
+        mockProductionExclusions([historyTrack.url])
+        const queue = createGuildQueue({
+            history: { tracks: { toArray: () => [historyTrack] } },
+        } as Partial<GuildQueue>)
+
+        await replenishQueue(queue)
+
+        const replayCall = warnLog.mock.calls.find(
+            ([arg]: [{ message: string }]) =>
+                arg.message ===
+                'Autoplay: replaying history tracks, all collectors empty',
+        )
+        expect(replayCall).toBeDefined()
+        expect(replayCall[0].data.replayed).toContain('History Song')
+        expect(queue.addTrack).toHaveBeenCalledWith(historyTrack)
+        // Routed through the shared autoplay marking/telemetry path.
+        expect(addSelectedTracks).toHaveBeenCalledTimes(1)
+        expect(addSelectedTracks.mock.calls[0][1][0].track).toBe(historyTrack)
+    })
+
+    it('does not replay the current track or already queued tracks', async () => {
+        const current = createTrack({ id: 'cur', url: 'https://x/cur' })
+        const queued = createTrack({ id: 'q1', url: 'https://x/q1' })
+        const fresh = createTrack({ id: 'h1', url: 'https://x/h1' })
+        mockProductionExclusions([current.url, queued.url, fresh.url])
+        const queue = createGuildQueue({
+            currentTrack: current,
+            history: { tracks: { toArray: () => [current, queued, fresh] } },
+        } as Partial<GuildQueue>)
+        ;(queue.tracks as any).set('q1', queued)
+
+        await replenishQueue(queue)
+
+        const added = (queue.addTrack as jest.Mock).mock.calls.map(
+            ([t]: [Track]) => t.url,
+        )
+        expect(added).toEqual(['https://x/h1'])
+    })
+
+    it('still warns about empty pool before replaying history', async () => {
+        const { warnLog } = require('@lucky/shared/utils')
+        const historyTrack = createTrack({
+            id: 'hist1',
+            url: 'https://open.spotify.com/track/hist1',
+        })
+        mockProductionExclusions([historyTrack.url])
+        const queue = createGuildQueue({
+            history: { tracks: { toArray: () => [historyTrack] } },
+        } as Partial<GuildQueue>)
+
+        await replenishQueue(queue)
+
+        const stallIndex = warnLog.mock.calls.findIndex(
+            ([arg]: [{ message: string }]) =>
+                arg.message ===
+                'Autoplay: no candidates selected — queue may stall',
+        )
+        const replayIndex = warnLog.mock.calls.findIndex(
+            ([arg]: [{ message: string }]) =>
+                arg.message ===
+                'Autoplay: replaying history tracks, all collectors empty',
+        )
+        expect(stallIndex).toBeGreaterThanOrEqual(0)
+        expect(replayIndex).toBeGreaterThan(stallIndex)
+        expect(queue.addTrack).toHaveBeenCalled()
+    })
+
+    it('does not attempt history replay when history is also empty', async () => {
+        const { warnLog } = require('@lucky/shared/utils')
+        const queue = createGuildQueue()
+
+        await replenishQueue(queue)
+
+        const replayCall = warnLog.mock.calls.find(
+            ([arg]: [{ message: string }]) =>
+                arg.message ===
+                'Autoplay: replaying history tracks, all collectors empty',
+        )
+        expect(replayCall).toBeUndefined()
+        expect((queue.addTrack as jest.Mock).mock.calls.length).toBe(0)
     })
 
     it('should serialize concurrent calls with locks', async () => {
@@ -421,7 +526,7 @@ describe('replenishQueue', () => {
             new Error('Test error'),
         )
 
-        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+        await expect(replenishQueue(queue)).resolves.toBe(false)
 
         const { errorLog } = require('@lucky/shared/utils')
         expect(errorLog).toHaveBeenCalledWith(
@@ -743,12 +848,19 @@ describe('replenishQueue', () => {
         )
         expect(auditCalls).toHaveLength(1)
         expect(auditCalls[0][0].data.selected).toEqual([])
+        // #2957: the mood and genre families the scorer vetoed against must
+        // reach the log, not just a locale string.
+        expect(auditCalls[0][0].data.sessionGenreFamilies).toEqual(
+            expect.any(Array),
+        )
+        expect(auditCalls[0][0].data).not.toHaveProperty('sessionMoodSummary')
+        expect(auditCalls[0][0].data).toHaveProperty('sessionMood')
         expect(auditCalls[0][0].data.sourceCounts).toEqual(
             expect.objectContaining({
                 recommendation: 0,
                 seedSimilar: { skipped: true },
                 lastfm: { skipped: true },
-                genre: { skipped: true },
+                genre: { skipped: true, reason: 'no-requester' },
             }),
         )
     })
@@ -779,7 +891,7 @@ describe('replenishQueue', () => {
         })
 
         // Verify replenishQueue executes without error
-        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+        await expect(replenishQueue(queue)).resolves.toBe(true)
 
         // Verify guildSettingsService.getGuildSettings was called
         expect(guildSettingsService.getGuildSettings).toHaveBeenCalledWith(
@@ -799,7 +911,7 @@ describe('replenishQueue', () => {
         })
 
         // Verify replenishQueue executes without error
-        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+        await expect(replenishQueue(queue)).resolves.toBe(true)
 
         // Verify guildSettingsService.getGuildSettings was called
         expect(guildSettingsService.getGuildSettings).toHaveBeenCalledWith(
@@ -818,7 +930,7 @@ describe('replenishQueue', () => {
         })
 
         // Verify replenishQueue executes without error
-        await expect(replenishQueue(queue)).resolves.toBeUndefined()
+        await expect(replenishQueue(queue)).resolves.toBe(true)
 
         // Verify guildSettingsService.getGuildSettings was called
         expect(guildSettingsService.getGuildSettings).toHaveBeenCalledWith(

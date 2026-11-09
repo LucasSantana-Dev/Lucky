@@ -14,6 +14,7 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { trackSource } from '../../utils/music/trackFields'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
 import { isHost } from '../../utils/general/urlHost'
+import { textSearchBlockOptions } from '../../functions/music/commands/play/handlers/resolveProvider'
 
 /**
  * Extracts the structured Prisma error fields (`code` + `meta`) for logging.
@@ -397,10 +398,10 @@ export class MusicSessionSnapshotService {
                     }
                     const query =
                         entry.url || `${entry.title} ${entry.author}`.trim()
-                    const result = await queue.player.search(
-                        query,
-                        searchOptions,
-                    )
+                    const result = await queue.player.search(query, {
+                        ...searchOptions,
+                        ...textSearchBlockOptions(query),
+                    })
                     // Re-check after the await — the deadline may have elapsed during
                     // the search, so don't enqueue this track post-abort.
                     if (options.signal?.aborted) {

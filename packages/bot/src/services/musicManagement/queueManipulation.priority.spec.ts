@@ -1,8 +1,5 @@
 import { jest } from '@jest/globals'
 
-jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
-    getAutoplaySkipRateForGuild: jest.fn(),
-}))
 import { replenishQueue } from './queueManipulation'
 
 jest.mock('lru-cache', () => ({
@@ -126,6 +123,7 @@ jest.mock('../../services/musicRecommendation/feedbackService', () => ({
             getImplicitLikeKeysMock(...args),
         getGuildImplicitDislikeKeys: (...args: unknown[]) =>
             getGuildImplicitDislikeKeysMock(...args),
+        getGuildImplicitArtistDislikeWeights: () => new Map(),
     },
 }))
 
@@ -619,11 +617,19 @@ describe('queueManipulation — diversity improvements', () => {
 
         await replenishQueue(queue as unknown as GuildQueue)
 
-        if (queue.addTrack.mock.calls.length > 0) {
-            const addedTrack = queue.addTrack.mock.calls[0][0] as {
-                metadata: { recommendationReason: string }
-            }
-            expect(addedTrack.metadata.recommendationReason).toContain(
+        // An empty pool may also replay history tracks (#2870), so look up
+        // the Latin candidate itself instead of the first added track.
+        const latinTrack = queue.addTrack.mock.calls
+            .map(
+                (call) =>
+                    call[0] as {
+                        url: string
+                        metadata: { recommendationReason: string }
+                    },
+            )
+            .find((t) => t.url === 'https://example.com/latin')
+        if (latinTrack) {
+            expect(latinTrack.metadata.recommendationReason).toContain(
                 'genre mismatch: latin/spanish',
             )
         }

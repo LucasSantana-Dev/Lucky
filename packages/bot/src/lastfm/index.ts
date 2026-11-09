@@ -5,6 +5,8 @@ export {
     getTrackMetadata,
     getRecentTracks,
     getSimilarTracks,
+    getSimilarArtists,
+    getArtistTopTracks,
     getArtistTopTags,
     getTagTopTracks,
     getLovedTracks,

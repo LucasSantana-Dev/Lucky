@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals'
-import { detectQueryType } from './queryDetector'
+import { detectQueryType, parseYoutubeLink } from './queryDetector'
 
 describe('detectQueryType', () => {
     describe('youtube detection', () => {
@@ -108,5 +108,45 @@ describe('detectQueryType', () => {
         it('returns search for artist name that contains url-like text', () => {
             expect(detectQueryType('https search something')).toBe('search')
         })
+    })
+})
+
+describe('parseYoutubeLink', () => {
+    it.each([
+        ['https://www.youtube.com/watch?v=dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
+        ['https://youtu.be/dQw4w9WgXcQ?si=abc', 'dQw4w9WgXcQ'],
+        [
+            'https://music.youtube.com/watch?v=dQw4w9WgXcQ&feature=share',
+            'dQw4w9WgXcQ',
+        ],
+        [
+            'https://m.youtube.com/watch?v=dQw4w9WgXcQ&list=PLabc&index=2',
+            'dQw4w9WgXcQ',
+        ],
+        ['https://www.youtube.com/shorts/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
+        ['https://www.youtube.com/embed/dQw4w9WgXcQ', 'dQw4w9WgXcQ'],
+        ['  https://youtu.be/dQw4w9WgXcQ  ', 'dQw4w9WgXcQ'],
+    ])('reads %s as video %s', (url, videoId) => {
+        expect(parseYoutubeLink(url)).toEqual({ kind: 'video', videoId })
+    })
+
+    it.each([
+        'https://www.youtube.com/playlist?list=PLabc',
+        'https://music.youtube.com/playlist?list=OLAKabc',
+        'https://www.youtube.com/watch?list=PLabc',
+    ])('reads %s as a playlist', (url) => {
+        expect(parseYoutubeLink(url)).toEqual({ kind: 'playlist' })
+    })
+
+    it.each([
+        'never gonna give you up',
+        'youtube.com/watch?v=dQw4w9WgXcQ',
+        'https://www.youtube.com/@somechannel',
+        'https://www.youtube.com/playlist',
+        'https://www.youtube.com/watch?v=',
+        'https://evil-youtube.com.attacker.tld/watch?v=dQw4w9WgXcQ',
+        'https://open.spotify.com/track/abc',
+    ])('ignores %s', (query) => {
+        expect(parseYoutubeLink(query)).toBeNull()
     })
 })

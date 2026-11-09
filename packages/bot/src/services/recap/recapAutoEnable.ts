@@ -1,12 +1,15 @@
 import type { Guild } from 'discord.js'
 import { recordActivationEvent } from '@lucky/shared/services'
-import { debugLog, infoLog } from '@lucky/shared/utils'
+import { infoLog } from '@lucky/shared/utils'
 import { resolveRecapChannel } from './recapScheduler'
 import { autoEnableRecap } from './recapStore'
 
 // Guilds this process already tried, so a busy guild costs one write per
 // restart rather than one per /play.
 const tried = new Set<string>()
+// Guilds whose unusable play channel was already reported, so a session of
+// plays from a voice channel chat logs one line, not one per play.
+const reportedSkips = new Set<string>()
 
 /**
  * Turns the weekly recap on in the channel of a guild's first successful
@@ -32,10 +35,15 @@ export async function maybeAutoEnableRecap(
     }
     if ('reason' in target) {
         tried.delete(guild.id)
-        debugLog({
-            message: 'recap: play channel unusable, auto-enable skipped',
-            data: { guildId: guild.id, channelId, reason: target.reason },
-        })
+        // Info, not debug: prod logs drop debug lines, and this is the one
+        // sign of a guild that plays but never gets the recap (#2860).
+        if (!reportedSkips.has(guild.id)) {
+            reportedSkips.add(guild.id)
+            infoLog({
+                message: 'recap: play channel unusable, auto-enable skipped',
+                data: { guildId: guild.id, channelId, reason: target.reason },
+            })
+        }
         return
     }
     if (await autoEnableRecap(guild.id, target.channel.id, now)) {
@@ -51,4 +59,5 @@ export async function maybeAutoEnableRecap(
 
 export function __resetRecapAutoEnableForTests(): void {
     tried.clear()
+    reportedSkips.clear()
 }

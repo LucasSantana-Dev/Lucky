@@ -5,6 +5,7 @@
 import { QueryType } from 'discord-player'
 import type { PlayCommandResult, PlayCommandOptions } from './types'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
+import { textSearchBlockOptions } from './handlers/resolveProvider'
 
 /**
  * Search Spotify first. Returns success=false (no error thrown) when no
@@ -57,6 +58,7 @@ export async function handleYouTubeSearch(
 
         const searchResult = await player.search(query, {
             requestedBy: user,
+            ...textSearchBlockOptions(query),
         })
 
         if (!searchResult.hasTracks()) {

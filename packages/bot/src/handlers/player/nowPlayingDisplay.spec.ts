@@ -58,6 +58,7 @@ import { describe, expect, it, beforeEach } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import type { TextChannel, Guild, Message } from 'discord.js'
 import { sendNowPlayingEmbed } from './nowPlayingDisplay'
+import { createEmbed } from '../../utils/general/embeds'
 
 describe('nowPlayingDisplay - emoji prefill logging', () => {
     let mockQueue: Partial<GuildQueue>
@@ -277,6 +278,26 @@ describe('nowPlayingDisplay - emoji prefill logging', () => {
             expect.objectContaining({
                 message: 'Updated now playing message in channel',
             }),
+        )
+    })
+
+    it('never renders an empty title or author', async () => {
+        mockTrack.title = ''
+        mockTrack.author = ''
+        mockTrack.duration = '0:00'
+
+        await sendNowPlayingEmbed(
+            mockQueue as GuildQueue,
+            mockTrack as Track,
+            false,
+        )
+
+        const { description } = (createEmbed as jest.Mock).mock.calls[0][0] as {
+            description: string
+        }
+        expect(description).not.toContain('** by **')
+        expect(description).toBe(
+            '[**Unknown Track**](https://example.com/track) by **Unknown artist**',
         )
     })
 })

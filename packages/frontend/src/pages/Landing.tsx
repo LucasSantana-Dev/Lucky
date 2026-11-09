@@ -20,9 +20,8 @@ import {
     Music2,
     Shield,
     Wrench,
-    SlidersHorizontal,
+    CalendarClock,
     LayoutDashboard,
-    Sparkles,
 } from 'lucide-react'
 
 function GithubMark({
@@ -318,14 +317,8 @@ function FeatureGrid() {
     const { t } = useTranslation()
     const features = [
         { key: 'music', icon: Music2, span: 'md:col-span-2' },
-        { key: 'moderation', icon: Shield, span: 'md:col-span-1' },
-        {
-            key: 'customCommands',
-            icon: SlidersHorizontal,
-            span: 'md:col-span-1',
-        },
-        { key: 'dashboard', icon: LayoutDashboard, span: 'md:col-span-2' },
-        { key: 'embeds', icon: Sparkles, span: 'md:col-span-3' },
+        { key: 'recap', icon: CalendarClock, span: 'md:col-span-1' },
+        { key: 'dashboard', icon: LayoutDashboard, span: 'md:col-span-3' },
     ] as const
 
     return (
@@ -542,18 +535,14 @@ function CommandList() {
         'play',
         'autoplay',
         'queue',
-        'ban',
-        'automod',
-        'custom',
+        'skip',
+        'lyrics',
+        'recap',
     ] as const
 
     const kindColor: Record<string, string> = {
         music: 'text-lucky-brand-text bg-lucky-brand/10 border-lucky-brand/30',
-        mod: 'text-lucky-warning bg-lucky-warning/10 border-lucky-warning/30',
-        custom: 'text-lucky-success bg-lucky-success/10 border-lucky-success/30',
         música: 'text-lucky-brand-text bg-lucky-brand/10 border-lucky-brand/30',
-        moderação:
-            'text-lucky-warning bg-lucky-warning/10 border-lucky-warning/30',
     }
 
     return (

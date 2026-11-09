@@ -11,6 +11,10 @@ import {
     classifyPlayFailure,
     resolvePlayErrorMessage,
 } from './playErrorMessage'
+import {
+    YoutubePlaylistUnavailableError,
+    YoutubeVideoUnavailableError,
+} from './youtubeLinkErrors'
 
 describe('resolvePlayErrorMessage', () => {
     beforeEach(() => {
@@ -111,5 +115,38 @@ describe('classifyPlayFailure', () => {
             outcome: 'error',
             errorClass: 'TypeError',
         })
+    })
+})
+
+describe('resolvePlayErrorMessage for YouTube links', () => {
+    const t = (key: string) => `t:${key}`
+
+    it('uses the translated playlist message', () => {
+        expect(
+            resolvePlayErrorMessage(
+                new YoutubePlaylistUnavailableError(),
+                'https://www.youtube.com/playlist?list=PLabc',
+                t,
+            ),
+        ).toBe('t:music.errors.youtubePlaylistUnavailable')
+    })
+
+    it('uses the translated video message', () => {
+        expect(
+            resolvePlayErrorMessage(
+                new YoutubeVideoUnavailableError(),
+                undefined,
+                t,
+            ),
+        ).toBe('t:music.errors.youtubeVideoUnavailable')
+    })
+
+    it('falls back to English without a translator', () => {
+        expect(
+            resolvePlayErrorMessage(new YoutubePlaylistUnavailableError()),
+        ).toMatch(/playlists aren't available/i)
+        expect(
+            resolvePlayErrorMessage(new YoutubeVideoUnavailableError()),
+        ).toMatch(/couldn't play this youtube link/i)
     })
 })

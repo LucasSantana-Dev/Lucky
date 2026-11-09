@@ -337,7 +337,9 @@ async function buildNowPlayingEmbed(
 
     return createEmbed({
         title: '🎵 Now Playing',
-        description: `[**${track.title}**](${track.url}) by **${track.author}**`,
+        // Never render "** by **": a track can reach playback without
+        // metadata (autoplay, stream recovery). Same fallbacks as the reply.
+        description: `[**${track.title || 'Unknown Track'}**](${track.url}) by **${track.author || 'Unknown artist'}**`,
         color: EMBED_COLORS.MUSIC as ColorResolvable,
         thumbnail: track.thumbnail,
         timestamp: true,

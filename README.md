@@ -252,7 +252,7 @@ npm run dev:frontend    # Vite dev server (port 5173)
 ```
 packages/
   shared/    # Shared types, services, Prisma client
-  bot/       # Discord.js 14 bot (slash commands, music, moderation)
+  bot/       # Discord.js 14 bot (slash commands, music, autoplay)
   backend/   # Express 5 REST API (auth, guild management)
   frontend/  # React 19 dashboard (Tailwind 4, shadcn/ui)
 ```

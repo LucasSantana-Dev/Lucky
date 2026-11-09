@@ -6,6 +6,7 @@ import {
     isSpamChannel,
     extractSongCore,
     hasVersionMarker,
+    splitArtistAndSong,
 } from './searchQueryCleaner'
 
 describe('cleanTitle', () => {
@@ -192,6 +193,44 @@ describe('extractSongCore', () => {
         } else {
             expect(extractSongCore(input, author)).toBe(expected)
         }
+    })
+})
+
+describe('splitArtistAndSong', () => {
+    it.each([
+        [
+            'channel author, artist on the left',
+            'Justin Bieber - Beauty And A Beat (Official Music Video) ft. Nicki Minaj',
+            'JustinBieberVEVO',
+            { artist: 'Justin Bieber', song: 'Beauty And A Beat' },
+        ],
+        [
+            'en dash separator',
+            'Taylor Swift \u2013 exile (feat. Bon Iver) (Official Lyric Video)',
+            'TaylorSwiftVEVO',
+            { artist: 'Taylor Swift', song: 'exile' },
+        ],
+        [
+            'inverted, author matches the right side',
+            'Halo - Beyonc\u00e9 (Lyrics)',
+            'Beyonc\u00e9 - Topic',
+            { artist: 'Beyonc\u00e9', song: 'Halo' },
+        ],
+        [
+            'drops upload tags and a bare year from the song',
+            'Michael Jackson - Ben 1972 (4K Remastered)',
+            'MoonWalker777',
+            { artist: 'Michael Jackson', song: 'Ben' },
+        ],
+        [
+            'featured artist before the separator',
+            'Drake ft. Jay-Z - Light Up',
+            'SomeChannel',
+            { artist: 'Drake', song: 'Light Up' },
+        ],
+        ['no separator', 'Flashing Lights', 'Kanye West', null],
+    ])('%s', (_, title, author, expected) => {
+        expect(splitArtistAndSong(title, author)).toEqual(expected)
     })
 })
 

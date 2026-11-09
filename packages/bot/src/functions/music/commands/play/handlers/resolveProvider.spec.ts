@@ -594,6 +594,32 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
         await pending
     })
 
+    it('rejects a track with no title before play starts and before the early reply', async () => {
+        const onSearchResolved = jest.fn()
+        const startPlayback = jest.fn()
+        const player: any = {
+            play: jest.fn(async (_c: unknown, _q: unknown, opts: any) => {
+                await opts.afterSearch(searchResultOf(''))
+                startPlayback()
+                return { track: {} }
+            }),
+        }
+
+        await expect(
+            resolveQueryWithFallbacks(
+                player,
+                channel,
+                'https://soundcloud.com/a/b',
+                'default',
+                QueryType.AUTO,
+                {},
+                onSearchResolved,
+            ),
+        ).rejects.toMatchObject({ name: 'TrackMetadataUnavailableError' })
+        expect(startPlayback).not.toHaveBeenCalled()
+        expect(onSearchResolved).not.toHaveBeenCalled()
+    })
+
     it('is not called for an empty result', async () => {
         const onSearchResolved = jest.fn()
         const player: any = {
@@ -852,6 +878,86 @@ describe('preferExactMatch', () => {
             ])
             expect(result.setTracks).toHaveBeenNthCalledWith(2, [
                 tracks[2],
+                tracks[1],
+                tracks[0],
+            ])
+        })
+    })
+
+    describe('song name followed by artist name', () => {
+        const resultOf = (tracks: ReturnType<typeof makeMockTrack>[]) => {
+            const result = {
+                hasPlaylist: () => false,
+                tracks,
+                setTracks: jest.fn(() => result),
+            }
+            return result
+        }
+
+        it('promotes the track whose title and author both appear in the query', async () => {
+            const tracks = [
+                makeMockTrack('Halo', 'Cover Nation'),
+                makeMockTrack('Halo', 'Beyoncé'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('halo beyonce')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[1],
+                tracks[0],
+            ])
+        })
+
+        it('promotes it when the artist comes first too', async () => {
+            const tracks = [
+                makeMockTrack('Halo', 'Cover Nation'),
+                makeMockTrack('Halo', 'Beyoncé'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('Beyonce Halo')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[1],
+                tracks[0],
+            ])
+        })
+
+        it('does not promote a cover that names the artist in its title', async () => {
+            const tracks = [
+                makeMockTrack('Halo', 'Some Label'),
+                makeMockTrack('Halo (Beyoncé Cover)', 'Cover Nation'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('halo beyonce')(result as any)
+
+            expect(result.setTracks).not.toHaveBeenCalled()
+        })
+
+        it('keeps vowel signs in non-Latin scripts when matching words', async () => {
+            const tracks = [
+                makeMockTrack('Other', 'Someone'),
+                makeMockTrack('कु', 'राम'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('क राम')(result as any)
+
+            expect(result.setTracks).not.toHaveBeenCalled()
+        })
+
+        it('matches a non-Latin title and author given in either order', async () => {
+            const tracks = [
+                makeMockTrack('Other', 'Someone'),
+                makeMockTrack('कु', 'राम'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('राम कु')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
                 tracks[1],
                 tracks[0],
             ])

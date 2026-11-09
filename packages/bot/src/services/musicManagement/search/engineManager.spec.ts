@@ -108,6 +108,54 @@ describe('SearchEngineManager', () => {
         )
     })
 
+    it('keeps plain text away from SpotifyExtractor except on the Spotify attempt', async () => {
+        const player = {
+            search: jest.fn().mockResolvedValue({ tracks: [] }),
+        }
+        const manager = new SearchEngineManager(player as any)
+
+        await manager.performSearch({
+            query: 'some song',
+            requestedBy: { id: 'user-1' } as any,
+            preferredEngine: QueryType.YOUTUBE_SEARCH,
+            enableFallbacks: true,
+        })
+
+        // SpotifyExtractor claims any text whatever the engine, so the
+        // YouTube and SoundCloud attempts would die with Spotify.
+        const blockedByEngine = Object.fromEntries(
+            player.search.mock.calls.map((call: any[]) => [
+                call[1].searchEngine,
+                call[1].blockExtractors?.includes(
+                    'com.discord-player.itsmaat.spotifyextractor',
+                ) ?? false,
+            ]),
+        )
+        expect(blockedByEngine).toEqual({
+            [QueryType.YOUTUBE_SEARCH]: true,
+            spotifySearch: false,
+            soundcloud: true,
+        })
+    })
+
+    it('lets a Spotify URL reach SpotifyExtractor on an AUTO attempt', async () => {
+        const player = {
+            search: jest.fn().mockResolvedValue({ tracks: [{ title: 'A' }] }),
+        }
+        const manager = new SearchEngineManager(player as any)
+
+        await manager.performSearch({
+            query: 'https://open.spotify.com/track/abc123',
+            requestedBy: { id: 'user-1' } as any,
+            preferredEngine: QueryType.AUTO,
+            enableFallbacks: false,
+        })
+
+        expect(player.search.mock.calls[0][1]).not.toHaveProperty(
+            'blockExtractors',
+        )
+    })
+
     it('formats search errors when all attempts fail', async () => {
         const player = {
             search: jest.fn().mockRejectedValue(new Error('extractor failed')),

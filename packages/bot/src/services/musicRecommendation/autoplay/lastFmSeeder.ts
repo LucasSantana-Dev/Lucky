@@ -16,7 +16,10 @@ import {
     cleanTitle,
 } from '../../../utils/music/searchQueryCleaner'
 import type { AutoplayContext } from './autoplayContext'
-import { calculateRecommendationScore } from './candidateScorer'
+import {
+    calculateRecommendationScore,
+    getGenreFamilies,
+} from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'
 import {
     shouldIncludeCandidate,
@@ -24,6 +27,7 @@ import {
 } from './candidateCollector'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import { isHostedYoutubeEnabled } from '../../../config/featureFlags'
+import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from '../../../functions/music/commands/play/handlers/resolveProvider'
 import type { ScoredTrack } from './diversitySelector'
 import type { AutoplayAuditCollector } from './autoplayAudit'
 
@@ -137,12 +141,29 @@ export async function collectLastFmCandidates(
     const currentTrackTags = ctx.genreContext.currentTrackTags ?? []
     const sessionGenreFamilies =
         ctx.genreContext.sessionGenreFamilies ?? new Set<string>()
+    const currentTrackFamilies = getGenreFamilies(currentTrackTags)
+    // Profile tracks are the listener's library, not the session's seed, so
+    // the flat Last.fm boost only applies when the hit shares a genre family
+    // with the session. Fail closed: unknown on either side means no boost
+    // (the track stays in the pool, #2956).
+    const earnsProfileBoost = (tags: string[]): boolean => {
+        const families = getGenreFamilies(tags)
+        if (families.size === 0) return false
+        for (const family of families) {
+            if (
+                sessionGenreFamilies.has(family) ||
+                currentTrackFamilies.has(family)
+            ) {
+                return true
+            }
+        }
+        return false
+    }
 
     for (const seed of seedSlice) {
         if (candidates.size >= AUTOPLAY_BUFFER_SIZE) break
-        const lovedBoost = isLovedSeed(requestedBy.id, seed.artist, seed.title)
-            ? LOVED_SEED_EXTRA_BOOST
-            : 0
+        const isLoved = isLovedSeed(requestedBy.id, seed.artist, seed.title)
+        const lovedBoost = isLoved ? LOVED_SEED_EXTRA_BOOST : 0
         const query = cleanSearchQuery(seed.title, seed.artist)
         const tracks = await searchLastFmQuery(ctx.queue, query, requestedBy)
         for (const track of tracks) {
@@ -170,6 +191,8 @@ export async function collectLastFmCandidates(
                 blockedArtistKeys: ctx.blockedArtistKeys,
                 autoplayMode: ctx.autoplayMode,
                 artistFrequency: ctx.artistFrequency,
+                recentArtistIndices: ctx.recentArtistIndices,
+                seedArtistStreak: ctx.seedArtistStreak,
                 implicitDislikeKeys: ctx.implicitDislikeKeys,
                 implicitLikeKeys: ctx.implicitLikeKeys,
                 dislikedWeights: ctx.dislikedWeights,
@@ -191,9 +214,12 @@ export async function collectLastFmCandidates(
                 candidates,
                 track,
                 {
-                    score: rec.score + LASTFM_SCORE_BOOST + lovedBoost,
-                    source: 'lastfm-loved',
+                    score: earnsProfileBoost(tags)
+                        ? rec.score + LASTFM_SCORE_BOOST + lovedBoost
+                        : rec.score,
+                    source: isLoved ? 'lastfm-loved' : 'lastfm-profile',
                     signals: rec.signals,
+                    veto: rec.veto,
                 },
                 auditCollector,
             )
@@ -239,6 +265,8 @@ export async function collectLastFmCandidates(
                     blockedArtistKeys: ctx.blockedArtistKeys,
                     autoplayMode: ctx.autoplayMode,
                     artistFrequency: ctx.artistFrequency,
+                    recentArtistIndices: ctx.recentArtistIndices,
+                    seedArtistStreak: ctx.seedArtistStreak,
                     implicitDislikeKeys: ctx.implicitDislikeKeys,
                     implicitLikeKeys: ctx.implicitLikeKeys,
                     dislikedWeights: ctx.dislikedWeights,
@@ -258,10 +286,14 @@ export async function collectLastFmCandidates(
                     track,
                     {
                         score:
-                            (rec.score + LASTFM_SCORE_BOOST) *
+                            (rec.score +
+                                (earnsProfileBoost(tags)
+                                    ? LASTFM_SCORE_BOOST
+                                    : 0)) *
                             (0.5 + 0.5 * Math.min(Math.max(s.match, 0), 1)),
                         source: 'lastfm-similar',
                         signals: rec.signals,
+                        veto: rec.veto,
                     },
                     auditCollector,
                 )
@@ -316,6 +348,8 @@ export async function collectLastFmCandidates(
                         blockedArtistKeys: ctx.blockedArtistKeys,
                         autoplayMode: ctx.autoplayMode,
                         artistFrequency: ctx.artistFrequency,
+                        recentArtistIndices: ctx.recentArtistIndices,
+                        seedArtistStreak: ctx.seedArtistStreak,
                         implicitDislikeKeys: ctx.implicitDislikeKeys,
                         implicitLikeKeys: ctx.implicitLikeKeys,
                         dislikedWeights: ctx.dislikedWeights,
@@ -336,6 +370,7 @@ export async function collectLastFmCandidates(
                             score: rec.score + LASTFM_SCORE_BOOST,
                             source: 'lastfm-genre-fallback',
                             signals: rec.signals,
+                            veto: rec.veto,
                         },
                         auditCollector,
                     )
@@ -367,6 +402,13 @@ export async function searchLastFmQuery(
             const result = await queue.player.search(query, {
                 requestedBy,
                 searchEngine: engine,
+                // SpotifyExtractor claims every plain-text query whatever the
+                // engine, so without this the YouTube and AUTO arms were
+                // Spotify searches too: when Spotify returned nothing, every
+                // arm did, and autoplay found no candidates (2026-10-19).
+                ...(engine === QueryType.SPOTIFY_SEARCH
+                    ? {}
+                    : { blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS }),
             })
             if (engine === QueryType.SPOTIFY_SEARCH) {
                 // Raw API count, same meaning as in candidateFallback: a hit

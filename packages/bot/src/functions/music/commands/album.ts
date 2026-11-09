@@ -21,6 +21,7 @@ import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
+import { QUEUE_LEAVE_OPTIONS } from '../../../services/musicManagement/queueLeaveOptions'
 
 function isSpotifyAlbumUrl(query: string): boolean {
     try {
@@ -198,10 +199,7 @@ export default new Command({
                         },
                         connectionTimeout:
                             ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-                        leaveOnEmpty: true,
-                        leaveOnEmptyCooldown: 30_000,
-                        leaveOnEnd: true,
-                        leaveOnEndCooldown: 300_000,
+                        ...QUEUE_LEAVE_OPTIONS,
                     },
                     requestedBy: interaction.user,
                     searchEngine: QueryType.SPOTIFY_SONG,

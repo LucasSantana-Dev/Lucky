@@ -19,7 +19,9 @@ import {
     FORBIDDEN_WINDOW_MS,
     YTDLP_BLOCK_COOLDOWN_MS,
     classifyYtDlpFailure,
+    countYtDlpFailure,
     isYtDlpBlocked,
+    markYtDlpBudgetMiss,
     recordYtDlpFailure,
     recordYtDlpSuccess,
 } from './ytdlpBlockBreaker'
@@ -33,6 +35,39 @@ const BOTCHECK = new Error(
 const AGE_GATE = new Error(
     'yt-dlp exited with code 1 - ERROR: [youtube] abc123: Sign in to confirm your age',
 )
+
+describe('countYtDlpFailure (#2864)', () => {
+    beforeEach(() => {
+        mockInc.mockReset()
+        mockSetExtractorDegraded.mockReset()
+        mockIsExtractorDegraded.mockReset()
+        mockIsExtractorDegraded.mockReturnValue(false)
+        recordYtDlpSuccess()
+        mockSetExtractorDegraded.mockReset()
+    })
+
+    it.each([
+        [FORBIDDEN, 'forbidden'],
+        [BOTCHECK, 'botcheck'],
+        [new Error('yt-dlp exited without output (code 0)'), 'empty'],
+        [new Error('yt-dlp: timed out waiting for stream start'), 'timeout'],
+        [new Error('yt-dlp exited with code 1 - some other error'), 'other'],
+    ])('counts %s failure type without updating the breaker', (error, type) => {
+        countYtDlpFailure(error)
+
+        expect(mockInc).toHaveBeenCalledTimes(1)
+        expect(mockInc).toHaveBeenCalledWith({ type })
+        expect(mockSetExtractorDegraded).not.toHaveBeenCalled()
+    })
+
+    it('does not open the breaker even after many forbidden calls', () => {
+        for (let i = 0; i < 10; i++) {
+            countYtDlpFailure(FORBIDDEN)
+        }
+
+        expect(isYtDlpBlocked(Date.now())).toBe(false)
+    })
+})
 
 describe('ytdlpBlockBreaker (#2653)', () => {
     beforeEach(() => {
@@ -156,6 +191,54 @@ describe('ytdlpBlockBreaker (#2653)', () => {
         recordYtDlpFailure(FORBIDDEN, 3)
 
         expect(isYtDlpBlocked(3)).toBe(true)
+    })
+
+    it('a budget-miss timeout is counted but neither opens nor breaks the streak', () => {
+        const budgetMiss = new Error(
+            'yt-dlp: timed out waiting for stream start',
+        )
+        markYtDlpBudgetMiss(budgetMiss)
+
+        recordYtDlpFailure(budgetMiss, 1)
+        recordYtDlpFailure(budgetMiss, 2)
+        expect(isYtDlpBlocked(2)).toBe(false)
+        expect(mockInc).toHaveBeenCalledWith({ type: 'timeout' })
+
+        recordYtDlpFailure(FORBIDDEN, 3)
+        recordYtDlpFailure(budgetMiss, 4)
+        recordYtDlpFailure(FORBIDDEN, 5)
+        expect(isYtDlpBlocked(5)).toBe(true)
+    })
+
+    it('counts one streak failure per play, every attempt in the metric', () => {
+        const play = {}
+        recordYtDlpFailure(BOTCHECK, 1, play)
+        recordYtDlpFailure(FORBIDDEN, 2, play)
+        recordYtDlpFailure(BOTCHECK, 3, play)
+
+        expect(isYtDlpBlocked(3)).toBe(false)
+        expect(mockInc).toHaveBeenCalledTimes(3)
+    })
+
+    it('two plays with a bot-check each still open the block', () => {
+        recordYtDlpFailure(BOTCHECK, 1, {})
+        recordYtDlpFailure(BOTCHECK, 2, {})
+
+        expect(isYtDlpBlocked(2)).toBe(true)
+    })
+
+    it('a play whose first failure does not count still counts a later bot-check', () => {
+        const budgetMiss = new Error(
+            'yt-dlp: timed out waiting for stream start',
+        )
+        markYtDlpBudgetMiss(budgetMiss)
+        const play = {}
+        recordYtDlpFailure(AGE_GATE, 1, play)
+        recordYtDlpFailure(budgetMiss, 2, play)
+        recordYtDlpFailure(BOTCHECK, 3, play)
+        recordYtDlpFailure(BOTCHECK, 4, {})
+
+        expect(isYtDlpBlocked(4)).toBe(true)
     })
 
     it('two bot-check failures open the block (#2744)', () => {

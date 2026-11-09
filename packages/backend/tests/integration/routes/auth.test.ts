@@ -200,6 +200,32 @@ describe('Auth Routes Integration', () => {
             }
         })
 
+        test('redirects to error page when session.save() fails instead of proceeding to Discord (#2867)', async () => {
+            // Simulate a session store write failure (e.g. transient Postgres
+            // outage). Before this fix the server redirected to Discord anyway,
+            // leaving the callback with no state in session (LUCKY-7E).
+            const brokenSaveApp = express()
+            setupSessionMiddleware(brokenSaveApp)
+            // Monkey-patch save to simulate a transient store failure.
+            brokenSaveApp.use((req, _res, next) => {
+                const orig = req.session.save.bind(req.session)
+                req.session.save = (cb?: (err?: unknown) => void) => {
+                    if (cb) cb(new Error('simulated store failure'))
+                    return orig
+                }
+                next()
+            })
+            setupAuthRoutes(brokenSaveApp)
+
+            const response = await request(brokenSaveApp)
+                .get('/api/auth/discord')
+                .expect(302)
+
+            expect(response.headers.location).toContain('error=auth_failed')
+            expect(response.headers.location).toContain('session_error')
+            expect(response.headers.location).not.toContain('discord.com')
+        })
+
         test('should keep configured callback and secure cookie in production', async () => {
             const originalNodeEnv = process.env.NODE_ENV
             const originalRedirectUri = process.env.WEBAPP_REDIRECT_URI

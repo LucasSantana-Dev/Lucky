@@ -26,21 +26,25 @@ export function setupAuthRoutes(app: Express): void {
                 const stateBuffer = randomBytes(32)
                 req.session.oauthState = stateBuffer.toString('hex')
 
-                await new Promise<void>((resolve) => {
-                    req.session.save((err) => {
-                        if (err) {
-                            errorLog({
-                                message: 'Error saving session on OAuth init:',
-                                error: err,
-                            })
-                        } else {
-                            debugLog({
-                                message: 'Session initialized for OAuth',
-                                data: { sessionId: req.sessionID },
-                            })
-                        }
-                        resolve()
+                const saveError = await new Promise<unknown>((resolve) => {
+                    req.session.save((err) => resolve(err ?? null))
+                })
+
+                if (saveError) {
+                    errorLog({
+                        message:
+                            'Session save failed on OAuth init — aborting redirect to Discord',
+                        error: saveError,
                     })
+                    const frontendUrl = getFrontendUrl()
+                    return res.redirect(
+                        `${frontendUrl}/?error=auth_failed&message=session_error`,
+                    )
+                }
+
+                debugLog({
+                    message: 'Session initialized for OAuth',
+                    data: { sessionId: req.sessionID },
                 })
 
                 const clientId = process.env.CLIENT_ID
