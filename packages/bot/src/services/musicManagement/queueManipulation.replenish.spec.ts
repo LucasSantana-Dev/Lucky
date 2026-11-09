@@ -1,8 +1,5 @@
 import { jest } from '@jest/globals'
 
-jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
-    getAutoplaySkipRateForGuild: jest.fn(),
-}))
 import { replenishQueue } from './queueManipulation'
 
 jest.mock('lru-cache', () => ({
@@ -134,6 +131,7 @@ jest.mock('../../services/musicRecommendation/feedbackService', () => ({
             getImplicitLikeKeysMock(...args),
         getGuildImplicitDislikeKeys: (...args: unknown[]) =>
             getGuildImplicitDislikeKeysMock(...args),
+        getGuildImplicitArtistDislikeWeights: () => new Map(),
     },
 }))
 

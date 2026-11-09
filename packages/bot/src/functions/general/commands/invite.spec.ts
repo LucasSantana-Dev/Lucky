@@ -32,6 +32,7 @@ function makeInteraction() {
 }
 
 beforeEach(() => {
+    delete process.env.WEBAPP_BACKEND_URL
     interactionReply.mockClear().mockResolvedValue(undefined)
     infoLog.mockClear()
     errorLog.mockClear()
@@ -160,5 +161,36 @@ describe('/invite', () => {
         expect(embed).toBeDefined()
         const description = embed?.description as string
         expect(description).toContain('client_id=962198089161134131')
+    })
+
+    test('links the backend invite route with source bot when configured', async () => {
+        process.env.WEBAPP_BACKEND_URL = 'https://lucky-api.example.com/api'
+        await inviteCommand.execute({
+            client: { application: { id: '1' }, user: { id: '1' } } as never,
+            interaction: makeInteraction() as never,
+        })
+
+        const args = interactionReply.mock.calls[0][0] as {
+            content: { embeds?: Array<{ description: unknown }> }
+        }
+        const description = args.content.embeds?.[0]?.description as string
+        expect(description).toContain(
+            'https://lucky-api.example.com/invite?utm_source=bot&utm_medium=command',
+        )
+        expect(description).not.toContain('discord.com/oauth2')
+    })
+
+    test('ignores a backend URL that is not http(s)', async () => {
+        process.env.WEBAPP_BACKEND_URL = 'javascript:alert(1)'
+        await inviteCommand.execute({
+            client: { application: { id: '962198089161134131' }, user: null } as never,
+            interaction: makeInteraction() as never,
+        })
+
+        const args = interactionReply.mock.calls[0][0] as {
+            content: { embeds?: Array<{ description: unknown }> }
+        }
+        const description = args.content.embeds?.[0]?.description as string
+        expect(description).toContain('https://discord.com/oauth2/authorize?')
     })
 })

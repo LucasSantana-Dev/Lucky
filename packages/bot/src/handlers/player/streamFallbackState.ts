@@ -48,3 +48,58 @@ export function stampFallbackStage(
         [STREAM_BRIDGE_FALLBACK_METADATA_KEY]: stage,
     })
 }
+
+/**
+ * Bridge stages that resolve a track from YouTube without yt-dlp. Unlike the
+ * SoundCloud stages the audio is still the YouTube upload, so the Now Playing
+ * embed shows no footnote; the stamp only feeds track_stream_source.
+ */
+export type StreamBridgeSource = 'youtubei-native'
+
+export const STREAM_BRIDGE_SOURCE_METADATA_KEY = 'streamBridgeSource'
+
+export function getStreamBridgeSource(track: {
+    metadata?: unknown
+}): StreamBridgeSource | undefined {
+    const source = (track.metadata as Record<string, unknown> | undefined)?.[
+        STREAM_BRIDGE_SOURCE_METADATA_KEY
+    ]
+    return source === 'youtubei-native' ? source : undefined
+}
+
+export function stampBridgeSource(
+    track: Pick<Track, 'metadata' | 'setMetadata'>,
+    source: StreamBridgeSource,
+): void {
+    const existing =
+        typeof track.metadata === 'object' && track.metadata !== null
+            ? (track.metadata as Record<string, unknown>)
+            : {}
+    track.setMetadata({
+        ...existing,
+        [STREAM_BRIDGE_SOURCE_METADATA_KEY]: source,
+    })
+}
+
+/**
+ * Drops the stamps a previous play of the same Track left behind, so a
+ * replay resolved by yt-dlp is not reported as the earlier fallback.
+ */
+export function clearBridgeStamps(
+    track: Pick<Track, 'metadata' | 'setMetadata'>,
+): void {
+    if (typeof track.metadata !== 'object' || track.metadata === null) return
+    const existing = track.metadata as Record<string, unknown>
+    if (
+        !(STREAM_BRIDGE_FALLBACK_METADATA_KEY in existing) &&
+        !(STREAM_BRIDGE_SOURCE_METADATA_KEY in existing)
+    ) {
+        return
+    }
+    const {
+        [STREAM_BRIDGE_FALLBACK_METADATA_KEY]: _fallback,
+        [STREAM_BRIDGE_SOURCE_METADATA_KEY]: _source,
+        ...rest
+    } = existing
+    track.setMetadata(rest)
+}

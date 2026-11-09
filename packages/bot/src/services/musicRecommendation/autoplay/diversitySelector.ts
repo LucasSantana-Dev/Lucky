@@ -299,6 +299,7 @@ export function selectDiverseCandidates(
     maxPerArtist = MAX_TRACKS_PER_ARTIST,
     maxPerSource = MAX_TRACKS_PER_SOURCE,
     seedArtistKey = '',
+    reserveAnchor = false,
 ): ScoredTrack[] {
     const jitteredCandidates = Array.from(candidates.values()).map((c) => ({
         ...c,
@@ -308,6 +309,17 @@ export function selectDiverseCandidates(
     const sortedCandidates = jitteredCandidates.sort(
         (a, b) => b.jitteredScore - a.jitteredScore,
     )
+    // Keep one slot for the seed's own artist and related artists, so a
+    // strong liked profile cannot fill the whole buffer (#2961).
+    if (reserveAnchor) {
+        const anchorIndex = sortedCandidates.findIndex(
+            (c) => c.basis.source === 'seed-similar' && c.score > 0,
+        )
+        if (anchorIndex > 0) {
+            const [anchor] = sortedCandidates.splice(anchorIndex, 1)
+            sortedCandidates.unshift(anchor)
+        }
+    }
     const selected: ScoredTrack[] = []
     const artistCount = new Map<string, number>(
         seedArtistKey ? [[seedArtistKey, 1]] : [],

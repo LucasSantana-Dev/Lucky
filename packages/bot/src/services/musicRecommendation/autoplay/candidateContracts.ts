@@ -6,6 +6,7 @@ import type {
     RecommendationBasis,
     RecommendationSource,
     RecommendationSignal,
+    VetoReason,
 } from './recommendationBasis.js'
 import { serializeBasis } from './recommendationBasis.js'
 import { normalizeTrackKey } from './scoringUtils'
@@ -56,6 +57,7 @@ export function shouldIncludeCandidate(
 /**
  * Add or update a candidate in the scored pool.
  * Keeps the higher-scored version if a duplicate key exists.
+ * Returns whether the candidate was stored.
  *
  * Non-finite scores (e.g. the cross-locale `-Infinity` hard-reject from
  * `calculateRecommendationScore`) are dropped here so callers don't need to
@@ -71,9 +73,11 @@ export function upsertScoredCandidate(
         score: number
         source: RecommendationSource
         signals: RecommendationSignal[]
+        /** Hard-reject reason from the scorer, forwarded to the audit log. */
+        veto?: VetoReason
     },
     auditCollector?: AutoplayAuditCollector,
-): void {
+): boolean {
     if (!Number.isFinite(scored.score)) {
         debugLog({
             message: 'Autoplay hard-reject',
@@ -96,8 +100,9 @@ export function upsertScoredCandidate(
             scored.score,
             serializeBasis(basis),
             'rejected',
+            scored.veto,
         )
-        return
+        return false
     }
 
     const basis: RecommendationBasis = {
@@ -125,5 +130,7 @@ export function upsertScoredCandidate(
             serializeBasis(basis),
             'accepted',
         )
+        return true
     }
+    return false
 }

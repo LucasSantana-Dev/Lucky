@@ -25,6 +25,8 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 import {
+    resolveViaSoundCloud,
+    streamSoundCloudTrack,
     streamViaSoundCloud,
     findMatchingSoundCloudResult,
     parseDurationString,
@@ -601,6 +603,53 @@ describe('findMatchingSoundCloudResult – expected artist', () => {
         ).toBe(duo[1])
     })
 
+    // Prod 2026-10-20T17:34:29Z: the soundcloud-full query is "title author",
+    // and the official upload was scored against all of it (5 of 8 tokens,
+    // 0.63), so the exact title by the artist's own account was rejected.
+    const fiqueRico = {
+        name: 'Fique Rico ou Moralismo 2',
+        url,
+        durationInSec: 180,
+        user: { name: 'Froid' },
+    }
+
+    it('accepts the exact title by the artist when the query ends with the artist (fique rico regression)', () => {
+        expect(
+            findMatchingSoundCloudResult(
+                'Fique Rico ou Moralismo 2 Froid, Major RD',
+                '03:00',
+                [fiqueRico],
+                { expectedArtists: ['Froid, Major RD'] },
+            ),
+        ).toBe(fiqueRico)
+    })
+
+    it('still needs the title when the artist suffix is dropped', () => {
+        const results = [
+            { ...fiqueRico, name: 'Fique Rico' },
+            { ...fiqueRico, name: 'Fique Rico ou Moralismo 2 (Remix)' },
+            { ...fiqueRico, user: { name: 'Froid Fan' } },
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Fique Rico ou Moralismo 2 Froid, Major RD',
+                '03:00',
+                results,
+                { expectedArtists: ['Froid, Major RD'] },
+            ),
+        ).toBeUndefined()
+    })
+
+    it('keeps the artist in the score when no artist is expected', () => {
+        expect(
+            findMatchingSoundCloudResult(
+                'Fique Rico ou Moralismo 2 Froid, Major RD',
+                '03:00',
+                [fiqueRico],
+            ),
+        ).toBeUndefined()
+    })
+
     it('does not let a short artist name match inside another word', () => {
         const results = [
             { name: 'Flashing Lights', url, user: { name: 'Eyes Only' } },
@@ -943,6 +992,25 @@ describe('streamViaSoundCloud', () => {
         )
     })
 
+    it('streams the official upload for a title plus artist query (fique rico regression)', async () => {
+        mockSearch.mockResolvedValue([
+            {
+                name: 'Fique Rico ou Moralismo 2',
+                url: 'https://soundcloud.com/froid/fique-rico',
+                durationInSec: 180,
+                user: { name: 'Froid' },
+            },
+        ])
+        mockStream.mockResolvedValue({ stream: fakeReadable })
+        await expect(
+            streamViaSoundCloud(
+                'Fique Rico ou Moralismo 2 Froid, Major RD',
+                '03:00',
+                { expectedArtists: ['Froid, Major RD'] },
+            ),
+        ).resolves.toBe(fakeReadable)
+    })
+
     it('logs rejected candidates when nothing validates', async () => {
         mockSearch.mockResolvedValue([makeResult('Completely Different', 300)])
         await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
@@ -1021,6 +1089,96 @@ describe('streamViaSoundCloud', () => {
                 },
             }),
         )
+    })
+
+    it('names the match by its permalink so the bridge can cache it', async () => {
+        mockStreamViaYtDlp.mockResolvedValue(new PassThrough())
+        mockSearch.mockResolvedValue([
+            {
+                ...makeResult('Song Name', 210),
+                permalink: 'https://soundcloud.com/artist/song-name',
+            },
+        ])
+
+        const { match } = await resolveViaSoundCloud('song name', '3:30')
+
+        expect(match).toEqual({
+            id: 'https://soundcloud.com/artist/song-name',
+            durationSec: 210,
+        })
+    })
+
+    it('replays a cached match by id without searching', async () => {
+        const ytdlpReadable = new PassThrough()
+        mockStreamViaYtDlp.mockResolvedValue(ytdlpReadable)
+
+        const result = await streamSoundCloudTrack(
+            'https://soundcloud.com/artist/song-name',
+        )
+
+        expect(result).toBe(ytdlpReadable)
+        expect(mockSearch).not.toHaveBeenCalled()
+        expect(mockStreamViaYtDlp).toHaveBeenCalledWith(
+            'https://soundcloud.com/artist/song-name',
+        )
+    })
+
+    describe('DRM-protected uploads (2026-10-20)', () => {
+        const drmError = new Error(
+            'yt-dlp exited with code 1 - ERROR: [soundcloud] 2362723235: This video is DRM protected',
+        )
+        const drmResult = {
+            ...makeResult('Breathe', 210),
+            permalink: 'https://soundcloud.com/artist/breathe',
+        }
+
+        it('skips play-dl and the client id refresh', async () => {
+            mockStreamViaYtDlp.mockRejectedValue(drmError)
+            mockSearch.mockResolvedValue([drmResult])
+
+            await expect(
+                streamViaSoundCloud('breathe', '3:30'),
+            ).rejects.toThrow('SoundCloud: "Breathe" is DRM protected')
+            expect(mockStream).not.toHaveBeenCalled()
+            expect(mockGetFreeClientID).not.toHaveBeenCalled()
+        })
+
+        it('never streams a known DRM upload again', async () => {
+            mockStreamViaYtDlp.mockRejectedValue(drmError)
+            mockSearch.mockResolvedValue([drmResult])
+            await expect(
+                streamViaSoundCloud('breathe', '3:30'),
+            ).rejects.toThrow('is DRM protected')
+            mockStreamViaYtDlp.mockClear()
+
+            await expect(
+                streamViaSoundCloud('breathe', '3:30'),
+            ).rejects.toThrow(
+                'SoundCloud: only DRM-protected results for "breathe"',
+            )
+            expect(mockStreamViaYtDlp).not.toHaveBeenCalled()
+        })
+
+        it('picks another candidate when the best one is DRM', async () => {
+            const ytdlpReadable = new PassThrough()
+            mockStreamViaYtDlp.mockRejectedValueOnce(drmError)
+            mockSearch.mockResolvedValue([drmResult])
+            await expect(
+                streamViaSoundCloud('breathe', '3:30'),
+            ).rejects.toThrow('is DRM protected')
+
+            const other = {
+                ...makeResult('Breathe (Official Audio)', 210),
+                permalink: 'https://soundcloud.com/artist/breathe-official',
+            }
+            mockSearch.mockResolvedValue([drmResult, other])
+            mockStreamViaYtDlp.mockResolvedValue(ytdlpReadable)
+
+            await expect(streamViaSoundCloud('breathe', '3:30')).resolves.toBe(
+                ytdlpReadable,
+            )
+            expect(mockStreamViaYtDlp).toHaveBeenLastCalledWith(other.permalink)
+        })
     })
 
     it('successfully streams and passes correct search parameters', async () => {
