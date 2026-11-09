@@ -67,10 +67,9 @@ export async function handleRecapMixButton(
         return
     }
 
+    let queued: number
     try {
-        const queued = await playMix(client, interaction, voiceChannel, found)
-        recapMixPlayedTotal.inc()
-        await reply(t('music.recap.mixQueued', { count: queued }))
+        queued = await playMix(client, interaction, voiceChannel, found)
     } catch (error) {
         errorLog({
             message: 'recap mix button: play failed',
@@ -78,7 +77,11 @@ export async function handleRecapMixButton(
             data: { guildId },
         })
         await reply(t('music.recap.mixFailed'))
+        return
     }
+
+    recapMixPlayedTotal.inc()
+    await reply(t('music.recap.mixQueued', { count: queued }))
 }
 
 // Search each top track concurrently, keep first search hit per track.
