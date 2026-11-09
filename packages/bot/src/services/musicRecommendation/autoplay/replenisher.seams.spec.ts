@@ -562,6 +562,21 @@ describe('replenisher seam functions', () => {
             expect(result.excludedKeys).toBeInstanceOf(Set)
         })
 
+        it('counts how many times in a row the current artist played (#2961)', () => {
+            const streak = (authors: string[]) =>
+                buildExclusionAndDerivedSignals(
+                    createGuildQueue(),
+                    createTrack({ author: 'Artist A' }),
+                    authors.map((author) => createTrack({ author })),
+                    [],
+                    [],
+                ).seedArtistStreak
+
+            expect(streak(['Artist A', 'Artist B', 'Artist A'])).toBe(2)
+            expect(streak(['Artist B'])).toBe(1)
+            expect(streak([])).toBe(1)
+        })
+
         it('builds recent artists from current track and history', () => {
             const currentTrack = createTrack({ author: 'Current Artist' })
             const historyTrack = createTrack({ author: 'History Artist' })
@@ -976,6 +991,7 @@ describe('replenisher seam functions', () => {
                 expect.any(Number),
                 expect.any(Number),
                 expect.any(String),
+                false,
             )
         })
 

@@ -260,6 +260,12 @@ export interface ScoringContext {
      * that appeared recently get a penalty that decays to zero over RECENCY_WINDOW_TRACKS.
      */
     recentArtistIndices?: Map<string, number>
+    /**
+     * How many tracks in a row the current artist has played, current track
+     * included. The same-artist penalty applies only from 2 on, so autoplay
+     * can return to the original artist once (#2961). Unknown keeps it on.
+     */
+    seedArtistStreak?: number
 }
 
 export function calculateRecommendationScore(ctx: ScoringContext): {
@@ -289,6 +295,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         replayFrequentTrackIds = new Set(),
         replayFrequentArtists = new Set(),
         recentArtistIndices = new Map<string, number>(),
+        seedArtistStreak,
     } = ctx
     const candidateTags = genreContext.candidateTags ?? []
     const currentTrackTags = genreContext.currentTrackTags ?? []
@@ -474,7 +481,9 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     const isDeepDive =
         deepDiveArtist !== null && candidateArtist === deepDiveArtist
     if (candidateArtist === currentArtist) {
-        if (!isDeepDive) {
+        const artistRepeating =
+            seedArtistStreak === undefined || seedArtistStreak >= 2
+        if (!isDeepDive && artistRepeating) {
             // Same-artist penalty reuses the implicit-dislike weight but is a
             // distinct heuristic — do NOT emit the 'implicit dislike' signal
             // here or Phase D telemetry would conflate the two.

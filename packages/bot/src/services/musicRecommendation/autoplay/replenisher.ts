@@ -45,6 +45,7 @@ import {
 } from './diversitySelector'
 import { collectLastFmCandidates } from './lastFmSeeder'
 import { collectSeedSimilarCandidates } from './seedSimilarityCollector'
+import { collectRelatedArtistCandidates } from './relatedArtistCollector'
 import { isAnchorTrack, selectAnchorSeeds } from './anchorSeeds'
 import { serializeBasis } from './recommendationBasis'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
@@ -256,6 +257,7 @@ async function _replenishQueue(
             recentArtists,
             recentArtistIndices,
             artistFrequency,
+            seedArtistStreak,
         } = buildExclusionAndDerivedSignals(
             queue,
             currentTrack,
@@ -318,6 +320,7 @@ async function _replenishQueue(
             replayFrequentTrackIds: replayFrequency?.trackIds ?? new Set(),
             replayFrequentArtists: replayFrequency?.artists ?? new Set(),
             recentArtistIndices,
+            seedArtistStreak,
             auditCollector: new AutoplayAuditCollector(),
         }
 
@@ -351,6 +354,7 @@ async function _replenishQueue(
             currentTrack,
             autoplayMode,
             requestedBy,
+            !hasQueuedSeedSimilarPick(queue),
         )
 
         await enqueueAndFinalize(
@@ -664,6 +668,7 @@ export function buildExclusionAndDerivedSignals(
     recentArtists: Set<string>
     recentArtistIndices: Map<string, number>
     artistFrequency: Map<string, number>
+    seedArtistStreak: number
 } {
     const excludedUrls = buildExcludedUrls(
         queue,
@@ -697,6 +702,10 @@ export function buildExclusionAndDerivedSignals(
         allHistoryTracks,
     )
     const artistFrequency = buildArtistFrequency(persistentHistory)
+    const seedArtistStreak = countSeedArtistStreak(
+        currentTrack,
+        allHistoryTracks,
+    )
 
     return {
         excludedUrls,
@@ -704,7 +713,34 @@ export function buildExclusionAndDerivedSignals(
         recentArtists,
         recentArtistIndices,
         artistFrequency,
+        seedArtistStreak,
     }
+}
+
+/** True when an autoplay pick from the seed's artist or related artists is still queued. */
+function hasQueuedSeedSimilarPick(queue: GuildQueue): boolean {
+    return queue.tracks.toArray().some((track) => {
+        const metadata = track.metadata as
+            { isAutoplay?: boolean; recommendationSource?: string } | undefined
+        return (
+            metadata?.isAutoplay === true &&
+            metadata.recommendationSource === 'seed-similar'
+        )
+    })
+}
+
+/** Current track plus the newest history tracks by the same primary artist. */
+function countSeedArtistStreak(
+    currentTrack: Track,
+    allHistoryTracks: Track[],
+): number {
+    const artist = primaryArtistKey(currentTrack.author ?? '')
+    let streak = 1
+    for (const track of allHistoryTracks) {
+        if (!artist || primaryArtistKey(track.author ?? '') !== artist) break
+        streak++
+    }
+    return streak
 }
 
 /**
@@ -868,6 +904,12 @@ export async function collectAllCandidates(
             candidates,
             autoplayContext.auditCollector,
         )
+        await collectRelatedArtistCandidates(
+            autoplayContext,
+            requestedBy,
+            candidates,
+            autoplayContext.auditCollector,
+        )
         sourcesCounts.seedSimilar = candidates.size - beforeSeedSimilar
         debugLog({
             message: 'Autoplay: seed-similar candidates',
@@ -983,6 +1025,7 @@ export async function selectAndRerankCandidates(
     currentTrack: Track,
     autoplayMode: 'similar' | 'discover' | 'popular',
     requestedBy: User | null,
+    reserveAnchor = false,
 ): Promise<
     {
         track: Track
@@ -1005,6 +1048,7 @@ export async function selectAndRerankCandidates(
             effectiveMaxPerArtist,
             MAX_TRACKS_PER_SOURCE,
             seedArtistKey,
+            reserveAnchor,
         ),
     )
 
