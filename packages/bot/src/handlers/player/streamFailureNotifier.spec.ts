@@ -37,6 +37,26 @@ describe('streamFailureNotifier', () => {
         )
     })
 
+    it('never names a source, blames the region or claims a skip', async () => {
+        const channelSendMock = jest.fn().mockResolvedValue({})
+        const queue = {
+            guild: { id: 'guild-1' },
+            metadata: {
+                channel: { id: 'ch-1', send: channelSendMock },
+            },
+        }
+
+        await notifyChannelStreamFailed(queue as any, 'Test Song')
+
+        const description = (createErrorEmbedMock.mock.calls[0] as unknown[])[1]
+        expect(description).toBe(
+            "Couldn't find the original of **Test Song** right now, so I'm not playing a cover. Try again shortly or paste a link.",
+        )
+        expect(description).not.toMatch(
+            /soundcloud|youtube|spotify|region|skip/i,
+        )
+    })
+
     it('uses "this track" when trackTitle is empty', async () => {
         const channelSendMock = jest.fn().mockResolvedValue({})
         const queue = {

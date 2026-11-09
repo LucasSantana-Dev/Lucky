@@ -70,6 +70,10 @@ describe('queueHandler', () => {
 
             expect(client.player.nodes.create).toHaveBeenCalledWith(
                 interaction.guild,
+                expect.objectContaining({
+                    leaveOnEnd: true,
+                    leaveOnEndCooldown: 300_000,
+                }),
             )
             expect(queue).toBeDefined()
         })

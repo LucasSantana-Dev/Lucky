@@ -10,6 +10,7 @@ import {
     type MusicProvider,
 } from './providerHealth'
 import type { EnhancedSearchOptions, EnhancedSearchResult } from './types'
+import { textSearchBlockOptions } from '../../../functions/music/commands/play/handlers/resolveProvider'
 
 type SearchAttempt = {
     provider: MusicProvider
@@ -92,6 +93,11 @@ export class SearchEngineManager {
             const result = await this.player.search(options.query, {
                 requestedBy: options.requestedBy,
                 searchEngine: attempt.engine,
+                // Spotify keeps its own attempt; every other one would
+                // otherwise be claimed by SpotifyExtractor on plain text.
+                ...(attempt.provider === 'spotify'
+                    ? {}
+                    : textSearchBlockOptions(options.query)),
             })
 
             if (result.tracks.length > 0) {

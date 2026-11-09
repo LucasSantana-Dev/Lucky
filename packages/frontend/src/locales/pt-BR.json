@@ -213,7 +213,7 @@
         },
         "repoCard": {
             "name": "LucasSantana-Dev / Lucky",
-            "description": "Bot de música do Discord com autoplay que aprende o gosto do servidor, painel React e suíte de moderação.",
+            "description": "Bot de música do Discord com autoplay que aprende o gosto do servidor e painel React.",
             "license": "ISC",
             "lang": "TypeScript",
             "serversLabel": "servidores",
@@ -222,7 +222,7 @@
             "copyClone": "Copiar URL de clone"
         },
         "commands": {
-            "heading": "100+ comandos, com escopo no que você roda",
+            "heading": "Comandos de música, onde você precisa deles",
             "rows": {
                 "play": {
                     "name": "/play",
@@ -239,23 +239,23 @@
                     "description": "Veja ou reordene a fila atual",
                     "kbd": "música"
                 },
-                "ban": {
-                    "name": "/mod ban",
-                    "description": "Tempban com motivo, DM automática, audit log",
-                    "kbd": "moderação"
+                "skip": {
+                    "name": "/skip",
+                    "description": "Pule a música atual",
+                    "kbd": "música"
                 },
-                "automod": {
-                    "name": "/automod",
-                    "description": "Spam, caps, links, convites — regras por servidor",
-                    "kbd": "moderação"
+                "lyrics": {
+                    "name": "/lyrics",
+                    "description": "Veja a letra da música atual",
+                    "kbd": "música"
                 },
-                "custom": {
-                    "name": "/cc create",
-                    "description": "Comandos customizados com interpolação de variáveis",
-                    "kbd": "custom"
+                "recap": {
+                    "name": "/recap",
+                    "description": "Resumo semanal do que o servidor ouviu",
+                    "kbd": "música"
                 }
             },
-            "more": "+ 100 outros no painel"
+            "more": "+ mais comandos com /help"
         },
         "stack": {
             "heading": "Para desenvolvedores — o que você está rodando",
@@ -275,7 +275,7 @@
                 },
                 "postgres": {
                     "name": "postgres",
-                    "description": "Config de servidor, comandos customizados, log de moderação"
+                    "description": "Config de servidor, histórico musical, estado de autoplay"
                 },
                 "redis": {
                     "name": "redis",
@@ -312,21 +312,13 @@
                     "title": "Música com autoplay inteligente",
                     "description": "Busque pelo nome ou cole um link do Spotify. O autoplay aprende o clima e não troca de idioma."
                 },
-                "moderation": {
-                    "title": "Moderação que não dorme",
-                    "description": "Auto-mod para spam, caps, links e convites. Tempbans com motivo, registro no audit log e regras por servidor."
-                },
-                "customCommands": {
-                    "title": "Comandos personalizados",
-                    "description": "Crie respostas, toggles de role, embeds e atalhos sem escrever código. Com interpolação de variáveis."
+                "recap": {
+                    "title": "Recap semanal automático",
+                    "description": "Todo domingo, o Lucky posta um resumo do que o servidor ouviu: top músicas, total de plays e tempo de escuta."
                 },
                 "dashboard": {
                     "title": "Um painel web de verdade",
                     "description": "Configure tudo direto do navegador. Login com OAuth do Discord, sem arquivos JSON, sem SSH."
-                },
-                "embeds": {
-                    "title": "Construtor de embeds",
-                    "description": "Monte embeds ricos com prévia ao vivo. Salve templates, envie agendado, edite no lugar."
                 }
             }
         }
@@ -338,7 +330,7 @@
         },
         "brand": "Painel do Bot do Discord",
         "headline": "Gerencie seus servidores do Discord",
-        "description": "Configure moderação, comandos personalizados, música e muito mais — tudo em um só lugar.",
+        "description": "Configure música, preferências de autoplay e configurações do bot — tudo em um só lugar.",
         "modules": "Módulos",
         "commands": "Comandos",
         "uptime": "Tempo online",

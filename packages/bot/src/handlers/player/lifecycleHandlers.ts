@@ -1,7 +1,7 @@
 import type { GuildQueue } from 'discord-player'
 import type { Client, VoiceState } from 'discord.js'
 import { ChannelType } from 'discord.js'
-import { infoLog, debugLog, warnLog } from '@lucky/shared/utils'
+import { infoLog, debugLog, warnLog, errorLog } from '@lucky/shared/utils'
 import {
     createErrorEmbed,
     createWarningEmbed,
@@ -15,7 +15,10 @@ import * as voiceStatus from './voiceChannelStatusService'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
 import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
-import { replenishQueue } from '../../services/musicManagement/queueOperations'
+import {
+    replenishQueue,
+    waitForReplenish,
+} from '../../services/musicManagement/queueOperations'
 import { isReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 
@@ -306,8 +309,34 @@ export const setupLifecycleHandlers = (player: {
             !isReplenishSuppressed(guildId)
         ) {
             await replenishQueue(queue)
-        } else if (!isAutoplayEnabled || !queue.currentTrack) {
+        } else if (!isAutoplayEnabled) {
             musicWatchdogService.markIntentionalStop(guildId)
+        } else if (!queue.currentTrack) {
+            // A refill started on playerStart can still be running when the
+            // last track ends. Marking a stop here would block exhaustion
+            // recovery and the watchdog, and the late tracks would sit
+            // unplayed (#2932). Wait for it first.
+            const refillSucceeded = await waitForReplenish(guildId)
+            if (queue.tracks.size === 0) {
+                // A failed refill already scheduled its retry; a stop mark
+                // would make that retry bail out.
+                if (refillSucceeded) {
+                    musicWatchdogService.markIntentionalStop(guildId)
+                }
+            } else if (
+                !queue.node.isPlaying() &&
+                !musicWatchdogService.isIntentionalStop(guildId)
+            ) {
+                try {
+                    await queue.node.play()
+                } catch (error) {
+                    errorLog({
+                        message: 'Failed to restart playback after late refill',
+                        error,
+                        data: { guildId },
+                    })
+                }
+            }
         }
         // else: autoplay would apply but is suppressed/intentional-stop —
         // leave the queue empty without forcing markIntentionalStop; the

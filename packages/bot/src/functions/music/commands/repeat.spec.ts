@@ -37,6 +37,11 @@ jest.mock('discord-player', () => ({
     },
 }))
 
+const resumeAutoplayMock = jest.fn()
+jest.mock('../../../handlers/player/autoplayFailureStreak', () => ({
+    resumeAutoplay: (...args: unknown[]) => resumeAutoplayMock(...args),
+}))
+
 jest.mock('../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
@@ -204,6 +209,7 @@ describe('repeat command', () => {
             '🔁 Repeat mode',
             '**Infinite** repeat activated (continuous autoplay)',
         )
+        expect(resumeAutoplayMock).toHaveBeenCalledWith('guild-1')
     })
 
     it('returns early when queue validation fails', async () => {

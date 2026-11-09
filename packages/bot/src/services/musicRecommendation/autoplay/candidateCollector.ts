@@ -5,6 +5,7 @@ import type { AutoplayContext } from './autoplayContext'
 import { searchSeedCandidates } from './spotifyRecommender'
 import { calculateRecommendationScore } from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'
+import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import {
     shouldIncludeCandidate,
     upsertScoredCandidate,
@@ -22,6 +23,13 @@ export {
     shouldIncludeCandidate,
     upsertScoredCandidate,
 } from './candidateContracts'
+
+/**
+ * `spotify-rec` is a Spotify title text search, not a similarity lookup, so
+ * its hits count for half (#2934). That keeps them below the weakest Last.fm
+ * similar of equal base score (seed-similar scales by `0.5 + 0.5 * match`).
+ */
+export const SPOTIFY_REC_WEIGHT = 0.5
 
 export const SERTANEJO_TAGS = [
     'sertanejo',
@@ -74,12 +82,24 @@ export async function collectRecommendationCandidates(
     // avoid language-drift where genre terms like "worship" cause YouTube's
     // algorithm to surface Spanish gospel on non-Spanish sessions)
     for (const seed of seedTracks) {
+        // Only a Spotify seed carries a real artist; a YouTube seed's author
+        // is often the uploading channel, which no Spotify hit would match.
+        const seedArtistKey =
+            seed.source === 'spotify' ? primaryArtistKey(seed.author) : null
         const seedCandidates = await searchSeedCandidates(
             ctx.queue,
             seed,
             requestedBy,
         )
         for (const candidate of seedCandidates) {
+            // A title text search proves nothing about another artist: drop
+            // hits whose primary artist is not the seed's (#2955).
+            if (
+                seedArtistKey !== null &&
+                primaryArtistKey(candidate.author) !== seedArtistKey
+            ) {
+                continue
+            }
             if (
                 !shouldIncludeCandidate(
                     candidate,
@@ -125,6 +145,8 @@ export async function collectRecommendationCandidates(
                 blockedArtistKeys: ctx.blockedArtistKeys,
                 autoplayMode: ctx.autoplayMode,
                 artistFrequency: ctx.artistFrequency,
+                recentArtistIndices: ctx.recentArtistIndices,
+                seedArtistStreak: ctx.seedArtistStreak,
                 implicitDislikeKeys: ctx.implicitDislikeKeys,
                 implicitLikeKeys: ctx.implicitLikeKeys,
                 dislikedWeights: ctx.dislikedWeights,
@@ -141,9 +163,11 @@ export async function collectRecommendationCandidates(
                 candidates,
                 candidate,
                 {
-                    score: rec.score,
+                    // Halve gains only; a penalty keeps its full weight.
+                    score: Math.min(rec.score, rec.score * SPOTIFY_REC_WEIGHT),
                     source: 'spotify-rec',
                     signals: rec.signals,
+                    veto: rec.veto,
                 },
                 ctx.auditCollector,
             )

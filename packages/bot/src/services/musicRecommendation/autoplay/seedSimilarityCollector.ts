@@ -5,17 +5,13 @@ import { createArtistTagFetcher } from './artistTagCache'
 import {
     cleanSearchQuery,
     cleanTitle,
+    splitArtistAndSong,
 } from '../../../utils/music/searchQueryCleaner'
 import type { AutoplayContext } from './autoplayContext'
-import { calculateRecommendationScore } from './candidateScorer'
-import { normalizeTrackKey } from './scoringUtils'
-import {
-    shouldIncludeCandidate,
-    upsertScoredCandidate,
-} from './candidateCollector'
 import type { ScoredTrack } from './diversitySelector'
 import type { AutoplayAuditCollector } from './autoplayAudit'
 import { searchLastFmQuery } from './lastFmSeeder'
+import { addSeedDerivedHits } from './seedDerivedHits'
 
 // Boost applied to every seed-similar candidate. Sits above the lastfm-similar
 // boost (0.2) so the seed-grounded spine outranks weaker collateral sources
@@ -41,29 +37,31 @@ const similarCache = new Map<
     { tracks: SimilarTrack[]; expiresAt: number }
 >()
 
+// Resolves to null when Last.fm times out or errors, so callers can tell a
+// failed lookup from a genuine "no similar tracks".
 async function fetchSeedSimilar(
     artist: string,
     title: string,
-): Promise<SimilarTrack[]> {
+): Promise<SimilarTrack[] | null> {
     const key = `${artist.toLowerCase()}::${title.toLowerCase()}`
     const now = Date.now()
     const cached = similarCache.get(key)
     if (cached && cached.expiresAt > now) return cached.tracks
 
     let timeoutId: ReturnType<typeof setTimeout> | undefined
-    const timeout = new Promise<SimilarTrack[]>((resolve) => {
-        timeoutId = setTimeout(() => resolve([]), SEED_SIMILAR_TIMEOUT_MS)
+    const timeout = new Promise<null>((resolve) => {
+        timeoutId = setTimeout(() => resolve(null), SEED_SIMILAR_TIMEOUT_MS)
     })
     const tracks = await Promise.race([
         getSimilarTracks(artist, cleanTitle(title), MAX_SEED_SIMILAR),
         timeout,
     ])
-        .catch(() => [] as SimilarTrack[])
+        .catch(() => null)
         .finally(() => {
             if (timeoutId) clearTimeout(timeoutId)
         })
 
-    if (tracks.length > 0) {
+    if (tracks && tracks.length > 0) {
         // Drop any existing (expired) entry for this key first so the size
         // check reflects live capacity — Map.set updates in place without
         // reordering, which would otherwise leave the cache under capacity
@@ -79,6 +77,28 @@ async function fetchSeedSimilar(
         })
     }
     return tracks
+}
+
+async function fetchSeedSimilarForTrack(
+    author: string,
+    title: string,
+): Promise<SimilarTrack[]> {
+    const similar = (await fetchSeedSimilar(author, title)) ?? []
+    if (similar.length > 0) return similar
+    // A YouTube upload's author is the channel ("MoonWalker777"), which
+    // Last.fm does not know, so the lookup above finds nothing. Its title
+    // usually carries "Artist - Song": retry with those. Matters most while
+    // Spotify is down and /play lands on YouTube (2026-10-19).
+    const parsed = splitArtistAndSong(title, author)
+    if (!parsed) return similar
+    const fromTitle = await fetchSeedSimilar(parsed.artist, parsed.song)
+    // A timeout or error is not a "no match": stop here instead of chaining
+    // a third lookup onto a slow Last.fm.
+    if (fromTitle === null) return []
+    if (fromTitle.length > 0) return fromTitle
+    // "Song - Artist" uploads: with no author overlap the parser reads the
+    // title as "Artist - Song", so the pair above comes out swapped.
+    return (await fetchSeedSimilar(parsed.song, parsed.artist)) ?? []
 }
 
 /**
@@ -100,18 +120,16 @@ export async function collectSeedSimilarCandidates(
     candidates: Map<string, ScoredTrack>,
     auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {
-    const seedArtist = ctx.currentTrack.author?.trim()
-    const seedTitle = ctx.currentTrack.title?.trim()
+    const seed = ctx.anchorTrack ?? ctx.currentTrack
+    const seedArtist = seed.author?.trim()
+    const seedTitle = seed.title?.trim()
     if (!seedArtist || !seedTitle) return
 
-    const similar = await fetchSeedSimilar(seedArtist, seedTitle)
+    const similar = await fetchSeedSimilarForTrack(seedArtist, seedTitle)
     if (similar.length === 0) return
 
     const getArtistTags =
         ctx.genreContext.getArtistTags ?? createArtistTagFetcher()
-    const currentTrackTags = ctx.genreContext.currentTrackTags ?? []
-    const sessionGenreFamilies =
-        ctx.genreContext.sessionGenreFamilies ?? new Set<string>()
 
     // No early-out on pool size: this is the seed-similarity SPINE, so the
     // current-track anchor must always land — even when collectRecommendation-
@@ -121,63 +139,18 @@ export async function collectSeedSimilarCandidates(
     for (const s of similar) {
         const query = cleanSearchQuery(s.title, s.artist)
         const tracks = await searchLastFmQuery(ctx.queue, query, requestedBy)
-        for (const track of tracks) {
-            if (
-                !shouldIncludeCandidate(
-                    track,
-                    ctx.excludedUrls,
-                    ctx.excludedKeys,
-                    candidates,
-                )
-            )
-                continue
-            const normalizedKey = normalizeTrackKey(track.title, track.author)
-            const dislikedWeight = ctx.dislikedWeights.get(normalizedKey)
-            if (dislikedWeight !== undefined && dislikedWeight > 0.5) continue
-            const tags = await getArtistTags(track.author)
-            const rec = calculateRecommendationScore({
-                candidate: track,
-                currentTrack: ctx.currentTrack,
-                recentArtists: ctx.recentArtists,
-                likedWeights: ctx.likedWeights,
-                likedArtistWeights: ctx.likedArtistWeights,
-                dislikedArtistWeights: ctx.dislikedArtistWeights,
-                preferredArtistKeys: ctx.preferredArtistKeys,
-                blockedArtistKeys: ctx.blockedArtistKeys,
-                autoplayMode: ctx.autoplayMode,
-                artistFrequency: ctx.artistFrequency,
-                implicitDislikeKeys: ctx.implicitDislikeKeys,
-                implicitLikeKeys: ctx.implicitLikeKeys,
-                dislikedWeights: ctx.dislikedWeights,
-                sessionMood: ctx.sessionMood,
-                skipNoveltyBoost: true,
-                // Seed-derived: relax the genre guards to the safe radius around
-                // the seed so related-but-different artists aren't scored out.
-                seedDerived: true,
-                genreContext: {
-                    candidateTags: tags,
-                    currentTrackTags,
-                    sessionGenreFamilies,
-                },
-                replayFrequentTrackIds: ctx.replayFrequentTrackIds,
-                replayFrequentArtists: ctx.replayFrequentArtists,
-            })
-            // Last.fm returns `match` on a 0..1 scale. Weight by it but keep
-            // seed-similar competitive — the weight is clamped to [0.5, 1.0]
-            // (never weighted below 0.5 even on a weak match), so the spine
-            // still grounds a thin pool.
-            const matchWeight = 0.5 + 0.5 * Math.min(Math.max(s.match, 0), 1)
-            upsertScoredCandidate(
-                candidates,
-                track,
-                {
-                    score: (rec.score + SEED_SIMILAR_BOOST) * matchWeight,
-                    source: 'seed-similar',
-                    signals: rec.signals,
-                },
-                auditCollector,
-            )
-        }
+        // Last.fm returns `match` on a 0..1 scale. Weight by it but keep
+        // seed-similar competitive — the weight is clamped to [0.5, 1.0]
+        // (never weighted below 0.5 even on a weak match), so the spine
+        // still grounds a thin pool.
+        const weight = 0.5 + 0.5 * Math.min(Math.max(s.match, 0), 1)
+        await addSeedDerivedHits(
+            ctx,
+            tracks,
+            candidates,
+            { boost: SEED_SIMILAR_BOOST, weight, getArtistTags },
+            auditCollector,
+        )
     }
 
     debugLog({

@@ -7,7 +7,11 @@ import type { Readable } from 'node:stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
-import { classifyYtDlpFailure } from './ytdlpBlockBreaker'
+import {
+    classifyYtDlpFailure,
+    countYtDlpFailure,
+    markYtDlpBudgetMiss,
+} from './ytdlpBlockBreaker'
 
 // Absolute path, not a bare "yt-dlp" resolved via PATH lookup (CWE-426):
 // the Dockerfile symlinks the venv binary to this fixed location. Override
@@ -76,12 +80,44 @@ function validateYtDlpUrl(url: string): void {
 // prior cookie-less behavior when unset or the file isn't there.
 let loggedCookiesMissing = false
 let loggedCookiesApplied = false
+let cookiesRejectedWarnedAt = 0
+
+// "cookies file applied" only proves the file is readable. When the cookies
+// retry gets the same sign-in challenge, the session in the file is logged
+// out or expired, and every YouTube play falls to SoundCloud until someone
+// re-exports it (2026-10-19). Warn about that, at most once an hour.
+const COOKIES_REJECTED_WARN_COOLDOWN_MS = 60 * 60_000
 
 // Test-only: the log-once dedup above is module-level state, so tests that
 // assert on it must reset between cases instead of relying on run order.
 export function __resetYtdlpCookiesLogStateForTests(): void {
     loggedCookiesMissing = false
     loggedCookiesApplied = false
+    cookiesRejectedWarnedAt = 0
+}
+
+// Since 2026-10-19 the plain attempt hits YouTube's bot-check on nearly every
+// request. While a recent plain bot-check is remembered, skip that wasted
+// attempt and go straight to the cookies path. A 403 on the cookies attempt
+// signals that cookies are also degraded; clear the shortcut and let plain
+// run on the next call.
+export const PLAIN_BOTCHECK_SKIP_WINDOW_MS = 15 * 60_000
+let lastPlainBotCheckAt = 0
+
+export function __resetPlainBotCheckStateForTests(): void {
+    lastPlainBotCheckAt = 0
+}
+
+function warnCookiesRejected(cookiesFile: string | undefined): void {
+    const now = Date.now()
+    if (now - cookiesRejectedWarnedAt < COOKIES_REJECTED_WARN_COOLDOWN_MS)
+        return
+    cookiesRejectedWarnedAt = now
+    warnLog({
+        message:
+            'Bridge: yt-dlp still got the sign-in check with cookies, re-export the cookies file (secrets/README.md)',
+        data: { cookiesFile },
+    })
 }
 
 function isReadableFile(cookiesFile: string): boolean {
@@ -120,19 +156,119 @@ function ytdlpCookiesArgs(): string[] {
     return ['--cookies', cookiesFile]
 }
 
+// ADR 2026-06-18, step 2 of the escalation ladder (amendment 2026-10-21):
+// a bgutil po_token provider. The plugin sits in its own plugin dir (see the
+// Dockerfile), outside yt-dlp's default search path, so it only loads when
+// YTDLP_POT_PROVIDER_URL is set and nothing changes while it is unset. If the
+// sidecar is down, the plugin's /ping fails fast and yt-dlp extracts without a
+// PO token, exactly as it does with the provider unset.
+const YTDLP_POT_PLUGIN_DIR =
+    process.env.YTDLP_POT_PLUGIN_DIR || '/opt/ytdlp-plugins'
+let loggedPotProvider = false
+
+export function __resetYtdlpPotLogStateForTests(): void {
+    loggedPotProvider = false
+}
+
+function ytdlpPotProviderArgs(url: string): string[] {
+    const baseUrl = process.env.YTDLP_POT_PROVIDER_URL
+    if (!baseUrl || !isYoutubeYtDlpTarget(url)) return []
+
+    let parsed: URL | undefined
+    try {
+        parsed = new URL(baseUrl)
+    } catch {
+        // Falls through to the warning below.
+    }
+    // `;` separates extractor args, so it must not reach the arg value.
+    const valid =
+        (parsed?.protocol === 'http:' || parsed?.protocol === 'https:') &&
+        !baseUrl.includes(';')
+    if (!loggedPotProvider) {
+        loggedPotProvider = true
+        if (valid) {
+            infoLog({
+                message: 'Bridge: yt-dlp po_token provider configured',
+                data: { origin: parsed?.origin },
+            })
+        } else {
+            warnLog({
+                message:
+                    'Bridge: YTDLP_POT_PROVIDER_URL is not an http(s) URL, running without a po_token provider',
+            })
+        }
+    }
+    if (!valid) return []
+    return [
+        '--plugin-dirs',
+        YTDLP_POT_PLUGIN_DIR,
+        '--extractor-args',
+        `youtubepot-bgutilhttp:base_url=${baseUrl}`,
+    ]
+}
+
 // #2141: the prior 6s budget (set by #2044) sat inside the normal latency
 // distribution rather than above it. Prod measurement with --cookies (the
 // live path then; since #2653 cookies only apply on a sign-in retry) gave a
 // p100 of 7673ms, and the
 // 6s budget was killing 16.8% of otherwise-healthy resolutions. Set just
 // above that measured p100.
+//
+// Still right for a cookie-less attempt (prod 2026-10-13 to 10-17): direct
+// URL stream start 2.0-3.0s (n=10); search-path totals (flat search plus
+// stream start) p99 8.2s, p100 8.9s over n=433, and the flat search alone is
+// 1.4-2.4s (n=60), which leaves the stream start under 8s.
 export const YTDLP_STREAM_START_TIMEOUT_MS = 8_000
 
-// ytsearch adds a YouTube search round-trip on top of the audio stream start.
-// Its total observed p95 sits below the direct-URL p100, so a shorter budget
-// lets the bridge fail faster on degraded YouTube without cutting healthy
-// resolutions (#2742).
+// The cookies retry runs a logged-in session, and that stream start is slower
+// than a cookie-less one. Since 2026-10-19 the plain attempt hits the
+// bot-check on nearly every play (19 bot-checks in 3 days), so this retry is
+// the live path. Under the 8s budget 9 of 14 cookie retries (2026-10-19 to
+// 10-21) timed out and the play fell to SoundCloud; the 5 that streamed took
+// 5.8-7.5s. Those timeouts are cut at 8s, so the logs cannot give a p99:
+// this budget is a measurement ceiling, to be set just above the p99 of the
+// "Bridge: yt-dlp attempt" logs (attempt=cookies) once they accumulate.
+export const YTDLP_COOKIES_STREAM_START_TIMEOUT_MS = 15_000
+
+// Only streamViaYtDlpSearch (single-shot ytsearch1) uses this. The bridge's
+// search path lists candidates first (YTDLP_SEARCH_RESOLVE_TIMEOUT_MS) and
+// then streams the pick through streamViaYtDlp, so its stream start gets
+// YTDLP_STREAM_START_TIMEOUT_MS, not this (#2742).
 export const YTDLP_SEARCH_STREAM_TIMEOUT_MS = 7_000
+
+type YtDlpAttempt = 'plain' | 'forbidden_retry' | 'cookies'
+
+// The bridge's durationMs spans the search and every attempt, so on its own
+// it cannot tell a slow stream start from a slow search, or from a fast
+// sign-in failure followed by the cookies retry. One line per YouTube attempt
+// gives each phase its own number. SoundCloud is not logged: its budget is
+// not in question and it would double the volume.
+function spawnTimed(
+    url: string,
+    attempt: YtDlpAttempt,
+    cookiesArgs: string[],
+    timeoutMs: number,
+): Promise<Readable> {
+    if (!isYoutubeYtDlpTarget(url)) {
+        return spawnYtDlp(url, cookiesArgs, timeoutMs)
+    }
+    const startedAt = Date.now()
+    const report = (outcome: string) =>
+        infoLog({
+            message: 'Bridge: yt-dlp attempt',
+            data: { attempt, outcome, ms: Date.now() - startedAt, timeoutMs },
+        })
+    return spawnYtDlp(url, cookiesArgs, timeoutMs).then(
+        (stream) => {
+            report('ok')
+            return stream
+        },
+        (error: unknown) => {
+            report(classifyYtDlpFailure(error))
+            throw error
+        },
+    )
+}
 
 // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-positioning.md
 // point 3): this is the layer that actually spawns yt-dlp against YouTube, so
@@ -158,6 +294,33 @@ export function streamViaYtDlp(
     } catch (err) {
         return Promise.reject(err)
     }
+    // Fast-path: while the plain attempt has been hitting the bot-check
+    // recently, skip it and go straight to cookies, saving the ~1.6 s of
+    // wasted budget (#2921). A 403 on the cookies path means cookies are also
+    // blocked; clear the shortcut so plain runs again on the next call.
+    if (
+        isYoutubeYtDlpTarget(url) &&
+        Date.now() - lastPlainBotCheckAt < PLAIN_BOTCHECK_SKIP_WINDOW_MS
+    ) {
+        const cookiesArgs = ytdlpCookiesArgs()
+        if (cookiesArgs.length > 0) {
+            return spawnTimed(
+                url,
+                'cookies',
+                cookiesArgs,
+                Math.max(timeoutMs, YTDLP_COOKIES_STREAM_START_TIMEOUT_MS),
+            ).catch((retryError: unknown) => {
+                if (needsSignIn(retryError))
+                    warnCookiesRejected(process.env.YTDLP_COOKIES_FILE)
+                if (classifyYtDlpFailure(retryError) === 'timeout')
+                    markYtDlpBudgetMiss(retryError)
+                if (classifyYtDlpFailure(retryError) === 'forbidden')
+                    lastPlainBotCheckAt = 0
+                throw retryError
+            })
+        }
+    }
+
     // Cookies only answer a sign-in challenge (#2653). Since 2026-10-06 a
     // logged-in session makes yt-dlp use web clients that need a GVS PO
     // token, so every cookie-backed download got HTTP 403, while the same
@@ -173,18 +336,59 @@ export function streamViaYtDlp(
     // throw. A failure of the retry itself propagates as is. The retry runs
     // inside this function, so the block breaker (recordYtDlpFailure in the
     // bridge) only sees a 403 that also failed the retry.
-    return spawnYtDlp(url, [], timeoutMs).catch((error: unknown) => {
-        if (classifyYtDlpFailure(error) === 'forbidden') {
-            infoLog({
-                message: 'Bridge: yt-dlp got HTTP 403, retrying once',
-                data: { retry: 'forbidden' },
-            })
-            return spawnYtDlp(url, [], timeoutMs)
-        }
-        const cookiesArgs = needsSignIn(error) ? ytdlpCookiesArgs() : []
-        if (cookiesArgs.length === 0) throw error
-        return spawnYtDlp(url, cookiesArgs, timeoutMs)
-    })
+    return spawnTimed(url, 'plain', [], timeoutMs).catch((error: unknown) =>
+        retryOnce(url, error, timeoutMs),
+    )
+}
+
+async function retryOnce(
+    url: string,
+    error: unknown,
+    timeoutMs: number,
+): Promise<Readable> {
+    if (classifyYtDlpFailure(error) === 'forbidden') {
+        // Count the first 403 so Prometheus reflects every attempt, even
+        // those the retry recovers. The block breaker (recordYtDlpFailure
+        // in the bridge) only fires when the retry also fails (#2864).
+        // YouTube only: the metric and its alert describe YouTube blocks.
+        if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
+        infoLog({
+            message: 'Bridge: yt-dlp got HTTP 403, retrying once',
+            data: { retry: 'forbidden' },
+        })
+        return spawnTimed(url, 'forbidden_retry', [], timeoutMs)
+    }
+    const cookiesArgs = needsSignIn(error) ? ytdlpCookiesArgs() : []
+    if (cookiesArgs.length === 0) throw error
+    // Count the first sign-in challenge too: the cookies retry may
+    // recover it, and the breaker only sees a failed retry (#2864).
+    if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
+    // Bot-check on the plain attempt: enable the fast-path skip (#2921).
+    if (isYoutubeYtDlpTarget(url) && classifyYtDlpFailure(error) === 'botcheck')
+        lastPlainBotCheckAt = Date.now()
+    try {
+        // Never less than the caller asked for.
+        return await spawnTimed(
+            url,
+            'cookies',
+            cookiesArgs,
+            Math.max(timeoutMs, YTDLP_COOKIES_STREAM_START_TIMEOUT_MS),
+        )
+    } catch (retryError) {
+        if (needsSignIn(retryError))
+            warnCookiesRejected(process.env.YTDLP_COOKIES_FILE)
+        // A slow logged-in start must not open the block breaker; see
+        // markYtDlpBudgetMiss.
+        if (classifyYtDlpFailure(retryError) === 'timeout')
+            markYtDlpBudgetMiss(retryError)
+        // 403 on the cookies retry: cookies are also blocked; clear the shortcut.
+        if (
+            isYoutubeYtDlpTarget(url) &&
+            classifyYtDlpFailure(retryError) === 'forbidden'
+        )
+            lastPlainBotCheckAt = 0
+        throw retryError
+    }
 }
 
 // Deliberately broad: matches both the bot-check ("Sign in to confirm you're
@@ -224,6 +428,7 @@ function spawnYtDlp(
                 '--no-progress',
                 '--js-runtimes',
                 `node:${process.execPath}`,
+                ...ytdlpPotProviderArgs(url),
                 ...cookiesArgs,
                 url,
             ],
@@ -235,7 +440,7 @@ function spawnYtDlp(
         // full duration before falling back to SoundCloud, so a long timeout
         // directly taxes perceived playback latency whenever yt-dlp is
         // degraded (rate-limited/blocked) rather than erroring fast. See the
-        // constant above for why this isn't shorter. The 403 retry adds one
+        // constants above for why these aren't shorter. The 403 retry adds one
         // more attempt only after a fast failure, never after a timeout.
         const timeout = setTimeout(() => {
             proc.kill()
@@ -308,8 +513,9 @@ export type YtSearchCandidate = {
 }
 
 // A flat search only fetches the results page (no player JS, no formats):
-// measured 1-2 s. The stream of the chosen video then gets its own
-// YTDLP_STREAM_START_TIMEOUT_MS, the same budget a direct URL play has.
+// prod 2026-10-14 to 10-20, 1.4-2.4s over n=60. The stream of the chosen
+// video then gets its own YTDLP_STREAM_START_TIMEOUT_MS, the same budget a
+// direct URL play has.
 export const YTDLP_SEARCH_RESOLVE_TIMEOUT_MS = 5_000
 const YTDLP_SEARCH_MAX_OUTPUT_BYTES = 64 * 1024
 

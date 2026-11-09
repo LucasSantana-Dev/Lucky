@@ -1,8 +1,10 @@
+import { randomInt } from 'node:crypto'
 import type { Track, GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import type { AutoplayContext } from './autoplayContext'
 import { AutoplayAuditCollector } from './autoplayAudit'
+import type { SourceCount } from './autoplayAudit'
 import { recommendationFeedbackService } from '../feedbackService'
 import { recordRecommendationOutcome } from '../../../services/musicRecommendation/recommendationTelemetry'
 import {
@@ -28,7 +30,11 @@ import {
     type ArtistTagFetcher,
 } from './artistTagCache'
 import { getGenreFamilies, RECENCY_WINDOW_TRACKS } from './candidateScorer'
-import { buildArtistFeedbackWeights } from './scoringUtils'
+import {
+    ARTIST_FEEDBACK_WEIGHT_CAP,
+    buildArtistFeedbackWeights,
+    normalizeText,
+} from './scoringUtils'
 import {
     buildExcludedUrls,
     buildExcludedKeys,
@@ -39,6 +45,8 @@ import {
 } from './diversitySelector'
 import { collectLastFmCandidates } from './lastFmSeeder'
 import { collectSeedSimilarCandidates } from './seedSimilarityCollector'
+import { collectRelatedArtistCandidates } from './relatedArtistCollector'
+import { isAnchorTrack, selectAnchorSeeds } from './anchorSeeds'
 import { serializeBasis } from './recommendationBasis'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
 import { primaryArtistKey } from '../../../utils/music/trackNormalization'
@@ -49,7 +57,6 @@ import {
     interleaveByArtist,
 } from '../candidateFallback'
 import { buildVcContributionWeights } from './vcWeights'
-import { evaluateSkipRateBreaker } from './skipCircuitBreaker'
 import { getRejectionCounts } from './candidateContracts'
 
 // Autoplay backfill target. Reduced from 8→2 to prevent over-queueing: when
@@ -61,6 +68,13 @@ import { getRejectionCounts } from './candidateContracts'
 const AUTOPLAY_BUFFER_SIZE = 2
 const AUTOPLAY_BUFFER_SIZE_PREMIUM = 4
 const HISTORY_SEED_LIMIT = 3
+// Per-cycle budget for the broad fallback Spotify search: two queries each
+// with their own network round-trips. Caps the tail so the cycle p95 stays
+// under 8s (#2870).
+const BROAD_FALLBACK_TIMEOUT_MS = 4_000
+// How many in-session history tracks to replay when every collector returns
+// empty (#2870). Picks are shuffled so the same track never leads every time.
+const HISTORY_REPLAY_LIMIT = 2
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
 // 'similar' mode popularity re-rank: a mild gradient (popularity/100 × weight)
@@ -91,7 +105,7 @@ export function popularityBoost(
 // Concurrency lock: prevents duplicate queue insertions when playerStart and
 // playerFinish events fire within milliseconds (playerStart + playerFinish) cannot both read
 // the same exclusion sets and independently select the same track.
-const replenishLocks = new Map<string, Promise<void>>()
+const replenishLocks = new Map<string, Promise<boolean>>()
 
 // Per-guild counter for query diversity across multiple replenish calls.
 const replenishCounters = new Map<string, number>()
@@ -141,11 +155,16 @@ async function cancelPendingRecommendations(
     })
 }
 
+/**
+ * Resolves false when the refill failed (already logged), so a caller that
+ * can retry knows to. It never rejects: several callers are event listeners
+ * with no catch of their own.
+ */
 export function replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
     skipStateProvider?: SkipStateProvider,
-): Promise<void> {
+): Promise<boolean> {
     const guildId = queue.guild.id
     const prev = replenishLocks.get(guildId) ?? Promise.resolve()
     const next = prev.then(() =>
@@ -153,19 +172,34 @@ export function replenishQueue(
     )
     replenishLocks.set(
         guildId,
-        next.catch(() => {}),
+        next.catch(() => false),
     )
     return next
+}
+
+/**
+ * Settles once no refill is queued for this guild, including any queued
+ * while it was waiting. Resolves false when the last refill failed, so the
+ * caller can leave its retry running instead of marking a stop.
+ */
+export async function waitForReplenish(guildId: string): Promise<boolean> {
+    let lock: Promise<boolean> | undefined
+    let succeeded: boolean
+    do {
+        lock = replenishLocks.get(guildId)
+        succeeded = (await lock) ?? true
+    } while (replenishLocks.get(guildId) !== lock)
+    return succeeded
 }
 
 async function _replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
     skipStateProvider?: SkipStateProvider,
-): Promise<void> {
+): Promise<boolean> {
     const startTime = Date.now()
     const guildId = queue.guild.id
-    const sourcesCounts: Record<string, number | { skipped: true }> = {
+    const sourcesCounts: Record<string, SourceCount> = {
         recommendation: 0,
         seedSimilar: 0,
         lastfm: 0,
@@ -180,14 +214,13 @@ async function _replenishQueue(
         })
 
         const gatingResult = await evaluateGatingChecks(queue, finishedTrack)
-        if (!gatingResult) return
+        if (!gatingResult) return true
         const { currentTrack, missingTracks } = gatingResult
 
         const {
             allHistoryTracks,
             sessionMood,
             historyTracks,
-            seedTracks,
             requestedBy,
             vcMemberIds,
             allMemberIds,
@@ -224,6 +257,7 @@ async function _replenishQueue(
             recentArtists,
             recentArtistIndices,
             artistFrequency,
+            seedArtistStreak,
         } = buildExclusionAndDerivedSignals(
             queue,
             currentTrack,
@@ -231,14 +265,32 @@ async function _replenishQueue(
             historyTracks,
             persistentHistory,
         )
+        // Seed and genre-anchor only on tracks people asked for or kept
+        // (#2934): skipped or unvetted autoplay picks must not steer the
+        // next picks, or the session drifts one pick at a time.
+        const anchorSignals = {
+            likedWeights,
+            implicitLikeKeys,
+            implicitDislikeKeys: mergedImplicitDislikeKeys,
+        }
+        const seedTracks = selectAnchorSeeds(
+            currentTrack,
+            allHistoryTracks,
+            anchorSignals,
+            HISTORY_SEED_LIMIT + 1,
+        )
+        const anchorTrack = seedTracks[0]
+        const anchorHistory = allHistoryTracks.filter((t) =>
+            isAnchorTrack(t, anchorSignals),
+        )
         // Built once and shared with the collectors below, as before the
         // decomposition: the fetcher carries a per-pass memo cache.
         const getArtistTags = await buildArtistTagFetcher(requestedBy)
         const { currentTrackTags, sessionGenreFamilies, blockSertanejo } =
             await buildGenreTagContext(
                 queue,
-                currentTrack,
-                allHistoryTracks,
+                anchorTrack,
+                anchorHistory,
                 guildSettings,
                 getArtistTags,
             )
@@ -253,6 +305,7 @@ async function _replenishQueue(
             preferredArtistKeys,
             blockedArtistKeys,
             currentTrack,
+            anchorTrack,
             recentArtists,
             autoplayMode,
             artistFrequency,
@@ -267,6 +320,7 @@ async function _replenishQueue(
             replayFrequentTrackIds: replayFrequency?.trackIds ?? new Set(),
             replayFrequentArtists: replayFrequency?.artists ?? new Set(),
             recentArtistIndices,
+            seedArtistStreak,
             auditCollector: new AutoplayAuditCollector(),
         }
 
@@ -300,6 +354,7 @@ async function _replenishQueue(
             currentTrack,
             autoplayMode,
             requestedBy,
+            !hasQueuedSeedSimilarPick(queue),
         )
 
         await enqueueAndFinalize(
@@ -309,9 +364,12 @@ async function _replenishQueue(
             requestedBy,
             sourcesCounts,
             startTime,
+            allHistoryTracks,
         )
+        return true
     } catch (error) {
         errorLog({ message: 'Error replenishing queue:', error })
+        return false
     }
 }
 
@@ -341,10 +399,6 @@ export async function evaluateGatingChecks(
     ).length
     const missingTracks = bufferSize - autoplayInQueue
     if (missingTracks <= 0) return null
-
-    // Autoplay skip-rate circuit breaker: check if we should pause replenishment
-    const shouldContinue = await evaluateSkipRateBreaker(queue)
-    if (!shouldContinue) return null
 
     return { currentTrack, missingTracks }
 }
@@ -406,6 +460,40 @@ export async function extractSeedAndSessionMood(
     }
 }
 
+function mergeMaxWeights(maps: Map<string, number>[]): Map<string, number> {
+    const merged = new Map<string, number>()
+    for (const map of maps) {
+        for (const [key, weight] of map) {
+            merged.set(key, Math.max(merged.get(key) ?? 0, weight))
+        }
+    }
+    return merged
+}
+
+function unionKeys(sets: Set<string>[]): Set<string> {
+    return new Set(sets.flatMap((set) => [...set]))
+}
+
+// Skip/stop artist dislikes (#2933) stack on voted ones under the same cap.
+function addCappedWeights(
+    base: Map<string, number>,
+    extra: Map<string, number>,
+): Map<string, number> {
+    const merged = new Map(base)
+    for (const [key, weight] of extra) {
+        merged.set(
+            key,
+            Math.min(
+                (merged.get(key) ?? 0) + weight,
+                ARTIST_FEEDBACK_WEIGHT_CAP,
+            ),
+        )
+    }
+    return merged
+}
+
+const MAX_FEEDBACK_MEMBERS = 10
+
 /**
  * Fetch feedback and history data: liked/disliked weights, persistent history,
  * guild settings, implicit signals, preferred/blocked artists, replay frequency.
@@ -436,6 +524,14 @@ export async function fetchFeedbackAndHistoryData(
     autoplayMode: 'similar' | 'discover' | 'popular'
     replayFrequency: { trackIds: Set<string>; artists: Set<string> }
 }> {
+    // Every listener's votes count, not just the requester's (#2933). Each id
+    // costs several DB reads per refill, so a crowded channel is capped (the
+    // requester comes first). An empty id keeps the old single-lookup
+    // behaviour when nobody is known.
+    const feedbackUserIds =
+        allMemberIds.length > 0
+            ? allMemberIds.slice(0, MAX_FEEDBACK_MEMBERS)
+            : ['']
     const [
         likedWeights,
         dislikedWeights,
@@ -447,22 +543,34 @@ export async function fetchFeedbackAndHistoryData(
         allBlockedSets,
         replayFrequency,
     ] = await Promise.all([
-        recommendationFeedbackService.getLikedTrackWeights(
-            queue.guild.id,
-            requestedBy?.id ?? '',
-        ),
-        recommendationFeedbackService.getDislikedTrackWeights(
-            queue.guild.id,
-            requestedBy?.id ?? '',
-        ),
+        Promise.all(
+            feedbackUserIds.map((id) =>
+                recommendationFeedbackService.getLikedTrackWeights(
+                    queue.guild.id,
+                    id,
+                ),
+            ),
+        ).then(mergeMaxWeights),
+        Promise.all(
+            feedbackUserIds.map((id) =>
+                recommendationFeedbackService.getDislikedTrackWeights(
+                    queue.guild.id,
+                    id,
+                ),
+            ),
+        ).then(mergeMaxWeights),
         trackHistoryService.getTrackHistory(queue.guild.id, 150),
         guildSettingsService.getGuildSettings(queue.guild.id),
-        recommendationFeedbackService.getImplicitDislikeKeys(
-            requestedBy?.id ?? '',
-        ),
-        recommendationFeedbackService.getImplicitLikeKeys(
-            requestedBy?.id ?? '',
-        ),
+        Promise.all(
+            feedbackUserIds.map((id) =>
+                recommendationFeedbackService.getImplicitDislikeKeys(id),
+            ),
+        ).then(unionKeys),
+        Promise.all(
+            feedbackUserIds.map((id) =>
+                recommendationFeedbackService.getImplicitLikeKeys(id),
+            ),
+        ).then(unionKeys),
         Promise.all(
             allMemberIds.map((id) =>
                 recommendationFeedbackService.getPreferredArtistKeys(
@@ -525,7 +633,12 @@ export async function fetchFeedbackAndHistoryData(
         likedWeights,
         dislikedWeights,
         likedArtistWeights: buildArtistFeedbackWeights(likedWeights),
-        dislikedArtistWeights: buildArtistFeedbackWeights(dislikedWeights),
+        dislikedArtistWeights: addCappedWeights(
+            buildArtistFeedbackWeights(dislikedWeights),
+            recommendationFeedbackService.getGuildImplicitArtistDislikeWeights(
+                queue.guild.id,
+            ),
+        ),
         persistentHistory,
         guildSettings,
         implicitDislikeKeys,
@@ -555,6 +668,7 @@ export function buildExclusionAndDerivedSignals(
     recentArtists: Set<string>
     recentArtistIndices: Map<string, number>
     artistFrequency: Map<string, number>
+    seedArtistStreak: number
 } {
     const excludedUrls = buildExcludedUrls(
         queue,
@@ -588,6 +702,10 @@ export function buildExclusionAndDerivedSignals(
         allHistoryTracks,
     )
     const artistFrequency = buildArtistFrequency(persistentHistory)
+    const seedArtistStreak = countSeedArtistStreak(
+        currentTrack,
+        allHistoryTracks,
+    )
 
     return {
         excludedUrls,
@@ -595,7 +713,34 @@ export function buildExclusionAndDerivedSignals(
         recentArtists,
         recentArtistIndices,
         artistFrequency,
+        seedArtistStreak,
     }
+}
+
+/** True when an autoplay pick from the seed's artist or related artists is still queued. */
+function hasQueuedSeedSimilarPick(queue: GuildQueue): boolean {
+    return queue.tracks.toArray().some((track) => {
+        const metadata = track.metadata as
+            { isAutoplay?: boolean; recommendationSource?: string } | undefined
+        return (
+            metadata?.isAutoplay === true &&
+            metadata.recommendationSource === 'seed-similar'
+        )
+    })
+}
+
+/** Current track plus the newest history tracks by the same primary artist. */
+function countSeedArtistStreak(
+    currentTrack: Track,
+    allHistoryTracks: Track[],
+): number {
+    const artist = primaryArtistKey(currentTrack.author ?? '')
+    let streak = 1
+    for (const track of allHistoryTracks) {
+        if (!artist || primaryArtistKey(track.author ?? '') !== artist) break
+        streak++
+    }
+    return streak
 }
 
 /**
@@ -681,6 +826,35 @@ export async function buildGenreTagContext(
 }
 
 /**
+ * Broad fallback runs two Spotify searches that can stall for 10-25s without a
+ * timeout. Race against BROAD_FALLBACK_TIMEOUT_MS so the cycle budget stays
+ * under 8s p95 (#2870). The collector writes into a scratch map that is
+ * returned only if it finishes in time, so a stalled search cannot mutate a
+ * later pass; on timeout or error the result is empty.
+ */
+async function collectBroadFallbackWithTimeout(
+    autoplayContext: AutoplayContext,
+): Promise<Map<string, ScoredTrack>> {
+    const scratch = new Map<string, ScoredTrack>()
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const finished = await Promise.race([
+        collectBroadFallbackCandidates(
+            autoplayContext,
+            scratch,
+            autoplayContext.auditCollector,
+        ).then(
+            () => true,
+            () => false,
+        ),
+        new Promise<boolean>((resolve) => {
+            timer = setTimeout(() => resolve(false), BROAD_FALLBACK_TIMEOUT_MS)
+        }),
+    ])
+    if (timer) clearTimeout(timer)
+    return finished ? scratch : new Map()
+}
+
+/**
  * Collect all autoplay candidates from five sources: recommendation, seed-similar,
  * lastfm, genre, and fallback. Returns candidates set and sourcesCounts breakdown.
  */
@@ -693,9 +867,9 @@ export async function collectAllCandidates(
     contributionWeights: Map<string, number>,
 ): Promise<{
     candidates: Map<string, ScoredTrack>
-    sourcesCounts: Record<string, number | { skipped: true }>
+    sourcesCounts: Record<string, SourceCount>
 }> {
-    const sourcesCounts: Record<string, number | { skipped: true }> = {
+    const sourcesCounts: Record<string, SourceCount> = {
         recommendation: 0,
         seedSimilar: 0,
         lastfm: 0,
@@ -725,6 +899,12 @@ export async function collectAllCandidates(
     if (requestedBy) {
         const beforeSeedSimilar = candidates.size
         await collectSeedSimilarCandidates(
+            autoplayContext,
+            requestedBy,
+            candidates,
+            autoplayContext.auditCollector,
+        )
+        await collectRelatedArtistCandidates(
             autoplayContext,
             requestedBy,
             candidates,
@@ -790,11 +970,13 @@ export async function collectAllCandidates(
                 implicitDislikeKeys: autoplayContext.implicitDislikeKeys,
                 implicitLikeKeys: autoplayContext.implicitLikeKeys,
                 sessionMood: autoplayContext.sessionMood,
+                seedArtistStreak: autoplayContext.seedArtistStreak,
                 genreContext: {
                     currentTrackTags:
                         autoplayContext.genreContext.currentTrackTags,
                     sessionGenreFamilies:
                         autoplayContext.genreContext.sessionGenreFamilies,
+                    getArtistTags: autoplayContext.genreContext.getArtistTags,
                 },
                 auditCollector: autoplayContext.auditCollector,
             },
@@ -811,16 +993,19 @@ export async function collectAllCandidates(
             },
         })
     } else {
-        sourcesCounts.genre = { skipped: true }
+        // This collector is the opt-in `/autoplay genre add` one, so skipped
+        // means "no guild genres configured". It is unrelated to the scorer's
+        // derived `sessionGenreFamilies`, which still applies the drift veto.
+        sourcesCounts.genre = {
+            skipped: true,
+            reason: requestedBy ? 'no-guild-genres' : 'no-requester',
+        }
     }
 
     if (candidates.size === 0 && autoplayContext.currentTrack) {
         const beforeFallback = candidates.size
-        await collectBroadFallbackCandidates(
-            autoplayContext,
-            candidates,
-            autoplayContext.auditCollector,
-        )
+        const scratch = await collectBroadFallbackWithTimeout(autoplayContext)
+        for (const [k, v] of scratch) candidates.set(k, v)
         sourcesCounts.fallback = candidates.size - beforeFallback
         debugLog({
             message: 'Autoplay: broad fallback candidates',
@@ -841,6 +1026,7 @@ export async function selectAndRerankCandidates(
     currentTrack: Track,
     autoplayMode: 'similar' | 'discover' | 'popular',
     requestedBy: User | null,
+    reserveAnchor = false,
 ): Promise<
     {
         track: Track
@@ -863,10 +1049,16 @@ export async function selectAndRerankCandidates(
             effectiveMaxPerArtist,
             MAX_TRACKS_PER_SOURCE,
             seedArtistKey,
+            reserveAnchor,
         ),
     )
 
     const enriched = selected
+    // The selector put the reserved anchor first; the rerank must not undo it.
+    const anchor =
+        reserveAnchor && enriched[0]?.basis.source === 'seed-similar'
+            ? enriched[0]
+            : undefined
 
     if (requestedBy?.id) {
         const token = await Promise.resolve(
@@ -890,7 +1082,11 @@ export async function selectAndRerankCandidates(
                     track.score += popularityBoost(autoplayMode, popularity)
                 }),
             )
-            enriched.sort((a, b) => b.score - a.score)
+            enriched.sort(
+                (a, b) =>
+                    Number(b === anchor) - Number(a === anchor) ||
+                    b.score - a.score,
+            )
         }
     }
 
@@ -904,7 +1100,7 @@ function emitAutoplayAudit(
         score: number
         basis: import('./recommendationBasis').RecommendationBasis
     }[],
-    sourcesCounts: Record<string, number | { skipped: true }>,
+    sourcesCounts: Record<string, SourceCount>,
     startTime: number,
 ): void {
     const collector = autoplayContext.auditCollector
@@ -917,6 +1113,7 @@ function emitAutoplayAudit(
             autoplayContext.sessionMood,
             sourcesCounts,
             Date.now() - startTime,
+            autoplayContext.genreContext.sessionGenreFamilies,
         )
     } catch (error) {
         // Telemetry must never stop the queue from being refilled.
@@ -926,6 +1123,8 @@ function emitAutoplayAudit(
 
 /**
  * Enqueue selected tracks and log finalization, or log empty-result path.
+ * When all collectors return empty, replays recent guild history tracks as a
+ * last resort so the queue never hard-stalls (#2870).
  */
 export async function enqueueAndFinalize(
     autoplayContext: AutoplayContext,
@@ -936,8 +1135,9 @@ export async function enqueueAndFinalize(
     }[],
     candidates: Map<string, ScoredTrack>,
     requestedBy: User | null,
-    sourcesCounts: Record<string, number | { skipped: true }>,
+    sourcesCounts: Record<string, SourceCount>,
     startTime: number,
+    allHistoryTracks: Track[] = [],
 ): Promise<void> {
     const queue = autoplayContext.queue
     const currentTrack = autoplayContext.currentTrack
@@ -971,6 +1171,58 @@ export async function enqueueAndFinalize(
                 hasRequester: Boolean(requestedBy),
             },
         })
+
+        // History replay: fall back to recent session history so the queue
+        // doesn't hard-stall. Pick tracks not already excluded, shuffle to
+        // avoid the same track leading every time (#2870).
+        // excludedUrls already holds every session-history URL, so filtering
+        // on it would always empty the pool. Replay only needs to avoid what
+        // is playing or already queued.
+        const replayExcluded = new Set<string>(
+            [
+                currentTrack?.url,
+                ...queue.tracks.toArray().map((t) => t.url),
+            ].filter((u): u is string => Boolean(u)),
+        )
+        const historyPool = allHistoryTracks.filter(
+            (t) => t.url && !replayExcluded.has(t.url),
+        )
+        // Shuffle so successive empty passes don't always replay the same track.
+        for (let i = historyPool.length - 1; i > 0; i--) {
+            const j = randomInt(i + 1)
+            ;[historyPool[i], historyPool[j]] = [
+                historyPool[j]!,
+                historyPool[i]!,
+            ]
+        }
+        const historyReplay = historyPool.slice(0, HISTORY_REPLAY_LIMIT)
+        if (historyReplay.length > 0) {
+            // Same path as selected candidates: autoplay marking, buffer
+            // accounting and telemetry, so status/skip/clear controls see them.
+            await addSelectedTracks(
+                queue,
+                historyReplay.map((track) => ({
+                    track,
+                    score: 0,
+                    basis: { source: 'artist-fallback', signals: [] },
+                })),
+                excludedUrls,
+                excludedKeys,
+                requestedBy?.id,
+                autoplayMode,
+            )
+            warnLog({
+                message:
+                    'Autoplay: replaying history tracks, all collectors empty',
+                data: {
+                    guildId,
+                    replayed: historyReplay.map((t) => t.title),
+                },
+            })
+            replenishCounters.set(guildId, replenishCount + 1)
+            return
+        }
+
         replenishCounters.set(guildId, replenishCount + 1)
         debugLog({
             message:
@@ -1118,14 +1370,14 @@ async function detectSessionGenreFamilies(
 }
 
 function buildArtistFrequency(
-    history: { author?: string; isAutoplay?: boolean }[],
+    history: { author?: string; isAutoplay?: boolean; skipped?: boolean }[],
 ): Map<string, number> {
     const freq = new Map<string, number>()
     for (const entry of history) {
-        if (!entry.isAutoplay && entry.author) {
-            const key = cleanAuthor(entry.author)
-                .toLowerCase()
-                .replaceAll(/[^a-z0-9]+/g, '')
+        // A skipped play is not a vote for the artist (#2933).
+        if (!entry.isAutoplay && !entry.skipped && entry.author) {
+            // Same key the scorer looks up (candidateArtistKey).
+            const key = normalizeText(cleanAuthor(entry.author))
             if (key) {
                 freq.set(key, (freq.get(key) ?? 0) + 1)
             }

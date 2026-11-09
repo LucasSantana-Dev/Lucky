@@ -16,6 +16,8 @@ import {
     getTopTracks,
     getRecentTracks,
     getSimilarTracks,
+    getSimilarArtists,
+    getArtistTopTracks,
     getTagTopTracks,
     getLovedTracks,
     getArtistTopTags,
@@ -443,6 +445,91 @@ describe('lastFmApi', () => {
             ],
         ])('returns empty array when %s', async (_label, test) => {
             await test()
+        })
+    })
+
+    describe('getSimilarArtists (#2961)', () => {
+        it('returns similar artists with match parsing and query encoding', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    similarartists: {
+                        artist: [
+                            { name: 'Close Band', match: '0.9' },
+                            { name: 'Odd Band', match: 'n/a' },
+                        ],
+                    },
+                }),
+            })
+
+            const artists = await getSimilarArtists('The Artist & Co', 4)
+
+            expect(artists).toEqual([
+                { name: 'Close Band', match: 0.9 },
+                { name: 'Odd Band', match: 0 },
+            ])
+            const call = fetchMock.mock.calls[0]?.[0] as string
+            expect(call).toContain('method=artist.getSimilar')
+            expect(call).toContain('artist=The%20Artist%20%26%20Co')
+            expect(call).toContain('limit=4')
+            expect(call).toContain('autocorrect=1')
+        })
+
+        it('returns an empty array on missing config, network error or HTTP error', async () => {
+            delete process.env.LASTFM_API_KEY
+            expect(await getSimilarArtists('Artist')).toEqual([])
+            process.env.LASTFM_API_KEY = 'api-key'
+            fetchMock.mockRejectedValueOnce(new Error('network error'))
+            expect(await getSimilarArtists('Artist')).toEqual([])
+            fetchMock.mockResolvedValueOnce({ ok: false })
+            expect(await getSimilarArtists('Artist')).toEqual([])
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'lastFmApi: getSimilarArtists HTTP error',
+                }),
+            )
+        })
+    })
+
+    describe('getArtistTopTracks (#2961)', () => {
+        it('returns the artist top tracks', async () => {
+            fetchMock.mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({
+                    toptracks: {
+                        track: [
+                            { name: 'Hit One', artist: { name: 'Band' } },
+                            { name: 'Hit Two', artist: { name: 'Band' } },
+                        ],
+                    },
+                }),
+            })
+
+            const tracks = await getArtistTopTracks('Band', 3)
+
+            expect(tracks).toEqual([
+                { artist: 'Band', title: 'Hit One' },
+                { artist: 'Band', title: 'Hit Two' },
+            ])
+            const call = fetchMock.mock.calls[0]?.[0] as string
+            expect(call).toContain('method=artist.getTopTracks')
+            expect(call).toContain('artist=Band')
+            expect(call).toContain('limit=3')
+        })
+
+        it('returns an empty array on missing config, network error or HTTP error', async () => {
+            delete process.env.LASTFM_API_KEY
+            expect(await getArtistTopTracks('Band')).toEqual([])
+            process.env.LASTFM_API_KEY = 'api-key'
+            fetchMock.mockRejectedValueOnce(new Error('network error'))
+            expect(await getArtistTopTracks('Band')).toEqual([])
+            fetchMock.mockResolvedValueOnce({ ok: false })
+            expect(await getArtistTopTracks('Band')).toEqual([])
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'lastFmApi: getArtistTopTracks HTTP error',
+                }),
+            )
         })
     })
 

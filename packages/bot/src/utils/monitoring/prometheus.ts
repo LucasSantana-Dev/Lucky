@@ -175,7 +175,7 @@ export const commandDurationSeconds = new Histogram<'command'>({
  */
 export const playStageSeconds = new Histogram<'stage' | 'outcome'>({
     name: 'lucky_bot_play_stage_seconds',
-    help: 'Duration in seconds of each /play stream bridge stage (ytdlp_url|ytdlp_search|ytdlp_search_broad|soundcloud_full|soundcloud_title|soundcloud_core|bridge_total), by outcome (ok|fail).',
+    help: 'Duration in seconds of each /play stream bridge stage (ytdlp_url|ytdlp_search|ytdlp_search_broad|youtubei_native|soundcloud_full|soundcloud_title|soundcloud_core|bridge_total), by outcome (ok|fail).',
     labelNames: ['stage', 'outcome'],
     buckets: [0.05, 0.1, 0.25, 0.5, 1, 2, 3, 5, 8, 12, 20, 30],
     registers: [registry],
@@ -237,6 +237,12 @@ export const extractionFailuresTotal = new Counter<'type'>({
     labelNames: ['type'],
     registers: [registry],
 })
+// Seed all types at 0 on boot so rate()/increase() queries (dashboards, future
+// alert rules) have a baseline from the first scrape, even before the first
+// failure (#2864).
+for (const type of ['forbidden', 'botcheck', 'empty', 'timeout', 'other']) {
+    extractionFailuresTotal.labels(type).inc(0)
+}
 
 /**
  * Counter: Spotify source cache lookups by result (hit|miss|negative).

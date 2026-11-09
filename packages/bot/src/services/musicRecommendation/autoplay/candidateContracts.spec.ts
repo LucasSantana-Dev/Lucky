@@ -51,6 +51,34 @@ describe('candidateContracts', () => {
         expect(counts.duplicate).toBe(0)
     })
 
+    it('forwards the veto reason to the audit collector (#2957)', () => {
+        const recordEvaluated = jest.fn()
+        const audit = { recordEvaluated } as unknown as Parameters<
+            typeof upsertScoredCandidate
+        >[3]
+        const track = createTrack()
+
+        upsertScoredCandidate(
+            new Map<string, ScoredTrack>(),
+            track,
+            {
+                score: -Infinity,
+                source: 'spotify-rec',
+                signals: [],
+                veto: 'cross-genre',
+            },
+            audit,
+        )
+
+        expect(recordEvaluated).toHaveBeenCalledWith(
+            track,
+            -Infinity,
+            'spotify rec',
+            'rejected',
+            'cross-genre',
+        )
+    })
+
     it('shouldIncludeCandidate with duplicate and candidates map increments duplicate count', () => {
         ;(isDuplicateCandidate as jest.Mock).mockReturnValue(true)
         const candidates = new Map<string, ScoredTrack>()
@@ -114,5 +142,24 @@ describe('candidateContracts', () => {
 
         expect(counts1).toBe(counts2)
         expect(counts1.hardReject).toBe(1)
+    })
+
+    it('upsertScoredCandidate reports whether it stored the candidate', () => {
+        const candidates = new Map<string, ScoredTrack>()
+        const track = createTrack()
+        const scored = (score: number) => ({
+            score,
+            source: 'seed-similar' as const,
+            signals: [],
+        })
+
+        expect(upsertScoredCandidate(candidates, track, scored(1))).toBe(true)
+        expect(upsertScoredCandidate(candidates, track, scored(0.5))).toBe(
+            false,
+        )
+        expect(upsertScoredCandidate(candidates, track, scored(2))).toBe(true)
+        expect(
+            upsertScoredCandidate(candidates, track, scored(-Infinity)),
+        ).toBe(false)
     })
 })

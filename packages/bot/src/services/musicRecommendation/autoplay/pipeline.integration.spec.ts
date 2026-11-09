@@ -45,6 +45,13 @@ jest.mock('../../../spotify/spotifyApi', () => ({
     searchSpotifyTrack: jest.fn().mockResolvedValue(null),
 }))
 
+jest.mock('./lastFmSeeds', () => ({
+    consumeLastFmSeedSlice: jest.fn().mockResolvedValue([]),
+    consumeBlendedSeedSlice: jest.fn().mockResolvedValue([]),
+    isLovedSeed: jest.fn().mockReturnValue(false),
+    LASTFM_SEED_COUNT: 3,
+}))
+
 jest.mock('../../../spotify/spotifyUserSeeds', () => ({
     getUserSpotifySeeds: jest.fn().mockResolvedValue(null),
 }))
@@ -54,6 +61,10 @@ import {
     shouldIncludeCandidate,
     upsertScoredCandidate,
 } from './candidateCollector'
+import { collectSeedSimilarCandidates } from './seedSimilarityCollector'
+import { collectLastFmCandidates } from './lastFmSeeder'
+import { consumeLastFmSeedSlice } from './lastFmSeeds'
+import type { ScoredTrack } from './diversitySelector'
 import type { SessionMood } from './sessionMood'
 import type { AutoplayContext } from './autoplayContext'
 import {
@@ -244,6 +255,223 @@ describe('autoplay pipeline integration', () => {
             )
 
             expect(candidates.size).toBeGreaterThan(0)
+        })
+    })
+
+    describe('seed-similar with Spotify search down (2026-10-19)', () => {
+        it('still fills the pool through the YouTube arm', async () => {
+            // Same routing as discord-player: SpotifyExtractor has the top
+            // priority and claims any text query unless it is blocked, and
+            // its search was returning nothing for every query.
+            const similar = makeTrack({
+                title: 'Stronger',
+                author: 'Kanye West',
+                url: 'https://www.youtube.com/watch?v=stronger1',
+                id: 'stronger1',
+                source: 'youtube',
+            })
+            const currentTrack = makeTrack({
+                title: 'Flashing Lights',
+                author: 'Kanye West',
+                url: 'https://www.youtube.com/watch?v=flashing1',
+                id: 'flashing1',
+                source: 'youtube',
+            })
+            const queue = makeQueue(currentTrack)
+            ;(queue.player.search as jest.Mock).mockImplementation(
+                async (_query: unknown, options: unknown) => {
+                    const blocked =
+                        (options as { blockExtractors?: string[] })
+                            .blockExtractors ?? []
+                    const spotifyClaims = !blocked.includes(
+                        'com.discord-player.itsmaat.spotifyextractor',
+                    )
+                    return {
+                        tracks: spotifyClaims ? [] : [similar],
+                        playlist: null,
+                    }
+                },
+            )
+            jest.mocked(getSimilarTracks).mockResolvedValue([
+                { artist: 'Kanye West', title: 'Stronger', match: 0.9 },
+            ])
+            const candidates = new Map()
+
+            await collectSeedSimilarCandidates(
+                makeAutoplayContext({ queue, currentTrack }),
+                { id: 'user-1' } as never,
+                candidates,
+            )
+
+            expect([...candidates.keys()]).toHaveLength(1)
+            expect([...candidates.values()][0]!.track).toBe(similar)
+        })
+    })
+
+    describe('seed-coherent ranking (#2955, #2956)', () => {
+        const user = { id: 'user-1' } as never
+
+        function ranked(candidates: Map<string, ScoredTrack>): string[] {
+            return [...candidates.values()]
+                .sort((a, b) => b.score - a.score)
+                .map((e) => `${e.track.author} - ${e.track.title}`)
+        }
+
+        it('ranks the seed-similar track above a title hit by another artist (Mellencamp)', async () => {
+            const seed = makeTrack({
+                title: "Ain't Even Done With The Night",
+                author: 'John Mellencamp',
+                url: 'https://open.spotify.com/track/jm0',
+                id: 'jm0',
+            })
+            const jwFrancis = makeTrack({
+                title: 'John, Take Me With You',
+                author: 'JW Francis',
+                url: 'https://open.spotify.com/track/jw1',
+                id: 'jw1',
+            })
+            const similar = makeTrack({
+                title: 'Pink Houses',
+                author: 'John Mellencamp',
+                url: 'https://open.spotify.com/track/jm1',
+                id: 'jm1',
+            })
+            const queue = makeQueue(seed)
+            ;(queue.player.search as jest.Mock).mockImplementation(
+                async (query: unknown) => ({
+                    tracks: String(query).toLowerCase().includes('done with')
+                        ? [jwFrancis]
+                        : [similar],
+                    playlist: null,
+                }),
+            )
+            jest.mocked(getSimilarTracks).mockResolvedValue([
+                { artist: 'John Mellencamp', title: 'Pink Houses', match: 0 },
+            ])
+            const ctx = makeAutoplayContext({ queue, currentTrack: seed })
+            const candidates = new Map<string, ScoredTrack>()
+
+            const spotifyPool = await collectRecommendationCandidates(
+                ctx,
+                [seed],
+                null,
+            )
+            for (const [key, entry] of spotifyPool) candidates.set(key, entry)
+            await collectSeedSimilarCandidates(ctx, user, candidates)
+
+            const order = ranked(candidates)
+            expect(order[0]).toBe('John Mellencamp - Pink Houses')
+            expect(order).not.toContain('JW Francis - John, Take Me With You')
+        })
+
+        it('keeps only the seed artist from a non-latin title search (Attieh)', async () => {
+            const seed = makeTrack({
+                title: 'ويلك',
+                author: 'Joseph Attieh',
+                url: 'https://open.spotify.com/track/ja0',
+                id: 'ja0',
+            })
+            const other = makeTrack({
+                title: 'ويلك',
+                author: 'Another Singer',
+                url: 'https://open.spotify.com/track/as1',
+                id: 'as1',
+            })
+            const sameArtist = makeTrack({
+                title: 'ويلك',
+                author: 'Joseph Attieh',
+                url: 'https://open.spotify.com/track/ja1',
+                id: 'ja1',
+            })
+            const queue = makeQueue(seed)
+            ;(queue.player.search as jest.Mock).mockResolvedValue({
+                tracks: [other, sameArtist],
+                playlist: null,
+            })
+            const ctx = makeAutoplayContext({ queue, currentTrack: seed })
+
+            const pool = await collectRecommendationCandidates(
+                ctx,
+                [seed],
+                null,
+            )
+
+            expect(
+                [...pool.values()].map((entry) => entry.track.author),
+            ).toEqual(['Joseph Attieh'])
+        })
+
+        it('does not let an off-genre profile track outrank the seed-similar (M.A.I)', async () => {
+            const seed = makeTrack({
+                title: 'Piranha',
+                author: 'M.A.I',
+                url: 'https://open.spotify.com/track/mai0',
+                id: 'mai0',
+            })
+            const trapSimilar = makeTrack({
+                title: 'Trap Similar',
+                author: 'Trap Peer',
+                url: 'https://open.spotify.com/track/tp1',
+                id: 'tp1',
+            })
+            const mpbProfile = makeTrack({
+                title: 'Garota de Ipanema',
+                author: 'Tom Jobim',
+                url: 'https://open.spotify.com/track/mpb1',
+                id: 'mpb1',
+            })
+            const queue = makeQueue(seed)
+            ;(queue.player.search as jest.Mock).mockImplementation(
+                async (query: unknown) => ({
+                    tracks: String(query).toLowerCase().includes('trap')
+                        ? [trapSimilar]
+                        : [mpbProfile],
+                    playlist: null,
+                }),
+            )
+            jest.mocked(getSimilarTracks).mockImplementation(
+                async (artist: string) =>
+                    artist === 'M.A.I'
+                        ? [
+                              {
+                                  artist: 'Trap Peer',
+                                  title: 'Trap Similar',
+                                  match: 0.5,
+                              },
+                          ]
+                        : [],
+            )
+            // "mpb" maps to no genre family, so the profile hit has no
+            // overlap with the trap session and must not earn the boost.
+            const tags: Record<string, string[]> = {
+                'Trap Peer': ['trap'],
+                'Tom Jobim': ['mpb'],
+            }
+            const genreContext = {
+                currentTrackTags: ['trap'],
+                sessionGenreFamilies: new Set(['rap_hiphop']),
+                getArtistTags: async (artist: string) => tags[artist] ?? [],
+            }
+            jest.mocked(consumeLastFmSeedSlice).mockResolvedValue([
+                { artist: 'Tom Jobim', title: 'Garota de Ipanema' },
+            ])
+            const ctx = makeAutoplayContext({
+                queue,
+                currentTrack: seed,
+                genreContext,
+            })
+            const candidates = new Map<string, ScoredTrack>()
+
+            await collectSeedSimilarCandidates(ctx, user, candidates)
+            await collectLastFmCandidates(ctx, user, candidates)
+
+            const profileEntry = [...candidates.values()].find(
+                (e) => e.track.author === 'Tom Jobim',
+            )
+            const order = ranked(candidates)
+            // The profile track is not dropped, just no longer boosted.
+            expect(profileEntry?.basis.source).toBe('lastfm-profile')
+            expect(order[0]).toBe('Trap Peer - Trap Similar')
         })
     })
 

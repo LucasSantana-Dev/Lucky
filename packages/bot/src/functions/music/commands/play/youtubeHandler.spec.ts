@@ -92,6 +92,37 @@ describe('youtubeHandler', () => {
     })
 
     describe('handleYouTubeSearch', () => {
+        it('keeps plain text away from SpotifyExtractor but lets a URL through', async () => {
+            const player = createPlayer(() => createSearchResult(true, []))
+            const search = player.search as jest.Mock<any>
+
+            await handleYouTubeSearch(
+                'some song',
+                createUser(),
+                GUILD,
+                CHANNEL,
+                player,
+            )
+            await handleYouTubeSearch(
+                'https://open.spotify.com/track/abc123',
+                createUser(),
+                GUILD,
+                CHANNEL,
+                player,
+            )
+
+            // No engine means AUTO, which SpotifyExtractor claims for any
+            // text; a Spotify link must still reach it.
+            expect(search.mock.calls[0][1]).toMatchObject({
+                blockExtractors: expect.arrayContaining([
+                    'com.discord-player.itsmaat.spotifyextractor',
+                ]),
+            })
+            expect(search.mock.calls[1][1]).not.toHaveProperty(
+                'blockExtractors',
+            )
+        })
+
         it('returns success with tracks when search finds results', async () => {
             const track = {
                 title: 'Never Gonna',

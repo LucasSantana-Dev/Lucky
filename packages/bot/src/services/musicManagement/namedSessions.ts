@@ -14,6 +14,7 @@ import {
 } from '../musicRecommendation/sessionSnapshots'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
 import { isHost } from '../../utils/general/urlHost'
+import { textSearchBlockOptions } from '../../functions/music/commands/play/handlers/resolveProvider'
 
 export type NamedSession = {
     name: string
@@ -230,7 +231,10 @@ export class NamedSessionService {
                 }
                 const query =
                     entry.url || `${entry.title} ${entry.author}`.trim()
-                const result = await queue.player.search(query, searchOptions)
+                const result = await queue.player.search(query, {
+                    ...searchOptions,
+                    ...textSearchBlockOptions(query),
+                })
                 const track = result.tracks[0]
                 if (!track) continue
 

@@ -27,6 +27,16 @@ export const RECAP_MIN_PLAYS = 5
 
 type FallbackReason = RenderFailureReason | 'disabled' | 'no_attach_permission'
 
+/** How one due guild ended in a tick, counted in the `recap: tick` line. */
+type RecapOutcome =
+    | 'posted'
+    | 'quiet'
+    | 'not_in_cache'
+    | 'channel_unusable'
+    | 'claim_lost'
+    | 'send_refused'
+    | 'failed'
+
 const CARD_FILE = 'recap.jpg'
 
 /**
@@ -97,6 +107,7 @@ type RecapSchedulerOptions = {
  */
 export class RecapScheduler extends IntervalScheduler {
     private readonly clock: () => Date
+    private summarizedBoundary: number | undefined
 
     constructor(options: RecapSchedulerOptions = {}) {
         super(options.tickIntervalMs ?? HOUR_MS)
@@ -113,8 +124,29 @@ export class RecapScheduler extends IntervalScheduler {
     protected async execute(): Promise<void> {
         const boundary = latestRecapBoundary(this.clock())
         const due = await listDueRecaps(boundary)
+        const outcomes: Partial<Record<RecapOutcome, number>> = {}
         for (const { guildId, channelId } of due) {
-            await this.postForGuild(guildId, channelId, boundary)
+            const outcome = await this.postForGuild(
+                guildId,
+                channelId,
+                boundary,
+            )
+            outcomes[outcome] = (outcomes[outcome] ?? 0) + 1
+        }
+        // The per-guild skips are debug lines, which prod logs drop, so a
+        // Sunday with no opted-in guild looked the same as one where every
+        // guild was skipped (#2860). One line per boundary per process, plus
+        // every tick that had guilds to process.
+        if (due.length > 0 || this.summarizedBoundary !== boundary.getTime()) {
+            this.summarizedBoundary = boundary.getTime()
+            infoLog({
+                message: 'recap: tick',
+                data: {
+                    boundary: boundary.toISOString(),
+                    due: due.length,
+                    outcomes,
+                },
+            })
         }
     }
 
@@ -149,7 +181,7 @@ export class RecapScheduler extends IntervalScheduler {
         guildId: string,
         channelId: string,
         boundary: Date,
-    ): Promise<void> {
+    ): Promise<RecapOutcome> {
         try {
             const guild = this.client?.guilds.cache.get(guildId)
             if (!guild) {
@@ -157,7 +189,7 @@ export class RecapScheduler extends IntervalScheduler {
                     message: 'recap: guild not in cache, skipping',
                     data: { guildId },
                 })
-                return
+                return 'not_in_cache'
             }
 
             const target = await resolveRecapChannel(guild, channelId)
@@ -167,7 +199,7 @@ export class RecapScheduler extends IntervalScheduler {
                     message: 'recap: channel unusable, opt-in cleared',
                     data: { guildId, channelId, reason: target.reason },
                 })
-                return
+                return 'channel_unusable'
             }
 
             const { from, to } = recapWindow(boundary)
@@ -193,14 +225,14 @@ export class RecapScheduler extends IntervalScheduler {
                     message: 'recap: settings changed since listing, skipped',
                     data: { guildId },
                 })
-                return
+                return 'claim_lost'
             }
             if (recap.plays < RECAP_MIN_PLAYS) {
                 debugLog({
                     message: 'recap: too few plays, skipped',
                     data: { guildId, plays: recap.plays },
                 })
-                return
+                return 'quiet'
             }
 
             const t = await translatorForInteraction({ guildId, guild })
@@ -262,7 +294,7 @@ export class RecapScheduler extends IntervalScheduler {
                         message: 'recap: send refused, opt-in cleared',
                         data: { guildId, channelId },
                     })
-                    return
+                    return 'send_refused'
                 }
                 await releaseRecapWeek(guildId, claimedAt)
                 throw error
@@ -271,12 +303,14 @@ export class RecapScheduler extends IntervalScheduler {
                 message: 'recap: posted',
                 data: { guildId, plays: recap.plays },
             })
+            return 'posted'
         } catch (error) {
             errorLog({
                 message: 'recap: failed to post',
                 error,
                 data: { guildId },
             })
+            return 'failed'
         }
     }
 }

@@ -372,6 +372,51 @@ describe('MusicSessionSnapshotService', () => {
             })
         })
 
+        it('keeps a text-only entry away from SpotifyExtractor but lets a Spotify URL through', async () => {
+            const spotifyUrl = 'https://open.spotify.com/track/abc123'
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({
+                    upcomingTracks: [
+                        {
+                            title: 'Text Song',
+                            author: 'Text Artist',
+                            url: '',
+                            duration: '3:00',
+                            source: 'spotify',
+                        },
+                        {
+                            title: 'Link Song',
+                            author: 'Link Artist',
+                            url: spotifyUrl,
+                            duration: '3:00',
+                            source: 'spotify',
+                        },
+                    ],
+                }),
+            )
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-text')
+
+            await service.restoreSnapshot(queue)
+
+            // SpotifyExtractor claims any text on AUTO, so a Spotify outage
+            // would drop the entry; a Spotify link must still reach it.
+            expect(queue.player.search).toHaveBeenCalledWith(
+                'Text Song Text Artist',
+                expect.objectContaining({
+                    blockExtractors: expect.arrayContaining([
+                        'com.discord-player.itsmaat.spotifyextractor',
+                    ]),
+                }),
+            )
+            expect(queue.player.search).toHaveBeenCalledWith(
+                spotifyUrl,
+                expect.not.objectContaining({
+                    blockExtractors: expect.anything(),
+                }),
+            )
+        })
+
         describe('HOSTED_YOUTUBE_ENABLED = false (#2486)', () => {
             const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
 

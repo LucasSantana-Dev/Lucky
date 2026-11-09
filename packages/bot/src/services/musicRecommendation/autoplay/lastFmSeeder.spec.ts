@@ -65,6 +65,7 @@ jest.mock('../../../utils/music/searchQueryCleaner', () => ({
 jest.mock('./candidateScorer', () => ({
     calculateRecommendationScore: (...args: unknown[]) =>
         calculateRecommendationScoreMock(...args),
+    getGenreFamilies: jest.requireActual('./candidateScorer').getGenreFamilies,
 }))
 
 jest.mock('./candidateCollector', () => ({
@@ -144,6 +145,14 @@ function createAutoplayContext(
     }
 }
 
+function trapSessionContext(): AutoplayContext['genreContext'] {
+    return {
+        currentTrackTags: ['trap'],
+        sessionGenreFamilies: new Set(['rap_hiphop']),
+        getArtistTags: jest.fn().mockResolvedValue(['trap']),
+    } as AutoplayContext['genreContext']
+}
+
 describe('searchLastFmQuery', () => {
     beforeEach(() => {
         jest.clearAllMocks()
@@ -169,6 +178,30 @@ describe('searchLastFmQuery', () => {
         const result = await searchLastFmQuery(queue, 'test query', user)
         expect(result).toHaveLength(1)
         expect(searchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('keeps the Spotify extractor off the non-Spotify arms', async () => {
+        // SpotifyExtractor.validate() accepts any text whatever the engine,
+        // so an unblocked YouTube arm is just another Spotify search.
+        const track = createTrack()
+        const queue = createQueue({ tracks: [] })
+        const searchMock = queue.player.search as jest.Mock
+        searchMock
+            .mockResolvedValueOnce({ tracks: [] })
+            .mockResolvedValueOnce({ tracks: [track] })
+
+        const result = await searchLastFmQuery(queue, 'q', createUser())
+
+        expect(result).toEqual([track])
+        expect(searchMock.mock.calls[0][1]).not.toHaveProperty(
+            'blockExtractors',
+        )
+        expect(searchMock.mock.calls[1][1]).toMatchObject({
+            searchEngine: QueryType.YOUTUBE_SEARCH,
+            blockExtractors: expect.arrayContaining([
+                'com.discord-player.itsmaat.spotifyextractor',
+            ]),
+        })
     })
 
     describe('HOSTED_YOUTUBE_ENABLED = false (#2475)', () => {
@@ -464,13 +497,98 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        const ctx = createAutoplayContext({ queue })
+        const ctx = createAutoplayContext({
+            queue,
+            genreContext: trapSessionContext(),
+        })
         await collectLastFmCandidates(ctx, user, candidates)
 
         const call = upsertScoredCandidateMock.mock.calls[0]
         const scoreArg = (call?.[2] as { score: number })?.score
         // Base: rec.score (0.5) + LASTFM_SCORE_BOOST (0.20) + LOVED_SEED_EXTRA_BOOST (0.10) = 0.80
         expect(scoreArg).toBeCloseTo(0.8, 5)
+        expect((call?.[2] as { source: string }).source).toBe('lastfm-loved')
+    })
+
+    describe('profile boost is tied to the session genre (#2956)', () => {
+        async function firstSeedScore(
+            seedTags: string[],
+            genreContext: AutoplayContext['genreContext'],
+            loved = false,
+        ) {
+            consumeLastFmSeedSliceMock.mockResolvedValue([
+                { title: 'T1', artist: 'A1' },
+            ])
+            isLovedSeedMock.mockReturnValue(loved)
+            const ctx = createAutoplayContext({
+                queue: createQueue({ tracks: [createTrack()] }),
+                genreContext: {
+                    ...genreContext,
+                    getArtistTags: jest.fn().mockResolvedValue(seedTags),
+                } as AutoplayContext['genreContext'],
+            })
+            await collectLastFmCandidates(ctx, createUser(), new Map())
+            return upsertScoredCandidateMock.mock.calls[0]?.[2] as {
+                score: number
+                source: string
+            }
+        }
+
+        it('boosts a profile hit that shares a family with the session', async () => {
+            const entry = await firstSeedScore(['trap'], trapSessionContext())
+            expect(entry.score).toBeCloseTo(0.7, 5)
+        })
+
+        it('recognises the scorer families, gospel_christian included', async () => {
+            const entry = await firstSeedScore(['gospel'], {
+                currentTrackTags: ['worship'],
+            })
+            expect(entry.score).toBeCloseTo(0.7, 5)
+        })
+
+        it('boosts when only the current track families overlap', async () => {
+            const entry = await firstSeedScore(['trap'], {
+                currentTrackTags: ['hip hop'],
+            })
+            expect(entry.score).toBeCloseTo(0.7, 5)
+        })
+
+        it('skips the boost when the families do not overlap, keeping the track', async () => {
+            const entry = await firstSeedScore(
+                ['mpb', 'brazilian'],
+                trapSessionContext(),
+                true,
+            )
+            expect(entry.score).toBeCloseTo(0.5, 5)
+        })
+
+        it('skips the boost when the hit has no known family (fail closed)', async () => {
+            const entry = await firstSeedScore([], trapSessionContext())
+            expect(entry.score).toBeCloseTo(0.5, 5)
+        })
+
+        it('skips the boost when the session families are unknown (fail closed)', async () => {
+            const entry = await firstSeedScore(['trap'], {})
+            expect(entry.score).toBeCloseTo(0.5, 5)
+        })
+
+        it('labels top and recent seeds lastfm-profile, true loved ones lastfm-loved', async () => {
+            const profile = await firstSeedScore(['trap'], trapSessionContext())
+            expect(profile.source).toBe('lastfm-profile')
+            jest.clearAllMocks()
+            shouldIncludeCandidateMock.mockReturnValue(true)
+            calculateRecommendationScoreMock.mockReturnValue({
+                score: 0.5,
+                signals: [],
+            })
+            getSimilarTracksMock.mockResolvedValue([])
+            const loved = await firstSeedScore(
+                ['trap'],
+                trapSessionContext(),
+                true,
+            )
+            expect(loved.source).toBe('lastfm-loved')
+        })
     })
 
     it('skips excluded tracks (shouldIncludeCandidate returns false)', async () => {
@@ -500,7 +618,10 @@ describe('collectLastFmCandidates', () => {
         const user = createUser()
         const candidates = new Map()
 
-        const ctx = createAutoplayContext({ queue })
+        const ctx = createAutoplayContext({
+            queue,
+            genreContext: trapSessionContext(),
+        })
         await collectLastFmCandidates(ctx, user, candidates)
 
         // seed track + similar track both call upsertScoredCandidate
@@ -512,6 +633,28 @@ describe('collectLastFmCandidates', () => {
         // = (0.5 + 0.2) * (0.5 + 0.5*0.8) = 0.7 * 0.9 = 0.63
         const scoreArg = (similarCall?.[2] as { score: number })?.score
         expect(scoreArg).toBeCloseTo(0.63, 5)
+    })
+
+    it('skips the lastfm-similar boost when the hit has no family overlap (#2956)', async () => {
+        consumeLastFmSeedSliceMock.mockResolvedValue([
+            { title: 'T1', artist: 'A1' },
+        ])
+        getSimilarTracksMock.mockResolvedValue([
+            { title: 'Similar', artist: 'SimilarArtist', match: 0.8 },
+        ])
+        const ctx = createAutoplayContext({
+            queue: createQueue({ tracks: [createTrack()] }),
+            genreContext: {
+                ...trapSessionContext(),
+                getArtistTags: jest.fn().mockResolvedValue(['mpb']),
+            },
+        })
+        await collectLastFmCandidates(ctx, createUser(), new Map())
+
+        const similarCall = upsertScoredCandidateMock.mock.calls[1]
+        const scoreArg = (similarCall?.[2] as { score: number })?.score
+        // No boost: 0.5 * (0.5 + 0.5 * 0.8) = 0.45
+        expect(scoreArg).toBeCloseTo(0.45, 5)
     })
 
     it('skips excluded tracks in similar-tracks loop (line 155 continue)', async () => {
