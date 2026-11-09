@@ -107,7 +107,8 @@
             "mixButton": "Play this week's mix",
             "mixNoVoice": "Join a voice channel first.",
             "mixNoTracks": "No tracks found for this week's recap.",
-            "mixQueued": "▶️ Queued {{count}} track(s) from this week's recap.",
+            "mixQueued_one": "▶️ Queued {{count}} track from this week's recap.",
+            "mixQueued_other": "▶️ Queued {{count}} tracks from this week's recap.",
             "mixFailed": "❌ Couldn't start the mix. Try again in a moment."
         },
         "thumbs": {

@@ -4,8 +4,10 @@ import {
     MessageFlags,
     type ButtonInteraction,
     type GuildMember,
+    type VoiceBasedChannel,
 } from 'discord.js'
 import type { TFunction } from 'i18next'
+import type { Track } from 'discord-player'
 import { errorLog } from '@lucky/shared/utils'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { getWeeklyRecap } from '@lucky/shared/services'
@@ -59,13 +61,36 @@ export async function handleRecapMixButton(
     }
 
     const client = interaction.client as unknown as CustomClient
-    const player = client.player
+    const found = await findMixTracks(client, interaction, recap.topTracks)
+    if (found.length === 0) {
+        await reply(t('music.recap.mixNoTracks'))
+        return
+    }
 
-    // Search each top track concurrently, keep first search hit per track.
-    const searchResults = await Promise.all(
-        recap.topTracks.slice(0, MAX_MIX_TRACKS).map(async (track) => {
+    try {
+        const queued = await playMix(client, interaction, voiceChannel, found)
+        recapMixPlayedTotal.inc()
+        await reply(t('music.recap.mixQueued', { count: queued }))
+    } catch (error) {
+        errorLog({
+            message: 'recap mix button: play failed',
+            error,
+            data: { guildId },
+        })
+        await reply(t('music.recap.mixFailed'))
+    }
+}
+
+// Search each top track concurrently, keep first search hit per track.
+async function findMixTracks(
+    client: CustomClient,
+    interaction: ButtonInteraction,
+    topTracks: { title: string; author: string }[],
+): Promise<Track[]> {
+    const results = await Promise.all(
+        topTracks.slice(0, MAX_MIX_TRACKS).map(async (track) => {
             try {
-                const result = await player.search(
+                const result = await client.player.search(
                     `${track.title} ${track.author}`,
                     { requestedBy: interaction.user },
                 )
@@ -75,52 +100,53 @@ export async function handleRecapMixButton(
             }
         }),
     )
+    return results.filter((track): track is Track => track !== null)
+}
 
-    const found = searchResults.filter((t) => t !== null)
-    if (found.length === 0) {
-        await reply(t('music.recap.mixNoTracks'))
-        return
-    }
+// Plays the first track, queues the rest, returns how many tracks were
+// actually accepted (a missing queue means only the first one is playing).
+async function playMix(
+    client: CustomClient,
+    interaction: ButtonInteraction,
+    voiceChannel: VoiceBasedChannel,
+    found: Track[],
+): Promise<number> {
+    const guildId = interaction.guildId as string
+    const vcMemberIds = Array.from(voiceChannel.members.values())
+        .filter((m) => !m.user.bot)
+        .map((m) => m.id)
 
-    const nodeOptions = {
-        metadata: {
-            channel: interaction.channel,
-            requestedBy: interaction.user,
-            vcMemberIds: [] as string[],
+    await client.player.play(voiceChannel, found[0], {
+        nodeOptions: {
+            metadata: {
+                channel: interaction.channel,
+                requestedBy: interaction.user,
+                vcMemberIds,
+            },
+            selfDeaf: true,
+            connectionTimeout: ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
+            leaveOnEmpty: true,
+            leaveOnEmptyCooldown: 30_000,
+            leaveOnEnd: true,
+            leaveOnEndCooldown: 300_000,
         },
-        selfDeaf: true,
-        connectionTimeout: ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-        leaveOnEmpty: true,
-        leaveOnEmptyCooldown: 30_000,
-        leaveOnEnd: true,
-        leaveOnEndCooldown: 300_000,
-    }
+        requestedBy: interaction.user,
+    })
 
-    try {
-        await player.play(voiceChannel, found[0], {
-            nodeOptions,
-            requestedBy: interaction.user,
-        })
+    if (found.length === 1) return 1
 
-        if (found.length > 1) {
-            const { queue } = resolveGuildQueue(client, guildId)
-            if (queue) {
-                for (const track of found.slice(1)) {
-                    track.requestedBy = interaction.user
-                    queue.addTrack(track)
-                }
-            }
-        }
-    } catch (error) {
+    const { queue } = resolveGuildQueue(client, guildId)
+    if (!queue) {
         errorLog({
-            message: 'recap mix button: play failed',
-            error,
-            data: { guildId },
+            message: 'recap mix button: queue not found, extra tracks dropped',
+            error: new Error('queue missing after play'),
+            data: { guildId, dropped: found.length - 1 },
         })
-        await reply(t('music.recap.mixFailed'))
-        return
+        return 1
     }
-
-    recapMixPlayedTotal.inc()
-    await reply(t('music.recap.mixQueued', { count: found.length }))
+    for (const track of found.slice(1)) {
+        track.requestedBy = interaction.user
+        queue.addTrack(track)
+    }
+    return found.length
 }

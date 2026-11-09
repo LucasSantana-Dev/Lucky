@@ -106,7 +106,8 @@
             "mixButton": "Reproducir el mix de la semana",
             "mixNoVoice": "Únete a un canal de voz primero.",
             "mixNoTracks": "No se encontraron canciones para el resumen de esta semana.",
-            "mixQueued": "▶️ {{count}} canción(es) del resumen semanal añadida(s) a la cola.",
+            "mixQueued_one": "▶️ Se añadió {{count}} canción del resumen semanal a la cola.",
+            "mixQueued_other": "▶️ Se añadieron {{count}} canciones del resumen semanal a la cola.",
             "mixFailed": "❌ No pude iniciar el mix. Inténtalo de nuevo en un momento."
         },
         "thumbs": {
