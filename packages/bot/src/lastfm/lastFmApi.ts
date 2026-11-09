@@ -510,6 +510,64 @@ export async function getSimilarTracks(
     }
 }
 
+export async function getSimilarArtists(
+    artist: string,
+    limit = 5,
+): Promise<{ name: string; match: number }[]> {
+    const config = getApiConfig()
+    if (!config) return []
+    try {
+        const response = await fetch(
+            `${API_BASE}?method=artist.getSimilar&artist=${encodeURIComponent(artist)}&limit=${limit}&autocorrect=1&format=json&api_key=${config.apiKey}`,
+            { signal: AbortSignal.timeout(15_000) },
+        )
+        if (!response.ok) {
+            warnLastFmHttpError('getSimilarArtists', response)
+            return []
+        }
+        const data = (await response.json()) as {
+            similarartists?: { artist?: Array<{ name: string; match: string }> }
+        }
+        return (data.similarartists?.artist ?? []).map((a) => ({
+            name: a.name,
+            match: parseFloat(a.match) || 0,
+        }))
+    } catch (err) {
+        logAndWarn(err, 'lastfm.getSimilarArtists', { artist })
+        return []
+    }
+}
+
+export async function getArtistTopTracks(
+    artist: string,
+    limit = 5,
+): Promise<{ artist: string; title: string }[]> {
+    const config = getApiConfig()
+    if (!config) return []
+    try {
+        const response = await fetch(
+            `${API_BASE}?method=artist.getTopTracks&artist=${encodeURIComponent(artist)}&limit=${limit}&autocorrect=1&format=json&api_key=${config.apiKey}`,
+            { signal: AbortSignal.timeout(15_000) },
+        )
+        if (!response.ok) {
+            warnLastFmHttpError('getArtistTopTracks', response)
+            return []
+        }
+        const data = (await response.json()) as {
+            toptracks?: {
+                track?: Array<{ name: string; artist: { name: string } }>
+            }
+        }
+        return (data.toptracks?.track ?? []).map((t) => ({
+            artist: t.artist.name,
+            title: t.name,
+        }))
+    } catch (err) {
+        logAndWarn(err, 'lastfm.getArtistTopTracks', { artist })
+        return []
+    }
+}
+
 export async function getTagTopTracks(
     tag: string,
     limit = 30,

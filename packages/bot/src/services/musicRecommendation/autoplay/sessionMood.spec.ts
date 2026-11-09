@@ -1,5 +1,24 @@
 import { describe, expect, it } from '@jest/globals'
-import { detectSessionMood, type SessionMood } from './sessionMood'
+import {
+    detectSessionMood as detectFromTracks,
+    type SessionMood,
+} from './sessionMood'
+
+type FixtureTrack = Parameters<typeof detectFromTracks>[0][number] & {
+    isAutoplay?: boolean
+}
+
+// Fixtures flag autoplay at the top level; discord-player keeps it on
+// `metadata`, which is where the mood detector must read it (#2934).
+function detectSessionMood(tracks: FixtureTrack[], recentSkipCount?: number) {
+    return detectFromTracks(
+        tracks.map(({ isAutoplay, ...track }) => ({
+            ...track,
+            metadata: { isAutoplay },
+        })),
+        recentSkipCount,
+    )
+}
 
 describe('sessionMood', () => {
     describe('detectSessionMood - artist deep-dive', () => {

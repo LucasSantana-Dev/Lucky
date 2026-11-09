@@ -5,7 +5,6 @@ import {
     analyzeYouTubeError,
     logYouTubeError,
 } from '../../services/musicManagement/youtubeErrorHandler'
-import { youtubeConfig } from '@lucky/shared/config'
 import { providerHealthService } from '../../services/musicManagement/search/providerHealth'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 import { isSameTrack } from './errorClassification'
@@ -40,23 +39,32 @@ export function handleYouTubeParserError(
     )
 
     debugLog({
-        message: 'YouTube parser error detected, skipping current track',
+        message: 'YouTube parser error detected, current track skipped',
         data: {
             errorType: describeYouTubeParserErrorType(youtubeErrorInfo),
         },
     })
 
-    if (
-        (youtubeConfig as { errorHandling: { skipOnParserError: boolean } })
-            .errorHandling.skipOnParserError
-    ) {
-        queue.node.skip()
-    }
-    // No replacement follows a parser-error skip: a watching /play must not
-    // wait for one.
+    // discord-player has already moved past the track (see
+    // recoverFromStreamExtractionError), and no replacement follows: a
+    // watching /play must not wait for one.
     settlePlayStartWatch(queue.guild.id, queue.currentTrack, 'gave_up')
 }
 
+// Tracks this module queued as a replacement. A replacement streams through
+// the same bridge that just failed, so when YouTube is blocked it fails too,
+// and recovering it again searched the next version of the song, forever:
+// 22 exhausted plays in 2 min, alternating between the same two videos,
+// until the bot left the channel (2026-10-21T19:30Z, LUCKY-7V). One hop per
+// failed track.
+const replacements = new WeakSet<object>()
+
+/**
+ * Runs after discord-player failed to stream `currentTrack`. By then it has
+ * already moved on: GuildQueuePlayerNode #throw emits playerError and then
+ * starts the next queued track itself, or ends the queue when none is left. So
+ * nothing here skips; a skip would end the track that just started.
+ */
 export async function recoverFromStreamExtractionError(
     queue: GuildQueue,
     currentTrack: NonNullable<GuildQueue['currentTrack']>,
@@ -76,7 +84,6 @@ export async function recoverFromStreamExtractionError(
         if (!watched) {
             await notifyChannelStreamFailed(queue, currentTrack.title)
         }
-        queue.node.skip()
     }
 
     const requestedByUser: User | undefined =
@@ -86,6 +93,16 @@ export async function recoverFromStreamExtractionError(
     if (!requestedByUser) {
         warnLog({
             message: 'Stream failed, skipping — no requestedBy to search with',
+            data: { title: currentTrack.title, guildId: queue.guild.id },
+        })
+        await giveUp()
+        return
+    }
+
+    if (replacements.has(currentTrack)) {
+        warnLog({
+            message:
+                'Stream failed on a recovery replacement, not recovering again',
             data: { title: currentTrack.title, guildId: queue.guild.id },
         })
         await giveUp()
@@ -146,8 +163,14 @@ export async function recoverFromStreamExtractionError(
         )
 
         if (alternativeTrack) {
-            queue.insertTrack(alternativeTrack, 0)
-            queue.node.skip()
+            replacements.add(alternativeTrack)
+            // Something is playing or starting: the replacement goes next.
+            // The queue ended: start it, nothing else will.
+            if (queue.currentTrack) {
+                queue.insertTrack(alternativeTrack, 0)
+            } else {
+                await queue.node.play(alternativeTrack)
+            }
             settlePlayStartWatch(queue.guild.id, currentTrack, 'recovered')
             providerHealthService.recordSuccess('youtube')
             debugLog({

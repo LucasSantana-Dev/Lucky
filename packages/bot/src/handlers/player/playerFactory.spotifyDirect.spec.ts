@@ -11,6 +11,7 @@ jest.mock('@lucky/shared/utils', () => ({
     warnLog: jest.fn(),
     errorLog: jest.fn(),
 }))
+jest.mock('./spotifyIsrc', () => ({ useSpotifyApiForIsrc: jest.fn() }))
 jest.mock('./extractorHealth', () => ({ setExtractorDegraded: jest.fn() }))
 jest.mock('./soundcloudMatcher', () => ({
     refreshSoundCloudClientId: jest.fn(async () => undefined),

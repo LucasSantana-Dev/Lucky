@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { afterEach, describe, expect, test, vi } from 'vitest'
 import {
     BOT_INVITE_PERMISSIONS,
     getBotInviteUrl,
@@ -38,12 +38,26 @@ describe('getBotInviteUrl', () => {
 })
 
 describe('getLandingAddUrl (#2861)', () => {
-    test('routes through the backend add endpoint with source=landing', () => {
-        const url = getLandingAddUrl()
-        expect(url).toMatch(/\/api\/add\?source=landing$/)
+    afterEach(() => {
+        vi.unstubAllEnvs()
     })
 
-    test('never points directly at discord.com', () => {
-        expect(getLandingAddUrl()).not.toContain('discord.com')
+    test('uses the configured API base with source=landing', () => {
+        vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.test/api/')
+        vi.stubEnv('VITE_DISCORD_CLIENT_ID', '')
+        expect(getLandingAddUrl()).toBe(
+            'https://api.example.test/api/add?source=landing',
+        )
+    })
+
+    test('falls back to /api when no base is configured', () => {
+        vi.stubEnv('VITE_API_BASE_URL', '')
+        vi.stubEnv('VITE_DISCORD_CLIENT_ID', '')
+        expect(getLandingAddUrl()).toBe('/api/add?source=landing')
+    })
+
+    test('keeps the direct invite URL for a fork client id', () => {
+        vi.stubEnv('VITE_DISCORD_CLIENT_ID', '123456789')
+        expect(getLandingAddUrl()).toContain('client_id=123456789')
     })
 })
