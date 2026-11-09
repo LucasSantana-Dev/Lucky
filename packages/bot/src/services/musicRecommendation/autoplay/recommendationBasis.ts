@@ -8,6 +8,7 @@ export type RecommendationSource =
     | 'spotify-taste'
     | 'seed-similar'
     | 'lastfm-loved'
+    | 'lastfm-profile'
     | 'lastfm-similar'
     | 'lastfm-genre-fallback'
     | 'artist-fallback'
@@ -67,6 +68,7 @@ export function serializeBasis(basis: RecommendationBasis): string {
         'spotify-taste': 'spotify taste',
         'seed-similar': 'seed similar',
         'lastfm-loved': 'last.fm loved',
+        'lastfm-profile': 'last.fm profile',
         'lastfm-similar': 'last.fm similar',
         'lastfm-genre-fallback': 'last.fm genre',
         'artist-fallback': 'artist fallback',

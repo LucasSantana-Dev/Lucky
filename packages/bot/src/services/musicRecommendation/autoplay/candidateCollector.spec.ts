@@ -258,7 +258,7 @@ describe('candidateCollector', () => {
         it('should collect seed-based search candidates', async () => {
             const seedResult = createTrack({
                 title: 'Seed Result',
-                author: 'Seed Artist',
+                author: 'Test Artist',
             })
             searchSeedCandidatesMock.mockResolvedValue([seedResult])
 
@@ -281,7 +281,7 @@ describe('candidateCollector', () => {
 
         it('passes the recency-decay indices to the scorer (#2933)', async () => {
             searchSeedCandidatesMock.mockResolvedValue([
-                createTrack({ title: 'Seed Result', author: 'Seed Artist' }),
+                createTrack({ title: 'Seed Result', author: 'Test Artist' }),
             ])
             const recentArtistIndices = new Map([['seed artist', 0]])
             const ctx = createAutoplayContext({
@@ -304,7 +304,7 @@ describe('candidateCollector', () => {
             'weighs a spotify-rec title-search hit below a Last.fm similar (#2934): %d -> %d',
             async (raw, expected) => {
                 searchSeedCandidatesMock.mockResolvedValue([
-                    createTrack({ title: 'Title Hit', author: 'Hit Artist' }),
+                    createTrack({ title: 'Title Hit', author: 'Test Artist' }),
                 ])
                 calculateRecommendationScoreMock.mockReturnValue({
                     score: raw,
@@ -326,10 +326,101 @@ describe('candidateCollector', () => {
             },
         )
 
+        describe('title-search hits by another artist (#2955)', () => {
+            async function collectFor(seed: Track, hits: Track[]) {
+                searchSeedCandidatesMock.mockResolvedValue(hits)
+                const ctx = createAutoplayContext({
+                    queue: createGuildQueue(),
+                    currentTrack: seed,
+                })
+                const result = await collectRecommendationCandidates(
+                    ctx,
+                    [seed],
+                    null,
+                )
+                return Array.from(result.values()).map((e) => e.track.author)
+            }
+
+            it('drops a hit whose primary artist differs from the seed', async () => {
+                const authors = await collectFor(
+                    createTrack({
+                        title: "Ain't Even Done With The Night",
+                        author: 'John Mellencamp',
+                    }),
+                    [
+                        createTrack({
+                            title: 'John, Take Me With You',
+                            author: 'JW Francis',
+                            url: 'https://open.spotify.com/track/jw',
+                        }),
+                    ],
+                )
+
+                expect(authors).toEqual([])
+            })
+
+            it('keeps a hit by the same artist', async () => {
+                const authors = await collectFor(
+                    createTrack({
+                        title: "Ain't Even Done With The Night",
+                        author: 'John Mellencamp',
+                    }),
+                    [
+                        createTrack({
+                            title: 'Jack & Diane',
+                            author: 'John Mellencamp',
+                            url: 'https://open.spotify.com/track/jd',
+                        }),
+                    ],
+                )
+
+                expect(authors).toEqual(['John Mellencamp'])
+            })
+
+            it('does not filter hits for a seed whose author is an uploader channel', async () => {
+                const authors = await collectFor(
+                    createTrack({
+                        title: 'Pink Houses',
+                        author: 'Some Records Channel',
+                        source: 'youtube',
+                    }),
+                    [
+                        createTrack({
+                            title: 'Pink Houses',
+                            author: 'John Mellencamp',
+                            url: 'https://open.spotify.com/track/ph',
+                        }),
+                    ],
+                )
+
+                expect(authors).toEqual(['John Mellencamp'])
+            })
+
+            it('keeps only the seed artist hit for a non-latin title', async () => {
+                const authors = await collectFor(
+                    createTrack({ title: 'ويلك', author: 'Joseph Attieh' }),
+                    [
+                        createTrack({
+                            title: 'ويلك',
+                            author: 'Joseph Attieh',
+                            url: 'https://open.spotify.com/track/ja',
+                        }),
+                        createTrack({
+                            title: 'ويلك',
+                            author: 'Someone Else',
+                            url: 'https://open.spotify.com/track/se',
+                        }),
+                    ],
+                )
+
+                expect(authors).toEqual(['Joseph Attieh'])
+            })
+        })
+
         it('should exclude disliked candidates', async () => {
             const dislikedTrack = createTrack({
                 title: 'Bad Track',
-                author: 'Bad Artist',
+                author: 'Test Artist',
             })
             searchSeedCandidatesMock.mockResolvedValue([dislikedTrack])
 
@@ -362,7 +453,7 @@ describe('candidateCollector', () => {
         it('should exclude duplicate candidates', async () => {
             const duplicateTrack = createTrack({
                 title: 'Duplicate',
-                author: 'Duplicate Artist',
+                author: 'Test Artist',
             })
             searchSeedCandidatesMock.mockResolvedValue([duplicateTrack])
             isDuplicateCandidateMock.mockReturnValue(true)
@@ -386,7 +477,7 @@ describe('candidateCollector', () => {
         it('should skip candidates with -Infinity score', async () => {
             const track = createTrack({
                 title: 'Low Score',
-                author: 'Low Score Artist',
+                author: 'Test Artist',
             })
             searchSeedCandidatesMock.mockResolvedValue([track])
 
@@ -431,7 +522,10 @@ describe('candidateCollector', () => {
             })
 
             const queue = createGuildQueue()
-            const seedTracks = [createTrack(), createTrack()]
+            const seedTracks = [
+                createTrack({ author: 'Artist 1' }),
+                createTrack({ author: 'Artist 2' }),
+            ]
 
             const ctx = createAutoplayContext({
                 queue,
@@ -450,7 +544,7 @@ describe('candidateCollector', () => {
             searchSeedCandidatesMock.mockResolvedValue([
                 createTrack({
                     title: 'Logged Track',
-                    author: 'Logged Artist',
+                    author: 'Test Artist',
                 }),
             ])
 
@@ -473,7 +567,7 @@ describe('candidateCollector', () => {
         it('blocks sertanejo candidates when blockSertanejo=true and tags match', async () => {
             const serTanejoTrack = createTrack({
                 title: 'Saudade do Nordeste',
-                author: 'Jorge e Mateus',
+                author: 'Test Artist',
             })
             searchSeedCandidatesMock.mockResolvedValue([serTanejoTrack])
 
@@ -496,7 +590,7 @@ describe('candidateCollector', () => {
         it('allows sertanejo candidates when blockSertanejo=false', async () => {
             const serTanejoTrack = createTrack({
                 title: 'Saudade do Nordeste',
-                author: 'Jorge e Mateus',
+                author: 'Test Artist',
             })
             searchSeedCandidatesMock.mockResolvedValue([serTanejoTrack])
 
@@ -519,7 +613,7 @@ describe('candidateCollector', () => {
         it('does not block sertanejo when tags are empty (fail-open when Last.fm unavailable)', async () => {
             const serTanejoTrack = createTrack({
                 title: 'Saudade do Nordeste',
-                author: 'Jorge e Mateus',
+                author: 'Test Artist',
             })
             searchSeedCandidatesMock.mockResolvedValue([serTanejoTrack])
 
@@ -542,7 +636,7 @@ describe('candidateCollector', () => {
         it('falls back to empty tags when getArtistTags rejects', async () => {
             const track = createTrack({
                 title: 'Some Song',
-                author: 'Some Artist',
+                author: 'Test Artist',
             })
             searchSeedCandidatesMock.mockResolvedValue([track])
 

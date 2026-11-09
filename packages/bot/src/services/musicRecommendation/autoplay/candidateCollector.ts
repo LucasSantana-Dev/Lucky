@@ -5,6 +5,7 @@ import type { AutoplayContext } from './autoplayContext'
 import { searchSeedCandidates } from './spotifyRecommender'
 import { calculateRecommendationScore } from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'
+import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import {
     shouldIncludeCandidate,
     upsertScoredCandidate,
@@ -81,12 +82,24 @@ export async function collectRecommendationCandidates(
     // avoid language-drift where genre terms like "worship" cause YouTube's
     // algorithm to surface Spanish gospel on non-Spanish sessions)
     for (const seed of seedTracks) {
+        // Only a Spotify seed carries a real artist; a YouTube seed's author
+        // is often the uploading channel, which no Spotify hit would match.
+        const seedArtistKey =
+            seed.source === 'spotify' ? primaryArtistKey(seed.author) : null
         const seedCandidates = await searchSeedCandidates(
             ctx.queue,
             seed,
             requestedBy,
         )
         for (const candidate of seedCandidates) {
+            // A title text search proves nothing about another artist: drop
+            // hits whose primary artist is not the seed's (#2955).
+            if (
+                seedArtistKey !== null &&
+                primaryArtistKey(candidate.author) !== seedArtistKey
+            ) {
+                continue
+            }
             if (
                 !shouldIncludeCandidate(
                     candidate,
