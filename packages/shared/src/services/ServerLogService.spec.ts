@@ -63,6 +63,19 @@ describe('serializeServerLog', () => {
         expect(result.level).toBe('info')
     })
 
+    it('still parses legacy string-encoded details (pre-backfill rows)', () => {
+        const result = serializeServerLog({
+            id: 'log-legacy',
+            guildId: 'g1',
+            type: 'member_join',
+            action: 'Member joined',
+            userId: 'u9',
+            details: JSON.stringify({ username: 'Alice' }),
+            createdAt,
+        })
+        expect(result.userName).toBe('Alice')
+    })
+
     it('falls back to userId when details has no username so actor is never blank', () => {
         const result = serializeServerLog({
             id: 'log-3',
