@@ -128,10 +128,10 @@ export class AutoplayAuditCollector {
         const rejectedCount = this.evaluated.filter(
             (e) => e.status === 'rejected',
         ).length
-        const droppedCount = Math.max(
-            0,
-            this.evaluated.length - MAX_EVALUATED_ENTRIES,
+        const capped = this.capEvaluated(
+            this.evaluated.length > MAX_EVALUATED_ENTRIES,
         )
+        const droppedCount = this.evaluated.length - capped.length
         const record: AutoplayAuditRecord = {
             cycleId: `${guildId}-${now}`,
             guildId,
@@ -139,7 +139,7 @@ export class AutoplayAuditCollector {
             seed,
             sessionMood: summarizeMood(sessionMood),
             sessionGenreFamilies: Array.from(sessionGenreFamilies).sort(),
-            evaluated: this.capEvaluated(droppedCount > 0).map((e) => ({
+            evaluated: capped.map((e) => ({
                 ...e,
                 score: serializeScore(e.score),
             })),

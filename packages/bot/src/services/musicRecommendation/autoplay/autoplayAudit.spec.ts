@@ -115,12 +115,42 @@ describe('AutoplayAuditCollector', () => {
                 (e) => e.status === 'rejected',
             )
             expect(record.evaluated).toHaveLength(50)
-            expect(rejected.length).toBeGreaterThan(0)
-            expect(rejected.length).toBeLessThanOrEqual(10)
+            expect(rejected.map((e) => e.title)).toEqual(
+                Array.from({ length: 10 }, (_, i) => `R${i}`),
+            )
+            expect(
+                record.evaluated.filter((e) => e.status === 'accepted'),
+            ).toHaveLength(40)
             expect(rejected.every((e) => e.veto === 'cross-genre')).toBe(true)
             expect(rejected.every((e) => e.score === '-Infinity')).toBe(true)
             expect(record.droppedCount).toBe(30)
             expect(record.rejectedCount).toBe(20)
+        })
+
+        it('counts every omitted entry when rejects outnumber the cap', () => {
+            const audit = new AutoplayAuditCollector()
+            for (let i = 0; i < 5; i++) {
+                audit.recordEvaluated(
+                    createTrack({ title: `T${i}`, author: 'A' }),
+                    i,
+                    'r',
+                    'accepted',
+                )
+            }
+            for (let i = 0; i < 60; i++) {
+                audit.recordEvaluated(
+                    createTrack({ title: `R${i}`, author: 'B' }),
+                    -Infinity,
+                    'r',
+                    'rejected',
+                    'disliked',
+                )
+            }
+
+            const record = captureEmit(audit)
+            expect(record.evaluated).toHaveLength(15)
+            expect(record.droppedCount).toBe(50)
+            expect(record.rejectedCount).toBe(60)
         })
 
         it('reports rejectedCount without trimming', () => {
