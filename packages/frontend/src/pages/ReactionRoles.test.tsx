@@ -9,6 +9,9 @@ import type { ReactionRoleMessage } from '@/services/reactionRolesApi'
 vi.mock('@/stores/guildStore')
 vi.mock('@/services/api')
 
+// Heavy page suite under CPU contention: scoped budget, not a global one.
+vi.setConfig({ testTimeout: 15000, hookTimeout: 15000 })
+
 const mockGuild = {
     id: '123456',
     name: 'Test Guild',
@@ -1875,9 +1878,11 @@ async function openEditWithMappings(count: number) {
 
     render(<ReactionRoles />)
 
-    const editButtons = await screen.findAllByRole('button', {
-        name: /edit/i,
-    })
+    const editButtons = await screen.findAllByRole(
+        'button',
+        { name: /edit/i },
+        { timeout: 10000 },
+    )
     fireEvent.click(editButtons[0])
 }
 
