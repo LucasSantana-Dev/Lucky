@@ -76,6 +76,34 @@ describe('candidateScorer', () => {
             expect(result.signals).toEqual([])
         })
 
+        it.each([
+            ['blocked-artist', { author: 'Blocked Artist' }, 'blockedartist'],
+            ['too-long', { durationMS: 16 * 60 * 1000 }, undefined],
+            [
+                'ambient-noise',
+                { title: 'Relaxing Rain Sounds for Sleep' },
+                undefined,
+            ],
+        ])('names the %s veto (#2957)', (veto, overrides, blockedKey) => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack(overrides),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                blockedArtistKeys: new Set(blockedKey ? [blockedKey] : []),
+            })
+            expect(result.veto).toBe(veto)
+        })
+
+        it('leaves veto unset on a finite score', () => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack(),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+            })
+            expect(Number.isFinite(result.score)).toBe(true)
+            expect(result.veto).toBeUndefined()
+        })
+
         it('boosts preferred artists', () => {
             const result = calculateRecommendationScore({
                 candidate: createTrack({ author: 'Favorite Artist' }),
@@ -119,6 +147,7 @@ describe('candidateScorer', () => {
                 dislikedWeights: new Map([['dislikedsong::testartist', 0.7]]),
             })
             expect(result.score).toBe(-Infinity)
+            expect(result.veto).toBe('disliked')
         })
 
         it('applies same-artist novelty penalty', () => {
@@ -153,6 +182,7 @@ describe('candidateScorer', () => {
                 },
             })
             expect(result.score).toBe(-Infinity)
+            expect(result.veto).toBe('cross-locale')
         })
 
         it('rejects cross-genre with dominant family', () => {
@@ -169,6 +199,7 @@ describe('candidateScorer', () => {
                 },
             })
             expect(result.score).toBe(-Infinity)
+            expect(result.veto).toBe('cross-genre')
         })
 
         describe('skip storm tightens instead of loosening (#2934)', () => {

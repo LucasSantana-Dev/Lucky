@@ -47,6 +47,16 @@ export type RecommendationSignal =
     | 'replay frequent'
     | 'recency decay'
 
+/** Why `calculateRecommendationScore` returned a `-Infinity` hard-reject. */
+export type VetoReason =
+    | 'blocked-artist'
+    | 'too-long'
+    | 'ambient-noise'
+    | 'edm-mix'
+    | 'cross-locale'
+    | 'cross-genre'
+    | 'disliked'
+
 export interface RecommendationBasis {
     source: RecommendationSource
     signals: RecommendationSignal[]

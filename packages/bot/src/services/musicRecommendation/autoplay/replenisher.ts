@@ -4,6 +4,7 @@ import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import type { AutoplayContext } from './autoplayContext'
 import { AutoplayAuditCollector } from './autoplayAudit'
+import type { SourceCount } from './autoplayAudit'
 import { recommendationFeedbackService } from '../feedbackService'
 import { recordRecommendationOutcome } from '../../../services/musicRecommendation/recommendationTelemetry'
 import {
@@ -197,7 +198,7 @@ async function _replenishQueue(
 ): Promise<boolean> {
     const startTime = Date.now()
     const guildId = queue.guild.id
-    const sourcesCounts: Record<string, number | { skipped: true }> = {
+    const sourcesCounts: Record<string, SourceCount> = {
         recommendation: 0,
         seedSimilar: 0,
         lastfm: 0,
@@ -830,9 +831,9 @@ export async function collectAllCandidates(
     contributionWeights: Map<string, number>,
 ): Promise<{
     candidates: Map<string, ScoredTrack>
-    sourcesCounts: Record<string, number | { skipped: true }>
+    sourcesCounts: Record<string, SourceCount>
 }> {
-    const sourcesCounts: Record<string, number | { skipped: true }> = {
+    const sourcesCounts: Record<string, SourceCount> = {
         recommendation: 0,
         seedSimilar: 0,
         lastfm: 0,
@@ -949,7 +950,13 @@ export async function collectAllCandidates(
             },
         })
     } else {
-        sourcesCounts.genre = { skipped: true }
+        // This collector is the opt-in `/autoplay genre add` one, so skipped
+        // means "no guild genres configured". It is unrelated to the scorer's
+        // derived `sessionGenreFamilies`, which still applies the drift veto.
+        sourcesCounts.genre = {
+            skipped: true,
+            reason: requestedBy ? 'no-guild-genres' : 'no-requester',
+        }
     }
 
     if (candidates.size === 0 && autoplayContext.currentTrack) {
@@ -1039,7 +1046,7 @@ function emitAutoplayAudit(
         score: number
         basis: import('./recommendationBasis').RecommendationBasis
     }[],
-    sourcesCounts: Record<string, number | { skipped: true }>,
+    sourcesCounts: Record<string, SourceCount>,
     startTime: number,
 ): void {
     const collector = autoplayContext.auditCollector
@@ -1052,6 +1059,7 @@ function emitAutoplayAudit(
             autoplayContext.sessionMood,
             sourcesCounts,
             Date.now() - startTime,
+            autoplayContext.genreContext.sessionGenreFamilies,
         )
     } catch (error) {
         // Telemetry must never stop the queue from being refilled.
@@ -1073,7 +1081,7 @@ export async function enqueueAndFinalize(
     }[],
     candidates: Map<string, ScoredTrack>,
     requestedBy: User | null,
-    sourcesCounts: Record<string, number | { skipped: true }>,
+    sourcesCounts: Record<string, SourceCount>,
     startTime: number,
     allHistoryTracks: Track[] = [],
 ): Promise<void> {

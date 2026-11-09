@@ -1,6 +1,6 @@
 import type { Track } from 'discord-player'
 import type { SessionMood } from './sessionMood'
-import type { RecommendationSignal } from './recommendationBasis.js'
+import type { RecommendationSignal, VetoReason } from './recommendationBasis.js'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
 import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import { detectSpanishMarkers } from '../../../utils/music/languageHeuristics'
@@ -265,6 +265,8 @@ export interface ScoringContext {
 export function calculateRecommendationScore(ctx: ScoringContext): {
     score: number
     signals: RecommendationSignal[]
+    /** Set only on a `-Infinity` score, so the audit log can name the veto. */
+    veto?: VetoReason
 } {
     const {
         candidate,
@@ -317,7 +319,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         hasArtistKey(blockedArtistKeys, candidateAuthor) ||
         hasArtistKey(blockedArtistKeys, candidateArtist)
     ) {
-        return { score: -Infinity, signals: [] }
+        return { score: -Infinity, signals: [], veto: 'blocked-artist' }
     }
 
     const MAX_CANDIDATE_DURATION_MS = 15 * 60 * 1000
@@ -325,15 +327,15 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
         candidate.durationMS &&
         candidate.durationMS > MAX_CANDIDATE_DURATION_MS
     ) {
-        return { score: -Infinity, signals: [] }
+        return { score: -Infinity, signals: [], veto: 'too-long' }
     }
 
     const candidateTitle = candidate.title ?? ''
     if (AMBIENT_NOISE_RE.test(candidateTitle)) {
-        return { score: -Infinity, signals: [] }
+        return { score: -Infinity, signals: [], veto: 'ambient-noise' }
     }
     if (EDM_MIX_RE.test(candidateTitle)) {
-        return { score: -Infinity, signals: [] }
+        return { score: -Infinity, signals: [], veto: 'edm-mix' }
     }
 
     let score = 1
@@ -348,7 +350,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     if (sessionMood !== null && sessionMood.dominantLocale === null) {
         const candidateText = `${candidateTitle} ${candidate.author ?? ''}`
         if (detectSpanishMarkers(candidateText, candidateTags)) {
-            return { score: -Infinity, signals: [] }
+            return { score: -Infinity, signals: [], veto: 'cross-locale' }
         }
     }
 
@@ -380,7 +382,11 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
                     score += GENRE_PENALTY_WEAK
                     signals.push('genre family drift')
                 } else {
-                    return { score: -Infinity, signals: [] }
+                    return {
+                        score: -Infinity,
+                        signals: [],
+                        veto: 'cross-genre',
+                    }
                 }
             }
         }
@@ -431,7 +437,7 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     const dislikedWeight = dislikedWeights.get(candidateKey)
     if (dislikedWeight !== undefined) {
         if (dislikedWeight > DISLIKE_WEIGHT_THRESHOLD) {
-            return { score: -Infinity, signals: [] }
+            return { score: -Infinity, signals: [], veto: 'disliked' }
         }
         score -= Math.abs(SCORE_DISLIKED_PENALTY) * dislikedWeight
         signals.push('old dislike')

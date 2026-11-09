@@ -108,6 +108,7 @@ function addGenreTrackCandidate(
             score: rec.score + GENRE_SCORE_BOOST,
             source: 'genre-tag',
             signals: rec.signals,
+            veto: rec.veto,
         },
         ctx.auditCollector,
     )
@@ -198,6 +199,7 @@ export async function collectBroadFallbackCandidates(
                         score: rec.score - 0.1,
                         source: 'artist-fallback',
                         signals: rec.signals,
+                        veto: rec.veto,
                     },
                     auditCollector,
                 )

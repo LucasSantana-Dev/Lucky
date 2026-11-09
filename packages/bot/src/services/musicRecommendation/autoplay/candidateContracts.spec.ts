@@ -51,6 +51,34 @@ describe('candidateContracts', () => {
         expect(counts.duplicate).toBe(0)
     })
 
+    it('forwards the veto reason to the audit collector (#2957)', () => {
+        const recordEvaluated = jest.fn()
+        const audit = { recordEvaluated } as unknown as Parameters<
+            typeof upsertScoredCandidate
+        >[3]
+        const track = createTrack()
+
+        upsertScoredCandidate(
+            new Map<string, ScoredTrack>(),
+            track,
+            {
+                score: -Infinity,
+                source: 'spotify-rec',
+                signals: [],
+                veto: 'cross-genre',
+            },
+            audit,
+        )
+
+        expect(recordEvaluated).toHaveBeenCalledWith(
+            track,
+            -Infinity,
+            'spotify rec',
+            'rejected',
+            'cross-genre',
+        )
+    })
+
     it('shouldIncludeCandidate with duplicate and candidates map increments duplicate count', () => {
         ;(isDuplicateCandidate as jest.Mock).mockReturnValue(true)
         const candidates = new Map<string, ScoredTrack>()

@@ -247,7 +247,7 @@ describe('replenishQueue', () => {
                     seedSimilar: { skipped: true },
                     lastfm: { skipped: true },
                     fallback: 0,
-                    genre: { skipped: true },
+                    genre: { skipped: true, reason: 'no-requester' },
                 }),
                 rejected: expect.objectContaining({
                     hardReject: 0,
@@ -848,12 +848,19 @@ describe('replenishQueue', () => {
         )
         expect(auditCalls).toHaveLength(1)
         expect(auditCalls[0][0].data.selected).toEqual([])
+        // #2957: the mood and genre families the scorer vetoed against must
+        // reach the log, not just a locale string.
+        expect(auditCalls[0][0].data.sessionGenreFamilies).toEqual(
+            expect.any(Array),
+        )
+        expect(auditCalls[0][0].data).not.toHaveProperty('sessionMoodSummary')
+        expect(auditCalls[0][0].data).toHaveProperty('sessionMood')
         expect(auditCalls[0][0].data.sourceCounts).toEqual(
             expect.objectContaining({
                 recommendation: 0,
                 seedSimilar: { skipped: true },
                 lastfm: { skipped: true },
-                genre: { skipped: true },
+                genre: { skipped: true, reason: 'no-requester' },
             }),
         )
     })

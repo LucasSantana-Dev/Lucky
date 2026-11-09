@@ -218,6 +218,7 @@ export async function collectLastFmCandidates(
                         : rec.score,
                     source: isLoved ? 'lastfm-loved' : 'lastfm-profile',
                     signals: rec.signals,
+                    veto: rec.veto,
                 },
                 auditCollector,
             )
@@ -290,6 +291,7 @@ export async function collectLastFmCandidates(
                             (0.5 + 0.5 * Math.min(Math.max(s.match, 0), 1)),
                         source: 'lastfm-similar',
                         signals: rec.signals,
+                        veto: rec.veto,
                     },
                     auditCollector,
                 )
@@ -365,6 +367,7 @@ export async function collectLastFmCandidates(
                             score: rec.score + LASTFM_SCORE_BOOST,
                             source: 'lastfm-genre-fallback',
                             signals: rec.signals,
+                            veto: rec.veto,
                         },
                         auditCollector,
                     )

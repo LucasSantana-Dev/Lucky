@@ -201,6 +201,7 @@ export async function collectSeedSimilarCandidates(
                     score: (rec.score + SEED_SIMILAR_BOOST) * matchWeight,
                     source: 'seed-similar',
                     signals: rec.signals,
+                    veto: rec.veto,
                 },
                 auditCollector,
             )

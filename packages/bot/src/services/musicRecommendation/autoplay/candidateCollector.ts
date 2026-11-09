@@ -166,6 +166,7 @@ export async function collectRecommendationCandidates(
                     score: Math.min(rec.score, rec.score * SPOTIFY_REC_WEIGHT),
                     source: 'spotify-rec',
                     signals: rec.signals,
+                    veto: rec.veto,
                 },
                 ctx.auditCollector,
             )
