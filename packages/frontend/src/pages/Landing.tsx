@@ -1,5 +1,5 @@
 import { reportError } from '@/lib/sentry'
-import { getBotInviteUrl } from '@/lib/discord'
+import { getLandingAddUrl } from '@/lib/discord'
 import { SUPPORT_SERVER_INVITE_URL } from '@lucky/shared/constants'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -116,7 +116,7 @@ export default function Landing() {
 }
 
 function TopNav({ onOpenDashboard }: { onOpenDashboard: () => void }) {
-    const botInviteUrl = getBotInviteUrl()
+    const botInviteUrl = getLandingAddUrl()
     return (
         <header className='sticky top-0 z-30 border-b border-lucky-border-soft bg-lucky-surface-canvas/85 backdrop-blur supports-[backdrop-filter]:bg-lucky-surface-canvas/65'>
             <div className='mx-auto flex h-14 max-w-6xl items-center justify-between px-4 md:px-8'>
@@ -204,7 +204,7 @@ type HeroProps = {
 function Hero({ stats, prefersReducedMotion }: HeroProps) {
     const { t, i18n } = useTranslation()
     const locale = i18n.resolvedLanguage ?? i18n.language
-    const botInviteUrl = getBotInviteUrl()
+    const botInviteUrl = getLandingAddUrl()
 
     const animProps = prefersReducedMotion
         ? {}

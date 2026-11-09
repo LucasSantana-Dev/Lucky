@@ -1,5 +1,9 @@
-import { describe, expect, test } from 'vitest'
-import { BOT_INVITE_PERMISSIONS, getBotInviteUrl } from './discord'
+import { afterEach, describe, expect, test, vi } from 'vitest'
+import {
+    BOT_INVITE_PERMISSIONS,
+    getBotInviteUrl,
+    getLandingAddUrl,
+} from './discord'
 
 describe('getBotInviteUrl', () => {
     // Regression guard for #1888. The landing page and the docs page each built
@@ -30,5 +34,30 @@ describe('getBotInviteUrl', () => {
         expect(getBotInviteUrl()).toMatch(
             /^https:\/\/discord\.com\/oauth2\/authorize\?client_id=\d+/,
         )
+    })
+})
+
+describe('getLandingAddUrl (#2861)', () => {
+    afterEach(() => {
+        vi.unstubAllEnvs()
+    })
+
+    test('uses the configured API base with source=landing', () => {
+        vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.test/api/')
+        vi.stubEnv('VITE_DISCORD_CLIENT_ID', '')
+        expect(getLandingAddUrl()).toBe(
+            'https://api.example.test/api/add?source=landing',
+        )
+    })
+
+    test('falls back to /api when no base is configured', () => {
+        vi.stubEnv('VITE_API_BASE_URL', '')
+        vi.stubEnv('VITE_DISCORD_CLIENT_ID', '')
+        expect(getLandingAddUrl()).toBe('/api/add?source=landing')
+    })
+
+    test('keeps the direct invite URL for a fork client id', () => {
+        vi.stubEnv('VITE_DISCORD_CLIENT_ID', '123456789')
+        expect(getLandingAddUrl()).toContain('client_id=123456789')
     })
 })
