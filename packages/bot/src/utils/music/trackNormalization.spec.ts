@@ -13,6 +13,7 @@ import {
     normalizeTrackKey,
     primaryArtist,
     primaryArtistKey,
+    primaryArtistName,
     getGenreFamilies,
     calculateGenreFamilyPenalty,
 } from './trackNormalization'
@@ -91,6 +92,12 @@ describe('primaryArtistKey', () => {
         ['Daft Punk', 'daft punk'],
     ])('keys %s as %s', (author, expected) => {
         expect(primaryArtistKey(author)).toBe(expected)
+    })
+
+    it('keeps the casing in primaryArtistName', () => {
+        expect(primaryArtistName('Michael Jackson feat. Steve Aoki')).toBe(
+            'Michael Jackson',
+        )
     })
 
     it('leaves primaryArtist, and so stored vote keys, unchanged', () => {

@@ -36,6 +36,7 @@ export interface AutoplayContext {
     replayFrequentTrackIds?: Set<string>
     replayFrequentArtists?: Set<string>
     recentArtistIndices?: Map<string, number>
+    seedArtistStreak?: number
     /** One per replenish pass; emitted once in enqueueAndFinalize. */
     auditCollector?: AutoplayAuditCollector
 }

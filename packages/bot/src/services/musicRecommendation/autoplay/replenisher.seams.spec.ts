@@ -562,6 +562,21 @@ describe('replenisher seam functions', () => {
             expect(result.excludedKeys).toBeInstanceOf(Set)
         })
 
+        it('counts how many times in a row the current artist played (#2961)', () => {
+            const streak = (authors: string[]) =>
+                buildExclusionAndDerivedSignals(
+                    createGuildQueue(),
+                    createTrack({ author: 'Artist A' }),
+                    authors.map((author) => createTrack({ author })),
+                    [],
+                    [],
+                ).seedArtistStreak
+
+            expect(streak(['Artist A', 'Artist B', 'Artist A'])).toBe(2)
+            expect(streak(['Artist B'])).toBe(1)
+            expect(streak([])).toBe(1)
+        })
+
         it('builds recent artists from current track and history', () => {
             const currentTrack = createTrack({ author: 'Current Artist' })
             const historyTrack = createTrack({ author: 'History Artist' })
@@ -976,6 +991,7 @@ describe('replenisher seam functions', () => {
                 expect.any(Number),
                 expect.any(Number),
                 expect.any(String),
+                false,
             )
         })
 
@@ -1032,6 +1048,53 @@ describe('replenisher seam functions', () => {
             const callArgs = selectDiverseCandidates.mock.calls[0]
             expect(callArgs[2]).toBe(5)
             expect(callArgs[4]).toBe('michael jackson')
+        })
+
+        it('keeps the reserved anchor first after the popularity rerank (#2961)', async () => {
+            const { selectDiverseCandidates } = require('./diversitySelector')
+            const { interleaveByArtist } = require('../candidateFallback')
+            const { spotifyLinkService } = require('@lucky/shared/services')
+            const {
+                getArtistPopularity,
+            } = require('../../../spotify/spotifyApi')
+            const anchor = {
+                track: createTrack({ title: 'Anchor', author: 'Seed Artist' }),
+                score: 1,
+                basis: { source: 'seed-similar', signals: [] },
+            }
+            const liked = {
+                track: createTrack({ title: 'Liked', author: 'Big Star' }),
+                score: 0.95,
+                basis: { source: 'lastfm-loved', signals: [] },
+            }
+            selectDiverseCandidates.mockReturnValue([anchor, liked])
+            interleaveByArtist.mockImplementation((tracks: any[]) => tracks)
+            spotifyLinkService.getValidAccessToken.mockResolvedValue('token')
+            getArtistPopularity.mockImplementation(
+                async (_t: string, a: string) => (a === 'Big Star' ? 100 : 0),
+            )
+            const mood = {
+                deepDiveArtist: null,
+                preferLong: false,
+                preferShort: false,
+                restless: false,
+                dominantLocale: null,
+            }
+
+            const ranked = await selectAndRerankCandidates(
+                new Map(),
+                2,
+                mood,
+                createTrack(),
+                'similar',
+                { id: 'user-1' } as never,
+                true,
+            )
+
+            expect(ranked.map((t) => t.track.title)).toEqual([
+                'Anchor',
+                'Liked',
+            ])
         })
     })
 

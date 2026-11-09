@@ -23,9 +23,14 @@ const EXTRA_CREDIT_RE = /;|\s\(?(?:feat\.|ft\.|(?:feat|ft|featuring)\s)/i
  * `normalizeTrackKey`, and changing it would orphan stored vote keys.
  */
 export function primaryArtistKey(author: string): string {
+    return primaryArtistName(author).toLowerCase()
+}
+
+/** `primaryArtistKey` with the original casing, for artist lookups. */
+export function primaryArtistName(author: string): string {
     const primary = primaryArtist(author)
     const cut = primary.search(EXTRA_CREDIT_RE)
-    return (cut >= 0 ? primary.slice(0, cut) : primary).trim().toLowerCase()
+    return (cut >= 0 ? primary.slice(0, cut) : primary).trim()
 }
 
 export function normalizeTrackKey(title?: string, author?: string): string {

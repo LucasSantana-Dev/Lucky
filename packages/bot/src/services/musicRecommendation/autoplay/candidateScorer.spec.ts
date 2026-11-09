@@ -167,6 +167,31 @@ describe('candidateScorer', () => {
             expect(result.score).toBeLessThan(1)
         })
 
+        describe('seed artist streak (#2961)', () => {
+            const score = (seedArtistStreak?: number) =>
+                calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Xyz Abc',
+                        author: 'Test Artist',
+                    }),
+                    currentTrack: createTrack({ author: 'Test Artist' }),
+                    recentArtists: new Set(),
+                    seedArtistStreak,
+                }).score
+
+            it('skips the same-artist penalty on the first track of an artist', () => {
+                expect(score(1) - score(2)).toBeCloseTo(0.35)
+            })
+
+            it('keeps the penalty once the artist played twice in a row', () => {
+                expect(score(3)).toBeCloseTo(score(2))
+            })
+
+            it('keeps the penalty when the streak is unknown', () => {
+                expect(score(undefined)).toBeCloseTo(score(2))
+            })
+        })
+
         it('rejects Spanish candidates with no dominant locale', () => {
             const result = calculateRecommendationScore({
                 candidate: createTrack({ title: 'Reggaeton Song' }),
