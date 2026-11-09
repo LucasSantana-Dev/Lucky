@@ -6,6 +6,7 @@ import type {
     RecommendationBasis,
     RecommendationSource,
     RecommendationSignal,
+    VetoReason,
 } from './recommendationBasis.js'
 import { serializeBasis } from './recommendationBasis.js'
 import { normalizeTrackKey } from './scoringUtils'
@@ -71,6 +72,8 @@ export function upsertScoredCandidate(
         score: number
         source: RecommendationSource
         signals: RecommendationSignal[]
+        /** Hard-reject reason from the scorer, forwarded to the audit log. */
+        veto?: VetoReason
     },
     auditCollector?: AutoplayAuditCollector,
 ): void {
@@ -96,6 +99,7 @@ export function upsertScoredCandidate(
             scored.score,
             serializeBasis(basis),
             'rejected',
+            scored.veto,
         )
         return
     }

@@ -85,7 +85,52 @@ describe('AutoplayAuditCollector', () => {
             expect(record.evaluated).toHaveLength(50)
             expect(record.droppedCount).toBe(10)
             expect(record.evaluated[0]!.score).toBe(59)
-            expect(Math.min(...record.evaluated.map((e) => e.score))).toBe(10)
+            expect(
+                Math.min(...record.evaluated.map((e) => e.score as number)),
+            ).toBe(10)
+        })
+
+        it('keeps the top rejects with their veto when trimming (#2957)', () => {
+            const audit = new AutoplayAuditCollector()
+            for (let i = 0; i < 60; i++) {
+                audit.recordEvaluated(
+                    createTrack({ title: `T${i}`, author: 'A' }),
+                    i,
+                    'r',
+                    'accepted',
+                )
+            }
+            for (let i = 0; i < 20; i++) {
+                audit.recordEvaluated(
+                    createTrack({ title: `R${i}`, author: 'B' }),
+                    -Infinity,
+                    'r',
+                    'rejected',
+                    'cross-genre',
+                )
+            }
+
+            const record = captureEmit(audit)
+            const rejected = record.evaluated.filter(
+                (e) => e.status === 'rejected',
+            )
+            expect(record.evaluated).toHaveLength(50)
+            expect(rejected.length).toBeGreaterThan(0)
+            expect(rejected.length).toBeLessThanOrEqual(10)
+            expect(rejected.every((e) => e.veto === 'cross-genre')).toBe(true)
+            expect(rejected.every((e) => e.score === '-Infinity')).toBe(true)
+            expect(record.droppedCount).toBe(30)
+            expect(record.rejectedCount).toBe(20)
+        })
+
+        it('reports rejectedCount without trimming', () => {
+            const audit = new AutoplayAuditCollector()
+            audit.recordEvaluated(createTrack(), -Infinity, 'r', 'rejected')
+            audit.recordEvaluated(createTrack(), 0.5, 'r', 'accepted')
+
+            const record = captureEmit(audit)
+            expect(record.rejectedCount).toBe(1)
+            expect(record.droppedCount).toBe(0)
         })
     })
 
@@ -127,6 +172,41 @@ describe('AutoplayAuditCollector', () => {
                 status: 'rejected',
                 reason: 'cross-locale reject',
             })
+        })
+
+        it('serialises a hard-reject score so JSON keeps it distinct from missing (#2957)', () => {
+            collector.recordEvaluated(
+                createTrack({ title: 'Vetoed', author: 'V' }),
+                -Infinity,
+                'spotify rec',
+                'rejected',
+                'cross-genre',
+            )
+
+            const record = captureEmit(collector)
+            expect(record.evaluated[0]).toEqual({
+                title: 'Vetoed',
+                artist: 'V',
+                score: '-Infinity',
+                reason: 'spotify rec',
+                status: 'rejected',
+                veto: 'cross-genre',
+            })
+            const roundTripped = JSON.parse(JSON.stringify(record.evaluated[0]))
+            expect(roundTripped.score).toBe('-Infinity')
+        })
+
+        it('leaves finite scores numeric and omits veto when none is given', () => {
+            collector.recordEvaluated(
+                createTrack({ title: 'Fine', author: 'F' }),
+                0.4,
+                'r',
+                'accepted',
+            )
+
+            const record = captureEmit(collector)
+            expect(record.evaluated[0]!.score).toBe(0.4)
+            expect(record.evaluated[0]).not.toHaveProperty('veto')
         })
 
         it('accumulates multiple entries in order', () => {
@@ -221,22 +301,25 @@ describe('AutoplayAuditCollector', () => {
             expect((data.cycleId as string).startsWith('g-456-')).toBe(true)
         })
 
-        it('sets sessionMoodSummary to null when sessionMood is null', () => {
+        it('logs a null sessionMood when no mood was detected', () => {
             collector.emit('guild-1', 'seed', null, {}, 0)
 
             const { data } = infoLogMock.mock.calls[0]![0] as {
                 message: string
                 data: Record<string, unknown>
             }
-            expect(data.sessionMoodSummary).toBeNull()
+            expect(data.sessionMood).toBeNull()
+            expect(data).not.toHaveProperty('sessionMoodSummary')
         })
 
-        it('uses dominantLocale from sessionMood when provided', () => {
+        it('logs the full mood even when dominantLocale is null (#2957)', () => {
             const mood: SessionMood = {
-                dominantLocale: 'pt-BR',
-                restless: false,
-                trackCount: 5,
-                localeWeights: new Map([['pt-BR', 5]]),
+                dominantLocale: null,
+                deepDiveArtist: 'Some Band',
+                restless: true,
+                preferLong: false,
+                preferShort: true,
+                recentSkipCount: 4,
             }
 
             collector.emit('guild-1', 'seed', mood, {}, 0)
@@ -245,7 +328,80 @@ describe('AutoplayAuditCollector', () => {
                 message: string
                 data: Record<string, unknown>
             }
-            expect(data.sessionMoodSummary).toBe('pt-BR')
+            expect(data.sessionMood).toEqual({
+                dominantLocale: null,
+                deepDiveArtist: 'Some Band',
+                restless: true,
+                preferLong: false,
+                preferShort: true,
+                recentSkipCount: 4,
+            })
+        })
+
+        it('defaults a missing recentSkipCount to 0', () => {
+            const mood: SessionMood = {
+                dominantLocale: 'spanish',
+                deepDiveArtist: null,
+                restless: false,
+                preferLong: false,
+                preferShort: false,
+            }
+
+            collector.emit('guild-1', 'seed', mood, {}, 0)
+
+            const { data } = infoLogMock.mock.calls[0]![0] as {
+                message: string
+                data: { sessionMood: { recentSkipCount: number } }
+            }
+            expect(data.sessionMood.recentSkipCount).toBe(0)
+        })
+
+        it('logs the session genre families as a sorted array (#2957)', () => {
+            collector.emit(
+                'guild-1',
+                'seed',
+                null,
+                {},
+                0,
+                new Set(['rock_metal', 'rap_hiphop']),
+            )
+
+            const { data } = infoLogMock.mock.calls[0]![0] as {
+                message: string
+                data: Record<string, unknown>
+            }
+            expect(data.sessionGenreFamilies).toEqual([
+                'rap_hiphop',
+                'rock_metal',
+            ])
+        })
+
+        it('logs an empty sessionGenreFamilies array when none were detected', () => {
+            collector.emit('guild-1', 'seed', null, {}, 0)
+
+            const { data } = infoLogMock.mock.calls[0]![0] as {
+                message: string
+                data: Record<string, unknown>
+            }
+            expect(data.sessionGenreFamilies).toEqual([])
+        })
+
+        it('keeps a skipped source reason in sourceCounts', () => {
+            collector.emit(
+                'guild-1',
+                'seed',
+                null,
+                { genre: { skipped: true, reason: 'no-guild-genres' } },
+                0,
+            )
+
+            const { data } = infoLogMock.mock.calls[0]![0] as {
+                message: string
+                data: Record<string, unknown>
+            }
+            expect(data.sourceCounts).toEqual({
+                genre: { skipped: true, reason: 'no-guild-genres' },
+            })
         })
 
         it('includes evaluated and selected entries in the record', () => {
@@ -287,13 +443,17 @@ function captureEmit(collector: AutoplayAuditCollector) {
             guildId: string
             timestamp: number
             seed: string
-            sessionMoodSummary: string | null
+            sessionMood: Record<string, unknown> | null
+            sessionGenreFamilies: string[]
+            rejectedCount: number
+            droppedCount: number
             evaluated: Array<{
                 title: string
                 artist: string
-                score: number
+                score: number | string
                 reason: string
                 status: 'accepted' | 'rejected'
+                veto?: string
             }>
             selected: Array<{
                 title: string
@@ -303,7 +463,6 @@ function captureEmit(collector: AutoplayAuditCollector) {
             }>
             sourceCounts: Record<string, number>
             durationMs: number
-            droppedCount: number
         }
     }
     return call.data
