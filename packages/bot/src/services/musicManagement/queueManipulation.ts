@@ -5,11 +5,14 @@ import {
     type ScoredTrack,
 } from '../../services/musicRecommendation/autoplay/candidateCollector'
 import { collectLastFmCandidates } from '../../services/musicRecommendation/autoplay/lastFmSeeder'
-import { replenishQueue } from '../../services/musicRecommendation/autoplay/replenisher'
+import {
+    replenishQueue,
+    waitForReplenish,
+} from '../../services/musicRecommendation/autoplay/replenisher'
 import { calculateRecommendationScore } from '../../services/musicRecommendation/autoplay/candidateScorer'
 
 export { collectLastFmCandidates }
-export { replenishQueue }
+export { replenishQueue, waitForReplenish }
 export {
     collectRecommendationCandidates,
     shouldIncludeCandidate,

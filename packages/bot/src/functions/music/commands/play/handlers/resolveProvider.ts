@@ -9,10 +9,22 @@ import type { VoiceBasedChannel } from 'discord.js'
 import { warnLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
 import {
+    cleanSearchQuery,
     hasVersionMarker,
     queryRequestsVersion,
 } from '../../../../../utils/music/searchQueryCleaner'
 import { isHostedYoutubeEnabled } from '../../../../../config/featureFlags'
+import { parseYoutubeLink, type YoutubeLink } from '../queryDetector'
+import {
+    ensureTrackMetadata,
+    fetchYoutubeOEmbed,
+} from './trackMetadataHydration'
+import {
+    YoutubePlaylistUnavailableError,
+    YoutubeVideoUnavailableError,
+} from './youtubeLinkErrors'
+
+export { YoutubePlaylistUnavailableError, YoutubeVideoUnavailableError }
 
 const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
 const ATTACHMENT_EXTRACTOR_ID = 'com.discord-player.attachmentextractor'
@@ -46,13 +58,25 @@ export function textSearchBlockOptions(query: string): {
         : { blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS }
 }
 
+// Folds Latin accents ("Beyoncé" -> "beyonce") but keeps combining marks in
+// other scripts, where a vowel sign changes the word (Devanagari "कु" vs "क").
+function wordsOf(value: string): string[] {
+    return value
+        .normalize('NFD')
+        .replaceAll(/(\p{Script=Latin})\p{M}+/gu, '$1')
+        .toLowerCase()
+        .split(/[^\p{L}\p{M}\p{N}]+/u)
+        .filter(Boolean)
+}
+
 /**
  * Some extractors (Spotify's raw search API in particular) return their own
  * top hit as tracks[0] with no relevance re-ranking, so a short/ambiguous
  * query like "Prince" can surface a same-genre act (e.g. Prince Royce)
  * ahead of the artist the query actually names. This promotes a candidate
- * whose title or author exactly matches the query, leaving descriptive
- * queries (where no exact match exists) untouched.
+ * whose title or author exactly matches the query or, failing that, whose
+ * title and author together make up the query ("song artist" in either
+ * order), leaving descriptive queries untouched.
  *
  * It also demotes a top candidate carrying an unrequested version marker
  * (remix, sped up, 8D audio, etc. — see noiseTerms.json) when an earlier or
@@ -107,11 +131,24 @@ export function preferExactMatch(
             }
         }
 
-        const bestIndex = tracks.findIndex((track) => {
+        let bestIndex = tracks.findIndex((track) => {
             const author = track.author?.trim().toLowerCase()
             const title = track.title?.trim().toLowerCase()
             return author === normalizedQuery || title === normalizedQuery
         })
+        if (bestIndex === -1) {
+            // "halo beyonce" / "beyonce halo": every word of the title and
+            // of the author is in the query, in any order. A cover titled
+            // "Halo (Beyoncé Cover)" carries an extra word and stays put.
+            const queryWords = new Set(wordsOf(normalizedQuery))
+            const covered = (value?: string) => {
+                const words = wordsOf(value ?? '')
+                return words.length > 0 && words.every((w) => queryWords.has(w))
+            }
+            bestIndex = tracks.findIndex(
+                (track) => covered(track.title) && covered(track.author),
+            )
+        }
         if (bestIndex <= 0) return workingResult
 
         const reordered = [...tracks]
@@ -142,13 +179,52 @@ function isNoResultError(error: unknown): boolean {
 }
 
 export type PlayResolutionArm =
-    'primary' | 'youtube-fallback' | 'soundcloud-fallback' | 'failed'
+    | 'primary'
+    | 'youtube-fallback'
+    | 'soundcloud-fallback'
+    | 'youtube-title-fallback'
+    | 'failed'
 
 interface ResolutionTelemetry {
     resolvedVia: PlayResolutionArm
     latencyMs: number
     requestedProvider: string
     errorClass?: string
+    /** Which arm served the text search behind 'youtube-title-fallback'. */
+    titleFallbackVia?: PlayResolutionArm
+}
+
+type Resolution = {
+    result: PlayerNodeInitializationResult<unknown>
+    telemetry: ResolutionTelemetry
+}
+
+// The bridge's all-stages-failed error reaches here wrapped by discord-player
+// in a NoResultError, but match the bare one too in case it is not wrapped.
+function isLinkUnresolvedError(error: unknown): boolean {
+    if (isNoResultError(error)) return true
+    return (
+        error instanceof Error &&
+        (error.name === 'BridgeExhaustedError' ||
+            error.message.includes('Bridge exhausted'))
+    )
+}
+
+/**
+ * "Song Artist" text for a YouTube video, read from oEmbed (which keeps
+ * answering while innertube and yt-dlp are behind the bot check). Null when
+ * oEmbed returns no title.
+ */
+export async function youtubeTitleQuery(
+    videoId: string,
+): Promise<string | null> {
+    const data = await fetchYoutubeOEmbed(
+        `https://www.youtube.com/watch?v=${videoId}`,
+    )
+    const title = typeof data?.title === 'string' ? data.title.trim() : ''
+    const author = typeof data?.author_name === 'string' ? data.author_name : ''
+    if (!title) return null
+    return cleanSearchQuery(title, author) || title
 }
 
 /**
@@ -163,7 +239,9 @@ function rerankThenNotify(
 ): (result: SearchResult) => Promise<SearchResult> {
     const rerank = preferExactMatch(query)
     return async (result) => {
-        const ranked = await rerank(result)
+        // Before the notify: the early reply must not show a blank title,
+        // and a track with no metadata must be rejected before play starts.
+        const ranked = await ensureTrackMetadata(await rerank(result))
         if (onSearchResolved && ranked.tracks.length > 0) {
             try {
                 onSearchResolved(ranked)
@@ -195,10 +273,126 @@ export async function resolveQueryWithFallbacks(
     searchEngine: QueryType,
     playOptions: PlayerNodeInitializerOptions<unknown>,
     onSearchResolved?: (result: SearchResult) => void,
-): Promise<{
-    result: PlayerNodeInitializationResult<unknown>
-    telemetry: ResolutionTelemetry
-}> {
+): Promise<Resolution> {
+    const chain = (
+        chainQuery: string,
+        engine: QueryType,
+        youtubeArm: boolean,
+    ): Promise<Resolution> =>
+        resolveWithChain({
+            player,
+            voiceChannel,
+            query: chainQuery,
+            requestedProvider,
+            searchEngine: engine,
+            playOptions: { ...playOptions, searchEngine: engine },
+            onSearchResolved,
+            youtubeArm,
+        })
+
+    const youtubeLink =
+        searchEngine === QueryType.AUTO ? parseYoutubeLink(query) : null
+    if (!youtubeLink) {
+        return chain(query, searchEngine, isHostedYoutubeEnabled())
+    }
+
+    const startTime = Date.now()
+    let linkError: unknown
+    // With HOSTED_YOUTUBE_ENABLED=false no YouTube extractor is registered,
+    // so asking for the link could only fail (or let a catch-all extractor
+    // claim it): go straight to the title fallback.
+    if (isHostedYoutubeEnabled()) {
+        try {
+            return await chain(query, searchEngine, true)
+        } catch (error) {
+            if (!isLinkUnresolvedError(error)) throw error
+            linkError = error
+        }
+    }
+
+    // The link just failed on YouTube (or YouTube is off), so the title
+    // search skips the YouTube arm: Spotify first, then SoundCloud.
+    return resolveYoutubeLinkByTitle(
+        youtubeLink,
+        linkError,
+        startTime,
+        (text) => chain(text, QueryType.SPOTIFY_SEARCH, false),
+    )
+}
+
+async function resolveYoutubeLinkByTitle(
+    link: YoutubeLink,
+    linkError: unknown,
+    startTime: number,
+    searchByText: (query: string) => Promise<Resolution>,
+): Promise<Resolution> {
+    if (link.kind === 'playlist') {
+        throw new YoutubePlaylistUnavailableError({ cause: linkError })
+    }
+
+    const titleQuery = await youtubeTitleQuery(link.videoId)
+    if (!titleQuery) {
+        warnLog({
+            message: 'YouTube link failed and oEmbed returned no title',
+            data: { videoId: link.videoId, error: String(linkError) },
+        })
+        throw linkError ?? new YoutubeVideoUnavailableError()
+    }
+
+    warnLog({
+        message: 'YouTube link failed, searching its title instead',
+        data: {
+            videoId: link.videoId,
+            titleQuery,
+            error:
+                linkError === undefined
+                    ? 'youtube disabled'
+                    : String(linkError),
+        },
+    })
+    try {
+        const { result, telemetry } = await searchByText(titleQuery)
+        return {
+            result,
+            telemetry: {
+                ...telemetry,
+                resolvedVia: 'youtube-title-fallback',
+                titleFallbackVia: telemetry.resolvedVia,
+                latencyMs: Date.now() - startTime,
+            },
+        }
+    } catch (textError) {
+        // When the title search also found nothing, report the link's own
+        // failure; any other error (voice, stream) is the real problem.
+        if (linkError !== undefined && isLinkUnresolvedError(textError)) {
+            throw linkError
+        }
+        throw textError
+    }
+}
+
+type ChainInput = {
+    player: Player
+    voiceChannel: VoiceBasedChannel
+    query: string
+    requestedProvider: string
+    searchEngine: QueryType
+    playOptions: PlayerNodeInitializerOptions<unknown>
+    onSearchResolved: ((result: SearchResult) => void) | undefined
+    /** False skips the YouTube text-search arm (YouTube off, or it just failed). */
+    youtubeArm: boolean
+}
+
+async function resolveWithChain({
+    player,
+    voiceChannel,
+    query,
+    requestedProvider,
+    searchEngine,
+    playOptions,
+    onSearchResolved,
+    youtubeArm,
+}: ChainInput): Promise<Resolution> {
     const startTime = Date.now()
     const telemetry: ResolutionTelemetry = {
         resolvedVia: 'primary',
@@ -252,7 +446,7 @@ export async function resolveQueryWithFallbacks(
             // positioning.md point 3): with no YouTube extractor registered,
             // this arm would only pay for a guaranteed NoResultError, so skip
             // straight to the SoundCloud fallback instead of attempting it.
-            if (isHostedYoutubeEnabled()) {
+            if (youtubeArm) {
                 warnLog({
                     message: 'Primary search failed, falling back to YouTube',
                     data: {
@@ -341,6 +535,9 @@ export function emitPlayResolutionTelemetry(
                 latencyMs: telemetry.latencyMs,
                 ...(telemetry.errorClass
                     ? { errorClass: telemetry.errorClass }
+                    : {}),
+                ...(telemetry.titleFallbackVia
+                    ? { titleFallbackVia: telemetry.titleFallbackVia }
                     : {}),
             },
         )

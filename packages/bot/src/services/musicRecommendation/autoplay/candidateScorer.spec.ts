@@ -76,6 +76,34 @@ describe('candidateScorer', () => {
             expect(result.signals).toEqual([])
         })
 
+        it.each([
+            ['blocked-artist', { author: 'Blocked Artist' }, 'blockedartist'],
+            ['too-long', { durationMS: 16 * 60 * 1000 }, undefined],
+            [
+                'ambient-noise',
+                { title: 'Relaxing Rain Sounds for Sleep' },
+                undefined,
+            ],
+        ])('names the %s veto (#2957)', (veto, overrides, blockedKey) => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack(overrides),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                blockedArtistKeys: new Set(blockedKey ? [blockedKey] : []),
+            })
+            expect(result.veto).toBe(veto)
+        })
+
+        it('leaves veto unset on a finite score', () => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack(),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+            })
+            expect(Number.isFinite(result.score)).toBe(true)
+            expect(result.veto).toBeUndefined()
+        })
+
         it('boosts preferred artists', () => {
             const result = calculateRecommendationScore({
                 candidate: createTrack({ author: 'Favorite Artist' }),
@@ -119,6 +147,7 @@ describe('candidateScorer', () => {
                 dislikedWeights: new Map([['dislikedsong::testartist', 0.7]]),
             })
             expect(result.score).toBe(-Infinity)
+            expect(result.veto).toBe('disliked')
         })
 
         it('applies same-artist novelty penalty', () => {
@@ -138,6 +167,31 @@ describe('candidateScorer', () => {
             expect(result.score).toBeLessThan(1)
         })
 
+        describe('seed artist streak (#2961)', () => {
+            const score = (seedArtistStreak?: number) =>
+                calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Xyz Abc',
+                        author: 'Test Artist',
+                    }),
+                    currentTrack: createTrack({ author: 'Test Artist' }),
+                    recentArtists: new Set(),
+                    seedArtistStreak,
+                }).score
+
+            it('skips the same-artist penalty on the first track of an artist', () => {
+                expect(score(1) - score(2)).toBeCloseTo(0.35)
+            })
+
+            it('keeps the penalty once the artist played twice in a row', () => {
+                expect(score(3)).toBeCloseTo(score(2))
+            })
+
+            it('keeps the penalty when the streak is unknown', () => {
+                expect(score(undefined)).toBeCloseTo(score(2))
+            })
+        })
+
         it('rejects Spanish candidates with no dominant locale', () => {
             const result = calculateRecommendationScore({
                 candidate: createTrack({ title: 'Reggaeton Song' }),
@@ -153,6 +207,7 @@ describe('candidateScorer', () => {
                 },
             })
             expect(result.score).toBe(-Infinity)
+            expect(result.veto).toBe('cross-locale')
         })
 
         it('rejects cross-genre with dominant family', () => {
@@ -169,6 +224,95 @@ describe('candidateScorer', () => {
                 },
             })
             expect(result.score).toBe(-Infinity)
+            expect(result.veto).toBe('cross-genre')
+        })
+
+        describe('skip storm tightens instead of loosening (#2934)', () => {
+            const mood = (recentSkipCount: number, restless = false) => ({
+                dominantLocale: null,
+                deepDiveArtist: null,
+                preferLong: false,
+                preferShort: false,
+                restless,
+                recentSkipCount,
+            })
+
+            it('still rejects an off-genre candidate after 3 skips', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack(),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(),
+                    sessionMood: mood(3, true),
+                    genreContext: {
+                        candidateTags: ['thrash metal', 'metal', 'rock'],
+                        currentTrackTags: ['rap', 'hip hop', 'trap'],
+                        sessionGenreFamilies: new Set(['rap_hiphop']),
+                    },
+                })
+                expect(result.score).toBe(-Infinity)
+            })
+
+            it('keeps failing closed on an untagged candidate after 3 skips', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        author: 'Untagged Mainstream',
+                        source: 'youtube',
+                    }),
+                    currentTrack: createTrack({ author: 'Rapper' }),
+                    recentArtists: new Set(),
+                    sessionMood: mood(3, true),
+                    genreContext: {
+                        candidateTags: [],
+                        currentTrackTags: ['hip hop'],
+                        sessionGenreFamilies: new Set(['rap_hiphop']),
+                    },
+                })
+                expect(result.signals).toContain('genre family drift')
+            })
+
+            it('doubles the family penalty after 3 skips', () => {
+                const currentTrackTags = ['rap', 'hip hop']
+                const candidateTags = ['rock', 'metal']
+                const score = (skips: number) =>
+                    calculateRecommendationScore({
+                        candidate: createTrack({ author: 'Rocker' }),
+                        currentTrack: createTrack({ author: 'Rapper' }),
+                        recentArtists: new Set(),
+                        sessionMood: mood(skips),
+                        genreContext: {
+                            candidateTags,
+                            currentTrackTags,
+                            sessionGenreFamilies: new Set(),
+                        },
+                    }).score
+                const penalty = calculateGenreFamilyPenalty(
+                    currentTrackTags,
+                    candidateTags,
+                )
+                expect(penalty).toBeLessThan(0)
+                expect(score(3) - score(0)).toBeCloseTo(penalty, 5)
+            })
+
+            it('drops the novelty and discovery boosts when restless', () => {
+                const score = (restless: boolean) =>
+                    calculateRecommendationScore({
+                        candidate: createTrack({
+                            author: 'Brand New',
+                            source: 'youtube',
+                        }),
+                        currentTrack: createTrack({ author: 'Someone' }),
+                        recentArtists: new Set(),
+                        sessionMood: mood(restless ? 3 : 0, restless),
+                        autoplayMode: 'discover',
+                    })
+                const calm = score(false)
+                const restless = score(true)
+                expect(calm.signals).toContain('session novelty')
+                expect(calm.signals).toContain('discovery boost')
+                expect(restless.signals).not.toContain('session novelty')
+                expect(restless.signals).not.toContain('discovery boost')
+                expect(restless.score).toBeLessThan(calm.score)
+            })
         })
 
         it.each([

@@ -89,4 +89,24 @@ describe('GET /invite', () => {
         expect(res.headers.location).not.toContain('evil.example.com')
         expect(res.headers.location).toContain('discord.com')
     })
+
+    test('carries the utm_source through the OAuth state', async () => {
+        const res = await request(buildApp()).get(
+            '/invite?utm_source=discordbotsgg&utm_medium=directory',
+        )
+        const location = new URL(res.headers.location)
+        expect(location.searchParams.get('state')).toBe('src.botsgg')
+        expect(location.searchParams.get('response_type')).toBe('code')
+        expect(location.searchParams.get('redirect_uri')).toContain(
+            '/api/auth/callback',
+        )
+    })
+
+    test('stores sources off the allowlist as unknown', async () => {
+        const res = await request(buildApp()).get(
+            '/invite?utm_source=<script>',
+        )
+        const location = new URL(res.headers.location)
+        expect(location.searchParams.get('state')).toBe('src.unknown')
+    })
 })

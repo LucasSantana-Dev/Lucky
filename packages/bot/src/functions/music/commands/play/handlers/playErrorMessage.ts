@@ -5,6 +5,12 @@ import {
     type ClassifiedOutcome,
 } from '../../../../../utils/monitoring/commandOutcome'
 import { detectQueryType } from '../queryDetector'
+import {
+    YoutubePlaylistUnavailableError,
+    YoutubeVideoUnavailableError,
+} from './youtubeLinkErrors'
+
+type Translate = (key: string) => string
 
 // "No results found" is misleading when it's actually a degraded extractor
 // (e.g. YouTube session init silently failed but registration still
@@ -15,10 +21,25 @@ import { detectQueryType } from '../queryDetector'
 // SoundCloud, so if it still finds nothing, the healthy engines answered and
 // genuinely found nothing — calling that "unreachable" told users an outage
 // had happened when the fallbacks had worked correctly.
+//
+// YouTube link failures the title fallback could not rescue get their own
+// translated message when the caller passes a translator (`t`).
 export function resolvePlayErrorMessage(
     error: unknown,
     query?: string,
+    t?: Translate,
 ): string {
+    if (error instanceof YoutubePlaylistUnavailableError) {
+        return t
+            ? t('music.errors.youtubePlaylistUnavailable')
+            : "YouTube playlists aren't available right now. Paste the link of a single song, or just type its name."
+    }
+    if (error instanceof YoutubeVideoUnavailableError) {
+        return t
+            ? t('music.errors.youtubeVideoUnavailable')
+            : "Couldn't play this YouTube link right now. Try typing the song and artist name instead."
+    }
+
     const isNoResultsError =
         error instanceof Error && /no results found/i.test(error.message)
 

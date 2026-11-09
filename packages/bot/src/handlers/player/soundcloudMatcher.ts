@@ -99,11 +99,41 @@ export async function refreshSoundCloudClientId(): Promise<void> {
     return refreshInFlight
 }
 
+/**
+ * A DRM-protected SoundCloud upload never streams: yt-dlp refuses it ("This
+ * video is DRM protected") and play-dl then crashes on the missing transcoding
+ * ("reading 'url'") after a client ID refresh. On 2026-10-20 one such upload
+ * was picked by all three bridge stages of every autoplay attempt, ~6s each.
+ * Known DRM urls are left out of the candidates for the rest of the process.
+ */
+const MAX_DRM_TRACKS = 500
+const drmTrackUrls = new Set<string>()
+
+export class SoundCloudDrmError extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = 'SoundCloudDrmError'
+    }
+}
+
+function isDrmProtectedError(error: unknown): boolean {
+    return error instanceof Error && /DRM protected/i.test(error.message)
+}
+
+function rememberDrmTrack(url: string): void {
+    drmTrackUrls.add(url)
+    if (drmTrackUrls.size > MAX_DRM_TRACKS) {
+        const oldest = drmTrackUrls.values().next().value
+        if (oldest !== undefined) drmTrackUrls.delete(oldest)
+    }
+}
+
 // Test-only: the cooldown above is module-level state, so tests that assert on
 // the refresh path must reset it between cases instead of relying on run order.
 export function __resetSoundCloudRefreshStateForTests(): void {
     refreshInFlight = null
     lastRefreshAt = 0
+    drmTrackUrls.clear()
 }
 
 function isTimeoutError(error: unknown): boolean {
@@ -170,6 +200,22 @@ export async function streamViaSoundCloud(
     trackDuration?: string,
     options: SoundCloudMatchOptions = {},
 ): Promise<Readable> {
+    return (await resolveViaSoundCloud(query, trackDuration, options)).stream
+}
+
+/**
+ * What a validated SoundCloud match resolved to: the upload's permalink (an
+ * identifier that stays valid, unlike a stream URL) and its duration, so a
+ * caller can cache it and replay it with streamSoundCloudTrack.
+ */
+export type SoundCloudMatch = { id: string; durationSec?: number }
+
+/** streamViaSoundCloud that also returns which upload it matched. */
+export async function resolveViaSoundCloud(
+    query: string,
+    trackDuration?: string,
+    options: SoundCloudMatchOptions = {},
+): Promise<{ stream: Readable; match: SoundCloudMatch }> {
     if (!query.trim()) {
         throw new Error('SoundCloud: empty query')
     }
@@ -191,10 +237,17 @@ export async function streamViaSoundCloud(
         throw new Error(`SoundCloud: no results for "${query}"`)
     }
 
+    const playable = results.filter((result) => !drmTrackUrls.has(result.url))
+    if (!playable.length) {
+        throw new SoundCloudDrmError(
+            `SoundCloud: only DRM-protected results for "${query}"`,
+        )
+    }
+
     const match = findMatchingSoundCloudResult(
         query,
         trackDuration,
-        results,
+        playable,
         options,
     )
     if (!match) {
@@ -221,6 +274,29 @@ export async function streamViaSoundCloud(
         data: { query, track: match.name, uploader: match.user?.name },
     })
 
+    const stream = await streamMatch(match)
+    return {
+        stream,
+        match: {
+            id: match.permalink ?? match.url,
+            ...(typeof match.durationInSec === 'number'
+                ? { durationSec: match.durationInSec }
+                : {}),
+        },
+    }
+}
+
+/**
+ * Streams a SoundCloud upload resolved earlier (a cached permalink), with no
+ * search or validation: the match was validated when it was cached.
+ */
+export async function streamSoundCloudTrack(id: string): Promise<Readable> {
+    return streamMatch({ name: id, url: id, permalink: id })
+}
+
+async function streamMatch(
+    match: Pick<SoundCloudSearchResult, 'name' | 'url' | 'permalink'>,
+): Promise<Readable> {
     // SoundCloud now lists an adaptive `abr_sq` HLS transcoding last, and
     // play-dl 1.9.7 always streams the last HLS format, whose URL answers
     // 404. The AAC formats before it are fMP4 segments, and play-dl drops
@@ -230,6 +306,18 @@ export async function streamViaSoundCloud(
         try {
             return await streamViaYtDlp(match.permalink)
         } catch (err) {
+            // play-dl cannot stream it either, and its failure would also
+            // spend a client ID refresh. Skip straight to the next stage.
+            if (isDrmProtectedError(err)) {
+                rememberDrmTrack(match.url)
+                warnLog({
+                    message: 'SoundCloud: DRM-protected upload, skipping',
+                    data: { track: match.name, url: match.url },
+                })
+                throw new SoundCloudDrmError(
+                    `SoundCloud: "${match.name}" is DRM protected`,
+                )
+            }
             warnLog({
                 message: 'SoundCloud: yt-dlp stream failed, trying play-dl',
                 data: { track: match.name, error: (err as Error).message },
@@ -266,7 +354,10 @@ export function findMatchingSoundCloudResult(
     // Gate on the query with trailing parenthetical suffixes stripped so
     // version/comment suffixes ("(Comentário)", "(En Vivo)") do not inflate the
     // token count (#2866). Ranking below still looks at the full query tokens.
-    const { tokens, fullTokens, hasStripped } = getQueryTokens(query)
+    const { tokens, fullTokens, hasStripped } = getQueryTokens(
+        query,
+        expectedArtists,
+    )
     if (tokens.length === 0) return undefined
 
     const trackSec = parseDurationString(trackDuration)
@@ -381,7 +472,7 @@ function describeRejectedCandidates(
     artistMatch?: boolean
     alteredVersion?: true
 }[] {
-    const { tokens } = getQueryTokens(query)
+    const { tokens } = getQueryTokens(query, expectedArtists)
     const trackSec = parseDurationString(trackDuration)
     const artistKeys = toArtistKeys(expectedArtists)
     const requested = toRequestedText(query, sourceTitle)
@@ -476,13 +567,19 @@ function toTokens(value: string): string[] {
     return normalizeForMatch(value).split(/ +/).filter(Boolean)
 }
 
-function getQueryTokens(query: string): {
+function getQueryTokens(
+    query: string,
+    expectedArtists: readonly string[] = [],
+): {
     tokens: string[]
     fullTokens: string[]
     hasStripped: boolean
 } {
-    const fullTokens = toTokens(query)
-    const stripped = toTokens(stripTrailingParentheticals(query))
+    const fullTokens = dropArtistSuffix(toTokens(query), expectedArtists)
+    const stripped = dropArtistSuffix(
+        toTokens(stripTrailingParentheticals(query)),
+        expectedArtists,
+    )
     // A query that is only a bracketed group ("(Intro)") strips to nothing:
     // fall back to the unstripped query instead of rejecting it.
     if (stripped.length === 0) {
@@ -493,6 +590,31 @@ function getQueryTokens(query: string): {
         fullTokens,
         hasStripped: stripped.length !== fullTokens.length,
     }
+}
+
+// The soundcloud-full query is "title author" (cleanSearchQuery). With an
+// expected artist, every candidate left has passed the uploader check, so the
+// account already proves the author part: scoring the title against it too
+// rejected "Fique Rico ou Moralismo 2" by Froid for the query "Fique Rico ou
+// Moralismo 2 Froid, Major RD" (5 of 8 tokens, 2026-10-20). Only a trailing
+// run of an expected artist's full name is dropped, never artist words inside
+// the title, and a query that is only the artist is kept whole.
+function dropArtistSuffix(
+    tokens: string[],
+    expectedArtists: readonly string[],
+): string[] {
+    for (const artist of expectedArtists) {
+        const artistTokens = toTokens(artist)
+        const start = tokens.length - artistTokens.length
+        if (
+            artistTokens.length > 0 &&
+            start > 0 &&
+            artistTokens.every((token, i) => tokens[start + i] === token)
+        ) {
+            return tokens.slice(0, start)
+        }
+    }
+    return tokens
 }
 
 // Strips trailing parenthetical/bracketed suffix groups from the query

@@ -1,9 +1,5 @@
 import { jest } from '@jest/globals'
 
-jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
-    getAutoplaySkipRateForGuild: jest.fn(),
-}))
-
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),

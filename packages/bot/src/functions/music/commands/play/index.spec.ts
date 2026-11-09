@@ -1,12 +1,6 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { EventEmitter } from 'node:events'
 
-// Transitively pulled in via playHandler -> skipCircuitBreaker; real module loads
-// prismaClient (import.meta). Factory-mock to keep this suite loadable.
-jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({
-    getAutoplaySkipRateForGuild: jest.fn(),
-}))
-
 const flushPromises = () =>
     new Promise<void>((resolve) => setImmediate(resolve))
 
@@ -1053,7 +1047,7 @@ describe('play command: early reply and start failure (#2741)', () => {
 
         expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Play Error',
-            expect.stringContaining('Could not start **Song A**'),
+            expect.stringContaining("Couldn't find the original of **Song A**"),
         )
         expect(interaction.editReply).toHaveBeenCalledTimes(1)
         expect(interaction.editReply).toHaveBeenCalledWith({

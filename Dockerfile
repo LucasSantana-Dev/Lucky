@@ -42,6 +42,13 @@ FROM node:${NODE_VERSION} AS base-runtime
 # without it yt-dlp skips solving and formats can go missing (#2664). yt-dlp
 # only accepts the yt-dlp-ejs version it pins, so it comes in through the
 # `default` extra, which carries that pin; yt-dlp itself floats on rebuilds.
+# bgutil-ytdlp-pot-provider is the yt-dlp plugin for the po_token sidecar
+# (ADR 2026-06-18, amendment 2026-10-21). Pinned to the version of the
+# bgutil-pot image in docker-compose.yml: bump both together. --target puts it
+# in /opt/ytdlp-plugins/<package>/, outside the venv's site-packages, so yt-dlp
+# only loads it when the bot passes --plugin-dirs (YTDLP_POT_PROVIDER_URL set).
+# It has no dependencies, hence --no-deps.
+ARG BGUTIL_POT_PROVIDER_VERSION=2.0.2
 RUN apk add --no-cache \
     python3 \
     py3-pip \
@@ -52,6 +59,9 @@ RUN apk add --no-cache \
     && python3 -m venv /opt/ytdlp \
     && /opt/ytdlp/bin/pip install --no-cache-dir --upgrade pip 'yt-dlp[default]' \
     && ln -s /opt/ytdlp/bin/yt-dlp /usr/local/bin/yt-dlp \
+    && /opt/ytdlp/bin/pip install --no-cache-dir --no-deps \
+        --target /opt/ytdlp-plugins/bgutil-ytdlp-pot-provider \
+        "bgutil-ytdlp-pot-provider==${BGUTIL_POT_PROVIDER_VERSION}" \
     && rm -rf /var/cache/apk/* /root/.cache \
     && npm install -g npm@latest \
     && npm cache clean --force
@@ -227,6 +237,13 @@ RUN --mount=type=cache,id=npm,target=/root/.npm,sharing=locked \
 
 FROM deps-production-base AS deps-production-bot
 RUN npm prune --omit=dev --legacy-peer-deps
+# The bot loads discord-player-youtubei with a dynamic import, so an
+# undeclared transitive dep (simple-ytdl-core in 3.1.0, 2026-10-20) only
+# showed up in prod logs as "YouTube extractor unavailable". Fail the build
+# instead, after the prune, from the bot workspace like the runtime does.
+WORKDIR /app/packages/bot
+RUN node --input-type=module -e "const m = await import('discord-player-youtubei'); if (typeof m.YoutubeExtractor !== 'function') throw new Error('YoutubeExtractor export missing')"
+WORKDIR /app
 # Same guard as deps-production-backend below: nested workspace node_modules
 # can hoist away between installs and COPY --from hard-fails on a missing dir.
 RUN mkdir -p packages/shared/node_modules packages/bot/node_modules

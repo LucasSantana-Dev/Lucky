@@ -251,7 +251,8 @@ export function resolveSearchEngine(
     query: string,
     provider?: string | null,
 ): QueryType {
-    if (isUrl(query)) return QueryType.AUTO
+    // Trimmed so a pasted link with stray spaces still counts as a link.
+    if (isUrl(query.trim())) return QueryType.AUTO
 
     switch (provider) {
         case 'youtube':
