@@ -81,7 +81,9 @@ export async function addSeedDerivedHits(
             replayFrequentTrackIds: ctx.replayFrequentTrackIds,
             replayFrequentArtists: ctx.replayFrequentArtists,
         })
-        upsertScoredCandidate(
+        // Count only stored hits: a higher-scored copy already in the pool
+        // must not use up this pick's limit.
+        const stored = upsertScoredCandidate(
             candidates,
             track,
             {
@@ -92,7 +94,7 @@ export async function addSeedDerivedHits(
             },
             auditCollector,
         )
-        if (!rec.veto) added++
+        if (stored && !rec.veto) added++
     }
     return added
 }

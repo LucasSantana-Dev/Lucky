@@ -105,6 +105,7 @@ describe('collectRelatedArtistCandidates (#2961)', () => {
         jest.clearAllMocks()
         __resetRelatedArtistCacheForTests()
         shouldIncludeCandidateMock.mockReturnValue(true)
+        upsertScoredCandidateMock.mockReturnValue(true)
         calculateRecommendationScoreMock.mockReturnValue({
             score: 0.5,
             signals: [],
@@ -280,6 +281,27 @@ describe('collectRelatedArtistCandidates (#2961)', () => {
             (input as { candidate: Track }).candidate.title.endsWith('(Vetoed)')
                 ? { score: -Infinity, signals: [], veto: 'genre' }
                 : { score: 0.5, signals: [] },
+        )
+
+        await run()
+
+        expect(upserts().map((u) => u.title)).toContain('Hit A')
+    })
+
+    it('tries the next hit when the first one is already in the pool', async () => {
+        searchLastFmQueryMock.mockImplementation(
+            async (_queue: unknown, query: unknown) => {
+                const [title, author] = String(query).split(' | ')
+                return [
+                    createTrack(`${title} (Pooled)`, author),
+                    createTrack(title, author),
+                ]
+            },
+        )
+        // A higher-scored copy is already in the pool, so nothing is stored.
+        upsertScoredCandidateMock.mockImplementation(
+            (_candidates: unknown, track: unknown) =>
+                !(track as Track).title.endsWith('(Pooled)'),
         )
 
         await run()
