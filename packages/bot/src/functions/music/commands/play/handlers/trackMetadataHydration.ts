@@ -21,7 +21,7 @@ export class TrackMetadataUnavailableError extends Error {
     }
 }
 
-type OEmbedResponse = {
+export type OEmbedResponse = {
     title?: unknown
     author_name?: unknown
     thumbnail_url?: unknown
@@ -31,7 +31,14 @@ function nonEmptyString(value: unknown): string | undefined {
     return typeof value === 'string' && value.trim() ? value.trim() : undefined
 }
 
-async function fetchYoutubeOEmbed(url: string): Promise<OEmbedResponse | null> {
+/**
+ * YouTube's public oEmbed endpoint. It answers from the page metadata, so it
+ * keeps working while innertube and yt-dlp are behind the bot check.
+ * Never throws: any failure (timeout, 4xx, bad JSON) returns null.
+ */
+export async function fetchYoutubeOEmbed(
+    url: string,
+): Promise<OEmbedResponse | null> {
     try {
         const endpoint = new URL('https://www.youtube.com/oembed')
         endpoint.searchParams.set('url', url)
