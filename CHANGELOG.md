@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.66.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.66.1...v2.66.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **bot:** kill yt-dlp when the player drops its stream ([#2992](https://github.com/LucasSantana-Dev/Lucky/issues/2992)) ([c23b884](https://github.com/LucasSantana-Dev/Lucky/commit/c23b8848eae0abb7c12129e6154940405385eaa6))
+* **bot:** persist spotify 429 block and skip spotify while blocked ([#2989](https://github.com/LucasSantana-Dev/Lucky/issues/2989)) ([017f679](https://github.com/LucasSantana-Dev/Lucky/commit/017f679e6964dafc5af408de610f418312c26402))
+* **bot:** scope yt-dlp breaker to 403/botcheck, batch failure embeds ([#2988](https://github.com/LucasSantana-Dev/Lucky/issues/2988)) ([f7ec6bb](https://github.com/LucasSantana-Dev/Lucky/commit/f7ec6bb34aca88828f8faded96df5a0ab919ab01))
+* **bot:** watchdog replay and /skip early defer ([#2987](https://github.com/LucasSantana-Dev/Lucky/issues/2987)) ([a826621](https://github.com/LucasSantana-Dev/Lucky/commit/a826621a4adb163f9df3f5ba30d905e8bd85ce2b))
+
 ## [2.66.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.66.0...v2.66.1) (2026-11-09)
 
 
