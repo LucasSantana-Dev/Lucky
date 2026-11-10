@@ -57,6 +57,7 @@ describe('MusicWatchdogService', () => {
 
         expect(connection.rejoin).toHaveBeenCalledTimes(1)
         expect(play).toHaveBeenCalledTimes(1)
+        expect(play).toHaveBeenCalledWith(queue.currentTrack, { queue: false })
         expect(service.getGuildState('guild-1')).toEqual(
             expect.objectContaining({
                 lastRecoveryAction: 'requeue_current',
@@ -848,6 +849,63 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
             lastRecoveryAction: 'failed',
             lastRecoveryDetail: 'connection_not_ready_after_rejoin_retry',
         })
+    })
+
+    it('does not call play() when there is no voice connection (#2976)', async () => {
+        const play = jest.fn().mockResolvedValue(undefined)
+        const service = new MusicWatchdogService({
+            timeoutMs: 100,
+            recoveryWaitTimeoutMs: 50,
+            recoveryPollIntervalMs: 10,
+        })
+        const queue = {
+            guild: { id: 'guild-no-conn' },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection: null,
+            node: { isPlaying: () => false, play },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        const pending = service.checkAndRecover(queue)
+        await jest.advanceTimersByTimeAsync(500)
+        const result = await pending
+
+        expect(result).toBe('failed')
+        expect(play).not.toHaveBeenCalled()
+    })
+
+    it('does not call play() when nothing is current and the queue is empty (#2976)', async () => {
+        const play = jest.fn().mockResolvedValue(undefined)
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const queue = {
+            guild: { id: 'guild-empty' },
+            currentTrack: null,
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, play },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+
+        const result = await service.checkAndRecover(queue)
+
+        expect(result).toBe('none')
+        expect(play).not.toHaveBeenCalled()
+    })
+
+    it('replays the stalled track, not the next queued one (#2976)', async () => {
+        const play = jest.fn().mockResolvedValue(undefined)
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const current = { title: 'Stalled', url: 'https://example.com/s' }
+        const queue = {
+            guild: { id: 'guild-replay' },
+            currentTrack: current,
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, play },
+            tracks: { size: 3 },
+        } as unknown as GuildQueue
+
+        await service.checkAndRecover(queue)
+
+        expect(play).toHaveBeenCalledWith(current, { queue: false })
     })
 
     it('returns failed when play() throws during recovery', async () => {

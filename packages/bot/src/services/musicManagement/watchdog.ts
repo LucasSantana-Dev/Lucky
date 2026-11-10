@@ -102,7 +102,7 @@ export class MusicWatchdogService {
     private async waitForConnectionReady(
         connection: GuildQueue['connection'],
     ): Promise<boolean> {
-        if (!connection) return true
+        if (!connection) return false
         if (this.isConnectionReady(connection)) return true
 
         const deadline = Date.now() + this.recoveryWaitTimeoutMs
@@ -290,7 +290,10 @@ export class MusicWatchdogService {
                 action = 'none'
                 detail = 'intentional_stop'
             } else if (queue.currentTrack) {
-                await queue.node.play()
+                // play() with no argument dispatches the NEXT queued track
+                // (and throws NoResultError on an empty queue), so replay the
+                // stalled track explicitly without re-enqueueing it.
+                await queue.node.play(queue.currentTrack, { queue: false })
                 action = 'requeue_current'
                 detail = didRejoin
                     ? 'rejoined_and_requeued_current'
