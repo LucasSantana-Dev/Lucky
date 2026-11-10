@@ -3,8 +3,9 @@ import { isExtractorDegraded, setExtractorDegraded } from './extractorHealth'
 
 // Since 2026-10-06 YouTube answers yt-dlp media downloads with HTTP 403 for
 // days at a time, and every play paid 4-10 s waiting for that failure before
-// the SoundCloud fallback (#2653). Two 403s with no successful stream between
-// them and less than FORBIDDEN_WINDOW_MS apart open this breaker, and the
+// the SoundCloud fallback (#2653). Two 403s for distinct videos with no
+// successful stream between them and less than FORBIDDEN_WINDOW_MS apart
+// open this breaker, and the
 // bridge skips yt-dlp for the cooldown. The breaker is process-global, so it
 // must not trip on one guild's bad luck (#2973):
 // - 'forbidden' and 'botcheck' open it only across at least two DISTINCT video

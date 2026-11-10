@@ -814,11 +814,12 @@ describe('yt-dlp block breaker wiring (#2653)', () => {
 
         await createResilientStream(spotifyTrack())
 
+        // A search failure has no video id yet, so the track URL keys it.
         expect(mockRecordYtDlpFailure).toHaveBeenCalledWith(
             error,
             expect.any(Number),
             expect.any(Object),
-            expect.any(String),
+            'https://open.spotify.com/track/123',
         )
         expect(mockRecordYtDlpSuccess).not.toHaveBeenCalled()
     })
@@ -904,11 +905,12 @@ describe('Spotify source cache', () => {
 
         await createResilientStream(spotifyTrack())
 
+        // Keyed on the cached YouTube id yt-dlp was given, not the Spotify URL.
         expect(mockRecordYtDlpFailure).toHaveBeenCalledWith(
             error,
             expect.any(Number),
             expect.any(Object),
-            expect.any(String),
+            'cached99',
         )
         expect(mockAddBreadcrumb).toHaveBeenCalledWith(
             'YouTube extraction failed via cached Spotify source',
