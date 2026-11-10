@@ -71,6 +71,7 @@ function createInteraction(guildId = 'guild-1') {
     return {
         guildId,
         user: { tag: 'User#0001' },
+        deferReply: jest.fn().mockResolvedValue(undefined),
     } as any
 }
 
@@ -119,6 +120,64 @@ describe('skip command', () => {
         })
 
         expect(clearSessionMoodCacheMock).toHaveBeenCalledWith('guild-1')
+    })
+
+    it('runs cheap queue checks before the defer and the DJ check after it (#2977)', async () => {
+        const order: string[] = []
+        const queue = createQueue('guild-1')
+        queue.node.skip.mockImplementation(() => {
+            order.push('skip')
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        requireGuildMock.mockImplementation(async () => {
+            order.push('requireGuild')
+            return true
+        })
+        requireIsPlayingMock.mockImplementation(async () => {
+            order.push('requireIsPlaying')
+            return true
+        })
+        requireDJRoleMock.mockImplementation(async () => {
+            order.push('requireDJRole')
+            return true
+        })
+        const interaction = createInteraction('guild-1')
+        interaction.deferReply.mockImplementation(async () => {
+            order.push('defer')
+        })
+
+        await skipCommand.execute({ interaction, client: {} as any })
+
+        expect(order).toEqual([
+            'requireGuild',
+            'requireIsPlaying',
+            'defer',
+            'requireDJRole',
+            'skip',
+        ])
+    })
+
+    it('does not defer when a cheap check fails, so its reply stays ephemeral', async () => {
+        requireIsPlayingMock.mockResolvedValue(false)
+        const interaction = createInteraction('guild-1')
+
+        await skipCommand.execute({ interaction, client: {} as any })
+
+        expect(interaction.deferReply).not.toHaveBeenCalled()
+    })
+
+    it('still skips when deferReply rejects (e.g. 10062 Unknown interaction)', async () => {
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = createInteraction('guild-1')
+        interaction.deferReply.mockRejectedValue(
+            Object.assign(new Error('Unknown interaction'), { code: 10062 }),
+        )
+
+        await skipCommand.execute({ interaction, client: {} as any })
+
+        expect(queue.node.skip).toHaveBeenCalled()
+        expect(debugLogMock).toHaveBeenCalled()
     })
 
     it('skips the current song', async () => {

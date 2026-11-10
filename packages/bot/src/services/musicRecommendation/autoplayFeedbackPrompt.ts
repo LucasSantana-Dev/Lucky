@@ -117,6 +117,9 @@ export async function maybePromptAutoplayFeedback(
     try {
         const guildId = interaction.guildId
         if (!snapshot || !guildId) return
+        // followUp on an unacknowledged interaction throws
+        // InteractionNotReplied (e.g. when the defer missed the 3s window).
+        if (!interaction.deferred && !interaction.replied) return
         const userId = interaction.user.id
         const coolKey = `${guildId}:${userId}`
 
