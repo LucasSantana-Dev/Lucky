@@ -818,6 +818,7 @@ describe('yt-dlp block breaker wiring (#2653)', () => {
             error,
             expect.any(Number),
             expect.any(Object),
+            expect.any(String),
         )
         expect(mockRecordYtDlpSuccess).not.toHaveBeenCalled()
     })
@@ -907,6 +908,7 @@ describe('Spotify source cache', () => {
             error,
             expect.any(Number),
             expect.any(Object),
+            expect.any(String),
         )
         expect(mockAddBreadcrumb).toHaveBeenCalledWith(
             'YouTube extraction failed via cached Spotify source',
