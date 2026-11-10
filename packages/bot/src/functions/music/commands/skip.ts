@@ -103,6 +103,10 @@ export default new Command({
         .setDescription('⏭️ Skip the current song.'),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
+        // Acknowledge first: checks and the skip itself can exceed Discord's
+        // 3s window, and later replies then go through editReply/followUp.
+        await interaction.deferReply()
+
         if (!(await requireGuild(interaction))) return
         if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
 

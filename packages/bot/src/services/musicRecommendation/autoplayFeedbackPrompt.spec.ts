@@ -51,6 +51,8 @@ function promptInteraction(userId = 'user-1', guildId: string | null = 'g-1') {
     return {
         guildId,
         user: { id: userId, username: `name-${userId}` },
+        deferred: true,
+        replied: false,
         followUp: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     }
 }
@@ -148,6 +150,36 @@ describe('autoplay feedback prompt', () => {
             await maybePromptAutoplayFeedback(interaction as never, null)
 
             expect(interaction.followUp).not.toHaveBeenCalled()
+        })
+
+        it('does not follow up on an unacknowledged interaction (#2977)', async () => {
+            const interaction = {
+                ...promptInteraction(),
+                deferred: false,
+                replied: false,
+            }
+
+            await maybePromptAutoplayFeedback(
+                interaction as never,
+                captureAutoplayTrack(autoplayTrack),
+            )
+
+            expect(interaction.followUp).not.toHaveBeenCalled()
+        })
+
+        it('follows up once the interaction was replied to without a defer (#2977)', async () => {
+            const interaction = {
+                ...promptInteraction(),
+                deferred: false,
+                replied: true,
+            }
+
+            await maybePromptAutoplayFeedback(
+                interaction as never,
+                captureAutoplayTrack(autoplayTrack),
+            )
+
+            expect(interaction.followUp).toHaveBeenCalledTimes(1)
         })
 
         it('does nothing outside a guild', async () => {

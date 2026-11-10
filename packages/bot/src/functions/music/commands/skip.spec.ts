@@ -71,6 +71,7 @@ function createInteraction(guildId = 'guild-1') {
     return {
         guildId,
         user: { tag: 'User#0001' },
+        deferReply: jest.fn().mockResolvedValue(undefined),
     } as any
 }
 
@@ -119,6 +120,27 @@ describe('skip command', () => {
         })
 
         expect(clearSessionMoodCacheMock).toHaveBeenCalledWith('guild-1')
+    })
+
+    it('defers before any validation or skip work (#2977)', async () => {
+        const order: string[] = []
+        const queue = createQueue('guild-1')
+        queue.node.skip.mockImplementation(() => {
+            order.push('skip')
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        requireGuildMock.mockImplementation(async () => {
+            order.push('requireGuild')
+            return true
+        })
+        const interaction = createInteraction('guild-1')
+        interaction.deferReply.mockImplementation(async () => {
+            order.push('defer')
+        })
+
+        await skipCommand.execute({ interaction, client: {} as any })
+
+        expect(order).toEqual(['defer', 'requireGuild', 'skip'])
     })
 
     it('skips the current song', async () => {
