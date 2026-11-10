@@ -49,9 +49,9 @@ const SPOTIFY_SEARCH_WARN_COOLDOWN_MS = 5 * 60 * 1000
 // a single 429 can lock for hours (#2971, #2972).
 export const MAX_SPOTIFY_SEARCHES_PER_REPLENISH = 5
 
-export function spotifySearchBudgetFor(
-    ctx: AutoplayContext,
-): SpotifySearchBudget {
+export function spotifySearchBudgetFor(ctx: {
+    spotifySearchBudget?: SpotifySearchBudget
+}): SpotifySearchBudget {
     ctx.spotifySearchBudget ??= {
         remaining: MAX_SPOTIFY_SEARCHES_PER_REPLENISH,
     }
@@ -416,6 +416,16 @@ export async function collectLastFmCandidates(
     }
 }
 
+// Only the Spotify arm is metered; the other engines are always allowed.
+function mayUseEngine(
+    engine: QueryType,
+    spotifyBudget?: SpotifySearchBudget,
+): boolean {
+    return (
+        engine !== QueryType.SPOTIFY_SEARCH || claimSpotifySearch(spotifyBudget)
+    )
+}
+
 export async function searchLastFmQuery(
     queue: GuildQueue,
     query: string,
@@ -434,12 +444,7 @@ export async function searchLastFmQuery(
         : [QueryType.SPOTIFY_SEARCH, QueryType.SOUNDCLOUD_SEARCH]
     let hadError = false
     for (const engine of engines) {
-        if (
-            engine === QueryType.SPOTIFY_SEARCH &&
-            !claimSpotifySearch(spotifyBudget)
-        ) {
-            continue
-        }
+        if (!mayUseEngine(engine, spotifyBudget)) continue
         try {
             const result = await queue.player.search(query, {
                 requestedBy,

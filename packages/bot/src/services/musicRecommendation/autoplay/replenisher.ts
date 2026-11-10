@@ -43,7 +43,7 @@ import {
     purgeDuplicatesOfCurrentTrack,
     type ScoredTrack,
 } from './diversitySelector'
-import { collectLastFmCandidates } from './lastFmSeeder'
+import { collectLastFmCandidates, spotifySearchBudgetFor } from './lastFmSeeder'
 import { collectSeedSimilarCandidates } from './seedSimilarityCollector'
 import { collectRelatedArtistCandidates } from './relatedArtistCollector'
 import { isAnchorTrack, selectAnchorSeeds } from './anchorSeeds'
@@ -971,6 +971,7 @@ export async function collectAllCandidates(
                 implicitLikeKeys: autoplayContext.implicitLikeKeys,
                 sessionMood: autoplayContext.sessionMood,
                 seedArtistStreak: autoplayContext.seedArtistStreak,
+                spotifySearchBudget: spotifySearchBudgetFor(autoplayContext),
                 genreContext: {
                     currentTrackTags:
                         autoplayContext.genreContext.currentTrackTags,

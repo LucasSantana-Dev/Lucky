@@ -50,6 +50,8 @@ jest.mock('./candidateCollector', () => ({
 
 jest.mock('./lastFmSeeder', () => ({
     searchLastFmQuery: (...args: unknown[]) => searchLastFmQueryMock(...args),
+    spotifySearchBudgetFor: (ctx: { spotifySearchBudget?: unknown }) =>
+        (ctx.spotifySearchBudget ??= { remaining: 5 }),
 }))
 
 import { collectSeedSimilarCandidates } from './seedSimilarityCollector'
@@ -153,6 +155,19 @@ describe('collectSeedSimilarCandidates', () => {
         )
         const call = upsertScoredCandidateMock.mock.calls[0]
         expect((call?.[2] as { source: string })?.source).toBe('seed-similar')
+    })
+
+    it('threads the replenish Spotify search budget into every search (#2971)', async () => {
+        getSimilarTracksMock.mockResolvedValue([
+            { title: 'Sim', artist: 'SimA', match: 1 },
+        ])
+        const budget = { remaining: 3 }
+        const ctx = createAutoplayContext({ spotifySearchBudget: budget })
+
+        await collectSeedSimilarCandidates(ctx, createUser(), new Map())
+
+        expect(searchLastFmQueryMock).toHaveBeenCalledTimes(1)
+        expect(searchLastFmQueryMock.mock.calls[0]?.[3]).toBe(budget)
     })
 
     it('grounds on the anchor track when the current pick is unvetted (#2934)', async () => {

@@ -12,6 +12,7 @@ const warnLogMock = jest.fn()
 const redisGetMock = jest.fn<(key: string) => Promise<string | null>>()
 const redisSetMock =
     jest.fn<(key: string, value: string, ttl: number) => Promise<boolean>>()
+const redisHealthyMock = jest.fn<() => boolean>()
 
 jest.mock('@lucky/shared/utils', () => ({
     warnLog: (...a: unknown[]) => warnLogMock(...a),
@@ -19,6 +20,7 @@ jest.mock('@lucky/shared/utils', () => ({
 
 jest.mock('@lucky/shared/services', () => ({
     redisClient: {
+        isHealthy: () => redisHealthyMock(),
         get: (key: string) => redisGetMock(key),
         set: (key: string, value: string, ttl: number) =>
             redisSetMock(key, value, ttl),
@@ -59,6 +61,7 @@ describe('logSpotifyApiFailures', () => {
         jest.clearAllMocks()
         redisGetMock.mockReset().mockResolvedValue(null)
         redisSetMock.mockReset().mockResolvedValue(true)
+        redisHealthyMock.mockReset().mockReturnValue(true)
         resetSpotifyApiFailureLogForTests()
     })
 
@@ -205,6 +208,7 @@ describe('Spotify API block after a 429', () => {
         jest.clearAllMocks()
         redisGetMock.mockReset().mockResolvedValue(null)
         redisSetMock.mockReset().mockResolvedValue(true)
+        redisHealthyMock.mockReset().mockReturnValue(true)
         resetSpotifyApiFailureLogForTests()
         fetchMock.mockReset()
         globalThis.fetch = fetchMock
@@ -371,6 +375,61 @@ describe('Spotify API block after a 429', () => {
         await expect(api.search('a')).resolves.toBeNull()
 
         expect(isSpotifyBlocked()).toBe(true)
+    })
+
+    it('does not memoize a null read from an unhealthy Redis, retries after 30s', async () => {
+        redisHealthyMock.mockReturnValue(false)
+        await hydrateSpotifyBlock()
+        expect(redisGetMock).toHaveBeenCalledTimes(1)
+
+        now += 10_000
+        await hydrateSpotifyBlock()
+        expect(redisGetMock).toHaveBeenCalledTimes(1)
+
+        redisHealthyMock.mockReturnValue(true)
+        redisGetMock.mockResolvedValue(String(now + 300_000))
+        now += 20_001
+        await hydrateSpotifyBlock()
+
+        expect(redisGetMock).toHaveBeenCalledTimes(2)
+        expect(isSpotifyBlocked()).toBe(true)
+    })
+
+    it('does not memoize a thrown read, retries after 30s', async () => {
+        redisGetMock.mockRejectedValueOnce(new Error('redis down'))
+        await hydrateSpotifyBlock()
+
+        now += 30_001
+        redisGetMock.mockResolvedValue(String(now + 300_000))
+        await hydrateSpotifyBlock()
+
+        expect(isSpotifyBlocked()).toBe(true)
+    })
+
+    it('memoizes a confirmed absent key on a healthy Redis', async () => {
+        await hydrateSpotifyBlock()
+        await hydrateSpotifyBlock()
+
+        expect(redisGetMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not stall fetchData past 500ms when the Redis read hangs', async () => {
+        jest.useFakeTimers()
+        try {
+            redisGetMock.mockReturnValue(new Promise(() => {}))
+            const api = libraryExtractor()
+            fetchMock.mockResolvedValueOnce(answer(200))
+
+            const call = api.fetchData(SEARCH_URL)
+            await jest.advanceTimersByTimeAsync(499)
+            expect(fetchMock).not.toHaveBeenCalled()
+            await jest.advanceTimersByTimeAsync(2)
+
+            await expect(call).resolves.toBeInstanceOf(Response)
+            expect(fetchMock).toHaveBeenCalledTimes(1)
+        } finally {
+            jest.useRealTimers()
+        }
     })
 
     it('searches normally when Redis fails on read', async () => {

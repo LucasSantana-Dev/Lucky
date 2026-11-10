@@ -329,6 +329,24 @@ describe('collectGenreCandidates', () => {
         expect(getTagTopTracksMock).not.toHaveBeenCalled()
     })
 
+    it('threads the replenish Spotify search budget into the search (#2971)', async () => {
+        getTagTopTracksMock.mockResolvedValue([
+            { title: 'Seed', artist: 'Artist' },
+        ])
+        searchLastFmQueryMock.mockResolvedValue([])
+        const budget = { remaining: 3 }
+
+        await collectGenreCandidates(
+            { player: { search: jest.fn() } } as never,
+            ['rock'],
+            { id: 'user-1' } as never,
+            { ...createCtx(), spotifySearchBudget: budget },
+        )
+
+        expect(searchLastFmQueryMock).toHaveBeenCalledTimes(1)
+        expect(searchLastFmQueryMock.mock.calls[0]?.[3]).toBe(budget)
+    })
+
     it('processes genres and respects buffer limits and inclusion filters', async () => {
         // Setup: empty buffer, normal inclusion
         getTagTopTracksMock.mockResolvedValue([

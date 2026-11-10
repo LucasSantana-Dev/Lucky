@@ -44,6 +44,8 @@ jest.mock('../../../utils/music/searchQueryCleaner', () => ({
 
 jest.mock('./lastFmSeeder', () => ({
     searchLastFmQuery: (...args: unknown[]) => searchLastFmQueryMock(...args),
+    spotifySearchBudgetFor: (ctx: { spotifySearchBudget?: unknown }) =>
+        (ctx.spotifySearchBudget ??= { remaining: 5 }),
 }))
 
 import {
@@ -143,6 +145,18 @@ describe('collectRelatedArtistCandidates (#2961)', () => {
             { title: 'Close Band Hit', score: 0.75, source: 'seed-similar' },
             { title: 'Far Band Hit', score: 0.375, source: 'seed-similar' },
         ])
+    })
+
+    it('threads the replenish Spotify search budget into every search (#2971)', async () => {
+        const budget = { remaining: 3 }
+        const ctx = createContext({ spotifySearchBudget: budget })
+
+        await run(ctx)
+
+        expect(searchLastFmQueryMock).toHaveBeenCalled()
+        for (const call of searchLastFmQueryMock.mock.calls) {
+            expect(call[3]).toBe(budget)
+        }
     })
 
     it('scores the picks as seed-derived with the seed artist streak', async () => {

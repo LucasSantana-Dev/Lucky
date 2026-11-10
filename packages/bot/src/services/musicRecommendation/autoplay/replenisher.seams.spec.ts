@@ -86,6 +86,8 @@ jest.mock('./artistTagCache', () => ({
 
 jest.mock('./lastFmSeeder', () => ({
     collectLastFmCandidates: jest.fn(),
+    spotifySearchBudgetFor: (ctx: { spotifySearchBudget?: unknown }) =>
+        (ctx.spotifySearchBudget ??= { remaining: 5 }),
 }))
 
 jest.mock('./seedSimilarityCollector', () => ({
@@ -905,6 +907,12 @@ describe('replenisher seam functions', () => {
             expect(collectGenreCandidates).toHaveBeenCalled()
             expect(collectBroadFallbackCandidates).toHaveBeenCalled()
             expect(result.sourcesCounts).toHaveProperty('recommendation')
+            const genreCtx = collectGenreCandidates.mock.calls.at(-1)?.[3]
+            expect(genreCtx.spotifySearchBudget).toBe(
+                (autoplayContext as { spotifySearchBudget?: unknown })
+                    .spotifySearchBudget,
+            )
+            expect(genreCtx.spotifySearchBudget).toBeDefined()
         })
 
         it('skips seedSimilar when requestedBy is null', async () => {
