@@ -41,7 +41,10 @@ FROM node:${NODE_VERSION} AS base-runtime
 # passes via --js-runtimes) to solve YouTube's signature and n challenges;
 # without it yt-dlp skips solving and formats can go missing (#2664). yt-dlp
 # only accepts the yt-dlp-ejs version it pins, so it comes in through the
-# `default` extra, which carries that pin; yt-dlp itself floats on rebuilds.
+# `default` extra, which carries that pin. yt-dlp itself is pinned to
+# YTDLP_VERSION (#2974): to bump it, set the new release (see
+# https://github.com/yt-dlp/yt-dlp/releases) in the ARG below, the only place
+# it appears, and rebuild.
 # bgutil-ytdlp-pot-provider is the yt-dlp plugin for the po_token sidecar
 # (ADR 2026-06-18, amendment 2026-10-21). Pinned to the version of the
 # bgutil-pot image in docker-compose.yml: bump both together. --target puts it
@@ -49,6 +52,7 @@ FROM node:${NODE_VERSION} AS base-runtime
 # only loads it when the bot passes --plugin-dirs (YTDLP_POT_PROVIDER_URL set).
 # It has no dependencies, hence --no-deps.
 ARG BGUTIL_POT_PROVIDER_VERSION=2.0.2
+ARG YTDLP_VERSION=2026.10.26
 RUN apk add --no-cache \
     python3 \
     py3-pip \
@@ -57,7 +61,7 @@ RUN apk add --no-cache \
     opus-tools \
     && apk upgrade --no-cache libexpat libssl3 libcrypto3 zlib \
     && python3 -m venv /opt/ytdlp \
-    && /opt/ytdlp/bin/pip install --no-cache-dir --upgrade pip 'yt-dlp[default]' \
+    && /opt/ytdlp/bin/pip install --no-cache-dir --upgrade pip "yt-dlp[default]==${YTDLP_VERSION}" \
     && ln -s /opt/ytdlp/bin/yt-dlp /usr/local/bin/yt-dlp \
     && /opt/ytdlp/bin/pip install --no-cache-dir --no-deps \
         --target /opt/ytdlp-plugins/bgutil-ytdlp-pot-provider \
