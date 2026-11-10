@@ -1668,6 +1668,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - fix(bot): `/play` picks the right track when the artist follows the song name, and autoplay seeds retry a swapped "Song - Artist" upload title only after a genuine empty Last.fm result (#2935)
+- fix(bot): a Spotify 429 block now survives restarts (kept in Redis), and `/play` and autoplay skip Spotify while it is blocked, with autoplay capped at 5 Spotify searches per refill (#2971 #2972)
 
 ## [2.17.0] - 2026-06-08
 
