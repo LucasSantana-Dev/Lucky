@@ -434,10 +434,14 @@ function spawnYtDlp(
             { stdio: ['ignore', 'pipe', 'pipe'], cwd: workDir },
         )
         proc.once('close', removeWorkDir)
+        // 'exit' comes before stdio closes, and the stream handed to the
+        // player can close in between: no kill for a process already gone.
         let exited = false
-        proc.once('close', () => {
+        const markExited = () => {
             exited = true
-        })
+        }
+        proc.once('exit', markExited)
+        proc.once('close', markExited)
 
         // On every attempt this fires, the caller still has to wait out the
         // full duration before falling back to SoundCloud, so a long timeout

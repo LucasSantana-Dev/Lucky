@@ -859,14 +859,17 @@ describe('streamViaYtDlp – process lifecycle', () => {
         expect(proc.kill).toHaveBeenCalledTimes(1)
     })
 
-    it('does not kill a yt-dlp that already exited', async () => {
-        const proc = makeFakeProc()
-        const stream = await startedStream(proc)
-        proc.emit('close', 0)
-        stream.destroy()
-        await tick()
-        expect(proc.kill).not.toHaveBeenCalled()
-    })
+    it.each(['exit', 'close'])(
+        'does not kill a yt-dlp after its %s event',
+        async (event) => {
+            const proc = makeFakeProc()
+            const stream = await startedStream(proc)
+            proc.emit(event, 0)
+            stream.destroy()
+            await tick()
+            expect(proc.kill).not.toHaveBeenCalled()
+        },
+    )
 
     // #2141: the prior 6s budget was below the measured p100 with cookies
     // (the live prod path), killing 16.8% of healthy resolutions. Pins the
