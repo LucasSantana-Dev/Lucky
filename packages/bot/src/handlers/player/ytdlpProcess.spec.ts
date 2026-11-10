@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals'
 import { EventEmitter } from 'events'
-import { PassThrough } from 'stream'
+import { PassThrough, Writable } from 'stream'
 
 // --- mocks (declared before imports) ---
 const mockSpawn = jest.fn()
@@ -809,6 +809,67 @@ describe('streamViaYtDlp – process lifecycle', () => {
         expect(proc.kill).toHaveBeenCalled()
         jest.useRealTimers()
     })
+
+    // A skip destroys discord-player's ffmpeg transcoder, which only unpipes
+    // the yt-dlp stream: yt-dlp then blocks on a full pipe and leaks (prod
+    // OOM 2026-11-09).
+    async function startedStream(proc: FakeProc) {
+        mockSpawn.mockReturnValue(proc)
+        setImmediate(() => proc.stdout.emit('data', Buffer.from('audio')))
+        return (await streamViaYtDlp(validUrl)) as PassThrough
+    }
+    const tick = () => new Promise((resolve) => setImmediate(resolve))
+
+    it('kills yt-dlp once when the reader unpipes and goes away', async () => {
+        const proc = makeFakeProc()
+        const stream = await startedStream(proc)
+        const reader = new PassThrough()
+        stream.pipe(reader)
+        await tick()
+        stream.unpipe(reader)
+        reader.destroy()
+        await tick()
+        await tick()
+        expect(proc.kill).toHaveBeenCalledTimes(1)
+        expect(stream.destroyed).toBe(true)
+    })
+
+    it('keeps yt-dlp alive while a paused reader applies backpressure', async () => {
+        const proc = makeFakeProc()
+        const stream = await startedStream(proc)
+        const reader = new Writable({
+            highWaterMark: 1,
+            write: () => {
+                // never calls back: a paused player
+            },
+        })
+        stream.pipe(reader)
+        for (let i = 0; i < 64; i++) proc.stdout.write(Buffer.alloc(1024))
+        await tick()
+        await tick()
+        expect(stream.isPaused()).toBe(true)
+        expect(proc.kill).not.toHaveBeenCalled()
+    })
+
+    it('kills yt-dlp when the stream is destroyed', async () => {
+        const proc = makeFakeProc()
+        const stream = await startedStream(proc)
+        stream.destroy()
+        await tick()
+        expect(proc.kill).toHaveBeenCalledTimes(1)
+    })
+
+    it.each(['exit', 'close'])(
+        'does not kill a yt-dlp after its %s event',
+        async (event) => {
+            const proc = makeFakeProc()
+            const stream = await startedStream(proc)
+            proc.emit(event, 0)
+            stream.destroy()
+            await tick()
+            expect(proc.kill).not.toHaveBeenCalled()
+        },
+    )
 
     // #2141: the prior 6s budget was below the measured p100 with cookies
     // (the live prod path), killing 16.8% of healthy resolutions. Pins the
