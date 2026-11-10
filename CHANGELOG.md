@@ -1668,6 +1668,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - fix(bot): `/play` picks the right track when the artist follows the song name, and autoplay seeds retry a swapped "Song - Artist" upload title only after a genuine empty Last.fm result (#2935)
+- fix(bot): the yt-dlp block breaker only opens on 403 or bot-check failures across distinct videos (timeouts need a streak of 4), stream-failure embeds are batched per guild each minute, and yt-dlp is pinned in the image (#2973 #2975)
 
 ## [2.17.0] - 2026-06-08
 
