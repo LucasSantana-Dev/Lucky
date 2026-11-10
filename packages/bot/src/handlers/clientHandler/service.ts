@@ -17,6 +17,7 @@ import { reminderScheduler } from '../../utils/general/reminderScheduler'
 import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
 import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
+import { directoryStatsScheduler } from '../../utils/general/directoryStatsScheduler'
 import { channelPurgeScheduler } from '../../utils/general/channelPurgeScheduler'
 import { dataRetentionScheduler } from '../../utils/general/dataRetentionScheduler'
 import { criativariaLiveNotificationService } from '../../services/CriativariaLiveNotificationService'
@@ -239,6 +240,15 @@ export async function startClient({
             } catch (error) {
                 errorLog({
                     message: 'Failed to start Top.gg stats scheduler',
+                    error,
+                })
+            }
+
+            try {
+                directoryStatsScheduler.start(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to start directory stats scheduler',
                     error,
                 })
             }
