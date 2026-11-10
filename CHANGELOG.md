@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.67.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.66.2...v2.67.0) (2026-11-10)
+
+
+### Features
+
+* **bot:** post server count to discordbotlist and discord.bots.gg ([#2994](https://github.com/LucasSantana-Dev/Lucky/issues/2994)) ([e67581a](https://github.com/LucasSantana-Dev/Lucky/commit/e67581a2a77babb00c37dd6bc7a2e6d5461a0cf9))
+
 ## [2.66.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.66.1...v2.66.2) (2026-11-10)
 
 
