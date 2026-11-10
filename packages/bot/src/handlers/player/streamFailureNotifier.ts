@@ -37,6 +37,7 @@ async function flushFailureWindow(guildId: string): Promise<void> {
     failureWindows.delete(guildId)
     if (window.held === 0) return
     const { held, queue } = window
+    if (queue.deleted) return
     const channel = (queue.metadata as QueueMetadata | undefined)?.channel
     if (!channel) return
     try {

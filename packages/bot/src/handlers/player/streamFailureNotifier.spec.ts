@@ -200,6 +200,18 @@ describe('streamFailureNotifier', () => {
             expect(two.send).toHaveBeenCalledTimes(1)
         })
 
+        it('skips the summary when the queue was deleted meanwhile', async () => {
+            const { queue, send } = makeQueue('g1')
+            await notifyChannelStreamFailed(queue as any, 'A')
+            await notifyChannelStreamFailed(queue as any, 'B')
+
+            ;(queue as any).deleted = true
+            await jest.advanceTimersByTimeAsync(STREAM_FAILURE_COOLDOWN_MS)
+
+            expect(send).toHaveBeenCalledTimes(1)
+            expect(jest.getTimerCount()).toBe(0)
+        })
+
         it('leaves no timer behind after a reset', async () => {
             const { queue } = makeQueue('g1')
             await notifyChannelStreamFailed(queue as any, 'A')
