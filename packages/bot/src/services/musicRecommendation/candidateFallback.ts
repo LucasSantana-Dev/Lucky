@@ -7,6 +7,8 @@ import { getTagTopTracks } from '../../lastfm'
 import {
     searchLastFmQuery,
     recordSpotifySearchResult,
+    claimSpotifySearch,
+    spotifySearchBudgetFor,
 } from './autoplay/lastFmSeeder'
 import {
     shouldIncludeCandidate,
@@ -133,6 +135,9 @@ export async function collectBroadFallbackCandidates(
     ].filter(Boolean)
 
     for (const query of fallbackQueries) {
+        // Spotify-only fallback: while Spotify is 429-blocked or this
+        // replenish spent its search budget, skip rather than burn quota.
+        if (!claimSpotifySearch(spotifySearchBudgetFor(ctx))) break
         try {
             const result = await ctx.queue.player.search(query, {
                 requestedBy: undefined,

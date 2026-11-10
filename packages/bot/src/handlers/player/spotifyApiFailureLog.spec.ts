@@ -9,11 +9,25 @@ import {
 
 const warnLogMock = jest.fn()
 
+const redisGetMock = jest.fn<(key: string) => Promise<string | null>>()
+const redisSetMock =
+    jest.fn<(key: string, value: string, ttl: number) => Promise<boolean>>()
+
 jest.mock('@lucky/shared/utils', () => ({
     warnLog: (...a: unknown[]) => warnLogMock(...a),
 }))
 
+jest.mock('@lucky/shared/services', () => ({
+    redisClient: {
+        get: (key: string) => redisGetMock(key),
+        set: (key: string, value: string, ttl: number) =>
+            redisSetMock(key, value, ttl),
+    },
+}))
+
 import {
+    hydrateSpotifyBlock,
+    isSpotifyBlocked,
     logSpotifyApiFailures,
     reportSpotifyApiFailure,
     resetSpotifyApiFailureLogForTests,
@@ -43,6 +57,8 @@ function fakeExtractor(fetchData: (url: string) => Promise<Response>) {
 describe('logSpotifyApiFailures', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        redisGetMock.mockReset().mockResolvedValue(null)
+        redisSetMock.mockReset().mockResolvedValue(true)
         resetSpotifyApiFailureLogForTests()
     })
 
@@ -173,6 +189,8 @@ describe('Spotify API block after a 429', () => {
         return internal
     }
 
+    const flushPromises = () => new Promise((r) => setImmediate(r))
+
     const answer = (status: number, headers: Record<string, string> = {}) =>
         new Response('{}', { status, headers })
 
@@ -185,6 +203,8 @@ describe('Spotify API block after a 429', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
+        redisGetMock.mockReset().mockResolvedValue(null)
+        redisSetMock.mockReset().mockResolvedValue(true)
         resetSpotifyApiFailureLogForTests()
         fetchMock.mockReset()
         globalThis.fetch = fetchMock
@@ -282,6 +302,85 @@ describe('Spotify API block after a 429', () => {
         await fetch('https://example.com/')
 
         expect(blockLogs()).toEqual([])
+    })
+
+    it('persists the block in Redis with the remaining block as TTL', async () => {
+        const api = libraryExtractor()
+        fetchMock.mockResolvedValueOnce(answer(429, { 'Retry-After': '600' }))
+
+        await api.search('a')
+        await flushPromises()
+
+        expect(isSpotifyBlocked()).toBe(true)
+        expect(redisSetMock).toHaveBeenCalledWith(
+            'spotify:blockedUntil',
+            String(now + 600_000),
+            600,
+        )
+    })
+
+    it('caps the persisted TTL at 24 hours', async () => {
+        const api = libraryExtractor()
+        fetchMock.mockResolvedValueOnce(answer(429, { 'Retry-After': '1e20' }))
+
+        await api.search('a')
+        await flushPromises()
+
+        expect(redisSetMock).toHaveBeenCalledWith(
+            'spotify:blockedUntil',
+            String(now + 86_400_000),
+            86_400,
+        )
+    })
+
+    it('hydrates the block from Redis after a restart', async () => {
+        redisGetMock.mockResolvedValue(String(now + 300_000))
+        expect(isSpotifyBlocked()).toBe(false)
+
+        await hydrateSpotifyBlock()
+
+        expect(isSpotifyBlocked()).toBe(true)
+        now += 300_001
+        expect(isSpotifyBlocked()).toBe(false)
+    })
+
+    it('fails fast on the first call after a restart without hitting Spotify', async () => {
+        redisGetMock.mockResolvedValue(String(now + 300_000))
+        const api = libraryExtractor()
+
+        await expect(api.search('a')).resolves.toBeNull()
+
+        expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('ignores a stale or malformed Redis value', async () => {
+        redisGetMock.mockResolvedValue(String(now - 1))
+        await hydrateSpotifyBlock()
+        expect(isSpotifyBlocked()).toBe(false)
+
+        redisGetMock.mockResolvedValue('nope')
+        await hydrateSpotifyBlock()
+        expect(isSpotifyBlocked()).toBe(false)
+    })
+
+    it('keeps the in-memory block when Redis fails on write', async () => {
+        redisSetMock.mockRejectedValue(new Error('redis down'))
+        const api = libraryExtractor()
+        fetchMock.mockResolvedValueOnce(answer(429, { 'Retry-After': '600' }))
+
+        await expect(api.search('a')).resolves.toBeNull()
+
+        expect(isSpotifyBlocked()).toBe(true)
+    })
+
+    it('searches normally when Redis fails on read', async () => {
+        redisGetMock.mockRejectedValue(new Error('redis down'))
+        const api = libraryExtractor()
+        fetchMock.mockResolvedValueOnce(answer(200))
+
+        await expect(api.search('a')).resolves.toEqual([])
+
+        expect(isSpotifyBlocked()).toBe(false)
     })
 })
 

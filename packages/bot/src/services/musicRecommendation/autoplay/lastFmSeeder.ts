@@ -15,7 +15,8 @@ import {
     cleanSearchQuery,
     cleanTitle,
 } from '../../../utils/music/searchQueryCleaner'
-import type { AutoplayContext } from './autoplayContext'
+import type { AutoplayContext, SpotifySearchBudget } from './autoplayContext'
+import { isSpotifyBlocked } from '../../../handlers/player/spotifyApiFailureLog'
 import {
     calculateRecommendationScore,
     getGenreFamilies,
@@ -42,6 +43,32 @@ const SPOTIFY_SEARCH_WINDOW = 20
 const SPOTIFY_SEARCH_MIN_SAMPLES = 10
 const SPOTIFY_SEARCH_EMPTY_RATE_THRESHOLD = 0.8
 const SPOTIFY_SEARCH_WARN_COOLDOWN_MS = 5 * 60 * 1000
+
+// Spotify text searches one replenish pass may spend. A replenish can fan out
+// to ~20 searches and each one counts against a development-mode quota that
+// a single 429 can lock for hours (#2971, #2972).
+export const MAX_SPOTIFY_SEARCHES_PER_REPLENISH = 5
+
+export function spotifySearchBudgetFor(
+    ctx: AutoplayContext,
+): SpotifySearchBudget {
+    ctx.spotifySearchBudget ??= {
+        remaining: MAX_SPOTIFY_SEARCHES_PER_REPLENISH,
+    }
+    return ctx.spotifySearchBudget
+}
+
+/**
+ * True, and spends one search from the budget, when a Spotify text search is
+ * allowed: Spotify is not 429-blocked and the budget (when given) is left.
+ */
+export function claimSpotifySearch(budget?: SpotifySearchBudget): boolean {
+    if (isSpotifyBlocked()) return false
+    if (!budget) return true
+    if (budget.remaining <= 0) return false
+    budget.remaining -= 1
+    return true
+}
 
 // Rolling window of recent SPOTIFY_SEARCH outcomes (true = had results).
 let spotifySearchResults: boolean[] = []
@@ -142,6 +169,7 @@ export async function collectLastFmCandidates(
     const sessionGenreFamilies =
         ctx.genreContext.sessionGenreFamilies ?? new Set<string>()
     const currentTrackFamilies = getGenreFamilies(currentTrackTags)
+    const spotifyBudget = spotifySearchBudgetFor(ctx)
     // Profile tracks are the listener's library, not the session's seed, so
     // the flat Last.fm boost only applies when the hit shares a genre family
     // with the session. Fail closed: unknown on either side means no boost
@@ -165,7 +193,12 @@ export async function collectLastFmCandidates(
         const isLoved = isLovedSeed(requestedBy.id, seed.artist, seed.title)
         const lovedBoost = isLoved ? LOVED_SEED_EXTRA_BOOST : 0
         const query = cleanSearchQuery(seed.title, seed.artist)
-        const tracks = await searchLastFmQuery(ctx.queue, query, requestedBy)
+        const tracks = await searchLastFmQuery(
+            ctx.queue,
+            query,
+            requestedBy,
+            spotifyBudget,
+        )
         for (const track of tracks) {
             if (
                 !shouldIncludeCandidate(
@@ -235,6 +268,7 @@ export async function collectLastFmCandidates(
                 ctx.queue,
                 query,
                 requestedBy,
+                spotifyBudget,
             )
             for (const track of tracks) {
                 if (
@@ -317,6 +351,7 @@ export async function collectLastFmCandidates(
                     ctx.queue,
                     tagQuery,
                     requestedBy,
+                    spotifyBudget,
                 )
                 for (const track of found) {
                     if (
@@ -385,6 +420,7 @@ export async function searchLastFmQuery(
     queue: GuildQueue,
     query: string,
     requestedBy: User,
+    spotifyBudget?: SpotifySearchBudget,
 ): Promise<Track[]> {
     // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-positioning.md
     // point 3): no extractor is registered to serve YOUTUBE_SEARCH when
@@ -398,6 +434,12 @@ export async function searchLastFmQuery(
         : [QueryType.SPOTIFY_SEARCH, QueryType.SOUNDCLOUD_SEARCH]
     let hadError = false
     for (const engine of engines) {
+        if (
+            engine === QueryType.SPOTIFY_SEARCH &&
+            !claimSpotifySearch(spotifyBudget)
+        ) {
+            continue
+        }
         try {
             const result = await queue.player.search(query, {
                 requestedBy,

@@ -6,13 +6,17 @@ import type {
     SearchResult,
 } from 'discord-player'
 import type { VoiceBasedChannel } from 'discord.js'
-import { warnLog } from '@lucky/shared/utils'
+import { infoLog, warnLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
 import {
     cleanSearchQuery,
     hasVersionMarker,
     queryRequestsVersion,
 } from '../../../../../utils/music/searchQueryCleaner'
+import {
+    isSpotifyBlocked,
+    spotifyBlockRemainingSeconds,
+} from '../../../../../handlers/player/spotifyApiFailureLog'
 import { isHostedYoutubeEnabled } from '../../../../../config/featureFlags'
 import { parseYoutubeLink, type YoutubeLink } from '../queryDetector'
 import {
@@ -404,7 +408,22 @@ async function resolveWithChain({
         afterSearch: rerankThenNotify(query, onSearchResolved),
     }
 
+    // While a Spotify 429 block is active the primary search can only fail,
+    // so go straight to the next arm without the retry or the warn (#2971).
+    const spotifyBlocked =
+        searchEngine === QueryType.SPOTIFY_SEARCH && isSpotifyBlocked()
+    if (spotifyBlocked) {
+        infoLog({
+            message: 'Spotify blocked, skipping primary search',
+            data: {
+                query,
+                remainingSeconds: spotifyBlockRemainingSeconds(),
+            },
+        })
+    }
+
     try {
+        if (spotifyBlocked) throw new Error('Spotify blocked')
         // Attempt primary resolution
         const result = await player.play(
             voiceChannel,
@@ -425,6 +444,7 @@ async function resolveWithChain({
             // through to the next fallback instead of paying a retry.
             let lastPrimaryError = primaryError
             if (
+                !spotifyBlocked &&
                 searchEngine === QueryType.SPOTIFY_SEARCH &&
                 isNoResultError(primaryError)
             ) {
@@ -447,15 +467,18 @@ async function resolveWithChain({
             // this arm would only pay for a guaranteed NoResultError, so skip
             // straight to the SoundCloud fallback instead of attempting it.
             if (youtubeArm) {
-                warnLog({
-                    message: 'Primary search failed, falling back to YouTube',
-                    data: {
-                        query,
-                        requestedProvider,
-                        searchEngine: String(searchEngine),
-                        error: String(lastPrimaryError),
-                    },
-                })
+                if (!spotifyBlocked) {
+                    warnLog({
+                        message:
+                            'Primary search failed, falling back to YouTube',
+                        data: {
+                            query,
+                            requestedProvider,
+                            searchEngine: String(searchEngine),
+                            error: String(lastPrimaryError),
+                        },
+                    })
+                }
 
                 try {
                     // Attempt YouTube fallback. See
@@ -475,7 +498,7 @@ async function resolveWithChain({
                         data: { query, error: String(_youtubeError) },
                     })
                 }
-            } else {
+            } else if (!spotifyBlocked) {
                 warnLog({
                     message:
                         'Primary search failed, YouTube disabled, falling back to SoundCloud',

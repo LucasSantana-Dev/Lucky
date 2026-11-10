@@ -6,6 +6,7 @@ const getArtistGenresMock = jest.fn()
 const getValidAccessTokenMock = jest.fn()
 const getTagTopTracksMock = jest.fn()
 const searchLastFmQueryMock = jest.fn()
+const claimSpotifySearchMock = jest.fn<() => boolean>()
 const recordSpotifySearchResultMock = jest.fn()
 const shouldIncludeCandidateMock = jest.fn()
 const upsertScoredCandidateMock = jest.fn()
@@ -46,6 +47,9 @@ jest.mock('./autoplay/lastFmSeeder', () => ({
     searchLastFmQuery: (...args: unknown[]) => searchLastFmQueryMock(...args),
     recordSpotifySearchResult: (...args: unknown[]) =>
         recordSpotifySearchResultMock(...args),
+    claimSpotifySearch: () => claimSpotifySearchMock(),
+    spotifySearchBudgetFor: (ctx: { spotifySearchBudget?: unknown }) =>
+        ctx.spotifySearchBudget,
 }))
 
 jest.mock('./autoplay/candidateCollector', () => ({
@@ -399,6 +403,7 @@ describe('collectGenreCandidates', () => {
 describe('collectBroadFallbackCandidates', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        claimSpotifySearchMock.mockReturnValue(true)
         normalizeTrackKeyMock.mockReturnValue('normalized-key')
         shouldIncludeCandidateMock.mockReturnValue(true)
         calculateRecommendationScoreMock.mockReturnValue({
@@ -409,6 +414,24 @@ describe('collectBroadFallbackCandidates', () => {
         createArtistTagFetcherMock.mockReturnValue((...args: unknown[]) =>
             artistTagFetcherMock(...args),
         )
+    })
+
+    it('makes no Spotify search when blocked or over the replenish cap (#2972)', async () => {
+        claimSpotifySearchMock.mockReturnValue(false)
+        const searchMock = jest.fn().mockResolvedValue({ tracks: [] })
+        const queue = { player: { search: searchMock } } as never
+        const currentTrack = {
+            author: 'Artist',
+            title: 'Song',
+            url: 'u1',
+            durationMS: 200_000,
+        } as never
+        const ctx = createAutoplayContext({ queue, currentTrack })
+
+        await collectBroadFallbackCandidates(ctx, new Map())
+
+        expect(searchMock).not.toHaveBeenCalled()
+        expect(recordSpotifySearchResultMock).not.toHaveBeenCalled()
     })
 
     it('handles search errors and inclusion filters gracefully', async () => {

@@ -3,6 +3,11 @@ import type { SessionMood } from './sessionMood'
 import type { ArtistTagFetcher } from './artistTagCache'
 import type { AutoplayAuditCollector } from './autoplayAudit'
 
+/** Spotify text searches still allowed in one replenish pass (#2972). */
+export interface SpotifySearchBudget {
+    remaining: number
+}
+
 /**
  * Universal context for autoplay candidate collection.
  * Groups 15+ parameters shared across all collector functions to reduce
@@ -39,4 +44,6 @@ export interface AutoplayContext {
     seedArtistStreak?: number
     /** One per replenish pass; emitted once in enqueueAndFinalize. */
     auditCollector?: AutoplayAuditCollector
+    /** Created lazily, shared by every Spotify search in this replenish pass. */
+    spotifySearchBudget?: SpotifySearchBudget
 }

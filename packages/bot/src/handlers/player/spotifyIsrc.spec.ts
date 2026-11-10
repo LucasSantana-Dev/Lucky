@@ -198,7 +198,12 @@ describe('lookupSpotifyIsrc', () => {
         await expect(lookupSpotifyIsrc(TRACK_ID)).resolves.toBeNull()
 
         expect(fetchMock).toHaveBeenCalledTimes(1)
-        expect(mockRedisSet).not.toHaveBeenCalled()
+        // The 429 block itself is persisted (#2971), no ISRC entry is.
+        expect(mockRedisSet).not.toHaveBeenCalledWith(
+            expect.stringContaining('spotify_isrc'),
+            expect.anything(),
+            expect.anything(),
+        )
     })
 
     it('gives up after the lookup budget and caches nothing', async () => {
