@@ -90,8 +90,34 @@ const reportedExhausted = new WeakSet<object>()
 // play across its generic and fallback calls.
 const breakerPlays = new WeakMap<object, object>()
 
-function recordYouTubeFailure(track: BridgeTrack, error: unknown): void {
-    recordYtDlpFailure(error, Date.now(), breakerPlays.get(track))
+// `videoUrl` is the URL yt-dlp was given when it differs from the track's
+// (a cached YouTube match for a Spotify track).
+function recordYouTubeFailure(
+    track: BridgeTrack,
+    error: unknown,
+    videoUrl?: string,
+): void {
+    recordYtDlpFailure(
+        error,
+        Date.now(),
+        breakerPlays.get(track),
+        breakerVideoKey(track, videoUrl),
+    )
+}
+
+// The breaker needs to tell videos apart (#2973): the YouTube id when the
+// URL carries one, else the URL or title, which is still per track.
+function breakerVideoKey(track: BridgeTrack, videoUrl?: string): string {
+    try {
+        const url = new URL(videoUrl ?? track.url)
+        const id =
+            url.searchParams.get('v') ??
+            (url.hostname === 'youtu.be' ? url.pathname.slice(1) : null)
+        if (id) return id
+    } catch {
+        // not a URL: fall through to the raw value
+    }
+    return track.url || `${track.author}|${track.title}`
 }
 
 function noteFirstYouTubeFailure(track: BridgeTrack, error: unknown): void {
@@ -470,7 +496,7 @@ async function attemptCachedSpotifySource(
         return { stream, killSwitch: false }
     } catch (error) {
         const durationMs = observeStage('ytdlp_search', startedAt, 'fail')
-        recordYouTubeFailure(track, error)
+        recordYouTubeFailure(track, error, cachedUrl)
         addBreadcrumb(
             'YouTube extraction failed via cached Spotify source',
             'music.youtube-extraction',
