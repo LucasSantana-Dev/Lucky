@@ -41,6 +41,9 @@ describe('DirectoryStatsScheduler', () => {
 
         scheduler.start(client)
         await settle()
+        scheduler.stop()
+        scheduler.start(client)
+        await settle()
 
         expect(fetchMock).not.toHaveBeenCalled()
         expect(infoLog).toHaveBeenCalledTimes(1)
@@ -140,6 +143,7 @@ describe('DirectoryStatsScheduler', () => {
             .mockResolvedValueOnce(ok as never)
             .mockRejectedValueOnce(new Error('boom') as never)
             .mockRejectedValueOnce(new Error('boom') as never)
+            .mockRejectedValueOnce(new Error('boom') as never)
         const scheduler = make(fetchMock)
 
         scheduler.start(client)
@@ -147,6 +151,8 @@ describe('DirectoryStatsScheduler', () => {
         for (let i = 0; i < 4; i++) await scheduler.tick()
 
         expect(captureMessage).not.toHaveBeenCalled()
+        await scheduler.tick()
+        expect(captureMessage).toHaveBeenCalledTimes(1)
         scheduler.stop()
     })
 })

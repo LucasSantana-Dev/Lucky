@@ -42,6 +42,7 @@ export class DirectoryStatsScheduler extends IntervalScheduler {
     private readonly fetchFn: typeof fetch
     private readonly disabled = new Set<string>()
     private readonly failures = new Map<string, number>()
+    private loggedMissingTokens = false
 
     constructor(options: Options = {}) {
         super(options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS)
@@ -57,9 +58,12 @@ export class DirectoryStatsScheduler extends IntervalScheduler {
     protected onStart(): void {
         const active = this.enabled()
         if (active.length === 0) {
-            infoLog({
-                message: `No bot directory tokens set (${DIRECTORIES.map((d) => d.tokenEnv).join(', ')}), directory stats posting disabled`,
-            })
+            if (!this.loggedMissingTokens) {
+                infoLog({
+                    message: `No bot directory tokens set (${DIRECTORIES.map((d) => d.tokenEnv).join(', ')}), directory stats posting disabled`,
+                })
+                this.loggedMissingTokens = true
+            }
             return
         }
         infoLog({
