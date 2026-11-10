@@ -28,6 +28,7 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 import {
+    awaitSpotifyBlockHydration,
     hydrateSpotifyBlock,
     isSpotifyBlocked,
     logSpotifyApiFailures,
@@ -455,6 +456,35 @@ describe('Spotify API block after a 429', () => {
             await expect(next).resolves.toBeInstanceOf(Response)
             expect(fetchMock).toHaveBeenCalledTimes(2)
             expect(redisGetMock).toHaveBeenCalledTimes(1)
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    it('ignores a late answer from a timed-out read (#2971)', async () => {
+        jest.useFakeTimers({ doNotFake: ['Date'] })
+        try {
+            let finishFirst: (value: string | null) => void = () => {}
+            redisGetMock.mockReturnValueOnce(
+                new Promise<string | null>((resolve) => {
+                    finishFirst = resolve
+                }),
+            )
+            const waited = awaitSpotifyBlockHydration()
+            await jest.advanceTimersByTimeAsync(501)
+            await waited
+
+            now += 30_001
+            redisGetMock.mockResolvedValueOnce(String(now + 300_000))
+            await hydrateSpotifyBlock()
+            expect(isSpotifyBlocked()).toBe(true)
+
+            finishFirst(null)
+            await jest.advanceTimersByTimeAsync(0)
+            now += 30_001
+            await hydrateSpotifyBlock()
+
+            expect(redisGetMock).toHaveBeenCalledTimes(2)
         } finally {
             jest.useRealTimers()
         }

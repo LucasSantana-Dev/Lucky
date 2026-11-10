@@ -77,36 +77,45 @@ export function spotifyBlockRemainingSeconds(now = Date.now()): number {
 // HYDRATE_RETRY_MS. A stored value is trusted only inside the same window a
 // live Retry-After can set (now, now + MAX_BLOCK_MS].
 export function hydrateSpotifyBlock(): Promise<void> {
-    if (!hydration && Date.now() < hydrationRetryAt) return Promise.resolve()
-    hydration ??= (async () => {
-        try {
-            const raw = await (await redis()).get(REDIS_BLOCK_KEY)
-            if (raw === null) {
-                failHydration()
-                return
-            }
-            const stored = Number(raw)
-            const now = Date.now()
-            if (
-                Number.isFinite(stored) &&
-                stored > now &&
-                stored <= now + MAX_BLOCK_MS &&
-                stored > blockedUntil
-            ) {
-                blockedUntil = stored
-            }
-        } catch (error) {
-            failHydration()
-            warnLog({
-                message: 'Spotify block: Redis read failed',
-                error,
-            })
-        }
-    })()
-    return hydration
+    if (hydration) return hydration
+    if (Date.now() < hydrationRetryAt) return Promise.resolve()
+    const attempt: Promise<void> = Promise.resolve().then(() =>
+        readStoredBlock(attempt),
+    )
+    hydration = attempt
+    return attempt
 }
 
-function failHydration(): void {
+async function readStoredBlock(attempt: Promise<void>): Promise<void> {
+    try {
+        const raw = await (await redis()).get(REDIS_BLOCK_KEY)
+        if (raw === null) {
+            failHydration(attempt)
+            return
+        }
+        const stored = Number(raw)
+        const now = Date.now()
+        if (
+            Number.isFinite(stored) &&
+            stored > now &&
+            stored <= now + MAX_BLOCK_MS &&
+            stored > blockedUntil
+        ) {
+            blockedUntil = stored
+        }
+    } catch (error) {
+        failHydration(attempt)
+        warnLog({
+            message: 'Spotify block: Redis read failed',
+            error,
+        })
+    }
+}
+
+// Only the attempt that is still current may fail: a read that answers after
+// it timed out must not clear a newer attempt.
+function failHydration(attempt: Promise<void>): void {
+    if (hydration !== attempt) return
     hydration = undefined
     hydrationRetryAt = Date.now() + HYDRATE_RETRY_MS
 }
@@ -243,7 +252,7 @@ export async function awaitSpotifyBlockHydration(): Promise<void> {
     } finally {
         clearTimeout(timer)
     }
-    if (timedOut && hydration === pending) failHydration()
+    if (timedOut) failHydration(pending)
 }
 
 export function logSpotifyApiFailures(extractor: unknown): void {
