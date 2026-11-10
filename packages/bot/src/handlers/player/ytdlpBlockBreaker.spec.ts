@@ -122,32 +122,79 @@ describe('ytdlpBlockBreaker (#2653)', () => {
         expect(isYtDlpBlocked(5)).toBe(false)
     })
 
-    it('two consecutive timeouts open the block (#2742)', () => {
-        recordYtDlpFailure(
-            new Error('yt-dlp: timed out waiting for stream start'),
-            1_000,
-        )
+    const TIMEOUT = new Error('yt-dlp: timed out waiting for stream start')
+    const EMPTY = new Error('yt-dlp exited without output (code 0)')
+
+    it('three timeouts do not open the block, the fourth does (#2742, #2973)', () => {
+        for (let i = 1; i <= 3; i++) recordYtDlpFailure(TIMEOUT, i * 1_000)
+        expect(isYtDlpBlocked(3_000)).toBe(false)
+
+        recordYtDlpFailure(TIMEOUT, 4_000)
+        expect(isYtDlpBlocked(4_000)).toBe(true)
+    })
+
+    it('timeouts further apart than the window do not accumulate', () => {
+        recordYtDlpFailure(TIMEOUT, 0)
+        recordYtDlpFailure(TIMEOUT, 1)
+        recordYtDlpFailure(TIMEOUT, 2)
+        recordYtDlpFailure(TIMEOUT, FORBIDDEN_WINDOW_MS + 2)
+
+        expect(isYtDlpBlocked(FORBIDDEN_WINDOW_MS + 2)).toBe(false)
+    })
+
+    it('empty results count like timeouts: three do not open, four do', () => {
+        for (let i = 1; i <= 3; i++) recordYtDlpFailure(EMPTY, i * 1_000)
+        expect(isYtDlpBlocked(3_000)).toBe(false)
+
+        recordYtDlpFailure(EMPTY, 4_000)
+        expect(isYtDlpBlocked(4_000)).toBe(true)
+    })
+
+    it('timeouts and empty results share one slow-failure streak', () => {
+        recordYtDlpFailure(TIMEOUT, 1)
+        recordYtDlpFailure(EMPTY, 2)
+        recordYtDlpFailure(TIMEOUT, 3)
+        recordYtDlpFailure(EMPTY, 4)
+
+        expect(isYtDlpBlocked(4)).toBe(true)
+    })
+
+    it('a timeout does not count toward the 403 streak (#2973)', () => {
+        recordYtDlpFailure(FORBIDDEN, 1, undefined, 'vid-a')
+        recordYtDlpFailure(TIMEOUT, 2)
+        expect(isYtDlpBlocked(2)).toBe(false)
+    })
+
+    it('repeated 403s of the same video do not open the block (#2973)', () => {
+        for (let i = 1; i <= 5; i++) {
+            recordYtDlpFailure(FORBIDDEN, i * 1_000, undefined, 'vid-a')
+        }
+        recordYtDlpFailure(BOTCHECK, 6_000, undefined, 'vid-a')
+
+        expect(isYtDlpBlocked(6_000)).toBe(false)
+    })
+
+    it('a 403 and a bot-check on two distinct videos open the block (#2973)', () => {
+        recordYtDlpFailure(FORBIDDEN, 1_000, undefined, 'vid-a')
         expect(isYtDlpBlocked(1_000)).toBe(false)
 
-        recordYtDlpFailure(
-            new Error('yt-dlp: timed out waiting for stream start'),
-            2_000,
-        )
+        recordYtDlpFailure(BOTCHECK, 2_000, undefined, 'vid-b')
         expect(isYtDlpBlocked(2_000)).toBe(true)
     })
 
-    it('two consecutive empty results open the block (#2742)', () => {
-        recordYtDlpFailure(
-            new Error('yt-dlp exited without output (code 0)'),
-            1_000,
-        )
-        expect(isYtDlpBlocked(1_000)).toBe(false)
+    it('403s on distinct videos further apart than the window do not open it', () => {
+        recordYtDlpFailure(FORBIDDEN, 0, undefined, 'vid-a')
+        recordYtDlpFailure(FORBIDDEN, FORBIDDEN_WINDOW_MS, undefined, 'vid-b')
 
-        recordYtDlpFailure(
-            new Error('yt-dlp exited without output (code 0)'),
-            2_000,
-        )
-        expect(isYtDlpBlocked(2_000)).toBe(true)
+        expect(isYtDlpBlocked(FORBIDDEN_WINDOW_MS)).toBe(false)
+    })
+
+    it('a success clears the timeout streak', () => {
+        for (let i = 1; i <= 3; i++) recordYtDlpFailure(TIMEOUT, i)
+        recordYtDlpSuccess()
+        recordYtDlpFailure(TIMEOUT, 10)
+
+        expect(isYtDlpBlocked(10)).toBe(false)
     })
 
     it('a success resets the streak', () => {

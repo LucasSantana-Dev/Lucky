@@ -3,13 +3,22 @@ import { isExtractorDegraded, setExtractorDegraded } from './extractorHealth'
 
 // Since 2026-10-06 YouTube answers yt-dlp media downloads with HTTP 403 for
 // days at a time, and every play paid 4-10 s waiting for that failure before
-// the SoundCloud fallback (#2653). Two 403s with no successful stream between
-// them and less than FORBIDDEN_WINDOW_MS apart open this breaker, and the
-// bridge skips yt-dlp for the cooldown. 'forbidden', 'botcheck', 'timeout' and
-// 'empty' all count toward the streak (repeated hangs or no-output results
-// mean YouTube is degraded, #2742); only 'other' neither counts nor breaks it. The window outlasts the cooldown, so a 403 on the first
-// play after it reopens the breaker while the block lasts, but a lone
-// per-video 403 long after the last one does not. A success closes it. Kept
+// the SoundCloud fallback (#2653). Two 403s for distinct videos with no
+// successful stream between them and less than FORBIDDEN_WINDOW_MS apart
+// open this breaker, and the
+// bridge skips yt-dlp for the cooldown. The breaker is process-global, so it
+// must not trip on one guild's bad luck (#2973):
+// - 'forbidden' and 'botcheck' open it only across at least two DISTINCT video
+//   ids inside the window; repeats of one video are a per-video problem.
+// - 'timeout' and 'empty' share a separate streak that needs
+//   SLOW_FAILURE_THRESHOLD failures in the window (#2742: a timeout storm
+//   still trips it, but two plain 8 s timeouts no longer do). 'empty' is
+//   grouped here because a no-output exit is also what an unavailable or
+//   private video yields, so it is a weaker YouTube-wide signal than a 403.
+// - 'other' neither counts nor breaks anything. The window outlasts the
+//   cooldown, so a 403 on the first play after it reopens the breaker while
+//   the block lasts, but a lone per-video 403 long after the last one does
+//   not. A success closes it. Kept
 // apart from providerHealthService on purpose: that one also orders search
 // providers, and YouTube search still works while downloads are blocked.
 //
@@ -40,14 +49,17 @@ import { isExtractorDegraded, setExtractorDegraded } from './extractorHealth'
 // later yt-dlp success. The gauge clears when the block expires, even if
 // the bot is idle.
 export const YTDLP_BLOCK_COOLDOWN_MS = 10 * 60_000
-const FORBIDDEN_THRESHOLD = 2
+const FORBIDDEN_DISTINCT_VIDEOS = 2
+const SLOW_FAILURE_THRESHOLD = 4
 export const FORBIDDEN_WINDOW_MS = 15 * 60_000
 
 export type YtDlpFailureType =
     'forbidden' | 'botcheck' | 'empty' | 'timeout' | 'other'
 
-let consecutiveForbidden = 0
-let lastForbiddenAt = 0
+// video key -> last access-denial time, and timestamps of timeout/empty failures
+const forbiddenByVideo = new Map<string, number>()
+let slowFailureAts: number[] = []
+let anonymousVideoSeq = 0
 let blockedUntil = 0
 let degradedByBreaker = false
 let expiryTimer: ReturnType<typeof setTimeout> | undefined
@@ -94,16 +106,18 @@ export function countYtDlpFailure(error: unknown): void {
     extractionFailuresTotal.inc({ type: classifyYtDlpFailure(error) })
 }
 
+/**
+ * `videoId` identifies the video that failed. Without one, each failure counts
+ * as a distinct video (the pre-#2973 behavior).
+ */
 export function recordYtDlpFailure(
     error: unknown,
     now = Date.now(),
     play?: object,
+    videoId?: string,
 ): void {
     const type = classifyYtDlpFailure(error)
     extractionFailuresTotal.inc({ type })
-    // 'forbidden' and 'botcheck' are access-denial signals.
-    // 'timeout' and 'empty' also count: repeated hangs or no-output results
-    // indicate YouTube is degraded, not per-track issues (#2742).
     if (type === 'other') return
     if (typeof error === 'object' && error !== null && budgetMisses.has(error))
         return
@@ -111,18 +125,29 @@ export function recordYtDlpFailure(
         if (countedPlays.has(play)) return
         countedPlays.add(play)
     }
-    if (now - lastForbiddenAt >= FORBIDDEN_WINDOW_MS) consecutiveForbidden = 0
-    lastForbiddenAt = now
-    consecutiveForbidden += 1
-    if (consecutiveForbidden >= FORBIDDEN_THRESHOLD) {
+    let opens: boolean
+    if (type === 'forbidden' || type === 'botcheck') {
+        for (const [key, at] of forbiddenByVideo) {
+            if (now - at >= FORBIDDEN_WINDOW_MS) forbiddenByVideo.delete(key)
+        }
+        forbiddenByVideo.set(videoId ?? `anon-${anonymousVideoSeq++}`, now)
+        opens = forbiddenByVideo.size >= FORBIDDEN_DISTINCT_VIDEOS
+    } else {
+        slowFailureAts = slowFailureAts.filter(
+            (at) => now - at < FORBIDDEN_WINDOW_MS,
+        )
+        slowFailureAts.push(now)
+        opens = slowFailureAts.length >= SLOW_FAILURE_THRESHOLD
+    }
+    if (opens) {
         blockedUntil = now + YTDLP_BLOCK_COOLDOWN_MS
         markBreakerDegraded()
     }
 }
 
 export function recordYtDlpSuccess(): void {
-    consecutiveForbidden = 0
-    lastForbiddenAt = 0
+    forbiddenByVideo.clear()
+    slowFailureAts = []
     blockedUntil = 0
     clearBreakerDegraded()
 }

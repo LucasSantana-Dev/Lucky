@@ -190,13 +190,14 @@ describe('block breaker: one streak failure per play', () => {
         expect(isYtDlpBlocked()).toBe(true)
     })
 
-    it('replaying the same track object is a new play', async () => {
+    it('replaying the same track object is a new play but the same video (#2973)', async () => {
         mockStreamViaYtDlp.mockRejectedValue(botcheck())
         const track = spotifyTrack('replay')
 
         await createResilientStream(track as never)
         await createResilientStream(track as never)
 
-        expect(isYtDlpBlocked()).toBe(true)
+        expect(failureCount('botcheck')).toBe(2)
+        expect(isYtDlpBlocked()).toBe(false)
     })
 })
