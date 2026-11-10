@@ -2,11 +2,16 @@ import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { logAndSwallow } from '@lucky/shared/utils/error'
 import { assertDefined } from '@lucky/shared/utils/guards'
-import type { AutoplayContext } from './autoplay/autoplayContext'
+import type {
+    AutoplayContext,
+    SpotifySearchBudget,
+} from './autoplay/autoplayContext'
 import { getTagTopTracks } from '../../lastfm'
 import {
     searchLastFmQuery,
     recordSpotifySearchResult,
+    claimSpotifySearch,
+    spotifySearchBudgetFor,
 } from './autoplay/lastFmSeeder'
 import {
     shouldIncludeCandidate,
@@ -59,6 +64,8 @@ export interface CandidateContext {
         getArtistTags?: ArtistTagFetcher
     }
     auditCollector?: AutoplayAuditCollector
+    /** Shared with the other collectors of this replenish pass (#2971). */
+    spotifySearchBudget?: SpotifySearchBudget
 }
 
 function isGenreTrackAllowed(track: Track, ctx: CandidateContext): boolean {
@@ -133,6 +140,9 @@ export async function collectBroadFallbackCandidates(
     ].filter(Boolean)
 
     for (const query of fallbackQueries) {
+        // Spotify-only fallback: while Spotify is 429-blocked or this
+        // replenish spent its search budget, skip rather than burn quota.
+        if (!claimSpotifySearch(spotifySearchBudgetFor(ctx))) break
         try {
             const result = await ctx.queue.player.search(query, {
                 requestedBy: undefined,
@@ -239,6 +249,7 @@ export async function collectGenreCandidates(
                     queue,
                     cleanSearchQuery(seed.title, seed.artist),
                     requestedBy,
+                    spotifySearchBudgetFor(ctx),
                 )
                 const allowed = results
                     .filter((track) => isGenreTrackAllowed(track, ctx))

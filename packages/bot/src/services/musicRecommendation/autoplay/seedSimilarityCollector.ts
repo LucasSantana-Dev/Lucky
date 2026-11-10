@@ -10,7 +10,7 @@ import {
 import type { AutoplayContext } from './autoplayContext'
 import type { ScoredTrack } from './diversitySelector'
 import type { AutoplayAuditCollector } from './autoplayAudit'
-import { searchLastFmQuery } from './lastFmSeeder'
+import { searchLastFmQuery, spotifySearchBudgetFor } from './lastFmSeeder'
 import { addSeedDerivedHits } from './seedDerivedHits'
 
 // Boost applied to every seed-similar candidate. Sits above the lastfm-similar
@@ -138,7 +138,12 @@ export async function collectSeedSimilarCandidates(
     // pool only widens the diverse-selection choice downstream.
     for (const s of similar) {
         const query = cleanSearchQuery(s.title, s.artist)
-        const tracks = await searchLastFmQuery(ctx.queue, query, requestedBy)
+        const tracks = await searchLastFmQuery(
+            ctx.queue,
+            query,
+            requestedBy,
+            spotifySearchBudgetFor(ctx),
+        )
         // Last.fm returns `match` on a 0..1 scale. Weight by it but keep
         // seed-similar competitive — the weight is clamped to [0.5, 1.0]
         // (never weighted below 0.5 even on a weak match), so the spine

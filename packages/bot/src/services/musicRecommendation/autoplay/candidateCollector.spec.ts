@@ -279,6 +279,24 @@ describe('candidateCollector', () => {
             expect(searchSeedCandidatesMock).toHaveBeenCalled()
         })
 
+        it('caps seed searches at the replenish Spotify budget (#2972)', async () => {
+            searchSeedCandidatesMock.mockResolvedValue([])
+            const seedTracks = Array.from({ length: 7 }, (_, i) =>
+                createTrack({ url: `https://open.spotify.com/track/s${i}` }),
+            )
+            const budget = { remaining: 2 }
+            const ctx = createAutoplayContext({
+                queue: createGuildQueue(),
+                currentTrack: createTrack(),
+                spotifySearchBudget: budget,
+            })
+
+            await collectRecommendationCandidates(ctx, seedTracks, null)
+
+            expect(searchSeedCandidatesMock).toHaveBeenCalledTimes(2)
+            expect(budget.remaining).toBe(0)
+        })
+
         it('passes the recency-decay indices to the scorer (#2933)', async () => {
             searchSeedCandidatesMock.mockResolvedValue([
                 createTrack({ title: 'Seed Result', author: 'Test Artist' }),

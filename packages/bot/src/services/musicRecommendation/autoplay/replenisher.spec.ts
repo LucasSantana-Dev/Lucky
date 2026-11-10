@@ -94,6 +94,8 @@ jest.mock('./artistTagCache', () => ({
 
 jest.mock('./lastFmSeeder', () => ({
     collectLastFmCandidates: jest.fn(),
+    spotifySearchBudgetFor: (ctx: { spotifySearchBudget?: unknown }) =>
+        (ctx.spotifySearchBudget ??= { remaining: 5 }),
 }))
 
 jest.mock('./seedSimilarityCollector', () => ({

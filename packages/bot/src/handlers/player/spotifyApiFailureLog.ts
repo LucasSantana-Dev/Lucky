@@ -15,6 +15,10 @@ import { warnLog } from '@lucky/shared/utils'
 // response, so the global fetch is observed while fetchData() runs (scoped
 // with AsyncLocalStorage, nothing outside it is touched) to read Retry-After,
 // and calls fail fast without a network request until that time passes.
+//
+// The block is also written to Redis with the remaining block as TTL: a
+// restart used to clear it and the first search hit Spotify's 429 again
+// (#2971). Redis is best effort, a failure leaves the in-memory block alone.
 
 type FetchData = (
     url: string,
@@ -26,6 +30,10 @@ const DEFAULT_BLOCK_MS = 60_000
 // A bogus Retry-After (say 1e20) must not stop Spotify for good or push the
 // date past what toISOString() accepts. Quota blocks seen so far are ~6h.
 const MAX_BLOCK_MS = 24 * 60 * 60_000
+const REDIS_BLOCK_KEY = 'spotify:blockedUntil'
+const HYDRATE_RETRY_MS = 30_000
+// A slow Redis must not stall Spotify calls: the block is best effort.
+const HYDRATE_TIMEOUT_MS = 500
 
 // Spotify's own meaning for each status on this client-credentials path,
 // so the log line says what to check (developer.spotify.com quota modes).
@@ -39,6 +47,8 @@ const STATUS_HINTS: Record<string, string> = {
 const lastWarnAt = new Map<string, number>()
 let warnedUnwrappable = false
 let blockedUntil = 0
+let hydration: Promise<void> | undefined
+let hydrationRetryAt = 0
 
 const lastResponse = new AsyncLocalStorage<{ response?: Response }>()
 let unobservedFetch: typeof fetch | undefined
@@ -47,8 +57,81 @@ export function resetSpotifyApiFailureLogForTests(): void {
     lastWarnAt.clear()
     warnedUnwrappable = false
     blockedUntil = 0
+    hydration = undefined
+    hydrationRetryAt = 0
     if (unobservedFetch) globalThis.fetch = unobservedFetch
     unobservedFetch = undefined
+}
+
+export function isSpotifyBlocked(now = Date.now()): boolean {
+    return now < blockedUntil
+}
+
+export function spotifyBlockRemainingSeconds(now = Date.now()): number {
+    return Math.max(0, Math.ceil((blockedUntil - now) / 1000))
+}
+
+// Loads a block persisted by a previous process. Never rejects. Only a read
+// that returned a value is memoized: the Redis client answers null both for
+// a missing key and for a failed GET, so null is retried after
+// HYDRATE_RETRY_MS. A stored value is trusted only inside the same window a
+// live Retry-After can set (now, now + MAX_BLOCK_MS].
+export function hydrateSpotifyBlock(): Promise<void> {
+    if (hydration) return hydration
+    if (Date.now() < hydrationRetryAt) return Promise.resolve()
+    const attempt: Promise<void> = Promise.resolve().then(() =>
+        readStoredBlock(attempt),
+    )
+    hydration = attempt
+    return attempt
+}
+
+async function readStoredBlock(attempt: Promise<void>): Promise<void> {
+    try {
+        const raw = await (await redis()).get(REDIS_BLOCK_KEY)
+        if (raw === null) {
+            failHydration(attempt)
+            return
+        }
+        const stored = Number(raw)
+        const now = Date.now()
+        if (
+            Number.isFinite(stored) &&
+            stored > now &&
+            stored <= now + MAX_BLOCK_MS &&
+            stored > blockedUntil
+        ) {
+            blockedUntil = stored
+        }
+    } catch (error) {
+        failHydration(attempt)
+        warnLog({
+            message: 'Spotify block: Redis read failed',
+            error,
+        })
+    }
+}
+
+// Only the attempt that is still current may fail: a read that answers after
+// it timed out must not clear a newer attempt.
+function failHydration(attempt: Promise<void>): void {
+    if (hydration !== attempt) return
+    hydration = undefined
+    hydrationRetryAt = Date.now() + HYDRATE_RETRY_MS
+}
+
+async function persistBlock(until: number, now: number): Promise<void> {
+    try {
+        await (
+            await redis()
+        ).set(
+            REDIS_BLOCK_KEY,
+            String(until),
+            Math.max(1, Math.ceil((until - now) / 1000)),
+        )
+    } catch (error) {
+        warnLog({ message: 'Spotify block: Redis write failed', error })
+    }
 }
 
 function endpointOf(url: string): string {
@@ -85,6 +168,13 @@ export function reportSpotifyApiFailure(
     })
 }
 
+// Loaded on first use: the services barrel pulls in Prisma, which every
+// importer of this module (the play command chain, the autoplay seeder) would
+// otherwise load just to reach the Redis client.
+async function redis() {
+    return (await import('@lucky/shared/services')).redisClient
+}
+
 // Retry-After is either delay-seconds or an HTTP date (RFC 9110 10.2.3).
 export function retryAfterMs(
     header: string | null | undefined,
@@ -112,6 +202,7 @@ function blockSpotifyApi(retryAfter: string | null, now = Date.now()): void {
     if (until <= blockedUntil) return
     const wasBlocked = blockedUntil > now
     blockedUntil = until
+    void persistBlock(until, now)
     if (wasBlocked) return
     warnLog({
         message:
@@ -143,6 +234,27 @@ function observeFetch(): void {
     }
 }
 
+// Waits at most HYDRATE_TIMEOUT_MS for the persisted block. A read still
+// pending after that is dropped and retried after HYDRATE_RETRY_MS, so a hung
+// GET costs one wait instead of one per Spotify call. Never rejects.
+export async function awaitSpotifyBlockHydration(): Promise<void> {
+    const pending = hydrateSpotifyBlock()
+    let timedOut = false
+    let timer: NodeJS.Timeout | undefined
+    const timeout = new Promise<void>((resolve) => {
+        timer = setTimeout(() => {
+            timedOut = true
+            resolve()
+        }, HYDRATE_TIMEOUT_MS)
+    })
+    try {
+        await Promise.race([pending, timeout])
+    } finally {
+        clearTimeout(timer)
+    }
+    if (timedOut) failHydration(pending)
+}
+
 export function logSpotifyApiFailures(extractor: unknown): void {
     const api = (extractor as { internal?: { fetchData?: FetchData } } | null)
         ?.internal
@@ -158,7 +270,9 @@ export function logSpotifyApiFailures(extractor: unknown): void {
     }
     observeFetch()
     const fetchData = api.fetchData.bind(api)
+    void hydrateSpotifyBlock()
     api.fetchData = async (url, options) => {
+        await awaitSpotifyBlockHydration()
         if (Date.now() < blockedUntil) {
             throw new Error(
                 `Spotify API blocked until ${new Date(blockedUntil).toISOString()}`,

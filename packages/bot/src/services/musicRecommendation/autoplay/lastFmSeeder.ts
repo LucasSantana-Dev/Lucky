@@ -15,7 +15,11 @@ import {
     cleanSearchQuery,
     cleanTitle,
 } from '../../../utils/music/searchQueryCleaner'
-import type { AutoplayContext } from './autoplayContext'
+import type { AutoplayContext, SpotifySearchBudget } from './autoplayContext'
+import {
+    claimSpotifySearch,
+    spotifySearchBudgetFor,
+} from './spotifySearchBudget'
 import {
     calculateRecommendationScore,
     getGenreFamilies,
@@ -42,6 +46,12 @@ const SPOTIFY_SEARCH_WINDOW = 20
 const SPOTIFY_SEARCH_MIN_SAMPLES = 10
 const SPOTIFY_SEARCH_EMPTY_RATE_THRESHOLD = 0.8
 const SPOTIFY_SEARCH_WARN_COOLDOWN_MS = 5 * 60 * 1000
+
+export {
+    MAX_SPOTIFY_SEARCHES_PER_REPLENISH,
+    claimSpotifySearch,
+    spotifySearchBudgetFor,
+} from './spotifySearchBudget'
 
 // Rolling window of recent SPOTIFY_SEARCH outcomes (true = had results).
 let spotifySearchResults: boolean[] = []
@@ -142,6 +152,7 @@ export async function collectLastFmCandidates(
     const sessionGenreFamilies =
         ctx.genreContext.sessionGenreFamilies ?? new Set<string>()
     const currentTrackFamilies = getGenreFamilies(currentTrackTags)
+    const spotifyBudget = spotifySearchBudgetFor(ctx)
     // Profile tracks are the listener's library, not the session's seed, so
     // the flat Last.fm boost only applies when the hit shares a genre family
     // with the session. Fail closed: unknown on either side means no boost
@@ -165,7 +176,12 @@ export async function collectLastFmCandidates(
         const isLoved = isLovedSeed(requestedBy.id, seed.artist, seed.title)
         const lovedBoost = isLoved ? LOVED_SEED_EXTRA_BOOST : 0
         const query = cleanSearchQuery(seed.title, seed.artist)
-        const tracks = await searchLastFmQuery(ctx.queue, query, requestedBy)
+        const tracks = await searchLastFmQuery(
+            ctx.queue,
+            query,
+            requestedBy,
+            spotifyBudget,
+        )
         for (const track of tracks) {
             if (
                 !shouldIncludeCandidate(
@@ -235,6 +251,7 @@ export async function collectLastFmCandidates(
                 ctx.queue,
                 query,
                 requestedBy,
+                spotifyBudget,
             )
             for (const track of tracks) {
                 if (
@@ -317,6 +334,7 @@ export async function collectLastFmCandidates(
                     ctx.queue,
                     tagQuery,
                     requestedBy,
+                    spotifyBudget,
                 )
                 for (const track of found) {
                     if (
@@ -381,10 +399,41 @@ export async function collectLastFmCandidates(
     }
 }
 
+// Only the Spotify arm is metered; the other engines are always allowed.
+function mayUseEngine(
+    engine: QueryType,
+    spotifyBudget?: SpotifySearchBudget,
+): boolean {
+    return (
+        engine !== QueryType.SPOTIFY_SEARCH || claimSpotifySearch(spotifyBudget)
+    )
+}
+
+function searchOptionsFor(engine: QueryType, requestedBy: User) {
+    return {
+        requestedBy,
+        searchEngine: engine,
+        // SpotifyExtractor claims every plain-text query whatever the
+        // engine, so without this the YouTube and AUTO arms were
+        // Spotify searches too: when Spotify returned nothing, every
+        // arm did, and autoplay found no candidates (2026-10-19).
+        ...(engine === QueryType.SPOTIFY_SEARCH
+            ? {}
+            : { blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS }),
+    }
+}
+
+function recordSpotifyOutcome(engine: QueryType, hadResults: boolean): void {
+    if (engine === QueryType.SPOTIFY_SEARCH) {
+        recordSpotifySearchResult(hadResults)
+    }
+}
+
 export async function searchLastFmQuery(
     queue: GuildQueue,
     query: string,
     requestedBy: User,
+    spotifyBudget?: SpotifySearchBudget,
 ): Promise<Track[]> {
     // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-positioning.md
     // point 3): no extractor is registered to serve YOUTUBE_SEARCH when
@@ -398,23 +447,15 @@ export async function searchLastFmQuery(
         : [QueryType.SPOTIFY_SEARCH, QueryType.SOUNDCLOUD_SEARCH]
     let hadError = false
     for (const engine of engines) {
+        if (!mayUseEngine(engine, spotifyBudget)) continue
         try {
-            const result = await queue.player.search(query, {
-                requestedBy,
-                searchEngine: engine,
-                // SpotifyExtractor claims every plain-text query whatever the
-                // engine, so without this the YouTube and AUTO arms were
-                // Spotify searches too: when Spotify returned nothing, every
-                // arm did, and autoplay found no candidates (2026-10-19).
-                ...(engine === QueryType.SPOTIFY_SEARCH
-                    ? {}
-                    : { blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS }),
-            })
-            if (engine === QueryType.SPOTIFY_SEARCH) {
-                // Raw API count, same meaning as in candidateFallback: a hit
-                // whose tracks all exceed the duration cap is not an outage.
-                recordSpotifySearchResult(result.tracks.length > 0)
-            }
+            const result = await queue.player.search(
+                query,
+                searchOptionsFor(engine, requestedBy),
+            )
+            // Raw API count, same meaning as in candidateFallback: a hit
+            // whose tracks all exceed the duration cap is not an outage.
+            recordSpotifyOutcome(engine, result.tracks.length > 0)
             const tracks = result.tracks
                 .filter(
                     (t) =>
@@ -424,9 +465,7 @@ export async function searchLastFmQuery(
                 .slice(0, SEARCH_RESULTS_LIMIT)
             if (tracks.length > 0) return tracks
         } catch (err) {
-            if (engine === QueryType.SPOTIFY_SEARCH) {
-                recordSpotifySearchResult(false)
-            }
+            recordSpotifyOutcome(engine, false)
             // Debug per engine — a single engine failing while another
             // succeeds is normal fallback, not worth alerting on.
             hadError = true

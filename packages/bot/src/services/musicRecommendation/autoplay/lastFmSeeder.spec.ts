@@ -17,9 +17,14 @@ const shouldIncludeCandidateMock = jest.fn()
 const upsertScoredCandidateMock = jest.fn()
 const normalizeTrackKeyMock = jest.fn()
 const warnLogMock = jest.fn()
+const isSpotifyBlockedMock = jest.fn<() => boolean>()
 
 jest.mock('@lucky/shared/utils', () => ({
     warnLog: (...args: unknown[]) => warnLogMock(...args),
+}))
+
+jest.mock('../../../handlers/player/spotifyApiFailureLog', () => ({
+    isSpotifyBlocked: () => isSpotifyBlockedMock(),
 }))
 
 jest.mock('discord-player', () => ({
@@ -80,6 +85,7 @@ jest.mock('./scoringUtils', () => ({
 }))
 
 import {
+    MAX_SPOTIFY_SEARCHES_PER_REPLENISH,
     searchLastFmQuery,
     collectLastFmCandidates,
     recordSpotifySearchResult,
@@ -90,6 +96,7 @@ import {
 // or a warn from one test cannot bleed into another's assertions.
 beforeEach(() => {
     resetSpotifySearchTracking()
+    isSpotifyBlockedMock.mockReturnValue(false)
 })
 
 function createTrack(
@@ -302,6 +309,112 @@ describe('searchLastFmQuery', () => {
         const user = createUser()
         const result = await searchLastFmQuery(queue, 'query', user)
         expect(result.length).toBeLessThanOrEqual(8)
+    })
+})
+
+describe('Spotify 429 block and per-replenish cap (#2972)', () => {
+    const engines = (queue: GuildQueue) =>
+        (queue.player.search as jest.Mock).mock.calls.map(
+            (c) => (c[1] as { searchEngine: string }).searchEngine,
+        )
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+    })
+
+    it('drops the Spotify engine while Spotify is blocked', async () => {
+        isSpotifyBlockedMock.mockReturnValue(true)
+        const queue = createQueue({ tracks: [] })
+
+        await searchLastFmQuery(queue, 'q', createUser())
+
+        expect(engines(queue)).not.toContain(QueryType.SPOTIFY_SEARCH)
+        expect(engines(queue)).toContain(QueryType.YOUTUBE_SEARCH)
+    })
+
+    it('skips Spotify once the budget is spent, other engines still run', async () => {
+        const queue = createQueue({ tracks: [] })
+        const budget = { remaining: 1 }
+
+        await searchLastFmQuery(queue, 'a', createUser(), budget)
+        await searchLastFmQuery(queue, 'b', createUser(), budget)
+
+        const spotifyCalls = engines(queue).filter(
+            (e) => e === QueryType.SPOTIFY_SEARCH,
+        )
+        expect(spotifyCalls).toHaveLength(1)
+        expect(budget.remaining).toBe(0)
+        const secondQueryEngines = (queue.player.search as jest.Mock).mock.calls
+            .filter((c) => c[0] === 'b')
+            .map((c) => (c[1] as { searchEngine: string }).searchEngine)
+        expect(secondQueryEngines.length).toBeGreaterThan(0)
+        expect(secondQueryEngines).not.toContain(QueryType.SPOTIFY_SEARCH)
+    })
+
+    it('does not spend budget while blocked', async () => {
+        isSpotifyBlockedMock.mockReturnValue(true)
+        const budget = { remaining: 2 }
+
+        await searchLastFmQuery(createQueue(), 'a', createUser(), budget)
+
+        expect(budget.remaining).toBe(2)
+    })
+
+    describe('collectLastFmCandidates', () => {
+        beforeEach(() => {
+            cleanSearchQueryMock.mockImplementation(
+                (t: unknown, a: unknown) => `${t} ${a}`,
+            )
+            cleanTitleMock.mockImplementation((s: unknown) => s)
+            getSimilarTracksMock.mockResolvedValue([])
+            getTagTopTracksMock.mockResolvedValue([])
+            createArtistTagFetcherMock.mockReturnValue(
+                jest.fn().mockResolvedValue([]),
+            )
+            consumeLastFmSeedSliceMock.mockResolvedValue(
+                Array.from({ length: 8 }, (_, i) => ({
+                    title: `T${i}`,
+                    artist: `A${i}`,
+                })),
+            )
+        })
+
+        it('caps Spotify text searches for the whole replenish', async () => {
+            const queue = createQueue({ tracks: [] })
+            const ctx = createAutoplayContext({ queue })
+
+            await collectLastFmCandidates(ctx, createUser(), new Map())
+
+            const spotifyCalls = engines(queue).filter(
+                (e) => e === QueryType.SPOTIFY_SEARCH,
+            )
+            expect(spotifyCalls).toHaveLength(
+                MAX_SPOTIFY_SEARCHES_PER_REPLENISH,
+            )
+            expect(MAX_SPOTIFY_SEARCHES_PER_REPLENISH).toBe(5)
+        })
+
+        it('shares the budget already spent on the context', async () => {
+            const queue = createQueue({ tracks: [] })
+            const ctx = createAutoplayContext({
+                queue,
+                spotifySearchBudget: { remaining: 0 },
+            })
+
+            await collectLastFmCandidates(ctx, createUser(), new Map())
+
+            expect(engines(queue)).not.toContain(QueryType.SPOTIFY_SEARCH)
+        })
+
+        it('makes no Spotify search while blocked', async () => {
+            isSpotifyBlockedMock.mockReturnValue(true)
+            const queue = createQueue({ tracks: [] })
+            const ctx = createAutoplayContext({ queue })
+
+            await collectLastFmCandidates(ctx, createUser(), new Map())
+
+            expect(engines(queue)).not.toContain(QueryType.SPOTIFY_SEARCH)
+        })
     })
 })
 

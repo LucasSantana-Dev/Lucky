@@ -3,6 +3,10 @@ import type { User } from 'discord.js'
 import { debugLog } from '@lucky/shared/utils'
 import type { AutoplayContext } from './autoplayContext'
 import { searchSeedCandidates } from './spotifyRecommender'
+import {
+    claimSpotifySearch,
+    spotifySearchBudgetFor,
+} from './spotifySearchBudget'
 import { calculateRecommendationScore } from './candidateScorer'
 import { normalizeTrackKey } from './scoringUtils'
 import { primaryArtistKey } from '../../../utils/music/trackNormalization'
@@ -82,6 +86,9 @@ export async function collectRecommendationCandidates(
     // avoid language-drift where genre terms like "worship" cause YouTube's
     // algorithm to surface Spanish gospel on non-Spanish sessions)
     for (const seed of seedTracks) {
+        // Each seed search is a Spotify text search: it draws on the same
+        // per-replenish budget as the Last.fm and fallback paths (#2972).
+        if (!claimSpotifySearch(spotifySearchBudgetFor(ctx))) break
         // Only a Spotify seed carries a real artist; a YouTube seed's author
         // is often the uploading channel, which no Spotify hit would match.
         const seedArtistKey =

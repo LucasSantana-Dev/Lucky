@@ -3,10 +3,21 @@ import { QueryType } from 'discord-player'
 import type { VoiceChannel } from 'discord.js'
 
 const warnLogMock = jest.fn()
+const infoLogMock = jest.fn()
 const addBreadcrumbMock = jest.fn()
+const isSpotifyBlockedMock = jest.fn<() => boolean>()
+const awaitHydrationMock = jest.fn<() => Promise<void>>()
+const spotifyBlockRemainingSecondsMock = jest.fn<() => number>()
 
 jest.mock('@lucky/shared/utils', () => ({
     warnLog: warnLogMock,
+    infoLog: infoLogMock,
+}))
+
+jest.mock('../../../../../handlers/player/spotifyApiFailureLog', () => ({
+    awaitSpotifyBlockHydration: () => awaitHydrationMock(),
+    isSpotifyBlocked: () => isSpotifyBlockedMock(),
+    spotifyBlockRemainingSeconds: () => spotifyBlockRemainingSecondsMock(),
 }))
 
 jest.mock('@lucky/shared/utils/monitoring', () => ({
@@ -26,6 +37,9 @@ describe('resolveQueryWithFallbacks', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
+        isSpotifyBlockedMock.mockReturnValue(false)
+        awaitHydrationMock.mockResolvedValue(undefined)
+        spotifyBlockRemainingSecondsMock.mockReturnValue(0)
 
         mockVoiceChannel = {
             id: 'vc-1',
@@ -60,6 +74,101 @@ describe('resolveQueryWithFallbacks', () => {
             expect(telemetry.requestedProvider).toBe('default')
             expect(telemetry.latencyMs).toBeGreaterThanOrEqual(0)
             expect(telemetry.errorClass).toBeUndefined()
+        })
+    })
+
+    describe('Spotify blocked by a 429 (#2971)', () => {
+        beforeEach(() => {
+            isSpotifyBlockedMock.mockReturnValue(true)
+            spotifyBlockRemainingSecondsMock.mockReturnValue(540)
+        })
+
+        it('loads the persisted block before deciding (#2971)', async () => {
+            isSpotifyBlockedMock.mockReturnValue(false)
+            awaitHydrationMock.mockImplementation(async () => {
+                isSpotifyBlockedMock.mockReturnValue(true)
+            })
+            mockPlayer.play.mockResolvedValueOnce({ title: 'Test Song' })
+
+            const { telemetry } = await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'test query',
+                'default',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            expect(awaitHydrationMock).toHaveBeenCalledTimes(1)
+            expect(telemetry.resolvedVia).toBe('youtube-fallback')
+            expect(mockPlayer.play).toHaveBeenCalledTimes(1)
+        })
+
+        it('skips the Spotify arm and its retry, going straight to YouTube', async () => {
+            const mockTrack = { title: 'Test Song' }
+            mockPlayer.play.mockResolvedValueOnce(mockTrack)
+
+            const { result, telemetry } = await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'test query',
+                'default',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            expect(result).toEqual(mockTrack)
+            expect(telemetry.resolvedVia).toBe('youtube-fallback')
+            expect(mockPlayer.play).toHaveBeenCalledTimes(1)
+            expect(mockPlayer.play).toHaveBeenCalledWith(
+                mockVoiceChannel,
+                'test query',
+                expect.objectContaining({
+                    searchEngine: QueryType.YOUTUBE_SEARCH,
+                }),
+            )
+        })
+
+        it('logs one info line with the remaining seconds and no primary warn', async () => {
+            mockPlayer.play.mockResolvedValueOnce({ title: 'Test Song' })
+
+            await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'test query',
+                'default',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            expect(infoLogMock).toHaveBeenCalledTimes(1)
+            expect(infoLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Spotify blocked, skipping primary search',
+                    data: expect.objectContaining({ remainingSeconds: 540 }),
+                }),
+            )
+            expect(warnLogMock).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Primary search failed, falling back to YouTube',
+                }),
+            )
+        })
+
+        it('does not skip a non-Spotify primary engine', async () => {
+            mockPlayer.play.mockResolvedValueOnce({ title: 'Test Song' })
+
+            const { telemetry } = await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'test query',
+                'youtube',
+                QueryType.YOUTUBE_SEARCH,
+                mockPlayOptions,
+            )
+
+            expect(telemetry.resolvedVia).toBe('primary')
+            expect(infoLogMock).not.toHaveBeenCalled()
         })
     })
 

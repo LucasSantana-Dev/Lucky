@@ -11,7 +11,7 @@ import type { AutoplayContext } from './autoplayContext'
 import { normalizeTrackKey } from './scoringUtils'
 import type { ScoredTrack } from './diversitySelector'
 import type { AutoplayAuditCollector } from './autoplayAudit'
-import { searchLastFmQuery } from './lastFmSeeder'
+import { searchLastFmQuery, spotifySearchBudgetFor } from './lastFmSeeder'
 import { addSeedDerivedHits } from './seedDerivedHits'
 
 // Same boost as the seed-similar spine: these picks are seed-grounded too.
@@ -143,7 +143,12 @@ async function collectRelatedArtistCandidatesUnsafe(
 
     for (const pick of picks) {
         const query = cleanSearchQuery(pick.title, pick.artist)
-        const tracks = await searchLastFmQuery(ctx.queue, query, requestedBy)
+        const tracks = await searchLastFmQuery(
+            ctx.queue,
+            query,
+            requestedBy,
+            spotifySearchBudgetFor(ctx),
+        )
         // One track per pick, by the pick's artist: a cover or a title-only
         // match must not take the seed-similar anchor slot.
         const pickArtist = primaryArtistKey(pick.artist)
