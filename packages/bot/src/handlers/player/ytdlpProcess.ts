@@ -434,6 +434,10 @@ function spawnYtDlp(
             { stdio: ['ignore', 'pipe', 'pipe'], cwd: workDir },
         )
         proc.once('close', removeWorkDir)
+        let exited = false
+        proc.once('close', () => {
+            exited = true
+        })
 
         // On every attempt this fires, the caller still has to wait out the
         // full duration before falling back to SoundCloud, so a long timeout
@@ -461,6 +465,9 @@ function spawnYtDlp(
                 settled = true
                 clearTimeout(timeout)
                 const through = new PassThrough()
+                stopWhenAbandoned(through, () => {
+                    if (!exited) proc.kill()
+                })
                 through.write(firstChunk)
                 assertDefined(
                     proc.stdout,
@@ -496,6 +503,29 @@ function spawnYtDlp(
             }
         })
     })
+}
+
+// When a track ends early (skip, stop, a new filter), discord-player destroys
+// its ffmpeg transcoder, which only unpipes this stream. Nothing reads it any
+// more, yt-dlp blocks on a full pipe and stays alive holding ~57MB: prod
+// gathered 29 of them in 3h and the container hit its memory limit (OOM kill
+// 2026-11-09 23:54Z). An unpipe leaves no data listener; a paused playback
+// (backpressure) keeps its listener, so pausing never stops the stream.
+function stopWhenAbandoned(stream: PassThrough, onAbandon: () => void): void {
+    let stopped = false
+    const stop = () => {
+        if (stopped) return
+        stopped = true
+        onAbandon()
+    }
+    stream.on('pause', () => {
+        setImmediate(() => {
+            if (stream.listenerCount('data') > 0 || stream.destroyed) return
+            stop()
+            stream.destroy()
+        })
+    })
+    stream.once('close', stop)
 }
 
 export function streamViaYtDlpSearch(query: string): Promise<Readable> {

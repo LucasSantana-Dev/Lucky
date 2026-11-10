@@ -1671,6 +1671,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(bot): a Spotify 429 block now survives restarts (kept in Redis), and `/play` and autoplay skip Spotify while it is blocked, with autoplay capped at 5 Spotify searches per refill (#2971 #2972)
 - fix(bot): the yt-dlp block breaker only opens on 403 or bot-check failures across distinct videos (timeouts and empty results need 4 within 15 minutes), stream-failure embeds are batched per guild each minute, and yt-dlp is pinned in the image (#2973 #2975)
 - fix(bot): the music watchdog replays the stalled track instead of skipping to the next one, and `/skip` acknowledges the command before doing work so the autoplay feedback prompt no longer fails (#2976 #2977)
+- fix(bot): yt-dlp is stopped when a skipped or stopped track drops its stream, so idle yt-dlp processes no longer pile up until the container runs out of memory (#2979)
 
 ## [2.17.0] - 2026-06-08
 
