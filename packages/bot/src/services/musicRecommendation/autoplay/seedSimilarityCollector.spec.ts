@@ -160,14 +160,18 @@ describe('collectSeedSimilarCandidates', () => {
     it('threads the replenish Spotify search budget into every search (#2971)', async () => {
         getSimilarTracksMock.mockResolvedValue([
             { title: 'Sim', artist: 'SimA', match: 1 },
+            { title: 'Sim2', artist: 'SimB', match: 1 },
+            { title: 'Sim3', artist: 'SimC', match: 1 },
         ])
         const budget = { remaining: 3 }
         const ctx = createAutoplayContext({ spotifySearchBudget: budget })
 
         await collectSeedSimilarCandidates(ctx, createUser(), new Map())
 
-        expect(searchLastFmQueryMock).toHaveBeenCalledTimes(1)
-        expect(searchLastFmQueryMock.mock.calls[0]?.[3]).toBe(budget)
+        expect(searchLastFmQueryMock).toHaveBeenCalledTimes(3)
+        for (const call of searchLastFmQueryMock.mock.calls) {
+            expect(call[3]).toBe(budget)
+        }
     })
 
     it('grounds on the anchor track when the current pick is unvetted (#2934)', async () => {

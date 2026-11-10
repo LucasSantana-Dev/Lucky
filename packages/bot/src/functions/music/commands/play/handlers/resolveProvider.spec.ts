@@ -6,6 +6,7 @@ const warnLogMock = jest.fn()
 const infoLogMock = jest.fn()
 const addBreadcrumbMock = jest.fn()
 const isSpotifyBlockedMock = jest.fn<() => boolean>()
+const awaitHydrationMock = jest.fn<() => Promise<void>>()
 const spotifyBlockRemainingSecondsMock = jest.fn<() => number>()
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -14,6 +15,7 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 jest.mock('../../../../../handlers/player/spotifyApiFailureLog', () => ({
+    awaitSpotifyBlockHydration: () => awaitHydrationMock(),
     isSpotifyBlocked: () => isSpotifyBlockedMock(),
     spotifyBlockRemainingSeconds: () => spotifyBlockRemainingSecondsMock(),
 }))
@@ -36,6 +38,7 @@ describe('resolveQueryWithFallbacks', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         isSpotifyBlockedMock.mockReturnValue(false)
+        awaitHydrationMock.mockResolvedValue(undefined)
         spotifyBlockRemainingSecondsMock.mockReturnValue(0)
 
         mockVoiceChannel = {
@@ -78,6 +81,27 @@ describe('resolveQueryWithFallbacks', () => {
         beforeEach(() => {
             isSpotifyBlockedMock.mockReturnValue(true)
             spotifyBlockRemainingSecondsMock.mockReturnValue(540)
+        })
+
+        it('loads the persisted block before deciding (#2971)', async () => {
+            isSpotifyBlockedMock.mockReturnValue(false)
+            awaitHydrationMock.mockImplementation(async () => {
+                isSpotifyBlockedMock.mockReturnValue(true)
+            })
+            mockPlayer.play.mockResolvedValueOnce({ title: 'Test Song' })
+
+            const { telemetry } = await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'test query',
+                'default',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            expect(awaitHydrationMock).toHaveBeenCalledTimes(1)
+            expect(telemetry.resolvedVia).toBe('youtube-fallback')
+            expect(mockPlayer.play).toHaveBeenCalledTimes(1)
         })
 
         it('skips the Spotify arm and its retry, going straight to YouTube', async () => {

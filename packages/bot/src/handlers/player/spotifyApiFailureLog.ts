@@ -72,21 +72,27 @@ export function spotifyBlockRemainingSeconds(now = Date.now()): number {
 }
 
 // Loads a block persisted by a previous process. Never rejects. Only a read
-// that succeeded is memoized (key found, or absent on a healthy client): the
-// Redis client answers null when it is down, which says nothing about the
-// block, so a failed read is retried after HYDRATE_RETRY_MS.
+// that returned a value is memoized: the Redis client answers null both for
+// a missing key and for a failed GET, so null is retried after
+// HYDRATE_RETRY_MS. A stored value is trusted only inside the same window a
+// live Retry-After can set (now, now + MAX_BLOCK_MS].
 export function hydrateSpotifyBlock(): Promise<void> {
     if (!hydration && Date.now() < hydrationRetryAt) return Promise.resolve()
     hydration ??= (async () => {
         try {
-            const client = await redis()
-            const raw = await client.get(REDIS_BLOCK_KEY)
-            if (raw === null && !client.isHealthy()) {
+            const raw = await (await redis()).get(REDIS_BLOCK_KEY)
+            if (raw === null) {
                 failHydration()
                 return
             }
             const stored = Number(raw)
-            if (Number.isFinite(stored) && stored > blockedUntil) {
+            const now = Date.now()
+            if (
+                Number.isFinite(stored) &&
+                stored > now &&
+                stored <= now + MAX_BLOCK_MS &&
+                stored > blockedUntil
+            ) {
                 blockedUntil = stored
             }
         } catch (error) {
@@ -219,16 +225,25 @@ function observeFetch(): void {
     }
 }
 
-async function awaitHydration(): Promise<void> {
+// Waits at most HYDRATE_TIMEOUT_MS for the persisted block. A read still
+// pending after that is dropped and retried after HYDRATE_RETRY_MS, so a hung
+// GET costs one wait instead of one per Spotify call. Never rejects.
+export async function awaitSpotifyBlockHydration(): Promise<void> {
+    const pending = hydrateSpotifyBlock()
+    let timedOut = false
     let timer: NodeJS.Timeout | undefined
     const timeout = new Promise<void>((resolve) => {
-        timer = setTimeout(resolve, HYDRATE_TIMEOUT_MS)
+        timer = setTimeout(() => {
+            timedOut = true
+            resolve()
+        }, HYDRATE_TIMEOUT_MS)
     })
     try {
-        await Promise.race([hydrateSpotifyBlock(), timeout])
+        await Promise.race([pending, timeout])
     } finally {
         clearTimeout(timer)
     }
+    if (timedOut && hydration === pending) failHydration()
 }
 
 export function logSpotifyApiFailures(extractor: unknown): void {
@@ -248,7 +263,7 @@ export function logSpotifyApiFailures(extractor: unknown): void {
     const fetchData = api.fetchData.bind(api)
     void hydrateSpotifyBlock()
     api.fetchData = async (url, options) => {
-        await awaitHydration()
+        await awaitSpotifyBlockHydration()
         if (Date.now() < blockedUntil) {
             throw new Error(
                 `Spotify API blocked until ${new Date(blockedUntil).toISOString()}`,

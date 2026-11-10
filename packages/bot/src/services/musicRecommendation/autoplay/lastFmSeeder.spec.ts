@@ -344,6 +344,11 @@ describe('Spotify 429 block and per-replenish cap (#2972)', () => {
         )
         expect(spotifyCalls).toHaveLength(1)
         expect(budget.remaining).toBe(0)
+        const secondQueryEngines = (queue.player.search as jest.Mock).mock.calls
+            .filter((c) => c[0] === 'b')
+            .map((c) => (c[1] as { searchEngine: string }).searchEngine)
+        expect(secondQueryEngines.length).toBeGreaterThan(0)
+        expect(secondQueryEngines).not.toContain(QueryType.SPOTIFY_SEARCH)
     })
 
     it('does not spend budget while blocked', async () => {

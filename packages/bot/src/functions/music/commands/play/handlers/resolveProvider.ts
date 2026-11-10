@@ -14,6 +14,7 @@ import {
     queryRequestsVersion,
 } from '../../../../../utils/music/searchQueryCleaner'
 import {
+    awaitSpotifyBlockHydration,
     isSpotifyBlocked,
     spotifyBlockRemainingSeconds,
 } from '../../../../../handlers/player/spotifyApiFailureLog'
@@ -410,6 +411,11 @@ async function resolveWithChain({
 
     // While a Spotify 429 block is active the primary search can only fail,
     // so go straight to the next arm without the retry or the warn (#2971).
+    // The block persisted by a previous process is loaded first (bounded
+    // wait), or the first /play after a restart would miss it.
+    if (searchEngine === QueryType.SPOTIFY_SEARCH) {
+        await awaitSpotifyBlockHydration()
+    }
     const spotifyBlocked =
         searchEngine === QueryType.SPOTIFY_SEARCH && isSpotifyBlocked()
     if (spotifyBlocked) {

@@ -357,13 +357,16 @@ describe('Spotify API block after a 429', () => {
         expect(fetchMock).not.toHaveBeenCalled()
     })
 
-    it('ignores a stale or malformed Redis value', async () => {
-        redisGetMock.mockResolvedValue(String(now - 1))
-        await hydrateSpotifyBlock()
-        expect(isSpotifyBlocked()).toBe(false)
+    it.each([
+        ['stale', () => String(now - 1)],
+        ['malformed', () => 'nope'],
+        ['past the 24h cap', () => String(now + 86_400_000 + 1)],
+    ])('ignores a %s Redis value', async (_label, value) => {
+        redisGetMock.mockResolvedValue(value())
 
-        redisGetMock.mockResolvedValue('nope')
         await hydrateSpotifyBlock()
+
+        expect(redisGetMock).toHaveBeenCalledTimes(1)
         expect(isSpotifyBlocked()).toBe(false)
     })
 
@@ -406,8 +409,24 @@ describe('Spotify API block after a 429', () => {
         expect(isSpotifyBlocked()).toBe(true)
     })
 
-    it('memoizes a confirmed absent key on a healthy Redis', async () => {
+    it('retries a null read after 30s even on a healthy Redis', async () => {
+        // The client answers null for a failed GET too, so null proves nothing.
         await hydrateSpotifyBlock()
+        await hydrateSpotifyBlock()
+        expect(redisGetMock).toHaveBeenCalledTimes(1)
+
+        now += 30_001
+        redisGetMock.mockResolvedValue(String(now + 300_000))
+        await hydrateSpotifyBlock()
+
+        expect(redisGetMock).toHaveBeenCalledTimes(2)
+        expect(isSpotifyBlocked()).toBe(true)
+    })
+
+    it('memoizes a value read from Redis', async () => {
+        redisGetMock.mockResolvedValue(String(now + 300_000))
+        await hydrateSpotifyBlock()
+        now += 60_000
         await hydrateSpotifyBlock()
 
         expect(redisGetMock).toHaveBeenCalledTimes(1)
@@ -427,6 +446,15 @@ describe('Spotify API block after a 429', () => {
 
             await expect(call).resolves.toBeInstanceOf(Response)
             expect(fetchMock).toHaveBeenCalledTimes(1)
+
+            // The timed-out read is dropped: the next call does not wait again.
+            fetchMock.mockResolvedValueOnce(answer(200))
+            const next = api.fetchData(SEARCH_URL)
+            await jest.advanceTimersByTimeAsync(0)
+
+            await expect(next).resolves.toBeInstanceOf(Response)
+            expect(fetchMock).toHaveBeenCalledTimes(2)
+            expect(redisGetMock).toHaveBeenCalledTimes(1)
         } finally {
             jest.useRealTimers()
         }
