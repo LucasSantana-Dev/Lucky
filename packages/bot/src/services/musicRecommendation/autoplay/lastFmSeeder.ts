@@ -426,6 +426,26 @@ function mayUseEngine(
     )
 }
 
+function searchOptionsFor(engine: QueryType, requestedBy: User) {
+    return {
+        requestedBy,
+        searchEngine: engine,
+        // SpotifyExtractor claims every plain-text query whatever the
+        // engine, so without this the YouTube and AUTO arms were
+        // Spotify searches too: when Spotify returned nothing, every
+        // arm did, and autoplay found no candidates (2026-10-19).
+        ...(engine === QueryType.SPOTIFY_SEARCH
+            ? {}
+            : { blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS }),
+    }
+}
+
+function recordSpotifyOutcome(engine: QueryType, hadResults: boolean): void {
+    if (engine === QueryType.SPOTIFY_SEARCH) {
+        recordSpotifySearchResult(hadResults)
+    }
+}
+
 export async function searchLastFmQuery(
     queue: GuildQueue,
     query: string,
@@ -446,22 +466,13 @@ export async function searchLastFmQuery(
     for (const engine of engines) {
         if (!mayUseEngine(engine, spotifyBudget)) continue
         try {
-            const result = await queue.player.search(query, {
-                requestedBy,
-                searchEngine: engine,
-                // SpotifyExtractor claims every plain-text query whatever the
-                // engine, so without this the YouTube and AUTO arms were
-                // Spotify searches too: when Spotify returned nothing, every
-                // arm did, and autoplay found no candidates (2026-10-19).
-                ...(engine === QueryType.SPOTIFY_SEARCH
-                    ? {}
-                    : { blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS }),
-            })
-            if (engine === QueryType.SPOTIFY_SEARCH) {
-                // Raw API count, same meaning as in candidateFallback: a hit
-                // whose tracks all exceed the duration cap is not an outage.
-                recordSpotifySearchResult(result.tracks.length > 0)
-            }
+            const result = await queue.player.search(
+                query,
+                searchOptionsFor(engine, requestedBy),
+            )
+            // Raw API count, same meaning as in candidateFallback: a hit
+            // whose tracks all exceed the duration cap is not an outage.
+            recordSpotifyOutcome(engine, result.tracks.length > 0)
             const tracks = result.tracks
                 .filter(
                     (t) =>
@@ -471,9 +482,7 @@ export async function searchLastFmQuery(
                 .slice(0, SEARCH_RESULTS_LIMIT)
             if (tracks.length > 0) return tracks
         } catch (err) {
-            if (engine === QueryType.SPOTIFY_SEARCH) {
-                recordSpotifySearchResult(false)
-            }
+            recordSpotifyOutcome(engine, false)
             // Debug per engine — a single engine failing while another
             // succeeds is normal fallback, not worth alerting on.
             hadError = true
