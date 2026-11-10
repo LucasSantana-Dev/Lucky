@@ -33,6 +33,7 @@ import { reminderScheduler } from '../../utils/general/reminderScheduler'
 import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
 import { topggStatsScheduler } from '../../utils/general/topggStatsScheduler'
+import { directoryStatsScheduler } from '../../utils/general/directoryStatsScheduler'
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { channelPurgeScheduler } from '../../utils/general/channelPurgeScheduler'
 import { dataRetentionScheduler } from '../../utils/general/dataRetentionScheduler'
@@ -246,6 +247,10 @@ export class BotInitializer {
             [
                 'Error stopping Top.gg stats scheduler:',
                 () => topggStatsScheduler.stop(),
+            ],
+            [
+                'Error stopping directory stats scheduler:',
+                () => directoryStatsScheduler.stop(),
             ],
             [
                 'Error stopping mod digest scheduler:',
