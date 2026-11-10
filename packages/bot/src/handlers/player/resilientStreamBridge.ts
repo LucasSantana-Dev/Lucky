@@ -91,7 +91,27 @@ const reportedExhausted = new WeakSet<object>()
 const breakerPlays = new WeakMap<object, object>()
 
 function recordYouTubeFailure(track: BridgeTrack, error: unknown): void {
-    recordYtDlpFailure(error, Date.now(), breakerPlays.get(track))
+    recordYtDlpFailure(
+        error,
+        Date.now(),
+        breakerPlays.get(track),
+        breakerVideoKey(track),
+    )
+}
+
+// The breaker needs to tell videos apart (#2973): the YouTube id when the
+// track URL carries one, else the URL or title, which is still per track.
+function breakerVideoKey(track: BridgeTrack): string {
+    try {
+        const url = new URL(track.url)
+        const id =
+            url.searchParams.get('v') ??
+            (url.hostname === 'youtu.be' ? url.pathname.slice(1) : null)
+        if (id) return id
+    } catch {
+        // not a URL: fall through to the raw value
+    }
+    return track.url || `${track.author}|${track.title}`
 }
 
 function noteFirstYouTubeFailure(track: BridgeTrack, error: unknown): void {
