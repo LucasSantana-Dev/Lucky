@@ -44,6 +44,7 @@ function makeQueue(
         guild: { id: opts.guildId, name: 'Test Guild' },
         node: {
             isPlaying: jest.fn().mockReturnValue(opts.isPlaying),
+            isPaused: jest.fn().mockReturnValue(false),
             play: jest.fn().mockResolvedValue(undefined),
         },
         connection: {

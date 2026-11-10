@@ -237,7 +237,7 @@ export class MusicWatchdogService {
             return 'none'
         }
 
-        if (queue.node.isPlaying()) {
+        if (queue.node.isPlaying() || queue.node.isPaused()) {
             state.lastRecoveryAction = 'none'
             state.lastRecoveryDetail = 'queue_playing'
             return 'none'
@@ -290,9 +290,10 @@ export class MusicWatchdogService {
                 action = 'none'
                 detail = 'intentional_stop'
             } else if (queue.currentTrack) {
-                // play() with no argument dispatches the NEXT queued track
-                // (and throws NoResultError on an empty queue), so replay the
-                // stalled track explicitly without re-enqueueing it.
+                // play() with no argument dispatches the NEXT queued track, so
+                // replay the stalled track explicitly without re-enqueueing it.
+                // A stream failure does not throw here: discord-player emits
+                // GuildQueueEvent.Error instead.
                 await queue.node.play(queue.currentTrack, { queue: false })
                 action = 'requeue_current'
                 detail = didRejoin

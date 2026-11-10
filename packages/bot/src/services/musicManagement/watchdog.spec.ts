@@ -47,6 +47,7 @@ describe('MusicWatchdogService', () => {
             connection,
             node: {
                 isPlaying: () => false,
+                isPaused: () => false,
                 play,
             },
             tracks: { size: 0 },
@@ -834,7 +835,7 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
             guild: { id: 'guild-fail-rejoin' },
             currentTrack: { title: 'Song', url: 'https://example.com/song' },
             connection,
-            node: { isPlaying: () => false, play },
+            node: { isPlaying: () => false, isPaused: () => false, play },
             tracks: { size: 0 },
         } as unknown as GuildQueue
 
@@ -862,7 +863,7 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
             guild: { id: 'guild-no-conn' },
             currentTrack: { title: 'Song', url: 'https://example.com/song' },
             connection: null,
-            node: { isPlaying: () => false, play },
+            node: { isPlaying: () => false, isPaused: () => false, play },
             tracks: { size: 0 },
         } as unknown as GuildQueue
 
@@ -881,7 +882,7 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
             guild: { id: 'guild-empty' },
             currentTrack: null,
             connection: { state: { status: 'ready' } },
-            node: { isPlaying: () => false, play },
+            node: { isPlaying: () => false, isPaused: () => false, play },
             tracks: { size: 0 },
         } as unknown as GuildQueue
 
@@ -899,7 +900,7 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
             guild: { id: 'guild-replay' },
             currentTrack: current,
             connection: { state: { status: 'ready' } },
-            node: { isPlaying: () => false, play },
+            node: { isPlaying: () => false, isPaused: () => false, play },
             tracks: { size: 3 },
         } as unknown as GuildQueue
 
@@ -916,6 +917,7 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
             connection: { state: { status: 'ready' } },
             node: {
                 isPlaying: () => false,
+                isPaused: () => false,
                 play: jest.fn().mockRejectedValue(new Error('player dead')),
             },
             tracks: { size: 0 },
@@ -930,6 +932,23 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
         })
     })
 
+    it('does not act on an intentionally paused track', async () => {
+        const play = jest.fn().mockResolvedValue(undefined)
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const queue = {
+            guild: { id: 'guild-paused' },
+            currentTrack: { title: 'Song', url: 'https://example.com/song' },
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, isPaused: () => true, play },
+            tracks: { size: 3 },
+        } as unknown as GuildQueue
+
+        const action = await service.checkAndRecover(queue)
+
+        expect(action).toBe('none')
+        expect(play).not.toHaveBeenCalled()
+    })
+
     it('returns none without playing when intentional stop is set', async () => {
         const play = jest.fn().mockResolvedValue(undefined)
         const service = new MusicWatchdogService({ timeoutMs: 100 })
@@ -937,7 +956,7 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
             guild: { id: 'guild-intentional' },
             currentTrack: { title: 'Song', url: 'https://example.com/song' },
             connection: { state: { status: 'ready' } },
-            node: { isPlaying: () => false, play },
+            node: { isPlaying: () => false, isPaused: () => false, play },
             tracks: { size: 3 },
         } as unknown as GuildQueue
 
@@ -961,7 +980,7 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
             guild: { id: 'guild-concurrent' },
             currentTrack: { title: 'Song', url: 'https://example.com/song' },
             connection: { state: { status: 'ready' } },
-            node: { isPlaying: () => false, play },
+            node: { isPlaying: () => false, isPaused: () => false, play },
             tracks: { size: 0 },
         } as unknown as GuildQueue
 
@@ -989,7 +1008,11 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
             guild: { id: guildId },
             currentTrack: { title: 'Song', url: 'https://example.com/song' },
             connection: { state: { status: 'ready' } },
-            node: { isPlaying: () => false, play: hungPlay },
+            node: {
+                isPlaying: () => false,
+                isPaused: () => false,
+                play: hungPlay,
+            },
             tracks: { size: 0 },
         } as unknown as GuildQueue
 
@@ -1002,7 +1025,11 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
         const workingPlay = jest.fn().mockResolvedValue(undefined)
         const recoveredQueue = {
             ...hungQueue,
-            node: { isPlaying: () => false, play: workingPlay },
+            node: {
+                isPlaying: () => false,
+                isPaused: () => false,
+                play: workingPlay,
+            },
         } as unknown as GuildQueue
 
         const second = await service.checkAndRecover(recoveredQueue)
@@ -1025,7 +1052,11 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
             guild: { id: guildId },
             currentTrack: { title: 'Song A', url: 'https://example.com/a' },
             connection: { state: { status: 'ready' } },
-            node: { isPlaying: () => false, play: firstPlay },
+            node: {
+                isPlaying: () => false,
+                isPaused: () => false,
+                play: firstPlay,
+            },
             tracks: { size: 0 },
         } as unknown as GuildQueue
 
@@ -1046,7 +1077,11 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
         )
         const secondQueue = {
             ...firstQueue,
-            node: { isPlaying: () => false, play: secondPlay },
+            node: {
+                isPlaying: () => false,
+                isPaused: () => false,
+                play: secondPlay,
+            },
         } as unknown as GuildQueue
         const secondRecovery = service.checkAndRecover(secondQueue)
 
@@ -1090,7 +1125,7 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
             guild: { id: guildId },
             currentTrack: { title: 'Song', url: 'https://example.com/song' },
             connection,
-            node: { isPlaying: () => false, play },
+            node: { isPlaying: () => false, isPaused: () => false, play },
             tracks: { size: 0 },
         } as unknown as GuildQueue
 
@@ -1136,6 +1171,7 @@ describe('MusicWatchdogService — startPeriodicScan', () => {
             connection: { state: { status: 'ready' } },
             node: {
                 isPlaying: () => false,
+                isPaused: () => false,
                 play: jest.fn().mockResolvedValue(undefined),
             },
             tracks: { size: 1 },

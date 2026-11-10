@@ -103,15 +103,12 @@ export default new Command({
         .setDescription('⏭️ Skip the current song.'),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
-        // Acknowledge first: checks and the skip itself can exceed Discord's
-        // 3s window, and later replies then go through editReply/followUp.
-        await interaction.deferReply()
-
         if (!(await requireGuild(interaction))) return
-        if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
 
+        // Cheap synchronous checks run before the defer so their errors keep
+        // replying ephemerally (a deferred reply cannot turn ephemeral).
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireCurrentTrack(queue, interaction))) return
         if (!(await requireIsPlaying(queue, interaction))) return
@@ -120,6 +117,21 @@ export default new Command({
             await replyNotPlaying(interaction)
             return
         }
+
+        // Acknowledge before the DJ lookup (a DB call) and the skip itself,
+        // which can exceed Discord's 3s window. If the defer fails (e.g. 10062
+        // Unknown interaction) the skip still runs; interactionReply swallows
+        // the later reply failures.
+        try {
+            await interaction.deferReply()
+        } catch (error) {
+            debugLog({
+                message: `Skip defer failed in guild ${interaction.guildId}, skipping anyway`,
+                error,
+            })
+        }
+
+        if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
 
         // Before the skip: afterwards currentTrack is the next song.
         const skippedAutoplay = captureAutoplayTrack(queue.currentTrack)
