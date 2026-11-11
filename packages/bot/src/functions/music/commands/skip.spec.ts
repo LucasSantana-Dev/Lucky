@@ -192,6 +192,44 @@ describe('skip command', () => {
         expect(queue.node.skip).toHaveBeenCalled()
     })
 
+    // discord-player makes the next track current as soon as the skip lands,
+    // then spends seconds resolving its stream. play() with no argument
+    // would dispatch the track behind it, so the request at the head of the
+    // queue was replaced by the autoplay pick queued after it.
+    it('leaves the next track alone while its stream is still loading', async () => {
+        const queue = createQueue('guild-1')
+        queue.isPlaying.mockReturnValueOnce(true).mockReturnValue(false)
+        queue.node.skip.mockImplementation(() => {
+            queue.currentTrack = { title: 'Requested Song' }
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+        await jest.advanceTimersByTimeAsync(500)
+
+        expect(queue.node.play).not.toHaveBeenCalled()
+    })
+
+    it('restarts playback when the skip left nothing current', async () => {
+        const queue = createQueue('guild-1')
+        queue.isPlaying.mockReturnValueOnce(true).mockReturnValue(false)
+        queue.node.skip.mockImplementation(() => {
+            queue.currentTrack = null
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+        await jest.advanceTimersByTimeAsync(500)
+
+        expect(queue.node.play).toHaveBeenCalledTimes(1)
+    })
+
     it('returns early if guild validation fails', async () => {
         requireGuildMock.mockResolvedValue(false)
 
