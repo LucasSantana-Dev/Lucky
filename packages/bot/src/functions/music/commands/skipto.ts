@@ -76,7 +76,7 @@ export default new Command({
 
         const trackEmbed = buildCommandTrackEmbed(
             targetTrack,
-            `⏭️ Now playing (position ${position})`,
+            `🎯 Now playing (position ${position})`,
             interaction.user,
             'jumped',
         )

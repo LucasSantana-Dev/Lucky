@@ -186,7 +186,7 @@ describe('skipto command', () => {
         expect(queue.node.skipTo).toHaveBeenCalledWith(1)
         expect(buildCommandTrackEmbed).toHaveBeenCalledWith(
             targetTrack,
-            '⏭️ Now playing (position 2)',
+            '🎯 Now playing (position 2)',
             expect.objectContaining({ id: 'user-1' }),
             'jumped',
         )

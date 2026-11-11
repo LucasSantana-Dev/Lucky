@@ -24,7 +24,7 @@ export const MUSIC_ACTION_STYLE: Record<
     queued: { color: COLOR.DISCORD_BLURPLE, emoji: '➕' },
     playlistQueued: { color: COLOR.DISCORD_BLURPLE, emoji: '📃' },
     skipped: { color: COLOR.WARNING_GOLD, emoji: '⏭️' },
-    jumped: { color: COLOR.WARNING_GOLD, emoji: '⏭️' },
+    jumped: { color: COLOR.FFMPEG_ORANGE, emoji: '🎯' },
     paused: { color: COLOR.NEUTRAL_GRAY, emoji: '⏸️' },
     resumed: { color: COLOR.ENABLED_GREEN, emoji: '▶️' },
     previous: { color: COLOR.TIDAL_BLUE, emoji: '⏮️' },

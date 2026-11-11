@@ -227,7 +227,7 @@ describe('previous command', () => {
             queue.currentTrack,
             expect.stringContaining('⏮️'),
             interaction.user,
-            expect.any(String),
+            'previous',
         )
     })
 
