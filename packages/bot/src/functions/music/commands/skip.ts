@@ -38,7 +38,16 @@ async function skipCurrentSong(
 
     setTimeout(() => {
         void (async () => {
-            if (!queue.isPlaying() && queue.tracks.size > 0) {
+            // Any current track means discord-player already picked what plays
+            // next (the next request, or the same track on repeat) and is still
+            // resolving its stream (seconds through the bridge). play() would
+            // dispatch the track behind it, so a request at the head of the
+            // queue lost its turn to the autoplay pick after it.
+            if (
+                queue.currentTrack == null &&
+                !queue.isPlaying() &&
+                queue.tracks.size > 0
+            ) {
                 await queue.node.play()
             }
         })().catch((error: unknown) => {
