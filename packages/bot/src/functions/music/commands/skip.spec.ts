@@ -213,6 +213,22 @@ describe('skip command', () => {
         expect(queue.node.play).not.toHaveBeenCalled()
     })
 
+    it('leaves a repeated track alone while it reloads', async () => {
+        const queue = createQueue('guild-1')
+        queue.isPlaying.mockReturnValueOnce(true).mockReturnValue(false)
+        // Repeat-track replays the same Track instance that was skipped.
+        queue.node.skip.mockImplementation(() => undefined)
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+        await jest.advanceTimersByTimeAsync(500)
+
+        expect(queue.node.play).not.toHaveBeenCalled()
+    })
+
     it('restarts playback when the skip left nothing current', async () => {
         const queue = createQueue('guild-1')
         queue.isPlaying.mockReturnValueOnce(true).mockReturnValue(false)
