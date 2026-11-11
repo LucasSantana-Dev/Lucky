@@ -4,6 +4,10 @@ import type { Track } from 'discord-player'
 import type { TrackMetadata } from '@lucky/shared/types'
 import { detectSource } from '../../music/nowPlayingEmbed'
 import { trackSource } from '../../music/trackFields'
+import {
+    MUSIC_ACTION_STYLE,
+    type MusicAction,
+} from '../../music/musicActionStyle'
 import { formatDurationClock } from '../formatDuration'
 
 export type TrackEmbedKind = 'queued' | 'playing' | 'recommended' | 'history'
@@ -17,6 +21,13 @@ export type TrackData = {
     source?: string | null
     /** Why autoplay picked this track, when present. */
     recommendationReason?: string
+}
+
+const ACTION_OF_KIND: Record<TrackEmbedKind, MusicAction> = {
+    playing: 'nowPlaying',
+    queued: 'queued',
+    recommended: 'recommended',
+    history: 'history',
 }
 
 const KIND_LABELS: Record<TrackEmbedKind, string> = {
@@ -56,10 +67,11 @@ export function buildTrackEmbed(
 ): EmbedBuilder {
     const badge = detectSource(track)
     const label = KIND_LABELS[kind]
+    const style = MUSIC_ACTION_STYLE[ACTION_OF_KIND[kind]]
 
     const embed = new EmbedBuilder()
-        .setAuthor({ name: `${badge.emoji} ${label}` })
-        .setColor(badge.color)
+        .setAuthor({ name: `${style.emoji} ${label}` })
+        .setColor(style.color)
         .setTimestamp()
 
     if (requestedBy) {
@@ -79,7 +91,11 @@ export function buildTrackEmbed(
     if (track.duration && track.duration !== '0:00') {
         fields.push({ name: 'Duration', value: track.duration, inline: true })
     }
-    fields.push({ name: 'Source', value: badge.label, inline: true })
+    fields.push({
+        name: 'Source',
+        value: `${badge.emoji} ${badge.label}`,
+        inline: true,
+    })
 
     if (track.recommendationReason) {
         // Discord embed field values cap at 1024; open-ended autoplay signals
@@ -111,10 +127,12 @@ export function buildCommandTrackEmbed(
     track: PlayerTrackDataSource,
     statusLabel: string,
     requestedBy: Pick<User, 'tag' | 'displayAvatarURL'>,
+    action: MusicAction = 'nowPlaying',
 ): ReturnType<typeof buildTrackEmbed> {
     const trackData = playerTrackToData(track)
     const embed = buildTrackEmbed(trackData, 'playing', requestedBy)
     embed.setAuthor({ name: statusLabel })
+    embed.setColor(MUSIC_ACTION_STYLE[action].color)
     return embed
 }
 

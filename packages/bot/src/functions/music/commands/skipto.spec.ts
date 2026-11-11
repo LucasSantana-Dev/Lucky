@@ -188,6 +188,7 @@ describe('skipto command', () => {
             targetTrack,
             '⏭️ Now playing (position 2)',
             expect.objectContaining({ id: 'user-1' }),
+            'jumped',
         )
         expect(interactionReply).toHaveBeenCalledWith({
             interaction: expect.anything(),

@@ -78,6 +78,7 @@ export default new Command({
             targetTrack,
             `⏭️ Now playing (position ${position})`,
             interaction.user,
+            'jumped',
         )
         await interactionReply({
             interaction,

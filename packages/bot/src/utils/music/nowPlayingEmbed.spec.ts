@@ -71,7 +71,7 @@ describe('buildPlayResponseEmbed', () => {
         const durationField = fields.find((f) => f.name === 'Duration')
         const sourceField = fields.find((f) => f.name === 'Source')
         expect(durationField?.value).toBe('5:55')
-        expect(sourceField?.value).toBe('YouTube')
+        expect(sourceField?.value).toBe('🔴 YouTube')
     })
 
     it('omits the Duration field when duration is 0:00 (unknown)', () => {
@@ -121,7 +121,30 @@ describe('buildPlayResponseEmbed', () => {
         expect(embed.data.title).toBe('Unknown Track')
     })
 
-    it('uses Spotify badge color + label for spotify tracks', () => {
+    it('colors by action, not by source: queued and now playing never look alike', () => {
+        const spotify = {
+            ...baseTrack,
+            url: 'https://open.spotify.com/track/abc',
+            source: 'spotify',
+        }
+        const playing = buildPlayResponseEmbed({
+            kind: 'nowPlaying',
+            track: spotify,
+            requestedBy: fakeUser,
+        })
+        const queued = buildPlayResponseEmbed({
+            kind: 'addedToQueue',
+            track: spotify,
+            requestedBy: fakeUser,
+            queuePosition: 1,
+        })
+        expect(playing.data.color).toBe(0x9c27b0)
+        expect(queued.data.color).toBe(0x5865f2)
+        expect(playing.data.author?.name).toBe('▶️ Now Playing')
+        expect(queued.data.author?.name).toBe('➕ Added to Queue')
+    })
+
+    it('shows the Spotify badge in the Source field for spotify tracks', () => {
         const embed = buildPlayResponseEmbed({
             kind: 'nowPlaying',
             track: {
@@ -132,7 +155,6 @@ describe('buildPlayResponseEmbed', () => {
             requestedBy: fakeUser,
         })
         const sourceField = embed.data.fields?.find((f) => f.name === 'Source')
-        expect(sourceField?.value).toBe('Spotify')
-        expect(embed.data.color).toBe(0x1db954)
+        expect(sourceField?.value).toBe('🟢 Spotify')
     })
 })

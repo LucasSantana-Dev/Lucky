@@ -124,6 +124,7 @@ export default new Command({
             currentTrack,
             `⏩ Seeked to ${formattedTime}`,
             interaction.user,
+            'seeked',
         )
         await interactionReply({
             interaction,

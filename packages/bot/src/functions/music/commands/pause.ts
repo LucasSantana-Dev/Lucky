@@ -61,6 +61,7 @@ export default new Command({
             currentTrack,
             action,
             interaction.user,
+            isPaused ? 'resumed' : 'paused',
         )
         await interactionReply({
             interaction,

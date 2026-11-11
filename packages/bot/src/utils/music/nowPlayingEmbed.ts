@@ -3,6 +3,7 @@ import type { Track } from 'discord-player'
 import type { User } from 'discord.js'
 import { COLOR } from '@lucky/shared/constants'
 import { isHost } from '../general/urlHost'
+import { MUSIC_ACTION_STYLE, type MusicAction } from './musicActionStyle'
 
 export type PlayResponseKind = 'nowPlaying' | 'addedToQueue' | 'playlistQueued'
 
@@ -86,22 +87,23 @@ export function detectSource(track: {
     return DEFAULT_BADGE
 }
 
-function headerForKind(kind: PlayResponseKind, badge: SourceBadge): string {
-    switch (kind) {
-        case 'nowPlaying':
-            return `${badge.emoji} Now Playing`
-        case 'addedToQueue':
-            return `${badge.emoji} Added to Queue`
-        case 'playlistQueued':
-            return `${badge.emoji} Playlist Queued`
-    }
+const ACTION_OF_KIND: Record<PlayResponseKind, MusicAction> = {
+    nowPlaying: 'nowPlaying',
+    addedToQueue: 'queued',
+    playlistQueued: 'playlistQueued',
+}
+
+const HEADER_OF_KIND: Record<PlayResponseKind, string> = {
+    nowPlaying: 'Now Playing',
+    addedToQueue: 'Added to Queue',
+    playlistQueued: 'Playlist Queued',
 }
 
 /**
  * Build a rich Now Playing / Added to Queue embed.
  *
  * Visual layout:
- *   Header: "🟢 Now Playing" (source-colored)
+ *   Header: "▶️ Now Playing", colored by the action (not the source)
  *   Title:  **Track Title**
  *   by:     Artist Name
  *   Fields: Duration · Source · Queue Position
@@ -113,10 +115,11 @@ export function buildPlayResponseEmbed(
 ): EmbedBuilder {
     const { kind, track, requestedBy, queuePosition, playlist } = context
     const badge = detectSource(track)
+    const style = MUSIC_ACTION_STYLE[ACTION_OF_KIND[kind]]
 
     const embed = new EmbedBuilder()
-        .setAuthor({ name: headerForKind(kind, badge) })
-        .setColor(badge.color)
+        .setAuthor({ name: `${style.emoji} ${HEADER_OF_KIND[kind]}` })
+        .setColor(style.color)
         .setTimestamp()
         .setFooter({
             text: `Requested by ${requestedBy.tag}`,
@@ -144,7 +147,11 @@ export function buildPlayResponseEmbed(
     if (track.duration && track.duration !== '0:00') {
         fields.push({ name: 'Duration', value: track.duration, inline: true })
     }
-    fields.push({ name: 'Source', value: badge.label, inline: true })
+    fields.push({
+        name: 'Source',
+        value: `${badge.emoji} ${badge.label}`,
+        inline: true,
+    })
     if (kind === 'addedToQueue' && typeof queuePosition === 'number') {
         fields.push({
             name: 'Queue Position',

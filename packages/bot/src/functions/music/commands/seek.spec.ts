@@ -231,6 +231,7 @@ describe('seek command', () => {
             currentTrack,
             '⏩ Seeked to 1:05',
             expect.objectContaining({ id: 'user-1' }),
+            'seeked',
         )
         expect(interactionReply).toHaveBeenCalledWith({
             interaction: expect.anything(),
