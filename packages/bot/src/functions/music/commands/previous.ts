@@ -94,6 +94,7 @@ async function sendPreviousSuccess(
         currentTrack,
         title,
         interaction.user,
+        'previous',
     )
     await interactionReply({ interaction, content: { embeds: [trackEmbed] } })
 }

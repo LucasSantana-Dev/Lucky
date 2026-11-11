@@ -51,6 +51,7 @@ export default new Command({
             currentTrack,
             '🔄 Replayed',
             interaction.user,
+            'replayed',
         )
         await interactionReply({
             interaction,

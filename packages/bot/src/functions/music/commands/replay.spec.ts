@@ -159,6 +159,7 @@ describe('replay command', () => {
             expect.any(Object),
             expect.stringContaining('Replayed'),
             expect.any(Object),
+            'replayed',
         )
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({

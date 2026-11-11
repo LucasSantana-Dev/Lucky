@@ -145,6 +145,7 @@ describe('pause command', () => {
             expect.any(Object),
             expect.stringContaining('Paused'),
             expect.any(Object),
+            'paused',
         )
     })
 
@@ -161,6 +162,7 @@ describe('pause command', () => {
             expect.any(Object),
             expect.stringContaining('Resumed'),
             expect.any(Object),
+            'resumed',
         )
     })
 

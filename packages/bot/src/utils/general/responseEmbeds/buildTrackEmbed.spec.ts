@@ -58,6 +58,32 @@ describe('buildTrackEmbed', () => {
         },
     )
 
+    it('buildCommandTrackEmbed colors by the action that happened', () => {
+        const track = {
+            title: 'Bohemian Rhapsody',
+            author: 'Queen',
+            url: 'https://open.spotify.com/track/abc',
+            thumbnail: '',
+            durationMS: 355000,
+            source: 'spotify',
+        }
+        const skipped = buildCommandTrackEmbed(
+            track as never,
+            '⏭️ Song skipped - Now playing',
+            fakeUser,
+            'skipped',
+        )
+        const paused = buildCommandTrackEmbed(
+            track as never,
+            '⏸️ Paused',
+            fakeUser,
+            'paused',
+        )
+        expect(skipped.data.color).toBe(0xffd700)
+        expect(paused.data.color).toBe(0x6b7280)
+        expect(skipped.data.author?.name).toBe('⏭️ Song skipped - Now playing')
+    })
+
     it('adds a Progress field when a progress bar is provided', () => {
         const bar = '00:30 ┃🔘▬▬▬ 05:55'
         const embed = buildTrackEmbed(baseTrack, 'playing', fakeUser, {

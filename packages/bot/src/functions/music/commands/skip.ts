@@ -75,6 +75,7 @@ async function sendSkipSuccess(
         nextTrack,
         '⏭️ Song skipped - Now playing',
         interaction.user,
+        'skipped',
     )
     await interactionReply({ interaction, content: { embeds: [trackEmbed] } })
 }
