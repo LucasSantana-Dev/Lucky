@@ -85,7 +85,7 @@ describe('candidateScorer', () => {
                 undefined,
             ],
             [
-                'ambient-noise',
+                'asmr',
                 { title: 'Nail Polish Brush', author: 'ASMR Bakery' },
                 undefined,
             ],

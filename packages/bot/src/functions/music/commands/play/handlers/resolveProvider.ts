@@ -472,6 +472,7 @@ async function resolveWithChain({
                     telemetry.resolvedVia = 'primary'
                     return { result, telemetry }
                 } catch (retryError) {
+                    if (retryError instanceof AsmrBlockedError) throw retryError
                     lastPrimaryError = retryError
                 }
             }
@@ -506,6 +507,9 @@ async function resolveWithChain({
                     telemetry.resolvedVia = 'youtube-fallback'
                     return { result, telemetry }
                 } catch (_youtubeError) {
+                    if (_youtubeError instanceof AsmrBlockedError) {
+                        throw _youtubeError
+                    }
                     warnLog({
                         message:
                             'YouTube search failed, falling back to SoundCloud',

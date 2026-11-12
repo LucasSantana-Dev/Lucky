@@ -21,6 +21,19 @@ describe('isAsmrTrack', () => {
         expect(isAsmrTrack({ title: 'x', author: 'GibiASMR' })).toBe(true)
     })
 
+    it('sees through fullwidth letters and invisible characters', () => {
+        expect(isAsmrTrack({ title: 'ＡＳＭＲ relax', author: 'x' })).toBe(true)
+        expect(isAsmrTrack({ title: 'AS\u200BMR relax', author: 'x' })).toBe(
+            true,
+        )
+        expect(() =>
+            assertNotAsmr('a\u2060smr good boy', {
+                tracks: [],
+                hasPlaylist: () => false,
+            } as never),
+        ).toThrow(AsmrBlockedError)
+    })
+
     it('leaves regular songs alone', () => {
         expect(isAsmrTrack({ title: 'Royals', author: 'Lorde' })).toBe(false)
         expect(isAsmrTrack({ title: undefined, author: undefined })).toBe(false)

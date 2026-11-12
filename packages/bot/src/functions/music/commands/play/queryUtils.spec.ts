@@ -414,6 +414,50 @@ describe('executePlayAtTop — fallback chain', () => {
         expect(interactionReplyMock).toHaveBeenCalled()
     })
 
+    it('refuses an ASMR result from the YouTube fallback without trying SoundCloud', async () => {
+        translatorForInteractionMock.mockResolvedValue(
+            (key: string) => `t:${key}`,
+        )
+        const client = makeClient(async (_, __, opts: unknown) => {
+            const o = opts as {
+                searchEngine: string
+                afterSearch: (r: unknown) => Promise<unknown>
+            }
+            if (o.searchEngine === 'spotifySearch') {
+                throw new Error('Spotify unavailable')
+            }
+            await o.afterSearch({
+                tracks: [
+                    {
+                        title: 'ASMR good boy',
+                        author: 'x',
+                        metadata: null,
+                        setMetadata: jest.fn(),
+                    },
+                ],
+                hasPlaylist: () => false,
+                setTracks: jest.fn(),
+            })
+            return { track: fakeTrack }
+        })
+
+        await executePlayAtTop({
+            client,
+            interaction: makeInteraction(),
+            skipCurrent: false,
+            commandName: 'playtop',
+        })
+
+        const engines = (client.player.play as jest.Mock).mock.calls.map(
+            (call) => (call[2] as { searchEngine: string }).searchEngine,
+        )
+        expect(engines).toEqual(['spotifySearch', 'youtubeSearch'])
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
+            'Play Error',
+            't:music.errors.asmrBlocked',
+        )
+    })
+
     describe('HOSTED_YOUTUBE_ENABLED = false (#2475)', () => {
         const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
 

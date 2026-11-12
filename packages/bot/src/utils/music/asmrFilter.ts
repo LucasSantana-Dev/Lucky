@@ -7,6 +7,15 @@ import type { GuildQueue, SearchResult, Track } from 'discord-player'
 // dashboard) is removed as it is added. No word boundary, so channel names
 // glued to it ("GibiASMR") match too.
 const ASMR_RE = /asmr/i
+// Zero-width space/joiners, word joiner and BOM: invisible inside a word.
+const INVISIBLE_RE = /[\u200B-\u200D\u2060\uFEFF]/g
+
+// NFKC folds fullwidth "ＡＳＭＲ" to "ASMR".
+function hasAsmr(text: string | null | undefined): boolean {
+    return ASMR_RE.test(
+        (text ?? '').normalize('NFKC').replace(INVISIBLE_RE, ''),
+    )
+}
 
 export class AsmrBlockedError extends Error {
     constructor() {
@@ -19,7 +28,7 @@ export function isAsmrTrack(track: {
     title?: string | null
     author?: string | null
 }): boolean {
-    return ASMR_RE.test(track.title ?? '') || ASMR_RE.test(track.author ?? '')
+    return hasAsmr(track.title) || hasAsmr(track.author)
 }
 
 /**
@@ -29,7 +38,7 @@ export function isAsmrTrack(track: {
  */
 export function assertNotAsmr(query: string, result: SearchResult): void {
     const isUrl = /^https?:\/\//i.test(query.trim())
-    if (!isUrl && ASMR_RE.test(query)) throw new AsmrBlockedError()
+    if (!isUrl && hasAsmr(query)) throw new AsmrBlockedError()
     if (result.hasPlaylist()) return
     const top = result.tracks[0]
     if (top && isAsmrTrack(top)) throw new AsmrBlockedError()

@@ -753,6 +753,33 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
         expect(onSearchResolved).not.toHaveBeenCalled()
     })
 
+    it('stops at an ASMR result from the YouTube fallback, never reaching SoundCloud', async () => {
+        const player: any = {
+            play: jest
+                .fn<any>()
+                .mockRejectedValueOnce(new Error('Primary failed'))
+                .mockImplementationOnce(
+                    async (_c: unknown, _q: unknown, opts: any) => {
+                        await opts.afterSearch(searchResultOf('ASMR roleplay'))
+                        return { track: {} }
+                    },
+                )
+                .mockResolvedValue({ track: { title: 'Other' } }),
+        }
+
+        await expect(
+            resolveQueryWithFallbacks(
+                player,
+                channel,
+                'bom garoto',
+                'spotify',
+                QueryType.SPOTIFY_SEARCH,
+                {},
+            ),
+        ).rejects.toMatchObject({ name: 'AsmrBlockedError' })
+        expect(player.play).toHaveBeenCalledTimes(2)
+    })
+
     it('is not called for an empty result', async () => {
         const onSearchResolved = jest.fn()
         const player: any = {

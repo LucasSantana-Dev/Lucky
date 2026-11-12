@@ -340,7 +340,10 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
 
     const candidateTitle = candidate.title ?? ''
     // The artist too: an ASMR channel's titles often omit the word.
-    if (AMBIENT_NOISE_RE.test(candidateTitle) || isAsmrTrack(candidate)) {
+    if (isAsmrTrack(candidate)) {
+        return { score: -Infinity, signals: [], veto: 'asmr' }
+    }
+    if (AMBIENT_NOISE_RE.test(candidateTitle)) {
         return { score: -Infinity, signals: [], veto: 'ambient-noise' }
     }
     if (EDM_MIX_RE.test(candidateTitle)) {
