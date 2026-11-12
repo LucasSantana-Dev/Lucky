@@ -31,6 +31,7 @@ import {
 import {
     AsmrBlockedError,
     assertNotAsmr,
+    assertQueryNotAsmr,
 } from '../../../../../utils/music/asmrFilter'
 
 export { YoutubePlaylistUnavailableError, YoutubeVideoUnavailableError }
@@ -250,6 +251,7 @@ function rerankThenNotify(
     return async (result) => {
         // Before the notify: the early reply must not show a blank title,
         // and a track with no metadata must be rejected before play starts.
+        assertQueryNotAsmr(query)
         const ranked = await ensureTrackMetadata(await rerank(result))
         // After the metadata: a bare link has no title until it is hydrated.
         assertNotAsmr(query, ranked)

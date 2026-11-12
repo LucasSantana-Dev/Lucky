@@ -14,6 +14,7 @@ import { markCommandOutcome } from '../../../../utils/monitoring/commandOutcome'
 import {
     AsmrBlockedError,
     assertNotAsmr,
+    assertQueryNotAsmr,
 } from '../../../../utils/music/asmrFilter'
 import {
     requireVoiceChannel,
@@ -335,6 +336,7 @@ export async function executePlayAtTop({
         const rerank = preferExactMatch(query)
         const afterSearch = async (found: SearchResult) => {
             // Hydrated first: a bare link has no title or artist to check.
+            assertQueryNotAsmr(query)
             const ranked = await ensureTrackMetadata(await rerank(found))
             assertNotAsmr(query, ranked)
             return ranked

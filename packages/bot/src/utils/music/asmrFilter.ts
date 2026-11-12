@@ -32,13 +32,21 @@ export function isAsmrTrack(track: {
 }
 
 /**
+ * Throws AsmrBlockedError for a text search that asks for ASMR. Runs before
+ * metadata hydration too, so a failed hydration cannot hide the block.
+ */
+export function assertQueryNotAsmr(query: string): void {
+    const isUrl = /^https?:\/\//i.test(query.trim())
+    if (!isUrl && hasAsmr(query)) throw new AsmrBlockedError()
+}
+
+/**
  * Throws AsmrBlockedError for a text search that asks for ASMR, or a single
  * track result that is ASMR. A playlist passes: dropAsmrTracks removes its
  * ASMR tracks as they are queued.
  */
 export function assertNotAsmr(query: string, result: SearchResult): void {
-    const isUrl = /^https?:\/\//i.test(query.trim())
-    if (!isUrl && hasAsmr(query)) throw new AsmrBlockedError()
+    assertQueryNotAsmr(query)
     if (result.hasPlaylist()) return
     const top = result.tracks[0]
     if (top && isAsmrTrack(top)) throw new AsmrBlockedError()
