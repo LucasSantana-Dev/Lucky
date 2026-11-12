@@ -1,6 +1,6 @@
 import { describe, it, expect, jest } from '@jest/globals'
 import { QueueRepeatMode } from 'discord-player'
-import { calculateQueueStats, getQueueStatus } from './queueStats'
+import { calculateQueueStats } from './queueStats'
 
 const getTrackInfoMock = jest.fn()
 
@@ -50,24 +50,5 @@ describe('queueStats', () => {
         expect(stats.currentPosition).toBe(0)
         expect(stats.isLooping).toBe(true)
         expect(stats.autoplayEnabled).toBe(false)
-    })
-
-    it('returns queue status text for repeat/pause combinations', () => {
-        const autoplayQueue = {
-            repeatMode: QueueRepeatMode.AUTOPLAY,
-            node: { isPaused: () => false },
-        } as any
-        const pausedTrackLoopQueue = {
-            repeatMode: QueueRepeatMode.TRACK,
-            node: { isPaused: () => true },
-        } as any
-        const plainQueue = {
-            repeatMode: QueueRepeatMode.OFF,
-            node: { isPaused: () => false },
-        } as any
-
-        expect(getQueueStatus(autoplayQueue)).toBe('🔄 Autoplay')
-        expect(getQueueStatus(pausedTrackLoopQueue)).toBe('🔁 Loop • ⏸️ Paused')
-        expect(getQueueStatus(plainQueue)).toBe('▶️ Playing')
     })
 })

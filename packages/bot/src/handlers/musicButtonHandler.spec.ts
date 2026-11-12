@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { MUSIC_BUTTON_IDS } from '../types/musicButtons'
 
 const resolveGuildQueueMock = jest.fn()
+const refreshMusicComponentsMock = jest.fn((..._args: unknown[]) => [
+    'refreshed-row',
+])
 const setFeedbackMock = jest.fn<(...args: unknown[]) => Promise<boolean>>()
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -17,9 +20,11 @@ jest.mock('../utils/general/embeds', () => ({
 }))
 
 jest.mock('../utils/music/buttonComponents', () => ({
-    createMusicControlButtons: jest.fn(() => ({})),
-    createMusicActionButtons: jest.fn(() => ({})),
+    createMusicControlButtons: jest.fn(() => 'control-row'),
+    createMusicActionButtons: jest.fn(() => 'action-row'),
     createLeaderboardPaginationButtons: jest.fn(() => null),
+    refreshMusicComponents: (...args: unknown[]) =>
+        refreshMusicComponentsMock(...args),
 }))
 
 jest.mock('../functions/music/commands/queue/queueEmbed', () => ({
@@ -63,6 +68,16 @@ jest.mock('../services/musicRecommendation/autoplayFeedbackPrompt', () => ({
         track ? { trackKey: `key:${track.title}`, title: track.title } : null,
     maybePromptAutoplayFeedback: (...args: unknown[]) =>
         maybePromptMock(...args),
+}))
+
+const getSongInfoMessageMock =
+    jest.fn<
+        (
+            guildId: string,
+        ) => { messageId: string; channelId: string } | undefined
+    >()
+jest.mock('./player/nowPlayingDisplay', () => ({
+    getSongInfoMessage: (guildId: string) => getSongInfoMessageMock(guildId),
 }))
 
 jest.mock('../i18n/translatorForInteraction', () => ({
@@ -331,6 +346,52 @@ describe('handleMusicButtonInteraction - autoplay feedback prompt', () => {
         })
     })
 
+    function stopFrom(clickedMessageId: string) {
+        const queue = playingQueue()
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const nowPlaying = {
+            edit: jest.fn<() => Promise<void>>().mockResolvedValue(),
+        }
+        const fetchMessage = jest
+            .fn<(id: string) => Promise<typeof nowPlaying>>()
+            .mockResolvedValue(nowPlaying)
+        const fetchChannel = jest.fn<(id: string) => Promise<unknown>>()
+        fetchChannel.mockResolvedValue({
+            isTextBased: () => true,
+            messages: { fetch: fetchMessage },
+        })
+        getSongInfoMessageMock.mockReturnValue({
+            messageId: 'np-1',
+            channelId: 'np-channel',
+        })
+        const interaction = {
+            ...createInteraction(MUSIC_BUTTON_IDS.STOP),
+            channelId: 'other-channel',
+            client: { channels: { fetch: fetchChannel } },
+            message: { id: clickedMessageId },
+        }
+        return { interaction, nowPlaying, fetchChannel, fetchMessage }
+    }
+
+    it('stop from another message takes the buttons off the now-playing message, in its own channel', async () => {
+        const { interaction, nowPlaying, fetchChannel, fetchMessage } =
+            stopFrom('panel-1')
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(fetchChannel).toHaveBeenCalledWith('np-channel')
+        expect(fetchMessage).toHaveBeenCalledWith('np-1')
+        expect(nowPlaying.edit).toHaveBeenCalledWith({ components: [] })
+    })
+
+    it('stop on the now-playing message itself does not fetch it again', async () => {
+        const { interaction, fetchChannel } = stopFrom('np-1')
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(fetchChannel).not.toHaveBeenCalled()
+    })
+
     it('pause button asks on pause but not on resume', async () => {
         const queue = playingQueue()
         resolveGuildQueueMock.mockReturnValue({ queue })
@@ -386,5 +447,79 @@ describe('handleMusicButtonInteraction - loop button (#2932)', () => {
         )
 
         expect(resumeAutoplayMock).not.toHaveBeenCalled()
+    })
+})
+
+describe('handleMusicButtonInteraction - compact now-playing row', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+    })
+
+    function messageWithRows(rows: unknown[]) {
+        return { components: rows }
+    }
+
+    it('More opens the full controls for the clicker only', async () => {
+        const queue = createQueue({ guild: { id: 'guild-1' } })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.MORE_CONTROLS)
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(interaction.followUp).toHaveBeenCalledWith({
+            content: 'music.messages.controlsTitle',
+            components: ['control-row', 'action-row'],
+            ephemeral: true,
+        })
+        expect(interaction.editReply).not.toHaveBeenCalled()
+    })
+
+    it('pause keeps the layout of the message it was clicked on', async () => {
+        const queue = createQueue({
+            guild: { id: 'guild-1' },
+            currentTrack: null,
+            node: {
+                isPaused: jest.fn().mockReturnValue(false),
+                pause: jest.fn(),
+                resume: jest.fn(),
+            },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const rows = [{ components: [{ customId: 'music_more_controls' }] }]
+        const interaction = {
+            ...createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME),
+            message: messageWithRows(rows),
+        }
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(refreshMusicComponentsMock).toHaveBeenCalledWith(rows, queue)
+        expect(interaction.editReply).toHaveBeenCalledWith({
+            components: ['refreshed-row'],
+        })
+    })
+
+    it('clear autoplay keeps the layout of the message it was clicked on', async () => {
+        const queue = createQueue({
+            guild: { id: 'guild-1' },
+            setRepeatMode: jest.fn(),
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const rows = [
+            { components: [{ customId: 'music_stop' }] },
+            { components: [{ customId: 'queue_page_1' }] },
+        ]
+        const interaction = {
+            ...createInteraction(MUSIC_BUTTON_IDS.CLEAR_AUTOPLAY),
+            message: messageWithRows(rows),
+        }
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(queue.setRepeatMode).toHaveBeenCalledWith(0)
+        expect(refreshMusicComponentsMock).toHaveBeenCalledWith(rows, queue)
+        expect(interaction.editReply).toHaveBeenCalledWith({
+            components: ['refreshed-row'],
+        })
     })
 })

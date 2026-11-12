@@ -4,7 +4,10 @@ import {
     createMusicActionButtons,
     createQueuePaginationButtons,
     createLeaderboardPaginationButtons,
+    createNowPlayingButtons,
+    refreshMusicComponents,
 } from './buttonComponents'
+import { MUSIC_BUTTON_IDS } from '../../types/musicButtons'
 
 jest.mock('discord.js', () => {
     class MockButtonBuilder {
@@ -16,8 +19,12 @@ jest.mock('discord.js', () => {
     }
     const rowInner = { addComponents: jest.fn() }
     rowInner.addComponents.mockReturnValue(rowInner)
+    const ActionRowBuilder = Object.assign(
+        jest.fn(() => rowInner),
+        { from: jest.fn((row: unknown) => ({ keptRow: row })) },
+    )
     return {
-        ActionRowBuilder: jest.fn(() => rowInner),
+        ActionRowBuilder,
         ButtonBuilder: MockButtonBuilder,
         ButtonStyle: {
             Primary: 'PRIMARY',
@@ -158,5 +165,137 @@ describe('createLeaderboardPaginationButtons', () => {
 
     it('does not throw for last page', () => {
         expect(() => createLeaderboardPaginationButtons(4, 5)).not.toThrow()
+    })
+})
+
+type MockRow = { addComponents: jest.Mock }
+type MockButton = {
+    setCustomId: jest.Mock
+    setEmoji: jest.Mock
+    setLabel: jest.Mock
+    setStyle: jest.Mock
+}
+
+function freshRowPerCall(): void {
+    const { ActionRowBuilder } = jest.requireMock('discord.js') as {
+        ActionRowBuilder: jest.Mock
+    }
+    ActionRowBuilder.mockImplementation(() => {
+        const row = { addComponents: jest.fn() }
+        row.addComponents.mockReturnValue(row)
+        return row
+    })
+}
+
+function buttonsOf(row: unknown): MockButton[] {
+    return (row as MockRow).addComponents.mock.calls[0] as MockButton[]
+}
+
+function idsOf(row: unknown): string[] {
+    return buttonsOf(row).map(
+        (button) => button.setCustomId.mock.calls[0][0] as string,
+    )
+}
+
+describe('createNowPlayingButtons', () => {
+    beforeEach(freshRowPerCall)
+
+    it('is one row: pause, skip, like, dislike and More', () => {
+        const row = createNowPlayingButtons(
+            createMockQueue(false, 0, 0) as never,
+            'Mais',
+        )
+
+        expect(idsOf(row)).toEqual([
+            MUSIC_BUTTON_IDS.PAUSE_RESUME,
+            MUSIC_BUTTON_IDS.SKIP,
+            MUSIC_BUTTON_IDS.LIKE,
+            MUSIC_BUTTON_IDS.DISLIKE,
+            MUSIC_BUTTON_IDS.MORE_CONTROLS,
+        ])
+        const more = buttonsOf(row)[4]
+        expect(more.setLabel).toHaveBeenCalledWith('Mais')
+    })
+
+    it('shows pause while playing and play while paused', () => {
+        const playing = createNowPlayingButtons(
+            createMockQueue(false, 0, 0) as never,
+            'More',
+        )
+        const paused = createNowPlayingButtons(
+            createMockQueue(true, 0, 0) as never,
+            'More',
+        )
+
+        expect(buttonsOf(playing)[0].setEmoji).toHaveBeenCalledWith('⏸️')
+        expect(buttonsOf(paused)[0].setEmoji).toHaveBeenCalledWith('▶️')
+    })
+})
+
+describe('refreshMusicComponents', () => {
+    beforeEach(freshRowPerCall)
+
+    const row = (...ids: string[]) => ({
+        components: ids.map((customId) => ({
+            customId,
+            label: customId === MUSIC_BUTTON_IDS.MORE_CONTROLS ? 'Más' : null,
+        })),
+    })
+
+    it('keeps the compact now-playing row compact, with its own label', () => {
+        const [refreshed] = refreshMusicComponents(
+            [
+                row(
+                    MUSIC_BUTTON_IDS.PAUSE_RESUME,
+                    MUSIC_BUTTON_IDS.SKIP,
+                    MUSIC_BUTTON_IDS.LIKE,
+                    MUSIC_BUTTON_IDS.DISLIKE,
+                    MUSIC_BUTTON_IDS.MORE_CONTROLS,
+                ),
+            ],
+            createMockQueue(true, 0, 0) as never,
+        )
+
+        expect(idsOf(refreshed)).toContain(MUSIC_BUTTON_IDS.MORE_CONTROLS)
+        expect(buttonsOf(refreshed)[4].setLabel).toHaveBeenCalledWith('Más')
+    })
+
+    it('rebuilds the two full rows of the controls panel', () => {
+        const rows = refreshMusicComponents(
+            [
+                row(MUSIC_BUTTON_IDS.PREVIOUS, MUSIC_BUTTON_IDS.PAUSE_RESUME),
+                row(MUSIC_BUTTON_IDS.STOP, MUSIC_BUTTON_IDS.CLEAR_QUEUE),
+            ],
+            createMockQueue(false, 0, 0) as never,
+        )
+
+        expect(rows).toHaveLength(2)
+        expect(idsOf(rows[0])).toContain(MUSIC_BUTTON_IDS.PREVIOUS)
+        expect(idsOf(rows[1])).toContain(MUSIC_BUTTON_IDS.STOP)
+    })
+
+    it('keeps rows it does not own, like the queue pages, as they are', () => {
+        const pages = row('queue_page_0', 'page_indicator', 'queue_page_2')
+        const rows = refreshMusicComponents(
+            [
+                row(MUSIC_BUTTON_IDS.PREVIOUS, MUSIC_BUTTON_IDS.PAUSE_RESUME),
+                pages,
+            ],
+            createMockQueue(false, 0, 0) as never,
+        )
+
+        expect(rows).toHaveLength(2)
+        expect(rows[1]).toEqual({ keptRow: pages })
+    })
+
+    it('falls back to the full panel when the message has no rows', () => {
+        const rows = refreshMusicComponents(
+            undefined,
+            createMockQueue(false, 0, 0) as never,
+        )
+
+        expect(rows).toHaveLength(2)
+        expect(idsOf(rows[0])).toContain(MUSIC_BUTTON_IDS.PAUSE_RESUME)
+        expect(idsOf(rows[1])).toContain(MUSIC_BUTTON_IDS.STOP)
     })
 })

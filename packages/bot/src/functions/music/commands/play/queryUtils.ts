@@ -23,10 +23,6 @@ import {
 import { resolveGuildQueue } from '../../../../services/musicManagement/queueResolver'
 import { buildPlayResponseEmbed } from '../../../../utils/music/nowPlayingEmbed'
 import {
-    createMusicControlButtons,
-    createMusicActionButtons,
-} from '../../../../utils/music/buttonComponents'
-import {
     createErrorEmbed,
     createWarningEmbed,
 } from '../../../../utils/general/embeds'
@@ -424,6 +420,7 @@ export async function executePlayAtTop({
             if (skipCurrent) queue.node.skip()
         }
 
+        // The controls live on the now-playing message, not on this reply.
         const embed = buildPlayResponseEmbed(
             skipCurrent
                 ? { kind: 'nowPlaying', track, requestedBy: interaction.user }
@@ -433,17 +430,12 @@ export async function executePlayAtTop({
                       requestedBy: interaction.user,
                       queuePosition: 1,
                   },
+            await translatorForInteraction(interaction),
         )
 
         await interactionReply({
             interaction,
-            content: {
-                embeds: [embed],
-                components: [
-                    createMusicControlButtons(queue),
-                    createMusicActionButtons(queue),
-                ],
-            },
+            content: { embeds: [embed] },
         })
 
         debugLog({

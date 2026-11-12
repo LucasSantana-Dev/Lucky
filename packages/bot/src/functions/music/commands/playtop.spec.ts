@@ -260,6 +260,7 @@ describe('playtop command', () => {
                 track: mockTrack,
                 queuePosition: 1,
             }),
+            expect.any(Function),
         )
         expect(interactionReply).toHaveBeenCalled()
     })

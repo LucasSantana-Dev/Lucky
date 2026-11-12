@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import {
-    createQueueSummary,
     createTrackListDisplay,
     findSimilarTracksInQueue,
     formatTrackForDisplay,
 } from './queueDisplay'
 import type { QueueDisplayOptions } from './types'
+import { translatorFor } from '../../../../i18n'
+
+// The real English translator: the assertions double as a check that every
+// key the list asks for exists in en.json.
+const t = translatorFor('en')
 
 const getTrackInfoMock = jest.fn()
 const isSimilarTitleMock = jest.fn()
@@ -78,26 +82,117 @@ describe('queueDisplay', () => {
             expect(result.isAutoplay).toBe(true)
             expect(result.recommendationReason).toBe('fresh artist rotation')
         })
+
+        it('leaves the duration empty instead of an English placeholder', async () => {
+            getTrackInfoMock.mockResolvedValueOnce({ duration: '' })
+
+            const result = await formatTrackForDisplay(
+                createTrack() as any,
+                1,
+                defaultOptions,
+            )
+
+            expect(result.duration).toBe('')
+        })
     })
 
     describe('createTrackListDisplay', () => {
         it('returns empty rather than an English sentinel when nothing renders', async () => {
             // The caller supplies a localized fallback. Returning a truthy
             // English string here would always beat it.
-            const result = await createTrackListDisplay([], defaultOptions)
+            const result = await createTrackListDisplay(
+                [],
+                defaultOptions,
+                0,
+                t,
+            )
 
             expect(result).toBe('')
         })
 
-        it('renders plain track entry without reason tag for non-autoplay tracks', async () => {
-            const track = createTrack()
+        it('renders "N. title · artist · duration · requester" on one line', async () => {
+            const track = createTrack({
+                requestedBy: { username: 'PitaDure' },
+            })
             const result = await createTrackListDisplay(
                 [track as any],
                 defaultOptions,
+                0,
+                t,
             )
 
-            expect(result).toContain('[Test Track]')
-            expect(result).not.toContain('_')
+            expect(result).toBe(
+                '1. [Test Track](https://example.com/track) · Test Artist · 3:30 · PitaDure',
+            )
+        })
+
+        it('drops the parts it does not know', async () => {
+            getTrackInfoMock.mockResolvedValueOnce({ duration: '' })
+            const result = await createTrackListDisplay(
+                [createTrack() as any],
+                defaultOptions,
+                0,
+                t,
+            )
+
+            expect(result).toBe(
+                '1. [Test Track](https://example.com/track) · Test Artist',
+            )
+        })
+
+        it('treats a 0:00 duration as unknown', async () => {
+            getTrackInfoMock.mockResolvedValueOnce({ duration: '0:00' })
+            const result = await createTrackListDisplay(
+                [createTrack() as any],
+                defaultOptions,
+                0,
+                t,
+            )
+
+            expect(result).toBe(
+                '1. [Test Track](https://example.com/track) · Test Artist',
+            )
+        })
+
+        it('escapes markdown in the requester name', async () => {
+            const track = createTrack({
+                requestedBy: { username: 'cool_user_' },
+            })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+                0,
+                t,
+            )
+
+            expect(result).toMatch(/ · cool\\_user\\_$/)
+        })
+
+        it('does not escape an already escaped title a second time', async () => {
+            // discord-player's Track.title went through escapeMarkdown.
+            const track = createTrack({ title: 'Song \\*live\\*' })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+                0,
+                t,
+            )
+
+            expect(result).toContain('[Song \\*live\\*](')
+        })
+
+        it('does not leave a lone backslash where the title is cut', async () => {
+            const track = createTrack({
+                title: 'A'.repeat(38) + '\\_more text',
+            })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+                0,
+                t,
+            )
+
+            expect(result).toContain('A'.repeat(38) + '…](')
         })
 
         it('truncates title longer than 40 chars to exactly 40 displayed chars', async () => {
@@ -105,9 +200,11 @@ describe('queueDisplay', () => {
             const result = await createTrackListDisplay(
                 [track as any],
                 defaultOptions,
+                0,
+                t,
             )
 
-            expect(result).toContain('A'.repeat(39) + '\u2026')
+            expect(result).toContain('A'.repeat(39) + '…')
             expect(result).not.toContain('A'.repeat(41))
         })
 
@@ -116,10 +213,26 @@ describe('queueDisplay', () => {
             const result = await createTrackListDisplay(
                 [track as any],
                 defaultOptions,
+                0,
+                t,
             )
 
             expect(result).toContain('B'.repeat(40))
-            expect(result).not.toContain('\u2026')
+            expect(result).not.toContain('…')
+        })
+
+        it('escapes the brackets of a title so the link stays intact', async () => {
+            const track = createTrack({ title: 'Song [Official Video]' })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+                0,
+                t,
+            )
+
+            expect(result).toContain(
+                '[Song \\[Official Video\\]](https://example.com/track)',
+            )
         })
 
         it('renders hyperlink for http URL', async () => {
@@ -129,6 +242,8 @@ describe('queueDisplay', () => {
             const result = await createTrackListDisplay(
                 [track as any],
                 defaultOptions,
+                0,
+                t,
             )
 
             expect(result).toContain(
@@ -136,41 +251,25 @@ describe('queueDisplay', () => {
             )
         })
 
-        it('renders plain title without hyperlink for ytsearch internal URL', async () => {
-            const track = createTrack({ url: 'ytsearch:Test Track' })
-            const result = await createTrackListDisplay(
-                [track as any],
-                defaultOptions,
-            )
+        it.each(['ytsearch:Test Track', 'scsearch:Test Track', ''])(
+            'renders a plain title without hyperlink for url %p',
+            async (url) => {
+                const track = createTrack({ url })
+                const result = await createTrackListDisplay(
+                    [track as any],
+                    defaultOptions,
+                    0,
+                    t,
+                )
 
-            expect(result).not.toContain('](ytsearch:')
-            expect(result).toContain('Test Track')
-        })
+                expect(result).not.toContain('](')
+                expect(result).toContain('1. Test Track · Test Artist')
+            },
+        )
 
-        it('renders plain title without hyperlink for scsearch internal URL', async () => {
-            const track = createTrack({ url: 'scsearch:Test Track' })
-            const result = await createTrackListDisplay(
-                [track as any],
-                defaultOptions,
-            )
-
-            expect(result).not.toContain('](scsearch:')
-            expect(result).toContain('Test Track')
-        })
-
-        it('renders plain title without hyperlink when url is empty', async () => {
-            const track = createTrack({ url: '' })
-            const result = await createTrackListDisplay(
-                [track as any],
-                defaultOptions,
-            )
-
-            expect(result).not.toContain('](')
-            expect(result).toContain('Test Track')
-        })
-
-        it('appends recommendation reason tag for autoplay tracks', async () => {
+        it('tags an autoplay pick instead of naming a requester, without the reason', async () => {
             const track = createTrack({
+                requestedBy: { username: 'Lucky' },
                 metadata: {
                     isAutoplay: true,
                     recommendationReason: 'fresh artist rotation',
@@ -180,23 +279,49 @@ describe('queueDisplay', () => {
             const result = await createTrackListDisplay(
                 [track as any],
                 defaultOptions,
+                0,
+                t,
             )
 
-            expect(result).toContain('fresh artist rotation')
-            expect(result).toContain('_fresh artist rotation_')
+            expect(result).toMatch(/ · autoplay$/)
+            expect(result).not.toContain('Lucky')
+            expect(result).not.toContain('fresh artist rotation')
         })
 
-        it('does not append reason tag when isAutoplay is true but reason is empty', async () => {
-            const track = createTrack({
-                metadata: { isAutoplay: true, recommendationReason: '' },
+        it('lists requested tracks first, then autoplay picks under a header', async () => {
+            const auto = createTrack({
+                title: 'Auto',
+                metadata: { isAutoplay: true },
+            })
+            const mine = createTrack({
+                title: 'Mine',
+                requestedBy: { username: 'PitaDure' },
             })
 
             const result = await createTrackListDisplay(
-                [track as any],
+                [auto as any, mine as any],
                 defaultOptions,
+                0,
+                t,
             )
 
-            expect(result).not.toContain('_')
+            const lines = result.split('\n')
+            expect(lines[0]).toContain('2. [Mine]')
+            expect(lines[1]).toBe('**✨ Autoplay**')
+            expect(lines[2]).toContain('1. [Auto]')
+        })
+
+        it('omits the autoplay header when the page only has autoplay picks', async () => {
+            const auto = createTrack({ metadata: { isAutoplay: true } })
+
+            const result = await createTrackListDisplay(
+                [auto as any],
+                defaultOptions,
+                0,
+                t,
+            )
+
+            expect(result).not.toContain('✨ Autoplay')
         })
 
         it('shows overflow message when tracks exceed maxTracksToShow', async () => {
@@ -207,9 +332,27 @@ describe('queueDisplay', () => {
             const result = await createTrackListDisplay(
                 tracks as any[],
                 options,
+                0,
+                t,
             )
 
-            expect(result).toContain('5 more tracks')
+            expect(result.split('\n').pop()).toBe('…and 5 more tracks')
+        })
+
+        it('numbers the second page from where the first left off', async () => {
+            const tracks = Array.from({ length: 12 }, (_, i) =>
+                createTrack({ title: `Track ${i}` }),
+            )
+            const result = await createTrackListDisplay(
+                tracks as any[],
+                defaultOptions,
+                1,
+                t,
+            )
+
+            expect(result.split('\n')).toHaveLength(2)
+            expect(result).toContain('11. [Track 10]')
+            expect(result).not.toContain('more track')
         })
     })
 
@@ -243,31 +386,6 @@ describe('queueDisplay', () => {
             ])
 
             expect(result).toHaveLength(0)
-        })
-    })
-
-    describe('createQueueSummary', () => {
-        it('returns total tracks and duration without position when currentPosition is 0', () => {
-            const result = createQueueSummary(10, '45:00', 0)
-
-            expect(result).toContain('**Total Tracks:** 10')
-            expect(result).toContain('**Total Duration:** 45:00')
-            expect(result).not.toContain('Current Position')
-        })
-
-        it('formats the position from milliseconds, not seconds (#1202)', () => {
-            // 90_000 ms = 1:30; getTimestamp().current.value is in ms
-            const result = createQueueSummary(5, '20:00', 90_000)
-
-            expect(result).toContain('**Total Tracks:** 5')
-            expect(result).toContain('**Total Duration:** 20:00')
-            expect(result).toContain('**Current Position:** 1:30')
-        })
-
-        it('pads sub-10-second positions to M:0S', () => {
-            const result = createQueueSummary(1, '3:00', 65_000)
-
-            expect(result).toContain('**Current Position:** 1:05')
         })
     })
 })

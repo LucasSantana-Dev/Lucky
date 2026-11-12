@@ -74,15 +74,16 @@
         },
         "queue": {
             "nowPlaying": "🎵 Reproduciendo ahora",
-            "recommendedBecause": "\nRecomendado porque: _{{reason}}_",
-            "upcomingTracksCount": "📋 Próximas pistas ({{count}})",
-            "upcomingTracks": "📋 Próximas pistas",
             "noTracks": "No hay pistas en la cola",
             "noDisplayableTracks": "No hay pistas que mostrar",
-            "statistics": "📊 Estadísticas de la cola",
-            "status": "🎛️ Estado",
             "title": "📄 Cola de música",
-            "errorTitle": "❌ Error de cola"
+            "errorTitle": "❌ Error de cola",
+            "autoplayTag": "autoplay",
+            "autoplaySection": "✨ Autoplay",
+            "more_one": "…y {{count}} canción más",
+            "more_other": "…y {{count}} canciones más",
+            "footer_one": "{{count}} canción en cola • Duración total {{duration}}",
+            "footer_other": "{{count}} canciones en cola • Duración total {{duration}}"
         },
         "recap": {
             "title": "La semana musical de tu servidor",
@@ -124,6 +125,28 @@
             "notForYou": "Esta pregunta es para quien usó el comando.",
             "expired": "Esta pregunta caducó. Valora la siguiente canción con los botones 👍 y 👎 del mensaje de reproducción.",
             "failed": "No se pudo guardar ahora. Inténtalo de nuevo en un momento."
+        },
+        "messages": {
+            "nowPlaying": "Reproduciendo",
+            "queued": "En cola",
+            "playlist": "Lista",
+            "playlistTracks_one": "{{count}} canción en cola",
+            "playlistTracks_other": "{{count}} canciones en cola",
+            "position": "Posición {{position}}",
+            "requestedBy": "pedido por {{user}}",
+            "autoplay": "✨ Autoplay según el historial de la sesión",
+            "accepted": "{{rate}}% aceptadas",
+            "viaFallback": "vía fallback: {{label}}",
+            "unknownTrack": "Pista desconocida",
+            "unknownArtist": "Artista desconocido",
+            "moreControls": "Más",
+            "controlsTitle": "🎛️ Controles de música",
+            "streamFailed": "No encontré la versión original de **{{title}}** ahora, así que no voy a poner un cover. Inténtalo de nuevo en un momento o pega un enlace.",
+            "streamFailedMany_one": "No se pudo reproducir {{count}} canción. Inténtalo de nuevo en un momento o pega un enlace.",
+            "streamFailedMany_other": "No se pudieron reproducir {{count}} canciones. Inténtalo de nuevo en un momento o pega un enlace.",
+            "autoplayCount": "{{count}}/{{max}} canciones",
+            "autoplayStopped_one": "La última canción del autoplay no se pudo reproducir, así que el autoplay se detuvo. Usa /play para empezar de nuevo.",
+            "autoplayStopped_other": "Las últimas {{count}} canciones del autoplay no se pudieron reproducir, así que el autoplay se detuvo. Usa /play para empezar de nuevo."
         }
     }
 }

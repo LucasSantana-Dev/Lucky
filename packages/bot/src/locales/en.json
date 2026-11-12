@@ -74,16 +74,17 @@
         },
         "queue": {
             "nowPlaying": "🎵 Now Playing",
-            "recommendedBecause": "\nRecommended because: _{{reason}}_",
-            "upcomingTracksCount": "📋 Upcoming Tracks ({{count}})",
-            "upcomingTracks": "📋 Upcoming Tracks",
             "noTracks": "No tracks in queue",
             "noDisplayableTracks": "No displayable tracks",
-            "statistics": "📊 Queue Statistics",
-            "status": "🎛️ Status",
             "title": "📄 Music Queue",
             "errorTitle": "❌ Queue Error",
-            "fallbackProbe": "English only, on purpose"
+            "fallbackProbe": "English only, on purpose",
+            "autoplayTag": "autoplay",
+            "autoplaySection": "✨ Autoplay",
+            "more_one": "…and {{count}} more track",
+            "more_other": "…and {{count}} more tracks",
+            "footer_one": "{{count}} song in queue • Total duration {{duration}}",
+            "footer_other": "{{count}} songs in queue • Total duration {{duration}}"
         },
         "recap": {
             "title": "Your server's week in music",
@@ -125,6 +126,28 @@
             "notForYou": "This question is for the person who used the command.",
             "expired": "This question expired. Rate the next song with the 👍 and 👎 buttons on the now-playing message.",
             "failed": "Could not save that right now. Try again in a moment."
+        },
+        "messages": {
+            "nowPlaying": "Now playing",
+            "queued": "Queued",
+            "playlist": "Playlist",
+            "playlistTracks_one": "{{count}} track queued",
+            "playlistTracks_other": "{{count}} tracks queued",
+            "position": "Position {{position}}",
+            "requestedBy": "requested by {{user}}",
+            "autoplay": "✨ Autoplay from your session listening history",
+            "accepted": "{{rate}}% accepted",
+            "viaFallback": "via fallback: {{label}}",
+            "unknownTrack": "Unknown track",
+            "unknownArtist": "Unknown artist",
+            "moreControls": "More",
+            "controlsTitle": "🎛️ Music controls",
+            "streamFailed": "Couldn't find the original of **{{title}}** right now, so I'm not playing a cover. Try again shortly or paste a link.",
+            "streamFailedMany_one": "{{count}} track couldn't be played. Try again shortly or paste a link.",
+            "streamFailedMany_other": "{{count}} tracks couldn't be played. Try again shortly or paste a link.",
+            "autoplayCount": "{{count}}/{{max}} songs",
+            "autoplayStopped_one": "The last autoplay track couldn't be streamed, so autoplay stopped. Use /play to start again.",
+            "autoplayStopped_other": "The last {{count}} autoplay tracks couldn't be streamed, so autoplay stopped. Use /play to start again."
         }
     }
 }

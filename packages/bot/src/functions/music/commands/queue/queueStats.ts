@@ -50,17 +50,3 @@ function parseDurationToMs(duration: string): number | null {
     }
     return null
 }
-
-/**
- * Get queue status information
- */
-export function getQueueStatus(queue: GuildQueue): string {
-    const status = []
-
-    if (queue.repeatMode === QueueRepeatMode.TRACK) status.push('🔁 Loop')
-    if (queue.repeatMode === QueueRepeatMode.AUTOPLAY)
-        status.push('🔄 Autoplay')
-    if (queue.node.isPaused()) status.push('⏸️ Paused')
-
-    return status.length > 0 ? status.join(' • ') : '▶️ Playing'
-}

@@ -239,6 +239,7 @@ describe('playskip command', () => {
                 track: mockTrack,
                 requestedBy: interaction.user,
             }),
+            expect.any(Function),
         )
         expect(interactionReply).toHaveBeenCalled()
     })

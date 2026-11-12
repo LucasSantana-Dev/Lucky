@@ -9,6 +9,7 @@ export const MUSIC_BUTTON_IDS = {
     CLEAR_AUTOPLAY: 'music_clear_autoplay',
     LIKE: 'music_like',
     DISLIKE: 'music_dislike',
+    MORE_CONTROLS: 'music_more_controls',
 } as const
 
 export const QUEUE_BUTTON_PREFIX = 'queue_page'

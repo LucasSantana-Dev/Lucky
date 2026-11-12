@@ -1,19 +1,21 @@
 import type { Track, GuildQueue } from 'discord-player'
-import type { ColorResolvable } from 'discord.js'
+import { EmbedBuilder, type Message } from 'discord.js'
+import type { TFunction } from 'i18next'
 import { LRUCache } from 'lru-cache'
 import { debugLog, warnLog } from '@lucky/shared/utils'
-import { createEmbed, EMBED_COLORS } from '../../utils/general/embeds'
 import { getAutoplayCount } from '../../utils/music/autoplayManager'
 import { constants } from '@lucky/shared/config'
+import { createNowPlayingButtons } from '../../utils/music/buttonComponents'
 import {
-    createMusicControlButtons,
-    createMusicActionButtons,
-} from '../../utils/music/buttonComponents'
+    capitalizeFirst,
+    formatTrackLine,
+} from '../../utils/music/nowPlayingEmbed'
+import { MUSIC_ACTION_STYLE } from '../../utils/music/musicActionStyle'
+import { translatorForInteraction } from '../../i18n/translatorForInteraction'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 import { getPerSourceAcceptanceRateCached } from '../../services/musicRecommendation/autoplay/autoplayAcceptanceCache'
 import { getSkipReasonEmojis } from '../../utils/music/skipReasonMap'
 import { getStreamBridgeFallbackLabel } from './streamFallbackState'
-import { isHost } from '../../utils/general/urlHost'
 import { clearLastFmTrackTiming } from './lastfmScrobbler'
 
 /**
@@ -135,17 +137,8 @@ export function cleanupGuildState(guildId: string): void {
     trackNowPlayingState.cleanupGuild(guildId)
 }
 
-function formatDuration(duration: string) {
-    if (!duration || duration === '0:00') return 'Unknown duration'
-    return duration
-}
-
-function getSource(url: string) {
-    if (isHost(url, 'youtube.com') || isHost(url, 'youtu.be')) return 'YouTube'
-    if (isHost(url, 'spotify.com')) return 'Spotify'
-    if (isHost(url, 'soundcloud.com')) return 'SoundCloud'
-    return 'Unknown'
-}
+/** Longest recommendation reason kept in the footer. */
+const REASON_LIMIT = 100
 
 /**
  * Append the per-source acceptance rate to the recommendation reason.
@@ -155,6 +148,7 @@ async function appendAcceptanceRate(
     reason: string,
     recommendationSource: string | undefined,
     guildId: string,
+    t: TFunction,
 ): Promise<string> {
     // Graceful omission if source is not available
     if (!recommendationSource) {
@@ -170,7 +164,7 @@ async function appendAcceptanceRate(
         }
 
         const ratePercent = Math.round(sourceRow.acceptanceRate * 100)
-        return `${reason} • ${ratePercent}% accepted`
+        return `${reason} · ${t('music.messages.accepted', { rate: ratePercent })}`
     } catch {
         // On any error (cache issue, service issue), omit the rate gracefully
         return reason
@@ -195,6 +189,36 @@ async function prefillSkipReasonReactions(
     return { successCount, attemptedCount }
 }
 
+/**
+ * The skip-reason reactions only mean something on an autoplay pick. When the
+ * reused message moves on to a requested track, take the bot's own reactions
+ * back off (removing its own needs no permission).
+ */
+async function clearOwnReactions(
+    message: Message,
+    guildId: string,
+): Promise<void> {
+    const own = [...(message.reactions?.cache?.values() ?? [])].filter(
+        (reaction) => reaction.me,
+    )
+    await Promise.all(
+        own.map((reaction) =>
+            // The whole reaction, listeners' votes included, needs Manage
+            // Messages; without it, at least take the bot's own back.
+            reaction
+                .remove()
+                .catch(() => reaction.users.remove())
+                .catch((error: unknown) => {
+                    debugLog({
+                        message: 'Failed to remove skip-reason reaction',
+                        error,
+                        data: { guildId },
+                    })
+                }),
+        ),
+    )
+}
+
 function logPartialEmojiPrefill(
     guildId: string,
     successCount: number,
@@ -217,23 +241,22 @@ async function tryUpdateExistingNowPlayingMessage(
     channel: NonNullable<QueueMetadata['channel']>,
     previousMessage: { messageId: string; channelId: string },
     opts: {
-        embed: ReturnType<typeof createEmbed>
+        embed: EmbedBuilder
         track: Track
         isAutoplay: boolean
         skipReasonEmojis: string[]
+        moreLabel: string
     },
 ): Promise<boolean> {
-    const { embed, track, isAutoplay, skipReasonEmojis } = opts
+    const { embed, track, isAutoplay, skipReasonEmojis, moreLabel } = opts
     try {
         const message = await channel.messages.fetch(previousMessage.messageId)
         await message.edit({
             content: null,
             embeds: [embed],
-            components: [
-                createMusicControlButtons(queue),
-                createMusicActionButtons(queue),
-            ],
+            components: [createNowPlayingButtons(queue, moreLabel)],
         })
+        if (!isAutoplay) await clearOwnReactions(message, queue.guild.id)
         const { successCount, attemptedCount } =
             await prefillSkipReasonReactions(
                 message,
@@ -277,75 +300,70 @@ async function buildNowPlayingFooter(
     queue: GuildQueue,
     track: Track,
     isAutoplay: boolean,
+    t: TFunction,
 ): Promise<string> {
-    const requester = track.requestedBy
-    const requesterInfo = requester
-        ? `Added by ${requester.username}`
-        : 'Added automatically'
-    const autoplayCount = isAutoplay
-        ? await getAutoplayCount(queue.guild.id)
-        : null
-    const baseFooter = isAutoplay
-        ? `Autoplay • ${autoplayCount ?? 0}/${constants.MAX_AUTOPLAY_TRACKS ?? 50} songs`
-        : requesterInfo
-    let footer =
-        baseFooter && !baseFooter.includes('/invite')
-            ? `${baseFooter} • /invite to add Lucky`
-            : baseFooter
+    const parts: string[] = []
+    if (isAutoplay) {
+        parts.push(t('music.messages.autoplay'))
+        const metadata = (track.metadata ?? {}) as {
+            recommendationReason?: string
+            recommendationSource?: string
+        }
+        if (metadata.recommendationReason) {
+            const reason =
+                metadata.recommendationReason.length > REASON_LIMIT
+                    ? `${metadata.recommendationReason.slice(0, REASON_LIMIT - 1)}…`
+                    : metadata.recommendationReason
+            parts.push(
+                await appendAcceptanceRate(
+                    reason,
+                    metadata.recommendationSource,
+                    queue.guild.id,
+                    t,
+                ),
+            )
+        }
+        const autoplayCount = await getAutoplayCount(queue.guild.id)
+        parts.push(
+            t('music.messages.autoplayCount', {
+                count: autoplayCount ?? 0,
+                max: constants.MAX_AUTOPLAY_TRACKS ?? 50,
+            }),
+        )
+    } else if (track.requestedBy) {
+        parts.push(
+            capitalizeFirst(
+                t('music.messages.requestedBy', {
+                    user: track.requestedBy.username,
+                }),
+            ),
+        )
+    }
     // Subtle footnote when the streamBridge resolved via a fallback stage
     // instead of the primary yt-dlp source (#1769).
     const fallbackLabel = getStreamBridgeFallbackLabel(track)
-    if (fallbackLabel) footer = `${footer} • via fallback: ${fallbackLabel}`
-    return footer
+    if (fallbackLabel) {
+        parts.push(t('music.messages.viaFallback', { label: fallbackLabel }))
+    }
+    return parts.join(' · ')
 }
 
+/** One line, colored like every other now-playing reply (#2998). */
 async function buildNowPlayingEmbed(
     queue: GuildQueue,
     track: Track,
     isAutoplay: boolean,
-): Promise<ReturnType<typeof createEmbed>> {
-    const requester = track.requestedBy
-    const requestedByInfo = requester ? requester.username : 'Autoplay'
-    const trackMetadata = (track.metadata ?? {}) as {
-        recommendationReason?: string
-        recommendationSource?: string
-    }
-    const footer = await buildNowPlayingFooter(queue, track, isAutoplay)
-
-    const fields = [
-        {
-            name: '⏱️ Duration',
-            value: formatDuration(track.duration),
-            inline: true,
-        },
-        { name: '🌐 Source', value: getSource(track.url), inline: true },
-        { name: '👤 Requested', value: requestedByInfo, inline: true },
-    ]
-
-    if (isAutoplay && trackMetadata.recommendationReason) {
-        const reasonWithRate = await appendAcceptanceRate(
-            trackMetadata.recommendationReason,
-            trackMetadata.recommendationSource,
-            queue.guild.id,
+    t: TFunction,
+): Promise<EmbedBuilder> {
+    const style = MUSIC_ACTION_STYLE.nowPlaying
+    const embed = new EmbedBuilder()
+        .setColor(style.color)
+        .setDescription(
+            `${style.emoji} ${t('music.messages.nowPlaying')} ${formatTrackLine(track, t)}`,
         )
-        fields.push({
-            name: '🤖 Why this track',
-            value: reasonWithRate,
-            inline: false,
-        })
-    }
-
-    return createEmbed({
-        title: '🎵 Now Playing',
-        // Never render "** by **": a track can reach playback without
-        // metadata (autoplay, stream recovery). Same fallbacks as the reply.
-        description: `[**${track.title || 'Unknown Track'}**](${track.url}) by **${track.author || 'Unknown artist'}**`,
-        color: EMBED_COLORS.MUSIC as ColorResolvable,
-        thumbnail: track.thumbnail,
-        timestamp: true,
-        fields,
-        footer,
-    })
+    const footer = await buildNowPlayingFooter(queue, track, isAutoplay, t)
+    if (footer) embed.setFooter({ text: footer })
+    return embed
 }
 
 export async function sendNowPlayingEmbed(
@@ -356,8 +374,14 @@ export async function sendNowPlayingEmbed(
     const metadata = queue.metadata as QueueMetadata | undefined
     if (!metadata?.channel) return
 
-    const embed = await buildNowPlayingEmbed(queue, track, isAutoplay)
-    const skipReasonEmojis = getSkipReasonEmojis()
+    const t = await translatorForInteraction({
+        guildId: queue.guild.id,
+        guild: queue.guild,
+    })
+    const embed = await buildNowPlayingEmbed(queue, track, isAutoplay, t)
+    // Skip reasons tune autoplay, so only an autoplay pick asks for one.
+    const skipReasonEmojis = isAutoplay ? getSkipReasonEmojis() : []
+    const moreLabel = t('music.messages.moreControls')
 
     const previousMessage = getSongInfoMessage(queue.guild.id)
     if (previousMessage && previousMessage.channelId === metadata.channel.id) {
@@ -365,17 +389,14 @@ export async function sendNowPlayingEmbed(
             queue,
             metadata.channel,
             previousMessage,
-            { embed, track, isAutoplay, skipReasonEmojis },
+            { embed, track, isAutoplay, skipReasonEmojis, moreLabel },
         )
         if (updated) return
     }
 
     const message = await metadata.channel.send({
         embeds: [embed],
-        components: [
-            createMusicControlButtons(queue),
-            createMusicActionButtons(queue),
-        ],
+        components: [createNowPlayingButtons(queue, moreLabel)],
     })
 
     const { successCount, attemptedCount } = await prefillSkipReasonReactions(
