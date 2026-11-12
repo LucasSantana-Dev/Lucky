@@ -46,7 +46,8 @@
             "youtubeDisabledTitle": "YouTube indisponível",
             "youtubeDisabledDescription": "O YouTube não está disponível neste bot no momento. Tente um link do Spotify ou SoundCloud, ou busque pelo nome da música e do artista.",
             "youtubePlaylistUnavailable": "Playlists do YouTube não estão disponíveis no momento. Cole o link de uma música só, ou digite o nome dela.",
-            "youtubeVideoUnavailable": "Não deu para tocar este link do YouTube agora. Tente digitar o nome da música e do artista."
+            "youtubeVideoUnavailable": "Não deu para tocar este link do YouTube agora. Tente digitar o nome da música e do artista.",
+            "asmrBlocked": "ASMR não é permitido neste bot. Escolha uma música."
         },
         "nowPlaying": "Tocando agora {{title}}, não pare",
         "onboarding": {

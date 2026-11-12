@@ -729,6 +729,30 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
         expect(onSearchResolved).not.toHaveBeenCalled()
     })
 
+    it('refuses an ASMR result without trying another provider or replying', async () => {
+        const onSearchResolved = jest.fn()
+        const player: any = {
+            play: jest.fn(async (_c: unknown, _q: unknown, opts: any) => {
+                await opts.afterSearch(searchResultOf('ASMR good boy roleplay'))
+                return { track: {} }
+            }),
+        }
+
+        await expect(
+            resolveQueryWithFallbacks(
+                player,
+                channel,
+                'bom garoto',
+                'spotify',
+                QueryType.SPOTIFY_SEARCH,
+                {},
+                onSearchResolved,
+            ),
+        ).rejects.toMatchObject({ name: 'AsmrBlockedError' })
+        expect(player.play).toHaveBeenCalledTimes(1)
+        expect(onSearchResolved).not.toHaveBeenCalled()
+    })
+
     it('is not called for an empty result', async () => {
         const onSearchResolved = jest.fn()
         const player: any = {

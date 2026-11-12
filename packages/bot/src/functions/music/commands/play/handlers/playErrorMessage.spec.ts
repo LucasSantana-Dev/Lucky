@@ -15,6 +15,7 @@ import {
     YoutubePlaylistUnavailableError,
     YoutubeVideoUnavailableError,
 } from './youtubeLinkErrors'
+import { AsmrBlockedError } from '../../../../../utils/music/asmrFilter'
 
 describe('resolvePlayErrorMessage', () => {
     beforeEach(() => {
@@ -110,6 +111,12 @@ describe('classifyPlayFailure', () => {
         })
     })
 
+    it('counts a blocked ASMR request as a user error', () => {
+        expect(classifyPlayFailure(new AsmrBlockedError()).outcome).toBe(
+            'user_error',
+        )
+    })
+
     it('counts any other failure as an error with its class', () => {
         expect(classifyPlayFailure(new TypeError('boom'))).toEqual({
             outcome: 'error',
@@ -120,6 +127,13 @@ describe('classifyPlayFailure', () => {
 
 describe('resolvePlayErrorMessage for YouTube links', () => {
     const t = (key: string) => `t:${key}`
+
+    it('explains that ASMR is blocked', () => {
+        expect(resolvePlayErrorMessage(new AsmrBlockedError(), 'asmr', t)).toBe(
+            't:music.errors.asmrBlocked',
+        )
+        expect(resolvePlayErrorMessage(new AsmrBlockedError())).toMatch(/ASMR/)
+    })
 
     it('uses the translated playlist message', () => {
         expect(

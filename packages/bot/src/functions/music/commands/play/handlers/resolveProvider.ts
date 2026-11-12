@@ -28,6 +28,10 @@ import {
     YoutubePlaylistUnavailableError,
     YoutubeVideoUnavailableError,
 } from './youtubeLinkErrors'
+import {
+    AsmrBlockedError,
+    assertNotAsmr,
+} from '../../../../../utils/music/asmrFilter'
 
 export { YoutubePlaylistUnavailableError, YoutubeVideoUnavailableError }
 
@@ -247,6 +251,8 @@ function rerankThenNotify(
         // Before the notify: the early reply must not show a blank title,
         // and a track with no metadata must be rejected before play starts.
         const ranked = await ensureTrackMetadata(await rerank(result))
+        // After the metadata: a bare link has no title until it is hydrated.
+        assertNotAsmr(query, ranked)
         if (onSearchResolved && ranked.tracks.length > 0) {
             try {
                 onSearchResolved(ranked)
@@ -440,6 +446,8 @@ async function resolveWithChain({
         telemetry.resolvedVia = 'primary'
         return { result, telemetry }
     } catch (primaryError) {
+        // Another provider would only find the same ASMR.
+        if (primaryError instanceof AsmrBlockedError) throw primaryError
         if (searchEngine !== QueryType.AUTO) {
             // Retry the primary provider once before conceding to YouTube.
             // Scoped to Spotify: the swallowed-failure behavior this works

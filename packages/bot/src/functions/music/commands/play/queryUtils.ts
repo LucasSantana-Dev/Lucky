@@ -1,9 +1,14 @@
 import { QueryType } from 'discord-player'
+import type { SearchResult } from 'discord-player'
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
 
 const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
 import type { CustomClient } from '../../../../types'
 import { preferExactMatch } from './handlers/resolveProvider'
+import {
+    AsmrBlockedError,
+    assertNotAsmr,
+} from '../../../../utils/music/asmrFilter'
 import {
     requireVoiceChannel,
     requireDJRole,
@@ -322,7 +327,12 @@ export async function executePlayAtTop({
 
     try {
         const searchEngine = resolveSearchEngine(query)
-        const afterSearch = preferExactMatch(query)
+        const rerank = preferExactMatch(query)
+        const afterSearch = async (found: SearchResult) => {
+            const ranked = await rerank(found)
+            assertNotAsmr(query, ranked)
+            return ranked
+        }
         let result
         try {
             result = await client.player.play(voiceChannel, query, {
@@ -330,6 +340,7 @@ export async function executePlayAtTop({
                 afterSearch,
             })
         } catch (primaryError) {
+            if (primaryError instanceof AsmrBlockedError) throw primaryError
             if (searchEngine !== QueryType.AUTO) {
                 if (isHostedYoutubeEnabled()) {
                     warnLog({

@@ -1694,6 +1694,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(bot): the music watchdog replays the stalled track instead of skipping to the next one, and `/skip` acknowledges the command before doing work so the autoplay feedback prompt no longer fails (#2976 #2977)
 - fix(bot): yt-dlp is stopped when a skipped or stopped track drops its stream, so idle yt-dlp processes no longer pile up until the container runs out of memory (#2979)
 - fix(bot): after `/skip`, a requested song that is still loading now plays instead of being replaced by the autoplay pick queued behind it (#2996)
+- feat(bot): ASMR is blocked on every server: `/play` refuses it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue
 
 ## [2.17.0] - 2026-06-08
 

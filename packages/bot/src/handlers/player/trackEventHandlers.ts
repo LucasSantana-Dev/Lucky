@@ -39,6 +39,7 @@ import { handleQueueExhaustion } from './queueExhaustion'
 import { recordRecommendationOutcome } from '../../services/musicRecommendation/recommendationTelemetry'
 import { prefetchNextSpotifyTrack } from './spotifyPrefetch'
 import { resetAutoplayFailureStreak } from './autoplayFailureStreak'
+import { dropAsmrTracks } from '../../utils/music/asmrFilter'
 import {
     getRecentSkipCount,
     getTrackRequesterId,
@@ -99,7 +100,11 @@ export const setupTrackHandlers = ({
             await handlePlayerSkip(queue, track, reason)
         },
     )
+    player.events.on('audioTrackAdd', (queue: GuildQueue, track: Track) => {
+        removeAsmr(queue, [track])
+    })
     player.events.on('audioTracksAdd', (queue: GuildQueue, tracks: Track[]) => {
+        if (Array.isArray(tracks)) removeAsmr(queue, tracks)
         if (Array.isArray(tracks) && tracks.length > 0) {
             infoLog({
                 message: `Added "${tracks[0].title}" to queue in ${queue.guild.name}`,
@@ -118,6 +123,16 @@ export const setupTrackHandlers = ({
     player.events.on('queueDelete', async (queue: GuildQueue) => {
         await handleQueueDelete(queue)
     })
+}
+
+// Album, artist, playlist and dashboard adds never pass /play's ASMR check.
+function removeAsmr(queue: GuildQueue, tracks: Track[]): void {
+    for (const track of dropAsmrTracks(queue, tracks)) {
+        infoLog({
+            message: 'Removed an ASMR track from the queue',
+            data: { guildId: queue.guild.id, title: track.title },
+        })
+    }
 }
 
 function handleAutoplayCounter(

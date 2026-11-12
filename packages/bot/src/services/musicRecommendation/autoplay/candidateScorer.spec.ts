@@ -84,6 +84,11 @@ describe('candidateScorer', () => {
                 { title: 'Relaxing Rain Sounds for Sleep' },
                 undefined,
             ],
+            [
+                'ambient-noise',
+                { title: 'Nail Polish Brush', author: 'ASMR Bakery' },
+                undefined,
+            ],
         ])('names the %s veto (#2957)', (veto, overrides, blockedKey) => {
             const result = calculateRecommendationScore({
                 candidate: createTrack(overrides),
