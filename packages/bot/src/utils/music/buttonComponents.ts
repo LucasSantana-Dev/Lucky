@@ -155,11 +155,11 @@ export function refreshMusicComponents(
             (c) => c.customId === MUSIC_BUTTON_IDS.MORE_CONTROLS,
         )
         if (more) return createNowPlayingButtons(queue, more.label ?? '')
-        const ids = row.components.map((c) => c.customId)
-        if (ids.includes(MUSIC_BUTTON_IDS.PAUSE_RESUME)) {
+        const ids = new Set(row.components.map((c) => c.customId))
+        if (ids.has(MUSIC_BUTTON_IDS.PAUSE_RESUME)) {
             return createMusicControlButtons(queue)
         }
-        if (ids.includes(MUSIC_BUTTON_IDS.STOP)) {
+        if (ids.has(MUSIC_BUTTON_IDS.STOP)) {
             return createMusicActionButtons(queue)
         }
         return ActionRowBuilder.from<ButtonBuilder>(row as never)

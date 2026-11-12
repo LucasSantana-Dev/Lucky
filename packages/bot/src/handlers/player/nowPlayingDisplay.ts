@@ -201,17 +201,17 @@ async function clearOwnReactions(
     const own = [...(message.reactions?.cache?.values() ?? [])].filter(
         (reaction) => reaction.me,
     )
-    for (const reaction of own) {
-        try {
-            await reaction.users.remove()
-        } catch (error) {
-            debugLog({
-                message: 'Failed to remove skip-reason reaction',
-                error,
-                data: { guildId },
-            })
-        }
-    }
+    await Promise.all(
+        own.map((reaction) =>
+            reaction.users.remove().catch((error: unknown) => {
+                debugLog({
+                    message: 'Failed to remove skip-reason reaction',
+                    error,
+                    data: { guildId },
+                })
+            }),
+        ),
+    )
 }
 
 function logPartialEmojiPrefill(

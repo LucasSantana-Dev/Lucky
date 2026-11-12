@@ -100,7 +100,9 @@ const ACTION_OF_KIND: Record<PlayResponseKind, MusicAction> = {
  * runs with its own backslash pass off and never escapes the ones added here.
  */
 export function escapeTrackText(text: string): string {
-    return escapeMarkdown(text.replace(/[\\[\]]/g, '\\$&'), { escape: false })
+    return escapeMarkdown(text.replace(/[\\[\]]/g, String.raw`\$&`), {
+        escape: false,
+    })
 }
 
 export function hasKnownDuration(duration?: string | null): duration is string {
