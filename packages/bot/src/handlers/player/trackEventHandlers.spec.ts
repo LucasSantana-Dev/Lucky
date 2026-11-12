@@ -25,6 +25,7 @@ const featureEnabledMock = jest.fn()
 const replenishQueueMock = jest.fn()
 const addTrackToHistoryMock = jest.fn()
 const sendNowPlayingEmbedMock = jest.fn()
+const setTrackStatusMock = jest.fn()
 const updateLastFmNowPlayingMock = jest.fn()
 const scrobbleCurrentTrackIfLastFmMock = jest.fn()
 const resetAutoplayCountMock = jest.fn()
@@ -106,7 +107,7 @@ jest.mock('../../services/musicManagement/replenishSuppressionStore', () => ({
 
 jest.mock('./voiceChannelStatusService', () => ({
     clearStatus: (...args: unknown[]) => clearStatusMock(...args),
-    setTrackStatus: jest.fn(),
+    setTrackStatus: (...args: unknown[]) => setTrackStatusMock(...args),
 }))
 
 jest.mock('@lucky/shared/config', () => ({
@@ -269,6 +270,16 @@ describe('trackHandlers autoplay replenishment', () => {
             guildId: 'guild-1',
             source: 'soundcloud-bridge',
         })
+    })
+
+    it('sets the voice channel status even when the now-playing embed fails', async () => {
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.OFF)
+        sendNowPlayingEmbedMock.mockRejectedValueOnce(new Error('embed failed'))
+
+        await handlers.playerStart(queue, createTrack())
+
+        expect(setTrackStatusMock).toHaveBeenCalledWith(queue)
     })
 
     it('prefetches the next Spotify track only after handlePlayerStart finished', async () => {
