@@ -1695,6 +1695,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(bot): the music watchdog replays the stalled track instead of skipping to the next one, and `/skip` acknowledges the command before doing work so the autoplay feedback prompt no longer fails (#2976 #2977)
 - fix(bot): yt-dlp is stopped when a skipped or stopped track drops its stream, so idle yt-dlp processes no longer pile up until the container runs out of memory (#2979)
 - fix(bot): after `/skip`, a requested song that is still loading now plays instead of being replaced by the autoplay pick queued behind it (#2996)
+- fix(bot): YouTube plays start in about 3 s again: yt-dlp asks for the visionos client first, since the default clients now wait out a pre-roll ad and most starts timed out at 8 s
 
 ## [2.17.0] - 2026-06-08
 

@@ -694,7 +694,35 @@ describe('streamViaYtDlp: po_token provider', () => {
         await streamViaYtDlp(youtubeUrl)
 
         expect(spawnArgs(0)).not.toContain('--plugin-dirs')
-        expect(spawnArgs(0)).not.toContain('--extractor-args')
+        expect(spawnArgs(0).join(' ')).not.toContain('youtubepot-bgutilhttp')
+    })
+
+    // Prod 2026-11-12: the default clients wait out a pre-roll ad before
+    // googlevideo serves the stream (~5 s), so 60% of starts hit the 8 s
+    // budget. visionos starts in ~2.5 s; default stays as the fallback.
+    it('asks YouTube for the visionos client first', async () => {
+        delete process.env.YTDLP_POT_PROVIDER_URL
+        script('ok')
+
+        await streamViaYtDlp(youtubeUrl)
+
+        const args = spawnArgs(0)
+        const at = args.indexOf('youtube:player_client=visionos,default')
+        expect(at).toBeGreaterThan(0)
+        expect(args[at - 1]).toBe('--extractor-args')
+        expect(args[args.length - 1]).toBe(youtubeUrl)
+    })
+
+    it('keeps the visionos client on the cookies retry', async () => {
+        process.env.YTDLP_COOKIES_FILE = '/app/secrets/youtube-cookies.txt'
+        mockStatSync.mockReturnValue({ isFile: () => true })
+        mockAccessSync.mockReturnValue(undefined)
+        script(SIGN_IN, 'ok')
+
+        await streamViaYtDlp(youtubeUrl)
+
+        expect(spawnArgs(1)).toContain('youtube:player_client=visionos,default')
+        delete process.env.YTDLP_COOKIES_FILE
     })
 
     it('loads the plugin and passes the provider URL on a YouTube target', async () => {
@@ -732,6 +760,7 @@ describe('streamViaYtDlp: po_token provider', () => {
         await streamViaYtDlp('https://soundcloud.com/artist/track')
 
         expect(spawnArgs(0)).not.toContain('--plugin-dirs')
+        expect(spawnArgs(0)).not.toContain('--extractor-args')
     })
 
     it.each([
