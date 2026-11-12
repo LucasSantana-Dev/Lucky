@@ -88,6 +88,11 @@ describe('formatTrackLine', () => {
         )
         expect(escapeTrackText('*bold*')).toBe('\\*bold\\*')
     })
+
+    it('escapes a backslash so it cannot escape the closing bracket', () => {
+        expect(escapeTrackText('AC\\DC')).toBe('AC\\\\DC')
+        expect(escapeTrackText('Song\\')).toBe('Song\\\\')
+    })
 })
 
 describe('buildPlayResponseEmbed', () => {

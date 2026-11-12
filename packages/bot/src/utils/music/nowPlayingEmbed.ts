@@ -94,9 +94,13 @@ const ACTION_OF_KIND: Record<PlayResponseKind, MusicAction> = {
     playlistQueued: 'playlistQueued',
 }
 
-/** Escapes markdown and the link brackets a title like "Song [Official Video]" carries. */
+/**
+ * Escapes markdown and the link brackets a title like "Song [Official Video]"
+ * carries. Backslashes and brackets are escaped here, first, so escapeMarkdown
+ * runs with its own backslash pass off and never escapes the ones added here.
+ */
 export function escapeTrackText(text: string): string {
-    return escapeMarkdown(text).replace(/[[\]]/g, '\\$&')
+    return escapeMarkdown(text.replace(/[\\[\]]/g, '\\$&'), { escape: false })
 }
 
 export function hasKnownDuration(duration?: string | null): duration is string {
