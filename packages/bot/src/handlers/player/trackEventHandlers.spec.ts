@@ -1703,3 +1703,35 @@ describe('autoplay rejection feedback (#2933)', () => {
         )
     })
 })
+
+describe('trackHandlers ASMR block', () => {
+    const asmr = { title: 'Nail Polish Brush', author: 'ASMR Bakery' }
+    const song = { title: 'Royals', author: 'Lorde' }
+
+    it('removes an ASMR track as soon as it is added', () => {
+        const handlers = setupHandlers()
+        const queue = {
+            ...createQueue(QueueRepeatMode.OFF),
+            removeTrack: jest.fn(),
+        }
+
+        handlers.audioTrackAdd(queue as never, asmr as never)
+        handlers.audioTrackAdd(queue as never, song as never)
+
+        expect(queue.removeTrack).toHaveBeenCalledTimes(1)
+        expect(queue.removeTrack).toHaveBeenCalledWith(asmr)
+    })
+
+    it('removes the ASMR tracks of a batch, keeping the rest', () => {
+        const handlers = setupHandlers()
+        const queue = {
+            ...createQueue(QueueRepeatMode.OFF),
+            removeTrack: jest.fn(),
+        }
+
+        handlers.audioTracksAdd(queue as never, [song, asmr] as never)
+
+        expect(queue.removeTrack).toHaveBeenCalledTimes(1)
+        expect(queue.removeTrack).toHaveBeenCalledWith(asmr)
+    })
+})

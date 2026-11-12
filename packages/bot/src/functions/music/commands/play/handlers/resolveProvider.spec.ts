@@ -729,6 +729,77 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
         expect(onSearchResolved).not.toHaveBeenCalled()
     })
 
+    it('refuses an ASMR result without trying another provider or replying', async () => {
+        const onSearchResolved = jest.fn()
+        const player: any = {
+            play: jest.fn(async (_c: unknown, _q: unknown, opts: any) => {
+                await opts.afterSearch(searchResultOf('ASMR good boy roleplay'))
+                return { track: {} }
+            }),
+        }
+
+        await expect(
+            resolveQueryWithFallbacks(
+                player,
+                channel,
+                'bom garoto',
+                'spotify',
+                QueryType.SPOTIFY_SEARCH,
+                {},
+                onSearchResolved,
+            ),
+        ).rejects.toMatchObject({ name: 'AsmrBlockedError' })
+        expect(player.play).toHaveBeenCalledTimes(1)
+        expect(onSearchResolved).not.toHaveBeenCalled()
+    })
+
+    it('stops at an ASMR result from the YouTube fallback, never reaching SoundCloud', async () => {
+        const player: any = {
+            play: jest
+                .fn<any>()
+                .mockRejectedValueOnce(new Error('Primary failed'))
+                .mockImplementationOnce(
+                    async (_c: unknown, _q: unknown, opts: any) => {
+                        await opts.afterSearch(searchResultOf('ASMR roleplay'))
+                        return { track: {} }
+                    },
+                )
+                .mockResolvedValue({ track: { title: 'Other' } }),
+        }
+
+        await expect(
+            resolveQueryWithFallbacks(
+                player,
+                channel,
+                'bom garoto',
+                'spotify',
+                QueryType.SPOTIFY_SEARCH,
+                {},
+            ),
+        ).rejects.toMatchObject({ name: 'AsmrBlockedError' })
+        expect(player.play).toHaveBeenCalledTimes(2)
+    })
+
+    it('blocks an ASMR query even when the result has no metadata to hydrate', async () => {
+        const player: any = {
+            play: jest.fn(async (_c: unknown, _q: unknown, opts: any) => {
+                await opts.afterSearch(searchResultOf(''))
+                return { track: {} }
+            }),
+        }
+
+        await expect(
+            resolveQueryWithFallbacks(
+                player,
+                channel,
+                'asmr bom garoto',
+                'default',
+                QueryType.AUTO,
+                {},
+            ),
+        ).rejects.toMatchObject({ name: 'AsmrBlockedError' })
+    })
+
     it('is not called for an empty result', async () => {
         const onSearchResolved = jest.fn()
         const player: any = {

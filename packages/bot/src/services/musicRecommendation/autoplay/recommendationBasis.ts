@@ -52,6 +52,7 @@ export type VetoReason =
     | 'blocked-artist'
     | 'too-long'
     | 'ambient-noise'
+    | 'asmr'
     | 'edm-mix'
     | 'cross-locale'
     | 'cross-genre'

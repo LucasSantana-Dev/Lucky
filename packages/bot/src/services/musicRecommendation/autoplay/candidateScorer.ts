@@ -6,6 +6,7 @@ import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import { detectSpanishMarkers } from '../../../utils/music/languageHeuristics'
 import { normalizeText, normalizeTrackKey } from './scoringUtils'
 import { hasArtistKey } from '@lucky/shared/utils/artistKey'
+import { isAsmrTrack } from '../../../utils/music/asmrFilter'
 
 const SCORE_SAME_ARTIST = 0.3
 const SCORE_POPULAR_ARTIST = 0.2
@@ -338,6 +339,10 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     }
 
     const candidateTitle = candidate.title ?? ''
+    // The artist too: an ASMR channel's titles often omit the word.
+    if (isAsmrTrack(candidate)) {
+        return { score: -Infinity, signals: [], veto: 'asmr' }
+    }
     if (AMBIENT_NOISE_RE.test(candidateTitle)) {
         return { score: -Infinity, signals: [], veto: 'ambient-noise' }
     }

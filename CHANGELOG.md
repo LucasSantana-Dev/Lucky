@@ -1685,6 +1685,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - feat(bot): the server count is also posted to discordbotlist.com and discord.bots.gg every 30 minutes, each enabled by its own `DISCORDBOTLIST_TOKEN` / `DISCORD_BOTS_GG_TOKEN`, with one info log and no requests when neither is set (#2751)
+- feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
 - fix(bot): music embeds are colored by what the bot did (now playing, queued, skipped, paused, resumed, previous, replay, seek), not by the source platform, so back-to-back replies no longer look the same; the source keeps its badge in the Source field (#2998)

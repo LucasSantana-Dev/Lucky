@@ -1,9 +1,21 @@
 import { QueryType } from 'discord-player'
+import type { SearchResult } from 'discord-player'
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
 
 const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
 import type { CustomClient } from '../../../../types'
 import { preferExactMatch } from './handlers/resolveProvider'
+import { ensureTrackMetadata } from './handlers/trackMetadataHydration'
+import {
+    classifyPlayFailure,
+    resolvePlayErrorMessage,
+} from './handlers/playErrorMessage'
+import { markCommandOutcome } from '../../../../utils/monitoring/commandOutcome'
+import {
+    AsmrBlockedError,
+    assertNotAsmr,
+    assertQueryNotAsmr,
+} from '../../../../utils/music/asmrFilter'
 import {
     requireVoiceChannel,
     requireDJRole,
@@ -19,7 +31,6 @@ import {
     createWarningEmbed,
 } from '../../../../utils/general/embeds'
 import { interactionReply } from '../../../../utils/general/interactionReply'
-import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { withTimeout } from '@lucky/shared/utils/async'
 import { assertDefined } from '@lucky/shared/utils/guards'
@@ -322,7 +333,14 @@ export async function executePlayAtTop({
 
     try {
         const searchEngine = resolveSearchEngine(query)
-        const afterSearch = preferExactMatch(query)
+        const rerank = preferExactMatch(query)
+        const afterSearch = async (found: SearchResult) => {
+            // Hydrated first: a bare link has no title or artist to check.
+            assertQueryNotAsmr(query)
+            const ranked = await ensureTrackMetadata(await rerank(found))
+            assertNotAsmr(query, ranked)
+            return ranked
+        }
         let result
         try {
             result = await client.player.play(voiceChannel, query, {
@@ -330,6 +348,7 @@ export async function executePlayAtTop({
                 afterSearch,
             })
         } catch (primaryError) {
+            if (primaryError instanceof AsmrBlockedError) throw primaryError
             if (searchEngine !== QueryType.AUTO) {
                 if (isHostedYoutubeEnabled()) {
                     warnLog({
@@ -348,6 +367,9 @@ export async function executePlayAtTop({
                             afterSearch,
                         })
                     } catch (youtubeError) {
+                        if (youtubeError instanceof AsmrBlockedError) {
+                            throw youtubeError
+                        }
                         warnLog({
                             message:
                                 'YouTube search failed, falling back to SoundCloud',
@@ -444,6 +466,14 @@ export async function executePlayAtTop({
             error,
             data: { query, guildId: interaction.guildId },
         })
+        markCommandOutcome(interaction, classifyPlayFailure(error))
+
+        let t: ((key: string) => string) | undefined
+        try {
+            t = await translatorForInteraction(interaction)
+        } catch {
+            // English fallback text in resolvePlayErrorMessage
+        }
 
         try {
             await interactionReply({
@@ -452,7 +482,7 @@ export async function executePlayAtTop({
                     embeds: [
                         createErrorEmbed(
                             'Play Error',
-                            createUserFriendlyError(error),
+                            resolvePlayErrorMessage(error, query, t),
                         ),
                     ],
                     ephemeral: true,

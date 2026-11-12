@@ -9,6 +9,7 @@ import {
     YoutubePlaylistUnavailableError,
     YoutubeVideoUnavailableError,
 } from './youtubeLinkErrors'
+import { AsmrBlockedError } from '../../../../../utils/music/asmrFilter'
 
 type Translate = (key: string) => string
 
@@ -39,6 +40,9 @@ export function resolvePlayErrorMessage(
             ? t('music.errors.youtubeVideoUnavailable')
             : "Couldn't play this YouTube link right now. Try typing the song and artist name instead."
     }
+    if (error instanceof AsmrBlockedError) {
+        return t ? t('music.errors.asmrBlocked') : error.message
+    }
 
     const isNoResultsError =
         error instanceof Error && /no results found/i.test(error.message)
@@ -67,5 +71,7 @@ export function classifyPlayFailure(error: unknown): ClassifiedOutcome {
     const classified = classifyOutcome({ error })
     const isNoResults =
         error instanceof Error && /no results found/i.test(error.message)
-    return isNoResults ? { ...classified, outcome: 'user_error' } : classified
+    return isNoResults || error instanceof AsmrBlockedError
+        ? { ...classified, outcome: 'user_error' }
+        : classified
 }
