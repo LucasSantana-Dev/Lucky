@@ -2,7 +2,6 @@ import {
     type ButtonInteraction,
     type GuildMember,
     escapeMarkdown,
-    MessageFlags,
 } from 'discord.js'
 import { QueueRepeatMode } from 'discord-player'
 import { debugLog, errorLog } from '@lucky/shared/utils'
@@ -334,22 +333,25 @@ async function handleStop(
 }
 
 /**
- * Stop pressed in the ephemeral "More" panel edits that panel only, so the
- * public now-playing message would keep buttons for a queue that is gone.
+ * Stop pressed anywhere but on the now-playing message itself (the "More"
+ * panel, an older message) edits only that message, so the now-playing one
+ * would keep buttons for a queue that is gone. Fetched from its own channel:
+ * the queue may have moved since the clicked message was sent.
  */
 async function clearNowPlayingButtons(
     interaction: ButtonInteraction,
 ): Promise<void> {
-    if (!interaction.message?.flags?.has(MessageFlags.Ephemeral)) return
     const nowPlaying = interaction.guildId
         ? getSongInfoMessage(interaction.guildId)
         : undefined
-    if (!nowPlaying || nowPlaying.channelId !== interaction.channelId) return
+    if (!nowPlaying || interaction.message?.id === nowPlaying.messageId) return
     try {
-        const message = await interaction.channel?.messages.fetch(
-            nowPlaying.messageId,
+        const channel = await interaction.client.channels.fetch(
+            nowPlaying.channelId,
         )
-        await message?.edit({ components: [] })
+        if (!channel?.isTextBased()) return
+        const message = await channel.messages.fetch(nowPlaying.messageId)
+        await message.edit({ components: [] })
     } catch (error) {
         debugLog({
             message: 'Could not clear now-playing buttons after stop',

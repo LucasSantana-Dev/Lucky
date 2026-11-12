@@ -346,46 +346,50 @@ describe('handleMusicButtonInteraction - autoplay feedback prompt', () => {
         })
     })
 
-    it('stop from the ephemeral panel takes the buttons off the now-playing message', async () => {
+    function stopFrom(clickedMessageId: string) {
         const queue = playingQueue()
         resolveGuildQueueMock.mockReturnValue({ queue })
         const nowPlaying = {
             edit: jest.fn<() => Promise<void>>().mockResolvedValue(),
         }
-        const fetch = jest
+        const fetchMessage = jest
             .fn<(id: string) => Promise<typeof nowPlaying>>()
             .mockResolvedValue(nowPlaying)
+        const fetchChannel = jest.fn<(id: string) => Promise<unknown>>()
+        fetchChannel.mockResolvedValue({
+            isTextBased: () => true,
+            messages: { fetch: fetchMessage },
+        })
         getSongInfoMessageMock.mockReturnValue({
             messageId: 'np-1',
-            channelId: 'channel-1',
+            channelId: 'np-channel',
         })
         const interaction = {
             ...createInteraction(MUSIC_BUTTON_IDS.STOP),
-            channelId: 'channel-1',
-            channel: { messages: { fetch } },
-            message: { flags: { has: () => true } },
+            channelId: 'other-channel',
+            client: { channels: { fetch: fetchChannel } },
+            message: { id: clickedMessageId },
         }
+        return { interaction, nowPlaying, fetchChannel, fetchMessage }
+    }
+
+    it('stop from another message takes the buttons off the now-playing message, in its own channel', async () => {
+        const { interaction, nowPlaying, fetchChannel, fetchMessage } =
+            stopFrom('panel-1')
 
         await handleMusicButtonInteraction(interaction as never)
 
-        expect(fetch).toHaveBeenCalledWith('np-1')
+        expect(fetchChannel).toHaveBeenCalledWith('np-channel')
+        expect(fetchMessage).toHaveBeenCalledWith('np-1')
         expect(nowPlaying.edit).toHaveBeenCalledWith({ components: [] })
     })
 
-    it('stop on the public now-playing message does not fetch it again', async () => {
-        const queue = playingQueue()
-        resolveGuildQueueMock.mockReturnValue({ queue })
-        const fetch = jest.fn()
-        const interaction = {
-            ...createInteraction(MUSIC_BUTTON_IDS.STOP),
-            channelId: 'channel-1',
-            channel: { messages: { fetch } },
-            message: { flags: { has: () => false } },
-        }
+    it('stop on the now-playing message itself does not fetch it again', async () => {
+        const { interaction, fetchChannel } = stopFrom('np-1')
 
         await handleMusicButtonInteraction(interaction as never)
 
-        expect(fetch).not.toHaveBeenCalled()
+        expect(fetchChannel).not.toHaveBeenCalled()
     })
 
     it('pause button asks on pause but not on resume', async () => {
