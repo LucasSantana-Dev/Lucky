@@ -216,10 +216,16 @@ describe('buildCommandTrackEmbed', () => {
         source: 'youtube',
     }
 
-    it('builds embed with status label and track data', () => {
+    it('is the status line plus the track on one line', () => {
         const embed = buildCommandTrackEmbed(track, '⏸️ Paused', fakeUser)
         expect(embed.data.author?.name).toBe('⏸️ Paused')
-        expect(embed.data.title).toBe(track.title)
-        expect(embed.data.footer?.text).toContain(fakeUser.tag)
+        expect(embed.data.description).toBe(
+            '[**Test Song**](https://youtube.com/watch?v=test) · Test Artist (1:00)',
+        )
+        // The now-playing message already carries these.
+        expect(embed.data.title).toBeUndefined()
+        expect(embed.data.thumbnail).toBeUndefined()
+        expect(embed.data.fields).toBeUndefined()
+        expect(embed.data.footer).toBeUndefined()
     })
 })

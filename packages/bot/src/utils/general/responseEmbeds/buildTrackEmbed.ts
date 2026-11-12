@@ -2,7 +2,7 @@ import { EmbedBuilder } from 'discord.js'
 import type { User } from 'discord.js'
 import type { Track } from 'discord-player'
 import type { TrackMetadata } from '@lucky/shared/types'
-import { detectSource } from '../../music/nowPlayingEmbed'
+import { detectSource, formatTrackLine } from '../../music/nowPlayingEmbed'
 import { trackSource } from '../../music/trackFields'
 import {
     MUSIC_ACTION_STYLE,
@@ -123,17 +123,22 @@ export function buildTrackEmbed(
     return embed
 }
 
+/**
+ * The reply of a playback command (/skip, /pause, /seek...): the status on the
+ * author line and the track on one line under it. Requester, artwork and
+ * source are left to the now-playing message, which updates at the same time.
+ */
 export function buildCommandTrackEmbed(
     track: PlayerTrackDataSource,
     statusLabel: string,
-    requestedBy: Pick<User, 'tag' | 'displayAvatarURL'>,
+    _requestedBy: Pick<User, 'tag' | 'displayAvatarURL'>,
     action: MusicAction = 'nowPlaying',
-): ReturnType<typeof buildTrackEmbed> {
+): EmbedBuilder {
     const trackData = playerTrackToData(track)
-    const embed = buildTrackEmbed(trackData, 'playing', requestedBy)
-    embed.setAuthor({ name: statusLabel })
-    embed.setColor(MUSIC_ACTION_STYLE[action].color)
-    return embed
+    return new EmbedBuilder()
+        .setAuthor({ name: statusLabel })
+        .setColor(MUSIC_ACTION_STYLE[action].color)
+        .setDescription(formatTrackLine(trackData))
 }
 
 export function playerTrackToData(track: PlayerTrackDataSource): TrackData {

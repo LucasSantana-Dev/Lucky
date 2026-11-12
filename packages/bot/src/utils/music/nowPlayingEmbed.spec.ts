@@ -1,10 +1,15 @@
 import { describe, it, expect } from '@jest/globals'
-import { buildPlayResponseEmbed, detectSource } from './nowPlayingEmbed'
+import {
+    buildPlayResponseEmbed,
+    detectSource,
+    escapeTrackText,
+    formatTrackLine,
+} from './nowPlayingEmbed'
+import { translatorFor } from '../../i18n'
 
-const fakeUser = {
-    tag: 'Admin#0001',
-    displayAvatarURL: () => 'https://cdn.discordapp.com/avatars/1/abc.png',
-}
+const fakeUser = { tag: 'Admin#0001' }
+const en = translatorFor('en')
+const ptBR = translatorFor('pt-BR')
 
 describe('detectSource', () => {
     it('prefers an explicit track.source when provided', () => {
@@ -43,6 +48,48 @@ describe('detectSource', () => {
     })
 })
 
+describe('formatTrackLine', () => {
+    it('renders a linked bold title, the artist and the duration', () => {
+        expect(
+            formatTrackLine(
+                {
+                    title: 'Depois',
+                    author: 'Marisa Monte',
+                    url: 'https://x.test/1',
+                    duration: '2:53',
+                },
+                en,
+            ),
+        ).toBe('[**Depois**](https://x.test/1) · Marisa Monte (2:53)')
+    })
+
+    it('drops an unknown duration and the link when there is no url', () => {
+        expect(
+            formatTrackLine(
+                { title: 'Depois', author: 'Marisa Monte', duration: '0:00' },
+                en,
+            ),
+        ).toBe('**Depois** · Marisa Monte')
+    })
+
+    it('falls back to localized unknown title and artist', () => {
+        expect(formatTrackLine({ title: '', author: '' }, ptBR)).toBe(
+            '**Faixa desconhecida** · Artista desconhecido',
+        )
+    })
+
+    it('falls back to English without a translator', () => {
+        expect(formatTrackLine({})).toBe('**Unknown track** · Unknown artist')
+    })
+
+    it('escapes brackets so a title like "[Official Video]" keeps the link intact', () => {
+        expect(escapeTrackText('Song [Official Video]')).toBe(
+            'Song \\[Official Video\\]',
+        )
+        expect(escapeTrackText('*bold*')).toBe('\\*bold\\*')
+    })
+})
+
 describe('buildPlayResponseEmbed', () => {
     const baseTrack = {
         title: 'Bohemian Rhapsody',
@@ -52,73 +99,73 @@ describe('buildPlayResponseEmbed', () => {
         duration: '5:55',
     }
 
-    it('produces a Now Playing embed with title, author, thumbnail, source, duration, footer', () => {
-        const embed = buildPlayResponseEmbed({
-            kind: 'nowPlaying',
-            track: baseTrack,
-            requestedBy: fakeUser,
-        })
-        const data = embed.data
-
-        expect(data.title).toBe('Bohemian Rhapsody')
-        expect(data.description).toContain('Queen')
-        expect(data.url).toBe(baseTrack.url)
-        expect(data.thumbnail?.url).toBe(baseTrack.thumbnail)
-        expect(data.author?.name).toContain('Now Playing')
-        expect(data.footer?.text).toContain('Admin#0001')
-
-        const fields = data.fields ?? []
-        const durationField = fields.find((f) => f.name === 'Duration')
-        const sourceField = fields.find((f) => f.name === 'Source')
-        expect(durationField?.value).toBe('5:55')
-        expect(sourceField?.value).toBe('🔴 YouTube')
-    })
-
-    it('omits the Duration field when duration is 0:00 (unknown)', () => {
-        const embed = buildPlayResponseEmbed({
-            kind: 'nowPlaying',
-            track: { ...baseTrack, duration: '0:00' },
-            requestedBy: fakeUser,
-        })
-        const fields = embed.data.fields ?? []
-        expect(fields.find((f) => f.name === 'Duration')).toBeUndefined()
-    })
-
-    it('uses "Added to Queue" header + shows queue position when addedToQueue', () => {
-        const embed = buildPlayResponseEmbed({
-            kind: 'addedToQueue',
-            track: baseTrack,
-            requestedBy: fakeUser,
-            queuePosition: 3,
-        })
-        expect(embed.data.author?.name).toContain('Added to Queue')
-        const posField = embed.data.fields?.find(
-            (f) => f.name === 'Queue Position',
+    it('is one line: no title, thumbnail, fields or timestamp', () => {
+        const embed = buildPlayResponseEmbed(
+            { kind: 'nowPlaying', track: baseTrack, requestedBy: fakeUser },
+            en,
         )
-        expect(posField?.value).toBe('#3')
+        expect(embed.data.description).toBe(
+            '▶️ Now playing [**Bohemian Rhapsody**](https://youtube.com/watch?v=abc) · Queen (5:55)',
+        )
+        expect(embed.data.footer?.text).toBe('Requested by Admin#0001')
+        expect(embed.data.title).toBeUndefined()
+        expect(embed.data.thumbnail).toBeUndefined()
+        expect(embed.data.fields).toBeUndefined()
+        expect(embed.data.timestamp).toBeUndefined()
     })
 
-    it('renders playlistQueued with title + track count instead of single track fields', () => {
-        const embed = buildPlayResponseEmbed({
-            kind: 'playlistQueued',
-            track: baseTrack,
-            requestedBy: fakeUser,
-            playlist: { title: 'Road Trip Vibes', trackCount: 42 },
-        })
-        expect(embed.data.author?.name).toContain('Playlist Queued')
-        expect(embed.data.title).toBe('Road Trip Vibes')
-        expect(embed.data.description).toContain('42')
-        const fields = embed.data.fields ?? []
-        expect(fields.find((f) => f.name === 'Duration')).toBeUndefined()
+    it('puts the queue position before the requester when queued', () => {
+        const embed = buildPlayResponseEmbed(
+            {
+                kind: 'addedToQueue',
+                track: baseTrack,
+                requestedBy: fakeUser,
+                queuePosition: 3,
+            },
+            en,
+        )
+        expect(embed.data.description).toBe(
+            '➕ Queued [**Bohemian Rhapsody**](https://youtube.com/watch?v=abc) · Queen (5:55)',
+        )
+        expect(embed.data.footer?.text).toBe(
+            'Position 3 · requested by Admin#0001',
+        )
     })
 
-    it('falls back to "Unknown Track" when title is empty', () => {
-        const embed = buildPlayResponseEmbed({
-            kind: 'nowPlaying',
-            track: { ...baseTrack, title: '' },
-            requestedBy: fakeUser,
-        })
-        expect(embed.data.title).toBe('Unknown Track')
+    it('is translated with the guild language', () => {
+        const embed = buildPlayResponseEmbed(
+            {
+                kind: 'addedToQueue',
+                track: baseTrack,
+                requestedBy: fakeUser,
+                queuePosition: 1,
+            },
+            ptBR,
+        )
+        expect(embed.data.description).toMatch(/^➕ Na fila /)
+        expect(embed.data.footer?.text).toBe(
+            'Posição 1 · pedido por Admin#0001',
+        )
+    })
+
+    it('renders a playlist on one line, linked to the playlist itself', () => {
+        const embed = buildPlayResponseEmbed(
+            {
+                kind: 'playlistQueued',
+                track: baseTrack,
+                requestedBy: fakeUser,
+                playlist: {
+                    title: 'Classic Rock',
+                    trackCount: 42,
+                    url: 'https://open.spotify.com/playlist/xyz',
+                },
+            },
+            en,
+        )
+        expect(embed.data.description).toBe(
+            '📃 Playlist [**Classic Rock**](https://open.spotify.com/playlist/xyz) · 42 tracks queued',
+        )
+        expect(embed.data.footer?.text).toBe('Requested by Admin#0001')
     })
 
     it('colors by action, not by source: queued and now playing never look alike', () => {
@@ -127,34 +174,20 @@ describe('buildPlayResponseEmbed', () => {
             url: 'https://open.spotify.com/track/abc',
             source: 'spotify',
         }
-        const playing = buildPlayResponseEmbed({
-            kind: 'nowPlaying',
-            track: spotify,
-            requestedBy: fakeUser,
-        })
-        const queued = buildPlayResponseEmbed({
-            kind: 'addedToQueue',
-            track: spotify,
-            requestedBy: fakeUser,
-            queuePosition: 1,
-        })
+        const playing = buildPlayResponseEmbed(
+            { kind: 'nowPlaying', track: spotify, requestedBy: fakeUser },
+            en,
+        )
+        const queued = buildPlayResponseEmbed(
+            {
+                kind: 'addedToQueue',
+                track: spotify,
+                requestedBy: fakeUser,
+                queuePosition: 1,
+            },
+            en,
+        )
         expect(playing.data.color).toBe(0x9c27b0)
         expect(queued.data.color).toBe(0x5865f2)
-        expect(playing.data.author?.name).toBe('▶️ Now Playing')
-        expect(queued.data.author?.name).toBe('➕ Added to Queue')
-    })
-
-    it('shows the Spotify badge in the Source field for spotify tracks', () => {
-        const embed = buildPlayResponseEmbed({
-            kind: 'nowPlaying',
-            track: {
-                ...baseTrack,
-                url: 'https://open.spotify.com/track/abc',
-                source: 'spotify',
-            },
-            requestedBy: fakeUser,
-        })
-        const sourceField = embed.data.fields?.find((f) => f.name === 'Source')
-        expect(sourceField?.value).toBe('🟢 Spotify')
     })
 })

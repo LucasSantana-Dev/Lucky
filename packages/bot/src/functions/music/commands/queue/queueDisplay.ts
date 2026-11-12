@@ -1,7 +1,9 @@
 import type { Track } from 'discord-player'
+import type { TFunction } from 'i18next'
 import { getTrackInfo } from '../../../../services/musicManagement/trackUtils'
 import { isSimilarTitle } from '../../../../services/musicManagement/titleComparison'
 import type { TrackDisplayInfo, QueueDisplayOptions } from './types'
+import { escapeTrackText } from '../../../../utils/music/nowPlayingEmbed'
 
 export async function formatTrackForDisplay(
     track: Track,
@@ -18,7 +20,7 @@ export async function formatTrackForDisplay(
         title: track.title,
         author: track.author,
         url: track.url,
-        duration: trackInfo.duration || 'Unknown',
+        duration: trackInfo.duration || '',
         thumbnail: track.thumbnail,
         requestedBy: track.requestedBy?.username,
         position,
@@ -32,34 +34,37 @@ function isAutoplayTrack(track: Track): boolean {
     return meta.isAutoplay === true
 }
 
-function formatSingleTrack(info: TrackDisplayInfo, index: number): string {
-    const marker = info.isAutoplay ? '\u{1F916}' : '\u{1F464}'
-    let reason = ''
-    if (info.isAutoplay) {
-        if (info.recommendationReason) {
-            const truncated =
-                info.recommendationReason.length > 40
-                    ? info.recommendationReason.substring(0, 40) + '...'
-                    : info.recommendationReason
-            reason = ` \u2014 _${truncated}_`
-        } else {
-            reason = ' \u2014 autoplay'
-        }
-    }
-    const by = info.requestedBy ? ` \u2022 ${info.requestedBy}` : ''
+/** "1. Title · Artist · 6:44 · requester" (or "autoplay" for a pick). */
+function formatSingleTrack(
+    info: TrackDisplayInfo,
+    index: number,
+    t: TFunction,
+): string {
     const title =
         info.title.length > 40 ? info.title.slice(0, 39) + '\u2026' : info.title
+    const name = escapeTrackText(title)
     const link =
         info.url && info.url.startsWith('http')
-            ? `[${title}](${info.url})`
-            : title
-    return `${marker} ${index + 1}. ${link} - ${info.author} (${info.duration})${by}${reason}`
+            ? `[${name}](${info.url})`
+            : name
+    const who = info.isAutoplay
+        ? t('music.queue.autoplayTag')
+        : info.requestedBy
+    return [
+        `${index + 1}. ${link}`,
+        escapeTrackText(info.author),
+        info.duration,
+        who,
+    ]
+        .filter(Boolean)
+        .join(' · ')
 }
 
 export async function createTrackListDisplay(
     tracks: Track[],
     options: QueueDisplayOptions,
-    page = 0,
+    page: number,
+    t: TFunction,
 ): Promise<string> {
     const perPage = options.maxTracksToShow
     const start = page * perPage
@@ -73,7 +78,7 @@ export async function createTrackListDisplay(
         for (const track of bucket) {
             const idx = tracks.indexOf(track)
             const info = await formatTrackForDisplay(track, idx, options)
-            lines.push(formatSingleTrack(info, idx))
+            lines.push(formatSingleTrack(info, idx, t))
         }
         return lines.join('\n')
     }
@@ -86,9 +91,7 @@ export async function createTrackListDisplay(
 
     if (autoTracks.length > 0) {
         if (userTracks.length > 0) {
-            sections.push(
-                '\u2500\u2500\u2500 \u{1F916} Autoplay Recommendations \u2500\u2500\u2500',
-            )
+            sections.push(`**${t('music.queue.autoplaySection')}**`)
         }
         sections.push(await renderSection(autoTracks))
     }
@@ -97,7 +100,7 @@ export async function createTrackListDisplay(
 
     if (tracks.length > start + perPage) {
         const remaining = tracks.length - (start + perPage)
-        result += `\n... and ${remaining} more tracks`
+        result += `\n${t('music.queue.more', { count: remaining })}`
     }
 
     // Empty, not an English sentinel: the only caller has a localized
@@ -118,29 +121,4 @@ export async function findSimilarTracksInQueue(
     }
 
     return similarTracks
-}
-
-export function createQueueSummary(
-    totalTracks: number,
-    totalDuration: string,
-    currentPositionMs: number,
-): string {
-    const summary = []
-
-    summary.push(`**Total Tracks:** ${totalTracks}`)
-    summary.push(`**Total Duration:** ${totalDuration}`)
-
-    if (currentPositionMs > 0) {
-        summary.push(`**Current Position:** ${formatTime(currentPositionMs)}`)
-    }
-
-    return summary.join(' \u2022 ')
-}
-
-// getTimestamp().current.value upstream reports milliseconds (#1202)
-function formatTime(milliseconds: number): string {
-    const totalSeconds = Math.floor(milliseconds / 1000)
-    const minutes = Math.floor(totalSeconds / 60)
-    const secs = totalSeconds % 60
-    return `${minutes}:${secs.toString().padStart(2, '0')}`
 }

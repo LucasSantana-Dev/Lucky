@@ -1,14 +1,41 @@
 import type { GuildQueue } from 'discord-player'
+import { EmbedBuilder } from 'discord.js'
+import type { TFunction } from 'i18next'
 import { debugLog } from '@lucky/shared/utils'
-import { createErrorEmbed } from '../../utils/general/embeds'
+import { EMBED_COLORS } from '../../utils/general/embeds'
 import type { QueueMetadata } from '../../types/QueueMetadata'
+import { translatorForInteraction } from '../../i18n/translatorForInteraction'
+import { escapeTrackText } from '../../utils/music/nowPlayingEmbed'
+
+/** A one-line warning: no title, no timestamp. */
+export function buildMusicNoticeEmbed(text: string): EmbedBuilder {
+    return new EmbedBuilder()
+        .setColor(EMBED_COLORS.ERROR)
+        .setDescription(`⚠️ ${text}`)
+}
 
 // decisions/2026-09-27-music-first-positioning.md: never name the audio
 // source. No region excuse either: since 2026-10-19 most misses are YouTube
 // blocking the bot, not the listener's region. No skip claim: discord-player
 // has already moved on by the time this is sent (see streamRecovery.ts).
-export function streamFailedDescription(trackTitle: string): string {
-    return `Couldn't find the original of **${trackTitle || 'this track'}** right now, so I'm not playing a cover. Try again shortly or paste a link.`
+export function buildStreamFailedEmbed(
+    trackTitle: string,
+    t: TFunction,
+): EmbedBuilder {
+    return buildMusicNoticeEmbed(
+        t('music.messages.streamFailed', {
+            title: escapeTrackText(
+                trackTitle || t('music.messages.unknownTrack'),
+            ),
+        }),
+    )
+}
+
+function translatorForQueue(queue: GuildQueue): Promise<TFunction> {
+    return translatorForInteraction({
+        guildId: queue.guild.id,
+        guild: queue.guild,
+    })
 }
 
 // Per guild: the first failure posts at once and opens a window; failures
@@ -41,11 +68,11 @@ async function flushFailureWindow(guildId: string): Promise<void> {
     const channel = (queue.metadata as QueueMetadata | undefined)?.channel
     if (!channel) return
     try {
+        const t = await translatorForQueue(queue)
         await channel.send({
             embeds: [
-                createErrorEmbed(
-                    '⚠️ Could not play tracks',
-                    `${held} ${held === 1 ? 'track' : 'tracks'} could not be played. Try again shortly or paste a link.`,
+                buildMusicNoticeEmbed(
+                    t('music.messages.streamFailedMany', { count: held }),
                 ),
             ],
         })
@@ -77,13 +104,9 @@ export async function notifyChannelStreamFailed(
     timer.unref?.()
     failureWindows.set(guildId, { timer, held: 0, queue })
     try {
+        const t = await translatorForQueue(queue)
         await channel.send({
-            embeds: [
-                createErrorEmbed(
-                    '⚠️ Could not play track',
-                    streamFailedDescription(trackTitle),
-                ),
-            ],
+            embeds: [buildStreamFailedEmbed(trackTitle, t)],
         })
     } catch (error) {
         debugLog({
@@ -101,11 +124,13 @@ export async function notifyChannelAutoplayStopped(
     const channel = (queue.metadata as QueueMetadata | undefined)?.channel
     if (!channel) return
     try {
+        const t = await translatorForQueue(queue)
         await channel.send({
             embeds: [
-                createErrorEmbed(
-                    '⚠️ Autoplay stopped',
-                    `The last ${failedCount} autoplay tracks could not be streamed from any source, so autoplay stopped. Use /play to start again.`,
+                buildMusicNoticeEmbed(
+                    t('music.messages.autoplayStopped', {
+                        count: failedCount,
+                    }),
                 ),
             ],
         })

@@ -1,27 +1,39 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+
+const controlRow = { kind: 'controls' }
+const actionRow = { kind: 'actions' }
+const paginationRowMock = jest.fn<(...args: unknown[]) => unknown>()
+const createMusicActionButtonsMock = jest.fn(() => actionRow)
+
 jest.mock('../../../../utils/music/buttonComponents', () => ({
-    createQueuePaginationButtons: jest.fn().mockReturnValue(null),
-    createMusicControlButtons: jest.fn().mockReturnValue({}),
-    createMusicActionButtons: jest.fn().mockReturnValue({}),
+    createQueuePaginationButtons: (...args: unknown[]) =>
+        paginationRowMock(...args),
+    createMusicControlButtons: jest.fn(() => controlRow),
+    createMusicActionButtons: () => createMusicActionButtonsMock(),
 }))
 
 import { createQueueEmbed, createQueueErrorEmbed } from './queueEmbed'
 import { translatorFor } from '../../../../i18n'
+import type { QueueDisplayOptions } from './types'
 
 // The real English translator, not a stub. These assertions then double as a
 // check that every key the embed asks for actually exists in en.json.
 const t = translatorFor('en')
-import type { QueueDisplayOptions } from './types'
 
+const setDescriptionMock = jest.fn().mockReturnThis()
+const setFooterMock = jest.fn().mockReturnThis()
 const addFieldsMock = jest.fn().mockReturnThis()
 const setThumbnailMock = jest.fn().mockReturnThis()
-const mockEmbed = { addFields: addFieldsMock, setThumbnail: setThumbnailMock }
+const mockEmbed = {
+    setDescription: setDescriptionMock,
+    setFooter: setFooterMock,
+    addFields: addFieldsMock,
+    setThumbnail: setThumbnailMock,
+}
 
 const createEmbedMock = jest.fn(() => mockEmbed)
 const calculateQueueStatsMock = jest.fn()
-const getQueueStatusMock = jest.fn()
 const createTrackListDisplayMock = jest.fn()
-const createQueueSummaryMock = jest.fn()
 
 jest.mock('../../../../utils/general/embeds', () => ({
     createEmbed: (...args: unknown[]) => createEmbedMock(...args),
@@ -32,13 +44,11 @@ jest.mock('../../../../utils/general/embeds', () => ({
 jest.mock('./queueStats', () => ({
     calculateQueueStats: (...args: unknown[]) =>
         calculateQueueStatsMock(...args),
-    getQueueStatus: (...args: unknown[]) => getQueueStatusMock(...args),
 }))
 
 jest.mock('./queueDisplay', () => ({
     createTrackListDisplay: (...args: unknown[]) =>
         createTrackListDisplayMock(...args),
-    createQueueSummary: (...args: unknown[]) => createQueueSummaryMock(...args),
 }))
 
 const defaultOptions: QueueDisplayOptions = {
@@ -50,9 +60,10 @@ const defaultOptions: QueueDisplayOptions = {
 }
 
 function createQueue(overrides: Record<string, unknown> = {}): unknown {
+    const tracks = (overrides.trackList as unknown[]) ?? []
     return {
         currentTrack: null,
-        tracks: { toArray: () => [] },
+        tracks: { toArray: () => tracks, size: tracks.length },
         ...overrides,
     }
 }
@@ -62,239 +73,235 @@ function createTrack(overrides: Record<string, unknown> = {}): unknown {
         title: 'Test Track',
         author: 'Test Artist',
         url: 'https://example.com/track',
-        thumbnail: undefined,
+        duration: '3:40',
+        thumbnail: 'https://example.com/thumb.jpg',
+        requestedBy: { username: 'PitaDure' },
         metadata: {},
         ...overrides,
     }
+}
+
+function description(): string {
+    expect(setDescriptionMock).toHaveBeenCalledTimes(1)
+    return setDescriptionMock.mock.calls[0][0] as string
 }
 
 describe('queueEmbed', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         createEmbedMock.mockReturnValue(mockEmbed as any)
+        paginationRowMock.mockReturnValue(null)
         calculateQueueStatsMock.mockResolvedValue({
             totalTracks: 2,
-            totalDuration: '7:00',
+            totalDuration: '9:37',
             currentPosition: 0,
         })
-        getQueueStatusMock.mockReturnValue('Playing')
         createTrackListDisplayMock.mockResolvedValue(
             '1. Track One\n2. Track Two',
         )
-        createQueueSummaryMock.mockReturnValue('**Total Tracks:** 2')
     })
 
     describe('createQueueEmbed', () => {
-        it('adds now-playing field without reason line for non-autoplay tracks', async () => {
-            const track = createTrack()
-            const queue = createQueue({ currentTrack: track })
-
-            await createQueueEmbed(queue as any, defaultOptions, 0, t)
-
-            const nowPlayingCall = addFieldsMock.mock.calls.find(
-                (call) => (call[0] as any).name === '\u{1f3b5} Now Playing',
-            )
-            expect(nowPlayingCall).toBeDefined()
-            const field = nowPlayingCall![0] as { value: string }
-            expect(field.value).toBe(
-                '[Test Track](https://example.com/track) by **Test Artist**',
-            )
-            expect(field.value).not.toContain('Recommended because')
-        })
-
-        it('appends recommendation reason line for autoplay tracks with a reason', async () => {
-            const track = createTrack({
-                metadata: {
-                    isAutoplay: true,
-                    recommendationReason: 'fresh artist rotation',
-                },
+        it('renders one card: now playing, then the numbered list', async () => {
+            const queue = createQueue({
+                currentTrack: createTrack(),
+                trackList: [{}, {}],
             })
-            const queue = createQueue({ currentTrack: track })
 
             await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
-            const nowPlayingCall = addFieldsMock.mock.calls.find(
-                (call) => (call[0] as any).name === '\u{1f3b5} Now Playing',
+            expect(description()).toBe(
+                '**🎵 Now Playing**\n' +
+                    '[Test Track](https://example.com/track) · Test Artist · 3:40 · PitaDure\n\n' +
+                    '1. Track One\n2. Track Two',
             )
-            expect(nowPlayingCall).toBeDefined()
-            const field = nowPlayingCall![0] as { value: string }
-            expect(field.value).toContain(
-                '\nRecommended because: _fresh artist rotation_',
-            )
-        })
-
-        it('does not append reason line when isAutoplay is true but reason is absent', async () => {
-            const track = createTrack({ metadata: { isAutoplay: true } })
-            const queue = createQueue({ currentTrack: track })
-
-            await createQueueEmbed(queue as any, defaultOptions, 0, t)
-
-            const nowPlayingCall = addFieldsMock.mock.calls.find(
-                (call) => (call[0] as any).name === '\u{1f3b5} Now Playing',
-            )
-            expect(nowPlayingCall).toBeDefined()
-            const field = nowPlayingCall![0] as { value: string }
-            expect(field.value).not.toContain('Recommended because')
-        })
-
-        it('does not append reason line when recommendationReason is set but isAutoplay is false', async () => {
-            const track = createTrack({
-                metadata: {
-                    isAutoplay: false,
-                    recommendationReason: 'some reason',
-                },
-            })
-            const queue = createQueue({ currentTrack: track })
-
-            await createQueueEmbed(queue as any, defaultOptions, 0, t)
-
-            const nowPlayingCall = addFieldsMock.mock.calls.find(
-                (call) => (call[0] as any).name === '\u{1f3b5} Now Playing',
-            )
-            expect(nowPlayingCall).toBeDefined()
-            const field = nowPlayingCall![0] as { value: string }
-            expect(field.value).not.toContain('Recommended because')
-        })
-
-        it('sets thumbnail when track has one', async () => {
-            const track = createTrack({
-                thumbnail: 'https://example.com/thumb.jpg',
-            })
-            const queue = createQueue({ currentTrack: track })
-
-            await createQueueEmbed(queue as any, defaultOptions, 0, t)
-
-            expect(setThumbnailMock).toHaveBeenCalledWith(
-                'https://example.com/thumb.jpg',
+            expect(createTrackListDisplayMock).toHaveBeenCalledWith(
+                [{}, {}],
+                defaultOptions,
+                0,
+                t,
             )
         })
 
-        it('does not call setThumbnail when track has no thumbnail', async () => {
-            const track = createTrack({ thumbnail: undefined })
-            const queue = createQueue({ currentTrack: track })
+        it('uses no fields, thumbnail or timestamp', async () => {
+            const queue = createQueue({ currentTrack: createTrack() })
 
             await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
+            expect(addFieldsMock).not.toHaveBeenCalled()
             expect(setThumbnailMock).not.toHaveBeenCalled()
+            expect(createEmbedMock).toHaveBeenCalledWith(
+                expect.not.objectContaining({ timestamp: true }),
+            )
         })
 
-        it('adds upcoming tracks field when tracks exist in queue', async () => {
-            const track = createTrack()
+        it('tags an autoplay track playing now instead of the requester and drops the reason', async () => {
             const queue = createQueue({
-                currentTrack: null,
-                tracks: { toArray: () => [track] },
+                currentTrack: createTrack({
+                    requestedBy: { username: 'Lucky' },
+                    metadata: {
+                        isAutoplay: true,
+                        recommendationReason: 'fresh artist rotation',
+                    },
+                }),
             })
 
             await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
-            const upcomingCall = addFieldsMock.mock.calls.find((call) =>
-                String((call[0] as any).name).startsWith(
-                    '📋 Upcoming Tracks (',
-                ),
-            )
-            expect(upcomingCall).toBeDefined()
+            const text = description()
+            expect(text).toContain('· 3:40 · autoplay')
+            expect(text).not.toContain('Lucky')
+            expect(text).not.toContain('fresh artist rotation')
         })
 
-        it('adds empty upcoming tracks field when queue is empty', async () => {
+        it('leaves out an unknown duration and escapes the title brackets', async () => {
             const queue = createQueue({
-                currentTrack: null,
-                tracks: { toArray: () => [] },
+                currentTrack: createTrack({
+                    title: 'Song [Live]',
+                    duration: '0:00',
+                }),
             })
 
             await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
-            const emptyCall = addFieldsMock.mock.calls.find(
-                (call) => (call[0] as any).value === 'No tracks in queue',
+            expect(description()).toContain(
+                '[Song \\[Live\\]](https://example.com/track) · Test Artist · PitaDure',
             )
-            expect(emptyCall).toBeDefined()
+        })
+
+        it('says the queue is empty when nothing is up next', async () => {
+            const queue = createQueue()
+
+            await createQueueEmbed(queue as any, defaultOptions, 0, t)
+
+            expect(description()).toBe('No tracks in queue')
+            expect(createTrackListDisplayMock).not.toHaveBeenCalled()
         })
 
         it('uses the localized fallback when the page has nothing to render', async () => {
             // Tracks exist, but this page is past the end, so the list comes
-            // back empty. It used to come back as the English sentinel
-            // 'No tracks in queue', which is truthy and always beat the
-            // localized fallback.
+            // back empty. It must not fall back to the "queue is empty" text.
             const queue = createQueue({
-                tracks: { toArray: () => [{ title: 'a' }, { title: 'b' }] },
+                trackList: [{ title: 'a' }, { title: 'b' }],
             })
             createTrackListDisplayMock.mockResolvedValueOnce('')
 
             await createQueueEmbed(queue as any, defaultOptions, 9, t)
 
-            const values = addFieldsMock.mock.calls.map(
-                (call) => (call[0] as any).value,
-            )
-            expect(values).toContain('No displayable tracks')
-            expect(values).not.toContain('No tracks in queue')
+            expect(description()).toBe('No displayable tracks')
         })
 
-        it('adds queue stats and status fields', async () => {
+        it('puts the count and total duration in the footer', async () => {
             const queue = createQueue()
 
             await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
-            const statsCall = addFieldsMock.mock.calls.find(
-                (call) => (call[0] as any).name === '📊 Queue Statistics',
-            )
-            const statusCall = addFieldsMock.mock.calls.find(
-                (call) => (call[0] as any).name === '🎛️ Status',
-            )
-            expect(statsCall).toBeDefined()
-            expect(statusCall).toBeDefined()
+            expect(setFooterMock).toHaveBeenCalledWith({
+                text: '2 songs in queue • Total duration 9:37',
+            })
         })
 
-        it('skips now-playing field when showCurrentTrack is false', async () => {
-            const track = createTrack()
-            const queue = createQueue({ currentTrack: track })
+        it('uses the singular footer for one song', async () => {
+            calculateQueueStatsMock.mockResolvedValueOnce({
+                totalTracks: 1,
+                totalDuration: '2:53',
+                currentPosition: 0,
+            })
+
+            await createQueueEmbed(createQueue() as any, defaultOptions, 0, t)
+
+            expect(setFooterMock).toHaveBeenCalledWith({
+                text: '1 song in queue • Total duration 2:53',
+            })
+        })
+
+        it('skips the footer when showQueueStats is false', async () => {
+            const options = { ...defaultOptions, showQueueStats: false }
+
+            await createQueueEmbed(createQueue() as any, options, 0, t)
+
+            expect(setFooterMock).not.toHaveBeenCalled()
+            expect(calculateQueueStatsMock).not.toHaveBeenCalled()
+        })
+
+        it('skips the now-playing section when showCurrentTrack is false', async () => {
+            const queue = createQueue({ currentTrack: createTrack() })
             const options = { ...defaultOptions, showCurrentTrack: false }
 
             await createQueueEmbed(queue as any, options, 0, t)
 
-            const nowPlayingCall = addFieldsMock.mock.calls.find(
-                (call) => (call[0] as any).name === '\u{1f3b5} Now Playing',
-            )
-            expect(nowPlayingCall).toBeUndefined()
+            expect(description()).not.toContain('Now Playing')
         })
 
-        it('skips upcoming tracks field when showUpcomingTracks is false', async () => {
-            const track = createTrack()
-            const queue = createQueue({ tracks: { toArray: () => [track] } })
+        it('skips the list when showUpcomingTracks is false', async () => {
+            const queue = createQueue({
+                currentTrack: createTrack(),
+                trackList: [{}],
+            })
             const options = { ...defaultOptions, showUpcomingTracks: false }
 
             await createQueueEmbed(queue as any, options, 0, t)
 
-            const upcomingCall = addFieldsMock.mock.calls.find((call) =>
-                String((call[0] as any).name ?? '').startsWith('📋 Upcoming'),
-            )
-            expect(upcomingCall).toBeUndefined()
+            expect(createTrackListDisplayMock).not.toHaveBeenCalled()
+            expect(description()).not.toContain('Track One')
         })
 
-        it('truncates track list value to 1024 chars when it exceeds Discord embed limit', async () => {
-            createTrackListDisplayMock.mockResolvedValue('x'.repeat(2000))
-            const track = createTrack()
-            const queue = createQueue({
-                currentTrack: null,
-                tracks: { toArray: () => [track] },
-            })
+        it('sets no description when every section is off', async () => {
+            const options = {
+                ...defaultOptions,
+                showCurrentTrack: false,
+                showUpcomingTracks: false,
+            }
+
+            await createQueueEmbed(createQueue() as any, options, 0, t)
+
+            expect(setDescriptionMock).not.toHaveBeenCalled()
+        })
+
+        it('truncates the description to the 4096-char embed limit', async () => {
+            createTrackListDisplayMock.mockResolvedValue('x'.repeat(5000))
+            const queue = createQueue({ trackList: [{}] })
 
             await createQueueEmbed(queue as any, defaultOptions, 0, t)
 
-            const upcomingCall = addFieldsMock.mock.calls.find((call) =>
-                String((call[0] as any).name ?? '').startsWith(
-                    '📋 Upcoming Tracks (',
-                ),
+            const text = description()
+            expect(text.length).toBe(4096)
+            expect(text.endsWith('…')).toBe(true)
+        })
+
+        it('has one control row and no action row', async () => {
+            const { components } = await createQueueEmbed(
+                createQueue() as any,
+                defaultOptions,
+                0,
+                t,
             )
-            expect(upcomingCall).toBeDefined()
-            expect((upcomingCall![0] as any).value.length).toBeLessThanOrEqual(
-                1024,
+
+            expect(components).toEqual([controlRow])
+            expect(createMusicActionButtonsMock).not.toHaveBeenCalled()
+        })
+
+        it('adds the page row after the controls when there is more than one page', async () => {
+            const pageRow = { kind: 'pages' }
+            paginationRowMock.mockReturnValueOnce(pageRow)
+            const queue = createQueue({
+                trackList: Array.from({ length: 25 }, () => ({})),
+            })
+
+            const { components } = await createQueueEmbed(
+                queue as any,
+                defaultOptions,
+                1,
+                t,
             )
+
+            expect(paginationRowMock).toHaveBeenCalledWith(1, 3)
+            expect(components).toEqual([controlRow, pageRow])
         })
 
         it('returns the embed instance', async () => {
-            const queue = createQueue()
-
             const { embed: result } = await createQueueEmbed(
-                queue as any,
+                createQueue() as any,
                 defaultOptions,
                 0,
                 t,

@@ -124,6 +124,7 @@ jest.mock('../../../../utils/general/embeds', () => ({
         createErrorEmbedMock(title, message),
     createSuccessEmbed: (title: string, message: string) =>
         createSuccessEmbedMock(title, message),
+    EMBED_COLORS: { ERROR: '#F44336' },
 }))
 
 jest.mock(
@@ -147,6 +148,7 @@ jest.mock('../../../../utils/general/interactionReply', () => ({
 jest.mock('../../../../utils/music/nowPlayingEmbed', () => ({
     buildPlayResponseEmbed: (payload: unknown) =>
         buildPlayResponseEmbedMock(payload),
+    escapeTrackText: (text: string) => text,
 }))
 
 jest.mock('../../../../utils/music/buttonComponents', () => ({
@@ -993,8 +995,9 @@ describe('play command: early reply and start failure (#2741)', () => {
 
         // Voice connect and the stream bridge are still pending here.
         expect(interactionReplyMock).toHaveBeenCalledTimes(1)
+        // No queue before this /play: the track starts right away.
         expect(buildPlayResponseEmbedMock).toHaveBeenCalledWith(
-            expect.objectContaining({ kind: 'addedToQueue', track }),
+            expect.objectContaining({ kind: 'nowPlaying', track }),
         )
         expect(recordContributionMock).not.toHaveBeenCalled()
 
@@ -1045,14 +1048,14 @@ describe('play command: early reply and start failure (#2741)', () => {
 
         await playCommand.execute({ client, interaction } as any)
 
-        expect(createErrorEmbedMock).toHaveBeenCalledWith(
-            'Play Error',
-            expect.stringContaining("Couldn't find the original of **Song A**"),
-        )
         expect(interaction.editReply).toHaveBeenCalledTimes(1)
-        expect(interaction.editReply).toHaveBeenCalledWith({
-            embeds: [expect.objectContaining({ type: 'error' })],
-        })
+        const edited = (interaction.editReply as jest.Mock).mock
+            .calls[0][0] as {
+            embeds: { data: { description?: string } }[]
+        }
+        expect(edited.embeds[0].data.description).toContain(
+            "Couldn't find the original of **Song A**",
+        )
         // The early "added" reply went through interactionReply once; the
         // failure is an edit, not a stacked follow-up.
         expect(interactionReplyMock).toHaveBeenCalledTimes(1)
@@ -1087,9 +1090,12 @@ describe('play command: early reply and start failure (#2741)', () => {
 
         await playCommand.execute({ client, interaction } as any)
 
-        expect(interaction.channel.send).toHaveBeenCalledWith({
-            embeds: [expect.objectContaining({ type: 'error' })],
-        })
+        const sent = interaction.channel.send.mock.calls[0][0] as {
+            embeds: { data: { description?: string } }[]
+        }
+        expect(sent.embeds[0].data.description).toContain(
+            "Couldn't find the original of **Song A**",
+        )
     })
 
     it('keeps the queued reply when stream recovery starts a replacement', async () => {

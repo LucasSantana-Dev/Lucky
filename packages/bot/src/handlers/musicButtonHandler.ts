@@ -2,6 +2,7 @@ import {
     type ButtonInteraction,
     type GuildMember,
     escapeMarkdown,
+    MessageFlags,
 } from 'discord.js'
 import { QueueRepeatMode } from 'discord-player'
 import { debugLog, errorLog } from '@lucky/shared/utils'
@@ -15,6 +16,7 @@ import {
     createMusicControlButtons,
     createMusicActionButtons,
     createLeaderboardPaginationButtons,
+    refreshMusicComponents,
 } from '../utils/music/buttonComponents'
 import { createQueueEmbed } from '../functions/music/commands/queue/queueEmbed'
 import { translatorForInteraction } from '../i18n/translatorForInteraction'
@@ -26,6 +28,7 @@ import { buildListPageEmbed } from '../utils/general/responseEmbeds'
 import { levelService } from '@lucky/shared/services'
 import { setReplenishSuppressed } from '../services/musicManagement/replenishSuppressionStore'
 import { resumeAutoplay } from './player/autoplayFailureStreak'
+import { getSongInfoMessage } from './player/nowPlayingDisplay'
 import {
     captureAutoplayTrack,
     maybePromptAutoplayFeedback,
@@ -130,6 +133,8 @@ async function routeButtonAction(
             return handleTrackFeedback(interaction, queue, 'like')
         case MUSIC_BUTTON_IDS.DISLIKE:
             return handleTrackFeedback(interaction, queue, 'dislike')
+        case MUSIC_BUTTON_IDS.MORE_CONTROLS:
+            return handleMoreControls(interaction, queue)
         default:
             if (customId.startsWith(QUEUE_BUTTON_PREFIX)) {
                 return handleQueuePage(interaction, queue)
@@ -202,6 +207,22 @@ async function handleTrackFeedback(
     )
 }
 
+/** "More" on the compact now-playing row: the full panel, for the clicker only. */
+async function handleMoreControls(
+    interaction: ButtonInteraction,
+    queue: NonNullQueue,
+): Promise<void> {
+    const t = await translatorForInteraction(interaction)
+    await interaction.followUp({
+        content: t('music.messages.controlsTitle'),
+        components: [
+            createMusicControlButtons(queue),
+            createMusicActionButtons(queue),
+        ],
+        ephemeral: true,
+    })
+}
+
 async function handlePrevious(
     interaction: ButtonInteraction,
     queue: NonNullQueue,
@@ -235,10 +256,10 @@ async function handlePauseResume(
     }
 
     await interaction.editReply({
-        components: [
-            createMusicControlButtons(queue),
-            createMusicActionButtons(queue),
-        ],
+        components: refreshMusicComponents(
+            interaction.message?.components as never,
+            queue,
+        ),
     })
     await maybePromptAutoplayFeedback(interaction, pausedAutoplay)
 }
@@ -307,8 +328,35 @@ async function handleStop(
         ],
         components: [],
     })
+    await clearNowPlayingButtons(interaction)
     debugLog({ message: 'Playback stopped via button' })
     await maybePromptAutoplayFeedback(interaction, stoppedAutoplay)
+}
+
+/**
+ * Stop pressed in the ephemeral "More" panel edits that panel only, so the
+ * public now-playing message would keep buttons for a queue that is gone.
+ */
+async function clearNowPlayingButtons(
+    interaction: ButtonInteraction,
+): Promise<void> {
+    if (!interaction.message?.flags?.has(MessageFlags.Ephemeral)) return
+    const nowPlaying = interaction.guildId
+        ? getSongInfoMessage(interaction.guildId)
+        : undefined
+    if (!nowPlaying || nowPlaying.channelId !== interaction.channelId) return
+    try {
+        const message = await interaction.channel?.messages.fetch(
+            nowPlaying.messageId,
+        )
+        await message?.edit({ components: [] })
+    } catch (error) {
+        debugLog({
+            message: 'Could not clear now-playing buttons after stop',
+            error,
+            data: { guildId: interaction.guildId },
+        })
+    }
 }
 
 async function handleClearQueue(
@@ -330,10 +378,10 @@ async function handleClearAutoplay(
 ): Promise<void> {
     queue.setRepeatMode(QueueRepeatMode.OFF)
     await interaction.editReply({
-        components: [
-            createMusicControlButtons(queue),
-            createMusicActionButtons(queue),
-        ],
+        components: refreshMusicComponents(
+            interaction.message?.components as never,
+            queue,
+        ),
     })
     await interaction.followUp({
         content: '🤖 Autoplay disabled',

@@ -74,15 +74,16 @@
         },
         "queue": {
             "nowPlaying": "🎵 Tocando agora",
-            "recommendedBecause": "\nRecomendado porque: _{{reason}}_",
-            "upcomingTracksCount": "📋 Próximas faixas ({{count}})",
-            "upcomingTracks": "📋 Próximas faixas",
             "noTracks": "Nenhuma faixa na fila",
             "noDisplayableTracks": "Nenhuma faixa para exibir",
-            "statistics": "📊 Estatísticas da fila",
-            "status": "🎛️ Status",
             "title": "📄 Fila de música",
-            "errorTitle": "❌ Erro na fila"
+            "errorTitle": "❌ Erro na fila",
+            "autoplayTag": "autoplay",
+            "autoplaySection": "✨ Autoplay",
+            "more_one": "…e mais {{count}} música",
+            "more_other": "…e mais {{count}} músicas",
+            "footer_one": "{{count}} música na fila • Duração total {{duration}}",
+            "footer_other": "{{count}} músicas na fila • Duração total {{duration}}"
         },
         "recap": {
             "title": "A semana musical do seu servidor",
@@ -124,6 +125,26 @@
             "notForYou": "Essa pergunta é de quem usou o comando.",
             "expired": "Essa pergunta expirou. Avalie a próxima música com os botões 👍 e 👎 da mensagem de tocando agora.",
             "failed": "Não deu para salvar agora. Tente de novo daqui a pouco."
+        },
+        "messages": {
+            "nowPlaying": "Tocando agora",
+            "queued": "Na fila",
+            "playlist": "Playlist",
+            "playlistTracks_one": "{{count}} música na fila",
+            "playlistTracks_other": "{{count}} músicas na fila",
+            "position": "Posição {{position}}",
+            "requestedBy": "pedido por {{user}}",
+            "autoplay": "✨ Autoplay pelo histórico da sessão",
+            "accepted": "{{rate}}% aceitas",
+            "viaFallback": "via fallback: {{label}}",
+            "unknownTrack": "Faixa desconhecida",
+            "unknownArtist": "Artista desconhecido",
+            "moreControls": "Mais",
+            "controlsTitle": "🎛️ Controles de música",
+            "streamFailed": "Não achei a original de **{{title}}** agora, então não vou tocar um cover. Tente de novo em instantes ou cole um link.",
+            "streamFailedMany_one": "{{count}} música não pôde ser tocada. Tente de novo em instantes ou cole um link.",
+            "streamFailedMany_other": "{{count}} músicas não puderam ser tocadas. Tente de novo em instantes ou cole um link.",
+            "autoplayStopped": "As últimas {{count}} músicas do autoplay não puderam ser tocadas, então o autoplay parou. Use /play para recomeçar."
         }
     }
 }

@@ -11,110 +11,62 @@ import type {
     ColorResolvable,
     EmbedBuilder,
 } from 'discord.js'
-import { calculateQueueStats, getQueueStatus } from './queueStats'
-import { createTrackListDisplay, createQueueSummary } from './queueDisplay'
+import { calculateQueueStats } from './queueStats'
+import { createTrackListDisplay } from './queueDisplay'
 import type { QueueDisplayOptions } from './types'
 import {
     createQueuePaginationButtons,
     createMusicControlButtons,
-    createMusicActionButtons,
 } from '../../../../utils/music/buttonComponents'
+import {
+    escapeTrackText,
+    hasKnownDuration,
+} from '../../../../utils/music/nowPlayingEmbed'
 
 export type QueueEmbedResult = {
     embed: EmbedBuilder
     components: ActionRowBuilder<ButtonBuilder>[]
 }
 
-function addCurrentTrackInfo(
-    embed: EmbedBuilder,
-    queue: GuildQueue,
-    options: QueueDisplayOptions,
-    t: TFunction,
-): void {
-    if (options.showCurrentTrack && queue.currentTrack) {
-        const { currentTrack } = queue
-        const metadata = (currentTrack.metadata ?? {}) as {
-            isAutoplay?: boolean
-            recommendationReason?: string
-        }
-        const reasonLine =
-            metadata.isAutoplay && metadata.recommendationReason
-                ? t('music.queue.recommendedBecause', {
-                      reason: metadata.recommendationReason,
-                  })
-                : ''
-        embed.addFields({
-            name: t('music.queue.nowPlaying'),
-            value: `[${currentTrack.title}](${currentTrack.url}) by **${currentTrack.author}**${reasonLine}`,
-            inline: false,
-        })
+/** Embed descriptions cap at 4096 characters. */
+const DESCRIPTION_LIMIT = 4096
 
-        if (currentTrack.thumbnail) {
-            embed.setThumbnail(currentTrack.thumbnail)
-        }
-    }
+function currentTrackSection(queue: GuildQueue, t: TFunction): string | null {
+    const { currentTrack } = queue
+    if (!currentTrack) return null
+    const metadata = (currentTrack.metadata ?? {}) as { isAutoplay?: boolean }
+    const title = escapeTrackText(currentTrack.title || '')
+    const line = [
+        currentTrack.url ? `[${title}](${currentTrack.url})` : title,
+        escapeTrackText(currentTrack.author || ''),
+        hasKnownDuration(currentTrack.duration) ? currentTrack.duration : '',
+        metadata.isAutoplay
+            ? t('music.queue.autoplayTag')
+            : currentTrack.requestedBy?.username,
+    ]
+        .filter(Boolean)
+        .join(' · ')
+    return `**${t('music.queue.nowPlaying')}**\n${line}`
 }
 
-async function addUpcomingTracks(
-    embed: EmbedBuilder,
+async function upcomingSection(
     queue: GuildQueue,
     options: QueueDisplayOptions,
     page: number,
     t: TFunction,
-): Promise<void> {
-    if (!options.showUpcomingTracks) return
-
+): Promise<string> {
     const allTracks = queue.tracks.toArray()
-
-    if (allTracks.length > 0) {
-        const trackList = await createTrackListDisplay(allTracks, options, page)
-        const raw = trackList || t('music.queue.noDisplayableTracks')
-        const value = raw.length > 1024 ? raw.slice(0, 1021) + '…' : raw
-        embed.addFields({
-            name: t('music.queue.upcomingTracksCount', {
-                count: allTracks.length,
-            }),
-            value,
-            inline: false,
-        })
-    } else {
-        embed.addFields({
-            name: t('music.queue.upcomingTracks'),
-            value: t('music.queue.noTracks'),
-            inline: false,
-        })
-    }
+    if (allTracks.length === 0) return t('music.queue.noTracks')
+    const trackList = await createTrackListDisplay(allTracks, options, page, t)
+    return trackList || t('music.queue.noDisplayableTracks')
 }
 
-async function addQueueStats(
-    embed: EmbedBuilder,
-    queue: GuildQueue,
-    options: QueueDisplayOptions,
-    t: TFunction,
-): Promise<void> {
-    if (!options.showQueueStats) return
-
-    const stats = await calculateQueueStats(queue)
-    const summary = createQueueSummary(
-        stats.totalTracks,
-        stats.totalDuration,
-        stats.currentPosition,
-    )
-
-    embed.addFields({
-        name: t('music.queue.statistics'),
-        value: summary,
-        inline: true,
-    })
-
-    const status = getQueueStatus(queue)
-    embed.addFields({
-        name: t('music.queue.status'),
-        value: status,
-        inline: true,
-    })
-}
-
+/**
+ * One compact card: the track playing now, a numbered list of what comes
+ * next, and "N songs in queue • Total duration" in the footer. The player
+ * controls live on the now-playing message; this card keeps one row of them
+ * plus the page buttons.
+ */
 export async function createQueueEmbed(
     queue: GuildQueue,
     options: QueueDisplayOptions = {
@@ -130,20 +82,39 @@ export async function createQueueEmbed(
     const embed = createEmbed({
         title: t('music.queue.title'),
         color: EMBED_COLORS.QUEUE as ColorResolvable,
-        timestamp: true,
     })
 
-    addCurrentTrackInfo(embed, queue, options, t)
-    await addUpcomingTracks(embed, queue, options, page, t)
-    await addQueueStats(embed, queue, options, t)
+    const sections: string[] = []
+    const current = options.showCurrentTrack
+        ? currentTrackSection(queue, t)
+        : null
+    if (current) sections.push(current)
+    if (options.showUpcomingTracks) {
+        sections.push(await upcomingSection(queue, options, page, t))
+    }
+    const description = sections.join('\n\n')
+    if (description) {
+        embed.setDescription(
+            description.length > DESCRIPTION_LIMIT
+                ? `${description.slice(0, DESCRIPTION_LIMIT - 1)}…`
+                : description,
+        )
+    }
 
-    const totalTracks = queue.tracks.size
-    const totalPages = Math.ceil(totalTracks / options.maxTracksToShow)
-    const components: ActionRowBuilder<ButtonBuilder>[] = []
+    if (options.showQueueStats) {
+        const stats = await calculateQueueStats(queue)
+        embed.setFooter({
+            text: t('music.queue.footer', {
+                count: stats.totalTracks,
+                duration: stats.totalDuration,
+            }),
+        })
+    }
 
-    components.push(createMusicControlButtons(queue))
-    components.push(createMusicActionButtons(queue))
-
+    const totalPages = Math.ceil(queue.tracks.size / options.maxTracksToShow)
+    const components: ActionRowBuilder<ButtonBuilder>[] = [
+        createMusicControlButtons(queue),
+    ]
     const paginationRow = createQueuePaginationButtons(page, totalPages)
     if (paginationRow) components.push(paginationRow)
 

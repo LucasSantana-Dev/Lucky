@@ -1,6 +1,7 @@
-import { EmbedBuilder } from 'discord.js'
+import { EmbedBuilder, escapeMarkdown } from 'discord.js'
 import type { Track } from 'discord-player'
 import type { User } from 'discord.js'
+import type { TFunction } from 'i18next'
 import { COLOR } from '@lucky/shared/constants'
 import { isHost } from '../general/urlHost'
 import { MUSIC_ACTION_STYLE, type MusicAction } from './musicActionStyle'
@@ -11,7 +12,7 @@ export type PlayResponseContext = {
     kind: PlayResponseKind
     track: Pick<Track, 'title' | 'author' | 'url' | 'thumbnail' | 'duration'> &
         Partial<Pick<Track, 'source'>>
-    requestedBy: Pick<User, 'tag' | 'displayAvatarURL'>
+    requestedBy: Pick<User, 'tag'>
     queuePosition?: number // 0-based; 0 = playing right now, n > 0 = added at position n
     playlist?: {
         title: string
@@ -93,73 +94,82 @@ const ACTION_OF_KIND: Record<PlayResponseKind, MusicAction> = {
     playlistQueued: 'playlistQueued',
 }
 
-const HEADER_OF_KIND: Record<PlayResponseKind, string> = {
-    nowPlaying: 'Now Playing',
-    addedToQueue: 'Added to Queue',
-    playlistQueued: 'Playlist Queued',
+/** Escapes markdown and the link brackets a title like "Song [Official Video]" carries. */
+export function escapeTrackText(text: string): string {
+    return escapeMarkdown(text).replace(/[[\]]/g, '\\$&')
+}
+
+export function hasKnownDuration(duration?: string | null): duration is string {
+    return Boolean(duration) && duration !== '0:00'
+}
+
+/** One line: linked bold title, artist and duration. Without `t` the
+ * unknown-title fallbacks are English (callers not localized yet). */
+export function formatTrackLine(
+    track: {
+        title?: string | null
+        author?: string | null
+        url?: string | null
+        duration?: string | null
+    },
+    t?: TFunction,
+): string {
+    const title = `**${escapeTrackText(track.title || (t ? t('music.messages.unknownTrack') : 'Unknown track'))}**`
+    const linked = track.url ? `[${title}](${track.url})` : title
+    const author = escapeTrackText(
+        track.author ||
+            (t ? t('music.messages.unknownArtist') : 'Unknown artist'),
+    )
+    const duration = hasKnownDuration(track.duration)
+        ? ` (${track.duration})`
+        : ''
+    return `${linked} · ${author}${duration}`
+}
+
+export function capitalizeFirst(text: string): string {
+    return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 /**
- * Build a rich Now Playing / Added to Queue embed.
- *
- * Visual layout:
- *   Header: "▶️ Now Playing", colored by the action (not the source)
- *   Title:  **Track Title**
- *   by:     Artist Name
- *   Fields: Duration · Source · Queue Position
- *   Thumb:  track artwork
- *   Footer: Requested by <tag>
+ * The one-line /play reply: "<emoji> Queued <title> · <artist> (6:44)" with
+ * the queue position and requester in the footer. Colored by the action, not
+ * the source (#2998).
  */
 export function buildPlayResponseEmbed(
     context: PlayResponseContext,
+    t: TFunction,
 ): EmbedBuilder {
     const { kind, track, requestedBy, queuePosition, playlist } = context
-    const badge = detectSource(track)
     const style = MUSIC_ACTION_STYLE[ACTION_OF_KIND[kind]]
-
-    const embed = new EmbedBuilder()
-        .setAuthor({ name: `${style.emoji} ${HEADER_OF_KIND[kind]}` })
-        .setColor(style.color)
-        .setTimestamp()
-        .setFooter({
-            text: `Requested by ${requestedBy.tag}`,
-            iconURL: requestedBy.displayAvatarURL({ size: 64 }),
-        })
-
-    if (track.thumbnail) {
-        embed.setThumbnail(track.thumbnail)
-    }
+    const requester = t('music.messages.requestedBy', {
+        user: requestedBy.tag,
+    })
+    const embed = new EmbedBuilder().setColor(style.color)
 
     if (kind === 'playlistQueued' && playlist) {
-        embed.setTitle(playlist.title)
-        embed.setDescription(`**${playlist.trackCount}** tracks queued`)
-        // Link the title to the playlist itself — never the first track's
-        // URL, which would mislead the user about where the click lands.
-        if (playlist.url) embed.setURL(playlist.url)
-        return embed
+        const name = `**${escapeTrackText(playlist.title)}**`
+        // Link the playlist itself, never the first track's URL.
+        const linked = playlist.url ? `[${name}](${playlist.url})` : name
+        embed.setDescription(
+            `${style.emoji} ${t('music.messages.playlist')} ${linked} · ${t(
+                'music.messages.playlistTracks',
+                { count: playlist.trackCount },
+            )}`,
+        )
+        return embed.setFooter({ text: capitalizeFirst(requester) })
     }
 
-    embed.setTitle(track.title || 'Unknown Track')
-    if (track.url) embed.setURL(track.url)
-    embed.setDescription(`by **${track.author || 'Unknown artist'}**`)
+    const label =
+        kind === 'nowPlaying'
+            ? t('music.messages.nowPlaying')
+            : t('music.messages.queued')
+    embed.setDescription(`${style.emoji} ${label} ${formatTrackLine(track, t)}`)
 
-    const fields: { name: string; value: string; inline: boolean }[] = []
-    if (track.duration && track.duration !== '0:00') {
-        fields.push({ name: 'Duration', value: track.duration, inline: true })
-    }
-    fields.push({
-        name: 'Source',
-        value: `${badge.emoji} ${badge.label}`,
-        inline: true,
-    })
-    if (kind === 'addedToQueue' && typeof queuePosition === 'number') {
-        fields.push({
-            name: 'Queue Position',
-            value: `#${queuePosition}`,
-            inline: true,
-        })
-    }
-
-    embed.addFields(fields)
-    return embed
+    const footer =
+        kind === 'addedToQueue' &&
+        typeof queuePosition === 'number' &&
+        queuePosition > 0
+            ? `${t('music.messages.position', { position: queuePosition })} · ${requester}`
+            : requester
+    return embed.setFooter({ text: capitalizeFirst(footer) })
 }

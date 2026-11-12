@@ -1,4 +1,5 @@
 import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
+import type { TFunction } from 'i18next'
 import type {
     PlayerNodeInitializationResult,
     SearchResult,
@@ -15,7 +16,7 @@ import { collaborativePlaylistService } from '../../../../../services/musicRecom
 import { moveUserTrackToPriority } from '../../../../../services/musicManagement/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../../utils/music/nowPlayingEmbed'
 import { registerNowPlayingMessage } from '../../../../../handlers/player/nowPlayingDisplay'
-import { streamFailedDescription } from '../../../../../handlers/player/streamFailureNotifier'
+import { buildStreamFailedEmbed } from '../../../../../handlers/player/streamFailureNotifier'
 import { resolveGuildQueue } from '../../../../../services/musicManagement/queueResolver'
 import {
     isUnknownInteractionError,
@@ -27,6 +28,7 @@ import {
 } from '../queryUtils'
 import { parseYoutubeLink } from '../queryDetector'
 import { translatorForInteraction } from '../../../../../i18n/translatorForInteraction'
+import { translatorFor } from '../../../../../i18n'
 import {
     resolveQueryWithFallbacks,
     emitPlayResolutionTelemetry,
@@ -53,6 +55,7 @@ type QueuedEmbedInput = {
     track: Track
     interaction: ChatInputCommandInteraction
     queuePosition: number
+    t: TFunction
 }
 
 function buildQueuedEmbed({
@@ -60,24 +63,42 @@ function buildQueuedEmbed({
     track,
     interaction,
     queuePosition,
+    t,
 }: QueuedEmbedInput) {
     return searchResult.playlist
-        ? buildPlayResponseEmbed({
-              kind: 'playlistQueued',
-              track,
-              requestedBy: interaction.user,
-              playlist: {
-                  title: searchResult.playlist.title,
-                  trackCount: searchResult.tracks.length,
-                  url: searchResult.playlist.url,
+        ? buildPlayResponseEmbed(
+              {
+                  kind: 'playlistQueued',
+                  track,
+                  requestedBy: interaction.user,
+                  playlist: {
+                      title: searchResult.playlist.title,
+                      trackCount: searchResult.tracks.length,
+                      url: searchResult.playlist.url,
+                  },
               },
-          })
-        : buildPlayResponseEmbed({
-              kind: 'addedToQueue',
-              track,
-              requestedBy: interaction.user,
-              queuePosition,
-          })
+              t,
+          )
+        : buildPlayResponseEmbed(
+              {
+                  kind: queuePosition > 0 ? 'addedToQueue' : 'nowPlaying',
+                  track,
+                  requestedBy: interaction.user,
+                  queuePosition,
+              },
+              t,
+          )
+}
+
+/** The guild's language, or English when it cannot be read. */
+async function resolveTranslator(
+    interaction: ChatInputCommandInteraction,
+): Promise<TFunction> {
+    try {
+        return await translatorForInteraction(interaction)
+    } catch {
+        return translatorFor('en')
+    }
 }
 
 /** The reply sent as soon as the search resolved, before audio starts. */
@@ -202,6 +223,8 @@ export async function executePlayHandler({
         throw error
     }
 
+    const t = await resolveTranslator(interaction)
+
     // Expand SoundCloud short links first (on.soundcloud.com → full URL)
     const expandedQuery = await expandSoundCloudShortUrl(rawQuery)
     // Then normalize: SoundCloud `?in=` playlist context, and YouTube Mix
@@ -314,6 +337,7 @@ export async function executePlayHandler({
                 track: found,
                 interaction,
                 queuePosition,
+                t,
             })
             early.reply = {
                 track: found,
@@ -396,7 +420,7 @@ export async function executePlayHandler({
                   )
                 : 'gave_up'
             if (outcome === 'gave_up') {
-                await reportStartFailure(interaction, early.reply, track)
+                await reportStartFailure(interaction, early.reply, track, t)
                 return
             }
             debugLog({
@@ -430,6 +454,7 @@ export async function executePlayHandler({
             track,
             interaction,
             queuePosition,
+            t,
         })
 
         try {
@@ -514,12 +539,6 @@ export async function executePlayHandler({
         })
         markCommandOutcome(interaction, classifyPlayFailure(error))
 
-        let t: ((key: string) => string) | undefined
-        try {
-            t = await translatorForInteraction(interaction)
-        } catch {
-            // English fallback text in resolvePlayErrorMessage
-        }
         const errorEmbed = createErrorEmbed(
             'Play Error',
             resolvePlayErrorMessage(error, query, t),
@@ -557,6 +576,7 @@ async function reportStartFailure(
     interaction: ChatInputCommandInteraction,
     earlyReply: EarlyReply | null,
     track: Track,
+    t: TFunction,
 ): Promise<void> {
     warnLog({
         message: 'Play: track could not be started, replying with failure',
@@ -566,10 +586,7 @@ async function reportStartFailure(
         outcome: 'error',
         errorClass: 'StreamStartFailed',
     })
-    const embed = createErrorEmbed(
-        'Play Error',
-        streamFailedDescription(track.title),
-    )
+    const embed = buildStreamFailedEmbed(track.title, t)
     if (earlyReply) {
         await earlyReply.sent
         await replaceReplyWithError(interaction, embed)
