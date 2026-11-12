@@ -207,6 +207,17 @@ function ytdlpPotProviderArgs(url: string): string[] {
     ]
 }
 
+// Prod 2026-11-12: 98 of 161 plain attempts in 24 h hit the 8 s budget. The
+// default clients (tv_samsung, then mweb) now get a pre-roll ad and yt-dlp
+// waits it out (~5 s) before googlevideo serves the stream, so a start took
+// 7 to 13 s. visionos has no ad: measured 2.4 to 3.1 s on the same videos,
+// full file downloaded. default stays listed as the fallback for a video
+// visionos cannot serve.
+function ytdlpYoutubeClientArgs(url: string): string[] {
+    if (!isYoutubeYtDlpTarget(url)) return []
+    return ['--extractor-args', 'youtube:player_client=visionos,default']
+}
+
 // #2141: the prior 6s budget (set by #2044) sat inside the normal latency
 // distribution rather than above it. Prod measurement with --cookies (the
 // live path then; since #2653 cookies only apply on a sign-in retry) gave a
@@ -427,6 +438,7 @@ function spawnYtDlp(
                 '--no-progress',
                 '--js-runtimes',
                 `node:${process.execPath}`,
+                ...ytdlpYoutubeClientArgs(url),
                 ...ytdlpPotProviderArgs(url),
                 ...cookiesArgs,
                 url,
