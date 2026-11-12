@@ -95,14 +95,24 @@ const ACTION_OF_KIND: Record<PlayResponseKind, MusicAction> = {
 }
 
 /**
- * Escapes markdown and the link brackets a title like "Song [Official Video]"
- * carries. Backslashes and brackets are escaped here, first, so escapeMarkdown
- * runs with its own backslash pass off and never escapes the ones added here.
+ * For raw text (artist, playlist name, requester): escapes markdown and the
+ * link brackets a name like "Song [Official Video]" carries. Backslashes and
+ * brackets are escaped here, first, so escapeMarkdown runs with its own
+ * backslash pass off and never escapes the ones added here.
  */
 export function escapeTrackText(text: string): string {
     return escapeMarkdown(text.replace(/[\\[\]]/g, String.raw`\$&`), {
         escape: false,
     })
+}
+
+/**
+ * For a track title: discord-player's Track constructor has already run
+ * escapeMarkdown on it (backslashes included), so only the link brackets are
+ * left to escape. Escaping it again would show the backslashes.
+ */
+export function escapeTitleBrackets(title: string): string {
+    return title.replace(/[[\]]/g, (bracket) => `\\${bracket}`)
 }
 
 export function hasKnownDuration(duration?: string | null): duration is string {
@@ -120,7 +130,7 @@ export function formatTrackLine(
     },
     t?: TFunction,
 ): string {
-    const title = `**${escapeTrackText(track.title || (t ? t('music.messages.unknownTrack') : 'Unknown track'))}**`
+    const title = `**${escapeTitleBrackets(track.title || (t ? t('music.messages.unknownTrack') : 'Unknown track'))}**`
     const linked = track.url ? `[${title}](${track.url})` : title
     const author = escapeTrackText(
         track.author ||

@@ -66,15 +66,14 @@ describe('streamFailureNotifier', () => {
             )
         })
 
-        it('escapes markdown in the title', () => {
+        it('keeps the title as discord-player escaped it, without escaping it again', () => {
+            // Track.title arrives already run through escapeMarkdown.
             const { data } = buildStreamFailedEmbed(
-                'Song *live* [Official Video]',
+                'Song \\*live\\*',
                 translatorFor('en'),
             )
 
-            expect(data.description).toContain(
-                '**Song \\*live\\* \\[Official Video\\]**',
-            )
+            expect(data.description).toContain('**Song \\*live\\***')
         })
     })
 
@@ -182,7 +181,10 @@ describe('streamFailureNotifier', () => {
     })
 
     describe('notifyChannelAutoplayStopped', () => {
-        it('sends a one-line localized notice with the failure count', async () => {
+        it('sends a one-line notice in the guild language with the failure count', async () => {
+            translatorForInteractionMock.mockResolvedValue(
+                translatorFor('pt-BR'),
+            )
             const send = jest.fn().mockResolvedValue({})
             const queue = {
                 guild: { id: 'guild-1' },
@@ -192,7 +194,21 @@ describe('streamFailureNotifier', () => {
             await notifyChannelAutoplayStopped(queue as any, 5)
 
             expect(descriptionOf(send)).toBe(
-                "⚠️ The last 5 autoplay tracks couldn't be streamed, so autoplay stopped. Use /play to start again.",
+                '⚠️ As últimas 5 músicas do autoplay não puderam ser tocadas, então o autoplay parou. Use /play para recomeçar.',
+            )
+        })
+
+        it('uses the singular for one failed track', async () => {
+            const send = jest.fn().mockResolvedValue({})
+            const queue = {
+                guild: { id: 'guild-1' },
+                metadata: { channel: { id: 'ch-1', send } },
+            }
+
+            await notifyChannelAutoplayStopped(queue as any, 1)
+
+            expect(descriptionOf(send)).toBe(
+                "⚠️ The last autoplay track couldn't be streamed, so autoplay stopped. Use /play to start again.",
             )
         })
 
@@ -246,6 +262,20 @@ describe('streamFailureNotifier', () => {
             )
             await jest.advanceTimersByTimeAsync(STREAM_FAILURE_COOLDOWN_MS * 2)
             expect(send).toHaveBeenCalledTimes(2)
+        })
+
+        it('writes the summary in the guild language', async () => {
+            translatorForInteractionMock.mockResolvedValue(translatorFor('es'))
+            const { queue, send } = makeQueue('g1')
+            await notifyChannelStreamFailed(queue as any, 'A')
+            await notifyChannelStreamFailed(queue as any, 'B')
+            await notifyChannelStreamFailed(queue as any, 'C')
+
+            await jest.advanceTimersByTimeAsync(STREAM_FAILURE_COOLDOWN_MS)
+
+            expect(lastDescription(send)).toBe(
+                '⚠️ No se pudieron reproducir 2 canciones. Inténtalo de nuevo en un momento o pega un enlace.',
+            )
         })
 
         it('uses the singular in a summary of one', async () => {

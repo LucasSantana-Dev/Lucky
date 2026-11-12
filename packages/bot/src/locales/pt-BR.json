@@ -144,7 +144,9 @@
             "streamFailed": "Não achei a original de **{{title}}** agora, então não vou tocar um cover. Tente de novo em instantes ou cole um link.",
             "streamFailedMany_one": "{{count}} música não pôde ser tocada. Tente de novo em instantes ou cole um link.",
             "streamFailedMany_other": "{{count}} músicas não puderam ser tocadas. Tente de novo em instantes ou cole um link.",
-            "autoplayStopped": "As últimas {{count}} músicas do autoplay não puderam ser tocadas, então o autoplay parou. Use /play para recomeçar."
+            "autoplayCount": "{{count}}/{{max}} músicas",
+            "autoplayStopped_one": "A última música do autoplay não pôde ser tocada, então o autoplay parou. Use /play para recomeçar.",
+            "autoplayStopped_other": "As últimas {{count}} músicas do autoplay não puderam ser tocadas, então o autoplay parou. Use /play para recomeçar."
         }
     }
 }

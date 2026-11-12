@@ -204,7 +204,7 @@ describe('nowPlayingDisplay', () => {
             )
 
             expect(sentPayload().embeds[0].data.footer?.text).toBe(
-                '✨ Autoplay from your session listening history · similar to Test Artist · 3/50',
+                '✨ Autoplay from your session listening history · similar to Test Artist · 3/50 songs',
             )
         })
 
@@ -266,7 +266,8 @@ describe('nowPlayingDisplay', () => {
             expect(mockMessage.react).toHaveBeenCalledTimes(4)
         })
 
-        it('removes its own reactions when the reused message moves to a requested track', async () => {
+        it('removes the whole skip-reason reaction when the reused message moves to a requested track', async () => {
+            const wholeRemove = jest.fn().mockResolvedValue(undefined)
             const ownRemove = jest.fn().mockResolvedValue(undefined)
             const otherRemove = jest.fn().mockResolvedValue(undefined)
             const reused = {
@@ -275,8 +276,22 @@ describe('nowPlayingDisplay', () => {
                 react: jest.fn().mockResolvedValue(undefined),
                 reactions: {
                     cache: new Map([
-                        ['👎', { me: true, users: { remove: ownRemove } }],
-                        ['🔥', { me: false, users: { remove: otherRemove } }],
+                        [
+                            '👎',
+                            {
+                                me: true,
+                                remove: wholeRemove,
+                                users: { remove: ownRemove },
+                            },
+                        ],
+                        [
+                            '🔥',
+                            {
+                                me: false,
+                                remove: otherRemove,
+                                users: { remove: otherRemove },
+                            },
+                        ],
                     ]),
                 },
             }
@@ -301,8 +316,53 @@ describe('nowPlayingDisplay', () => {
             expect(reused.edit).toHaveBeenCalledWith(
                 expect.objectContaining({ components: ['compact-row'] }),
             )
-            expect(ownRemove).toHaveBeenCalledTimes(1)
+            // Listeners' votes go too, not only the bot's.
+            expect(wholeRemove).toHaveBeenCalledTimes(1)
+            expect(ownRemove).not.toHaveBeenCalled()
             expect(otherRemove).not.toHaveBeenCalled()
+        })
+
+        it('takes back only its own reaction without Manage Messages', async () => {
+            const wholeRemove = jest
+                .fn()
+                .mockRejectedValue(new Error('Missing Permissions'))
+            const ownRemove = jest.fn().mockResolvedValue(undefined)
+            const reused = {
+                id: 'reused-no-perms',
+                edit: jest.fn().mockResolvedValue(undefined),
+                react: jest.fn().mockResolvedValue(undefined),
+                reactions: {
+                    cache: new Map([
+                        [
+                            '👎',
+                            {
+                                me: true,
+                                remove: wholeRemove,
+                                users: { remove: ownRemove },
+                            },
+                        ],
+                    ]),
+                },
+            }
+            mockGuild.id = 'guild-reused-no-perms'
+            ;(mockChannel.messages as unknown) = {
+                fetch: jest.fn().mockResolvedValue(reused),
+            }
+            ;(mockChannel.send as jest.Mock).mockResolvedValue(reused)
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                true,
+            )
+
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                false,
+            )
+
+            expect(wholeRemove).toHaveBeenCalledTimes(1)
+            expect(ownRemove).toHaveBeenCalledTimes(1)
         })
 
         it('keeps its reactions when the reused message moves to another autoplay pick', async () => {
@@ -364,6 +424,9 @@ describe('nowPlayingDisplay', () => {
         })
 
         it('does not log duplicate warnings for same guild in session', async () => {
+            // A guild of its own: the warned-guild set is module state, and
+            // the test above already warned for guild-123.
+            mockGuild.id = 'guild-duplicate-warning'
             const reactError = new Error('Missing Permissions')
             ;(reactError as any).code = 50013
             ;(mockMessage.react as jest.Mock).mockRejectedValue(reactError)
@@ -373,6 +436,7 @@ describe('nowPlayingDisplay', () => {
                 mockTrack as Track,
                 true,
             )
+            expect(mockWarnLog).toHaveBeenCalledTimes(1)
             mockWarnLog.mockClear()
 
             await sendNowPlayingEmbed(

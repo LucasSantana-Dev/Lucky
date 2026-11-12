@@ -130,9 +130,8 @@ describe('queueEmbed', () => {
 
             expect(addFieldsMock).not.toHaveBeenCalled()
             expect(setThumbnailMock).not.toHaveBeenCalled()
-            expect(createEmbedMock).toHaveBeenCalledWith(
-                expect.not.objectContaining({ timestamp: true }),
-            )
+            const [options] = createEmbedMock.mock.calls[0] as [object]
+            expect(options).not.toHaveProperty('timestamp')
         })
 
         it('tags an autoplay track playing now instead of the requester and drops the reason', async () => {

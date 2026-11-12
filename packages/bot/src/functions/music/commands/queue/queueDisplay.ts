@@ -3,7 +3,11 @@ import type { TFunction } from 'i18next'
 import { getTrackInfo } from '../../../../services/musicManagement/trackUtils'
 import { isSimilarTitle } from '../../../../services/musicManagement/titleComparison'
 import type { TrackDisplayInfo, QueueDisplayOptions } from './types'
-import { escapeTrackText } from '../../../../utils/music/nowPlayingEmbed'
+import {
+    escapeTitleBrackets,
+    escapeTrackText,
+    hasKnownDuration,
+} from '../../../../utils/music/nowPlayingEmbed'
 
 export async function formatTrackForDisplay(
     track: Track,
@@ -40,20 +44,24 @@ function formatSingleTrack(
     index: number,
     t: TFunction,
 ): string {
+    // The title is already markdown-escaped (see escapeTitleBrackets); a cut
+    // must not leave a lone backslash that would escape the link bracket.
     const title =
-        info.title.length > 40 ? info.title.slice(0, 39) + '\u2026' : info.title
-    const name = escapeTrackText(title)
+        info.title.length > 40
+            ? info.title.slice(0, 39).replace(/\\+$/, '') + '\u2026'
+            : info.title
+    const name = escapeTitleBrackets(title)
     const link =
         info.url && info.url.startsWith('http')
             ? `[${name}](${info.url})`
             : name
     const who = info.isAutoplay
         ? t('music.queue.autoplayTag')
-        : info.requestedBy
+        : info.requestedBy && escapeTrackText(info.requestedBy)
     return [
         `${index + 1}. ${link}`,
         escapeTrackText(info.author),
-        info.duration,
+        hasKnownDuration(info.duration) ? info.duration : '',
         who,
     ]
         .filter(Boolean)

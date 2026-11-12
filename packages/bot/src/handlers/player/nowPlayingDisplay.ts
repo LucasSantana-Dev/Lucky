@@ -203,13 +203,18 @@ async function clearOwnReactions(
     )
     await Promise.all(
         own.map((reaction) =>
-            reaction.users.remove().catch((error: unknown) => {
-                debugLog({
-                    message: 'Failed to remove skip-reason reaction',
-                    error,
-                    data: { guildId },
-                })
-            }),
+            // The whole reaction, listeners' votes included, needs Manage
+            // Messages; without it, at least take the bot's own back.
+            reaction
+                .remove()
+                .catch(() => reaction.users.remove())
+                .catch((error: unknown) => {
+                    debugLog({
+                        message: 'Failed to remove skip-reason reaction',
+                        error,
+                        data: { guildId },
+                    })
+                }),
         ),
     )
 }
@@ -320,7 +325,10 @@ async function buildNowPlayingFooter(
         }
         const autoplayCount = await getAutoplayCount(queue.guild.id)
         parts.push(
-            `${autoplayCount ?? 0}/${constants.MAX_AUTOPLAY_TRACKS ?? 50}`,
+            t('music.messages.autoplayCount', {
+                count: autoplayCount ?? 0,
+                max: constants.MAX_AUTOPLAY_TRACKS ?? 50,
+            }),
         )
     } else if (track.requestedBy) {
         parts.push(

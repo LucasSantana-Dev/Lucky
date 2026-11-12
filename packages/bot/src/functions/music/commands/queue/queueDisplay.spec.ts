@@ -140,6 +140,61 @@ describe('queueDisplay', () => {
             )
         })
 
+        it('treats a 0:00 duration as unknown', async () => {
+            getTrackInfoMock.mockResolvedValueOnce({ duration: '0:00' })
+            const result = await createTrackListDisplay(
+                [createTrack() as any],
+                defaultOptions,
+                0,
+                t,
+            )
+
+            expect(result).toBe(
+                '1. [Test Track](https://example.com/track) · Test Artist',
+            )
+        })
+
+        it('escapes markdown in the requester name', async () => {
+            const track = createTrack({
+                requestedBy: { username: 'cool_user_' },
+            })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+                0,
+                t,
+            )
+
+            expect(result).toMatch(/ · cool\\_user\\_$/)
+        })
+
+        it('does not escape an already escaped title a second time', async () => {
+            // discord-player's Track.title went through escapeMarkdown.
+            const track = createTrack({ title: 'Song \\*live\\*' })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+                0,
+                t,
+            )
+
+            expect(result).toContain('[Song \\*live\\*](')
+        })
+
+        it('does not leave a lone backslash where the title is cut', async () => {
+            const track = createTrack({
+                title: 'A'.repeat(38) + '\\_more text',
+            })
+            const result = await createTrackListDisplay(
+                [track as any],
+                defaultOptions,
+                0,
+                t,
+            )
+
+            expect(result).toContain('A'.repeat(38) + '…](')
+        })
+
         it('truncates title longer than 40 chars to exactly 40 displayed chars', async () => {
             const track = createTrack({ title: 'A'.repeat(41) })
             const result = await createTrackListDisplay(

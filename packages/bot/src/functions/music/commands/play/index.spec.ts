@@ -1245,4 +1245,31 @@ describe('play command: early reply and start failure (#2741)', () => {
         )
         expect(interaction.editReply).toHaveBeenCalledTimes(1)
     })
+
+    it('says queued, not now playing, when a concurrent /play created the queue first', async () => {
+        const interaction = createInteraction('guild-1')
+        // No queue when this /play started; another one made it meanwhile
+        // and this track landed behind its song.
+        resolveGuildQueueMock
+            .mockReturnValueOnce({ queue: null })
+            .mockReturnValue({
+                queue: {
+                    repeatMode: 0,
+                    tracks: { size: 1, toArray: () => [track] },
+                },
+            })
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                return { track, searchResult }
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+        await flushPromises()
+
+        expect(buildPlayResponseEmbedMock).toHaveBeenLastCalledWith(
+            expect.objectContaining({ queuePosition: 1 }),
+        )
+    })
 })

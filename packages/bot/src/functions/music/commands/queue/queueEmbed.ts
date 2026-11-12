@@ -19,6 +19,7 @@ import {
     createMusicControlButtons,
 } from '../../../../utils/music/buttonComponents'
 import {
+    escapeTitleBrackets,
     escapeTrackText,
     hasKnownDuration,
 } from '../../../../utils/music/nowPlayingEmbed'
@@ -35,14 +36,15 @@ function currentTrackSection(queue: GuildQueue, t: TFunction): string | null {
     const { currentTrack } = queue
     if (!currentTrack) return null
     const metadata = (currentTrack.metadata ?? {}) as { isAutoplay?: boolean }
-    const title = escapeTrackText(currentTrack.title || '')
+    const title = escapeTitleBrackets(currentTrack.title || '')
     const line = [
         currentTrack.url ? `[${title}](${currentTrack.url})` : title,
         escapeTrackText(currentTrack.author || ''),
         hasKnownDuration(currentTrack.duration) ? currentTrack.duration : '',
         metadata.isAutoplay
             ? t('music.queue.autoplayTag')
-            : currentTrack.requestedBy?.username,
+            : currentTrack.requestedBy &&
+              escapeTrackText(currentTrack.requestedBy.username),
     ]
         .filter(Boolean)
         .join(' · ')

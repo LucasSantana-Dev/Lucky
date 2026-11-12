@@ -145,7 +145,9 @@
             "streamFailed": "Couldn't find the original of **{{title}}** right now, so I'm not playing a cover. Try again shortly or paste a link.",
             "streamFailedMany_one": "{{count}} track couldn't be played. Try again shortly or paste a link.",
             "streamFailedMany_other": "{{count}} tracks couldn't be played. Try again shortly or paste a link.",
-            "autoplayStopped": "The last {{count}} autoplay tracks couldn't be streamed, so autoplay stopped. Use /play to start again."
+            "autoplayCount": "{{count}}/{{max}} songs",
+            "autoplayStopped_one": "The last autoplay track couldn't be streamed, so autoplay stopped. Use /play to start again.",
+            "autoplayStopped_other": "The last {{count}} autoplay tracks couldn't be streamed, so autoplay stopped. Use /play to start again."
         }
     }
 }

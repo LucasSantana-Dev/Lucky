@@ -144,7 +144,9 @@
             "streamFailed": "No encontré la versión original de **{{title}}** ahora, así que no voy a poner un cover. Inténtalo de nuevo en un momento o pega un enlace.",
             "streamFailedMany_one": "No se pudo reproducir {{count}} canción. Inténtalo de nuevo en un momento o pega un enlace.",
             "streamFailedMany_other": "No se pudieron reproducir {{count}} canciones. Inténtalo de nuevo en un momento o pega un enlace.",
-            "autoplayStopped": "Las últimas {{count}} canciones del autoplay no se pudieron reproducir, así que el autoplay se detuvo. Usa /play para empezar de nuevo."
+            "autoplayCount": "{{count}}/{{max}} canciones",
+            "autoplayStopped_one": "La última canción del autoplay no se pudo reproducir, así que el autoplay se detuvo. Usa /play para empezar de nuevo.",
+            "autoplayStopped_other": "Las últimas {{count}} canciones del autoplay no se pudieron reproducir, así que el autoplay se detuvo. Usa /play para empezar de nuevo."
         }
     }
 }

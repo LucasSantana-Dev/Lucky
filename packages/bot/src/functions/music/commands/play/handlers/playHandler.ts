@@ -442,12 +442,13 @@ export async function executePlayHandler({
         const trackIndex = queuedTracks.findIndex(
             (t) => t === track || (track.id && t.id === track.id),
         )
-        const queuePosition =
-            hadQueueBeforePlay && queue
-                ? trackIndex >= 0
-                    ? trackIndex + 1
-                    : queuedTracks.length
-                : 0
+        // A track in the upcoming list is queued even when the pre-play
+        // snapshot saw no queue (a concurrent /play created it first).
+        let queuePosition = 0
+        if (trackIndex >= 0) queuePosition = trackIndex + 1
+        else if (hadQueueBeforePlay && queue) {
+            queuePosition = queuedTracks.length
+        }
 
         const embed = buildQueuedEmbed({
             searchResult: result.searchResult,

@@ -5,7 +5,6 @@ import { debugLog } from '@lucky/shared/utils'
 import { EMBED_COLORS } from '../../utils/general/embeds'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 import { translatorForInteraction } from '../../i18n/translatorForInteraction'
-import { escapeTrackText } from '../../utils/music/nowPlayingEmbed'
 
 /** A one-line warning: no title, no timestamp. */
 export function buildMusicNoticeEmbed(text: string): EmbedBuilder {
@@ -24,9 +23,8 @@ export function buildStreamFailedEmbed(
 ): EmbedBuilder {
     return buildMusicNoticeEmbed(
         t('music.messages.streamFailed', {
-            title: escapeTrackText(
-                trackTitle || t('music.messages.unknownTrack'),
-            ),
+            // Already markdown-escaped by discord-player's Track.
+            title: trackTitle || t('music.messages.unknownTrack'),
         }),
     )
 }
