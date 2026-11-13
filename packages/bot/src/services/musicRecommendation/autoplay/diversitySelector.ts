@@ -346,54 +346,64 @@ function findCoverCandidates(
     candidates: ScoredTrack[],
     seedArtistKey: string,
 ): Set<ScoredTrack> {
-    const artistOf = new Map(
-        candidates.map((c) => [c, coverArtistKey(c.track.author)]),
-    )
-    const batchArtists = new Set([...artistOf.values()].filter(Boolean))
-    const credits = new Map<ScoredTrack, Set<string>>()
-    for (const c of candidates) {
-        const own = artistOf.get(c) ?? ''
-        // A whole title segment must be the artist's name: a bare substring
-        // would credit "Heart" for "Heart of Gold".
-        const segments = titleSegmentKeys(c.track.title)
-        const credited = new Set(own ? [own] : [])
-        for (const artist of batchArtists) {
-            if (segments.has(artist)) credited.add(artist)
-        }
-        credits.set(c, credited)
-    }
-
-    const groups = new Map<string, ScoredTrack[]>()
-    for (const c of candidates) {
-        for (const key of songKeys(c.track)) {
-            groups.set(key, [...(groups.get(key) ?? []), c])
-        }
-    }
-
+    const credits = creditedArtists(candidates)
     const seed = identityKey(seedArtistKey)
     const covers = new Set<ScoredTrack>()
-    for (const members of groups.values()) {
-        const votes = new Map<string, number>()
-        for (const c of members) {
-            for (const artist of credits.get(c) ?? []) {
-                votes.set(artist, (votes.get(artist) ?? 0) + 1)
-            }
-        }
-        if (votes.size < 2) continue
-        const top = Math.max(...votes.values())
-        const leaders = [...votes].filter(([, n]) => n === top).map(([a]) => a)
-        const original =
-            leaders.length === 1
-                ? leaders[0]
-                : leaders.includes(seed)
-                  ? seed
-                  : null
+    for (const members of groupBySong(candidates).values()) {
+        const original = originalArtist(members, credits, seed)
         if (!original) continue
         for (const c of members) {
             if (!credits.get(c)?.has(original)) covers.add(c)
         }
     }
     return covers
+}
+
+// Each candidate's own artist, plus any batch artist that is a whole title
+// segment: a bare substring would credit "Heart" for "Heart of Gold".
+function creditedArtists(
+    candidates: ScoredTrack[],
+): Map<ScoredTrack, Set<string>> {
+    const artistOf = new Map(
+        candidates.map((c) => [c, coverArtistKey(c.track.author)]),
+    )
+    const batchArtists = [...new Set(artistOf.values())].filter(Boolean)
+    return new Map(
+        candidates.map((c) => {
+            const segments = titleSegmentKeys(c.track.title)
+            const own = artistOf.get(c)
+            const credited = batchArtists.filter((a) => segments.has(a))
+            return [c, new Set(own ? [own, ...credited] : credited)]
+        }),
+    )
+}
+
+function groupBySong(candidates: ScoredTrack[]): Map<string, ScoredTrack[]> {
+    const groups = new Map<string, ScoredTrack[]>()
+    for (const c of candidates) {
+        for (const key of songKeys(c.track)) {
+            groups.set(key, [...(groups.get(key) ?? []), c])
+        }
+    }
+    return groups
+}
+
+// The artist with the most versions of the song; a tie goes to the seed
+// artist, else null (unclear, so nothing is dropped).
+function originalArtist(
+    members: ScoredTrack[],
+    credits: Map<ScoredTrack, Set<string>>,
+    seed: string,
+): string | null {
+    const votes = new Map<string, number>()
+    for (const artist of members.flatMap((c) => [...(credits.get(c) ?? [])])) {
+        votes.set(artist, (votes.get(artist) ?? 0) + 1)
+    }
+    if (votes.size < 2) return null
+    const top = Math.max(...votes.values())
+    const leaders = [...votes].filter(([, n]) => n === top).map(([a]) => a)
+    if (leaders.length === 1) return leaders[0]
+    return leaders.includes(seed) ? seed : null
 }
 
 export function selectDiverseCandidates(
