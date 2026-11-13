@@ -1,17 +1,18 @@
 # Architecture Decision Records
 
-147 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
+148 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
-## Accepted (138)
+## Accepted (139)
 
+- [2026-11-13 - Music-first test: the acquisition phase never ran, so it restarts and every read moves 4 weeks](2026-11-13-music-first-acquisition-restart.md) - _Accepted (amends the dates of `2026-09-27-music-first-positioning.md` and decisions 5 and 7 of `2026-10-18-music-first-business-review-amendments.md`)_
 - [2026-10-21 - youtubei.js native stream as a bridge stage between yt-dlp and SoundCloud](2026-10-21-youtubei-native-bridge-stage.md) - _Accepted (a second YouTube client next to the yt-dlp ladder of `2026-06-18-youtube-extraction-reliability.md`)_
-- [2026-10-18 - Music-first amendments from the 2026-10-08 business review: activation fixes, spend gates, no recruiting](2026-10-18-music-first-business-review-amendments.md) - _Accepted (amends decisions 2, 5 and 6 of `2026-09-27-music-first-positioning.md`)_
+- [2026-10-18 - Music-first amendments from the 2026-10-08 business review: activation fixes, spend gates, no recruiting](2026-10-18-music-first-business-review-amendments.md) - _Accepted (amends decisions 2, 5 and 6 of `2026-09-27-music-first-positioning.md`; decisions 5 and 7 amended by `2026-11-13-music-first-acquisition-restart.md`)_
 - [2026-10-07 - Brand identity: retro Japanese print maneki-neko, Edo purple, custom LUCKY lettering](2026-10-07-brand-retro-maneki-edo-purple.md) - _Accepted (supersedes `2026-10-07-brand-purple-gold-wordmark-family.md`)_
 - [2026-10-07 - The pitch leads with the weekly recap; thumbs feedback moves onto the now-playing message](2026-10-07-pitch-leads-with-weekly-recap.md) - _Accepted (amends the pitch of `2026-09-27-music-first-positioning.md`)_
 - [2026-10-01 - Batch merged work into fewer releases; the frontend ships with the release](2026-10-01-batched-releases.md) - _Accepted (supersedes the human ship-checkpoint of `2026-06-16-release-cadence-automate-releases.md`)_
 - [2026-10-01 - Discord blurple is the focus color only; pink is the single brand accent](2026-10-01-blurple-focus-only.md) - _Accepted (supersedes the dual accent of `2026-04-21-redesign-port-target.md`)_
-- [2026-09-27 - Lucky as a taste-learning music bot: one bounded 12-week test, decided 2026-12-20](2026-09-27-music-first-positioning.md) - _Accepted (pitch amended by `2026-10-07-pitch-leads-with-weekly-recap.md`; plan amended by `2026-10-18-music-first-business-review-amendments.md`)_
+- [2026-09-27 - Lucky as a taste-learning music bot: one bounded 12-week test, decided 2026-12-20](2026-09-27-music-first-positioning.md) - _Accepted (pitch amended by `2026-10-07-pitch-leads-with-weekly-recap.md`; plan amended by `2026-10-18-music-first-business-review-amendments.md`; dates moved by `2026-11-13-music-first-acquisition-restart.md`)_
 - [2026-09-26 - Lucky owns its observability stack as code, portable to any host](2026-09-26-lucky-owned-observability-stack.md)
 - [2026-09-05 - Skip-reason feedback UX redesign: deferred](2026-09-05-skip-feedback-redesign-deferred.md) - _Accepted (defer)_
 - [2026-09-03 - Audit gate takes a second npm audit read before passing](2026-09-03-audit-gate-double-read.md)

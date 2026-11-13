@@ -233,7 +233,7 @@ def negocio():
               "Uso real do Lucky e as metas do music-first. Fonte: Postgres (somente leitura) e eventos do bot no Loki.",
               "now-30d", ("negocio",))
     b.text("Leia antes", (
-        "Metas do music-first (decisão até **20/12/2026**): **WAG ≥ 20** por 3 semanas, **≥ 35%** das guildas novas ouvem música na 1ª hora, "
+        "Metas do music-first (leitura em **28/12/2026**, decisão até **17/01/2027**): **WAG ≥ 20** por 3 semanas, **≥ 35%** das guildas novas ouvem música na 1ª hora, "
         "**≥ 15%** ainda ativas no dia 8. Guildas do operador, de listagem e de teste não contam. "
         "`track_history` guarda só 30 dias, então janelas maiores que 30 dias subcontam plays."), h=3)
 
@@ -424,14 +424,14 @@ def negocio():
           th=thresholds((GREEN, 0), (ORANGE, 70), (RED, 90)),
           options={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
                    "orientation": "auto", "showThresholdLabels": True, "showThresholdMarkers": True},
-          desc="WAG (janela móvel de 7 dias) ≥ 100 aciona o desligamento do YouTube (decisão 2026-12-20). "
+          desc="WAG (janela móvel de 7 dias) ≥ 100 aciona o desligamento do YouTube (decisão 2027-01-17). "
                "Laranja a 70 (70 % do limite), vermelho a 90.")
     b.add("gauge", "Servidores vs limite 1.000", [prom('max(lucky_bot_guilds_total{state="active"})', instant=True)],
           w=12, h=7, min_val=0, max_val=1000,
           th=thresholds((GREEN, 0), (ORANGE, 700), (RED, 900)),
           options={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
                    "orientation": "auto", "showThresholdLabels": True, "showThresholdMarkers": True},
-          desc="1.000 servidores ativos aciona o desligamento do YouTube (decisão 2026-12-20). "
+          desc="1.000 servidores ativos aciona o desligamento do YouTube (decisão 2027-01-17). "
                "Laranja a 700 (70 % do limite), vermelho a 900.")
     return b
 
