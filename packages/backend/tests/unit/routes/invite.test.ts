@@ -67,10 +67,22 @@ describe('GET /invite', () => {
         )
     })
 
-    test('coerces array UTM values to undefined', async () => {
+    test('keeps the first value of a repeated UTM key', async () => {
         await request(buildApp()).get('/invite?utm_source=a&utm_source=b')
-        const logged = (mockInfoLog.mock.calls[0] as [{ data: { utm_source: unknown } }])[0]
-        expect(logged.data.utm_source).toBeUndefined()
+        const logged = (
+            mockInfoLog.mock.calls[0] as [{ data: { utm_source: unknown } }]
+        )[0]
+        expect(logged.data.utm_source).toBe('a')
+    })
+
+    // Prod 2026-11-13: the discordbotlist page links the listing invite plus
+    // its own `&utm_source=discordbotlist.com&utm_medium=bot_page`.
+    test('attributes a discordbotlist link that repeats utm_source', async () => {
+        const res = await request(buildApp()).get(
+            '/invite?utm_source=discordbotlist&utm_medium=directory&utm_campaign=bot-listing&utm_source=discordbotlist.com&utm_medium=bot_page',
+        )
+        const location = new URL(res.headers.location)
+        expect(location.searchParams.get('state')).toBe('src.discordbotlist')
     })
 
     test('still redirects when infoLog throws', async () => {
@@ -103,9 +115,7 @@ describe('GET /invite', () => {
     })
 
     test('stores sources off the allowlist as unknown', async () => {
-        const res = await request(buildApp()).get(
-            '/invite?utm_source=<script>',
-        )
+        const res = await request(buildApp()).get('/invite?utm_source=<script>')
         const location = new URL(res.headers.location)
         expect(location.searchParams.get('state')).toBe('src.unknown')
     })
