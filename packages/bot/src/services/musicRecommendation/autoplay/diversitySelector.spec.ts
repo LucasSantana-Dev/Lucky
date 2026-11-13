@@ -556,6 +556,155 @@ describe('diversitySelector', () => {
         })
     })
 
+    describe('covers of a song in the same batch', () => {
+        function candidate(title: string, author: string, score: number) {
+            return {
+                track: {
+                    title,
+                    author,
+                    url: `http://example.com/${author}/${title}`,
+                    source: 'spotify',
+                    raw: {},
+                } as unknown as Track,
+                score,
+                basis: { source: 'seed-similar' as const, signals: [] },
+            }
+        }
+        const pick = (pool: ReturnType<typeof candidate>[], seed = '') =>
+            selectDiverseCandidates(
+                new Map(pool.map((c, i) => [String(i), c])),
+                10,
+                2,
+                20,
+                seed,
+            ).map((s) => `${s.track.author} - ${s.track.title}`)
+
+        test('drops a higher-scored cover when the original is in the batch (prod 2026-11-13)', () => {
+            // Seed "Free Bird": Shinedown's cover outscored Lynyrd Skynyrd's
+            // own "Simple Man", which recency decay had pushed down.
+            const selected = pick([
+                candidate('Simple Man', 'Shinedown', 1.65),
+                candidate('Trailer', 'Mudcrutch', 1.6),
+                candidate('Simple Man', 'Lynyrd Skynyrd', 1.5),
+                candidate(
+                    'Lynyrd Skynyrd - Simple Man (Audio)',
+                    'Lynyrd Skynyrd',
+                    1.1,
+                ),
+            ])
+
+            expect(selected).not.toContain('Shinedown - Simple Man')
+            expect(selected).toContain('Lynyrd Skynyrd - Simple Man')
+            expect(selected).toContain('Mudcrutch - Trailer')
+        })
+
+        test('counts a version suffix and a re-upload naming the artist toward the original', () => {
+            const selected = pick([
+                candidate('Fortunate Son', 'Bob Seger', 1.43),
+                candidate(
+                    'Fortunate Son',
+                    'Creedence Clearwater Revival',
+                    1.43,
+                ),
+                candidate(
+                    'Fortunate Son - Remastered / Live At The Oakland Coliseum',
+                    'Creedence Clearwater Revival',
+                    1.26,
+                ),
+                candidate(
+                    'Spiderbait - Black Betty (Audio)',
+                    'Spiderbait',
+                    0.96,
+                ),
+                candidate(
+                    'Ram Jam - Black Betty (Official Video)',
+                    'RamJamVEVO',
+                    0.95,
+                ),
+                candidate('Black Betty', 'Ram Jam - Topic', 0.94),
+            ])
+
+            expect(selected).not.toContain('Bob Seger - Fortunate Son')
+            expect(selected).not.toContain(
+                'Spiderbait - Spiderbait - Black Betty (Audio)',
+            )
+            expect(selected).toContain(
+                'Creedence Clearwater Revival - Fortunate Son',
+            )
+        })
+
+        test('breaks a one-to-one tie toward the seed artist', () => {
+            const selected = pick(
+                [
+                    candidate('Simple Man', 'Shinedown', 1.65),
+                    candidate('Simple Man', 'Lynyrd Skynyrd', 1.5),
+                ],
+                'lynyrd skynyrd',
+            )
+
+            expect(selected).toEqual(['Lynyrd Skynyrd - Simple Man'])
+        })
+
+        test('keeps both versions of an undecidable one-to-one pair', () => {
+            // Distinct titles, so the normal per-title dedupe does not merge
+            // them: only the cover filter could drop one.
+            const selected = pick([
+                candidate('Hallelujah (Edit)', 'Jeff Buckley', 1.2),
+                candidate('Hallelujah (Version)', 'Leonard Cohen', 1.1),
+            ])
+
+            expect(selected).toEqual([
+                'Jeff Buckley - Hallelujah (Edit)',
+                'Leonard Cohen - Hallelujah (Version)',
+            ])
+        })
+
+        test('does not credit an artist whose name is only part of a title', () => {
+            // "Heart" (the band) is in the batch; "Heart of Gold" must not
+            // count as a Heart upload, or Heart would win the vote and no
+            // version would be told apart from the original.
+            const selected = pick([
+                candidate('Barracuda', 'Heart', 1.3),
+                candidate('Heart of Gold', 'Boney M.', 1.25),
+                candidate('Heart of Gold', 'Neil Young', 1.2),
+                candidate(
+                    'Neil Young - Heart of Gold (Official)',
+                    'Neil Young',
+                    1.0,
+                ),
+            ])
+
+            expect(selected).not.toContain('Boney M. - Heart of Gold')
+            expect(selected).toContain('Neil Young - Heart of Gold')
+        })
+
+        test('detects covers between non-Latin artist names', () => {
+            const selected = pick([
+                candidate('Группа крови', 'Би-2', 1.3),
+                candidate('Группа крови', 'Кино', 1.2),
+                candidate('Кино - Группа крови (Official)', 'Кино', 1.0),
+            ])
+
+            expect(selected).not.toContain('Би-2 - Группа крови')
+            expect(selected).toContain('Кино - Группа крови')
+        })
+
+        test('groups an "Uploader - Artist - Song" upload with the song', () => {
+            const selected = pick([
+                candidate('Dream On', 'Some Cover Band', 1.3),
+                candidate('Dream On', 'Aerosmith', 1.2),
+                candidate(
+                    'Lost Panda - Aerosmith - Dream On (Lyrics)',
+                    'Lost Panda',
+                    0.9,
+                ),
+            ])
+
+            expect(selected).not.toContain('Some Cover Band - Dream On')
+            expect(selected).toContain('Aerosmith - Dream On')
+        })
+    })
+
     describe('purgeDuplicatesOfCurrentTrack', () => {
         test('removes duplicates and ignores non-duplicates and empty queues', () => {
             const dupTrack: Partial<Track> = {

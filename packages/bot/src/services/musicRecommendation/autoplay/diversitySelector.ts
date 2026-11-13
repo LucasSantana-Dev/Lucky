@@ -293,6 +293,119 @@ export function isDuplicateCandidate(
     return false
 }
 
+// Unicode-aware, unlike normalizeText: a Cyrillic or CJK name must not
+// collapse to an empty key and silently skip cover detection.
+function identityKey(value?: string): string {
+    return (value ?? '')
+        .normalize('NFKC')
+        .toLowerCase()
+        .replaceAll(/[^\p{L}\p{N}\p{M}]+/gu, '')
+}
+
+// "RamJamVEVO" and "Ram Jam - Topic" are Ram Jam's own channels.
+function coverArtistKey(author?: string): string {
+    return identityKey(primaryArtistKey(author ?? '')).replace(
+        /(?:vevo|topic)$/,
+        '',
+    )
+}
+
+// "Lost Panda - Aerosmith - Dream On (Lyrics)", "Ram Jam | Black Betty".
+function titleSegmentKeys(title?: string): Set<string> {
+    return new Set(
+        (title ?? '')
+            .split(/\s+[-–—:/]\s+|\s*[|"“”]\s*/)
+            .map((segment) => identityKey(segment))
+            .filter(Boolean),
+    )
+}
+
+function songKeys(track: Track): string[] {
+    const title = track.title ?? ''
+    const keys = [identityKey(cleanTitle(stripVariantSuffix(title)))]
+    const core = extractSongCore(title, track.author)
+    if (core) keys.push(identityKey(core))
+    // "Uploader - Artist - Song": extractSongCore keeps "Artist - Song".
+    const segments = cleanTitle(title).split(/\s+[-–—]\s+/)
+    if (segments.length >= 3) keys.push(identityKey(segments.at(-1)))
+    return [...new Set(keys.filter(Boolean))]
+}
+
+/**
+ * Candidates that are another artist's version of a song whose original is
+ * also in the batch. A listener who asks for related music does not want a
+ * cover: on 2026-11-13 Shinedown's "Simple Man" outscored Lynyrd Skynyrd's
+ * own, because recency decay had pushed the seed artist down.
+ *
+ * Per song, the original is the artist with the most versions in the batch;
+ * an upload whose title names a batch artist ("Lost Panda - Aerosmith -
+ * Dream On") counts for that artist too. A top tie goes to the seed artist,
+ * or is left alone: nothing is dropped when the original is unclear.
+ */
+function findCoverCandidates(
+    candidates: ScoredTrack[],
+    seedArtistKey: string,
+): Set<ScoredTrack> {
+    const credits = creditedArtists(candidates)
+    const seed = identityKey(seedArtistKey)
+    const covers = new Set<ScoredTrack>()
+    for (const members of groupBySong(candidates).values()) {
+        const original = originalArtist(members, credits, seed)
+        if (!original) continue
+        for (const c of members) {
+            if (!credits.get(c)?.has(original)) covers.add(c)
+        }
+    }
+    return covers
+}
+
+// Each candidate's own artist, plus any batch artist that is a whole title
+// segment: a bare substring would credit "Heart" for "Heart of Gold".
+function creditedArtists(
+    candidates: ScoredTrack[],
+): Map<ScoredTrack, Set<string>> {
+    const artistOf = new Map(
+        candidates.map((c) => [c, coverArtistKey(c.track.author)]),
+    )
+    const batchArtists = [...new Set(artistOf.values())].filter(Boolean)
+    return new Map(
+        candidates.map((c) => {
+            const segments = titleSegmentKeys(c.track.title)
+            const own = artistOf.get(c)
+            const credited = batchArtists.filter((a) => segments.has(a))
+            return [c, new Set(own ? [own, ...credited] : credited)]
+        }),
+    )
+}
+
+function groupBySong(candidates: ScoredTrack[]): Map<string, ScoredTrack[]> {
+    const groups = new Map<string, ScoredTrack[]>()
+    for (const c of candidates) {
+        for (const key of songKeys(c.track)) {
+            groups.set(key, [...(groups.get(key) ?? []), c])
+        }
+    }
+    return groups
+}
+
+// The artist with the most versions of the song; a tie goes to the seed
+// artist, else null (unclear, so nothing is dropped).
+function originalArtist(
+    members: ScoredTrack[],
+    credits: Map<ScoredTrack, Set<string>>,
+    seed: string,
+): string | null {
+    const votes = new Map<string, number>()
+    for (const artist of members.flatMap((c) => [...(credits.get(c) ?? [])])) {
+        votes.set(artist, (votes.get(artist) ?? 0) + 1)
+    }
+    if (votes.size < 2) return null
+    const top = Math.max(...votes.values())
+    const leaders = [...votes].filter(([, n]) => n === top).map(([a]) => a)
+    if (leaders.length === 1) return leaders[0]
+    return leaders.includes(seed) ? seed : null
+}
+
 export function selectDiverseCandidates(
     candidates: Map<string, ScoredTrack>,
     missingTracks: number,
@@ -327,8 +440,10 @@ export function selectDiverseCandidates(
     const sourceCount = new Map<string, number>()
     const selectedTitleKeys = new Set<string>()
     const selectedAlbums = new Set<string>()
+    const covers = findCoverCandidates(sortedCandidates, seedArtistKey)
 
     for (const candidate of sortedCandidates) {
+        if (covers.has(candidate)) continue
         // Primary artist, so "Artist, Remixer" shares the cap with "Artist".
         const artistKey = primaryArtistKey(candidate.track.author)
         const sourceKey = (
