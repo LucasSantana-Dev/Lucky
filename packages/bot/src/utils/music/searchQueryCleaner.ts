@@ -325,6 +325,55 @@ export function extractSongCore(title: string, author?: string): string | null {
     return null
 }
 
+const FEATURING_TAIL_RE = /\s(?:feat\.?|ft\.?|featuring)\s.*$/i
+
+function songKey(value: string): string {
+    return value
+        .normalize('NFKC')
+        .toLowerCase()
+        .replaceAll(/[^\p{L}\p{N}]+/gu, '')
+}
+
+/**
+ * Keys that identify the song itself, whatever the upload: "SZA - Kill Bill
+ * (SOS Tour Recap)", "Kill Bill" and "Kill Bill (Cover)" all give "killbill".
+ * Drops everything in brackets, a "feat./ft." tail, anything after "|", the
+ * version suffixes cleanTitle knows ("- Edit", "- Remastered") and the half of
+ * an "Artist - Song" title that matches the author. When neither half matches
+ * the author (a fan channel posting "Beat It - Michael Jackson"), both halves
+ * are returned, since either may be the song.
+ */
+export function songIdentityKeys(title: string, author?: string): string[] {
+    const withoutBrackets = (title.split('|')[0] ?? '')
+        .replaceAll(/\([^)]*\)|\[[^\]]*\]/g, ' ')
+        .replace(FEATURING_TAIL_RE, '')
+    const parts = cleanTitle(withoutBrackets)
+        .split(/\s[-–—]\s/)
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .slice(0, 2)
+
+    // A version descriptor ("Edit", "Live", "Remastered 2011") is not a song:
+    // as a key it would match every other song carrying the same suffix.
+    const isVersionHalf = (part: string) =>
+        /^edit$/i.test(part) || hasVersionMarker(`x - ${part}`)
+    let songParts =
+        parts.length === 2 && parts.some(isVersionHalf)
+            ? parts.filter((part) => !isVersionHalf(part))
+            : parts
+    const authorKey = author ? songKey(cleanAuthor(author)) : ''
+    if (songParts.length === 2 && authorKey.length >= 2) {
+        const isAuthor = (part: string) => {
+            const key = songKey(part)
+            return key.includes(authorKey) || authorKey.includes(key)
+        }
+        if (isAuthor(songParts[0])) songParts = [songParts[1]]
+        else if (isAuthor(songParts[1])) songParts = [songParts[0]]
+    }
+
+    return [...new Set(songParts.map(songKey).filter((key) => key.length >= 2))]
+}
+
 /**
  * Split a YouTube-style "Artist - Song" title into artist and song, for
  * lookups that need the real artist when the track's author is the uploading

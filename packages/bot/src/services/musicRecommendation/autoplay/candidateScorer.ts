@@ -269,6 +269,24 @@ export interface ScoringContext {
     seedArtistStreak?: number
 }
 
+// Another version of a song rather than a related song: a cover, tribute,
+// karaoke take or mashup. Only where a marker is structural (inside brackets,
+// after a " - " separator, or in the channel name), so real titles like "The
+// Cover of Rolling Stone" or Tenacious D's "Tribute" stay eligible.
+const OTHER_VERSION_WORDS = String.raw`\b(?:covers?|covered|tribute|karaoke)\b`
+const OTHER_VERSION_TITLE_RE = new RegExp(
+    String.raw`[([][^)\]]*${OTHER_VERSION_WORDS}[^)\]]*[)\]]|\s[-–—|]\s.*${OTHER_VERSION_WORDS}|\bmash-?up\b`,
+    'i',
+)
+const OTHER_VERSION_AUTHOR_RE = new RegExp(OTHER_VERSION_WORDS, 'i')
+
+function isOtherVersion(track: { title?: string; author?: string }): boolean {
+    return (
+        OTHER_VERSION_TITLE_RE.test(track.title ?? '') ||
+        OTHER_VERSION_AUTHOR_RE.test(track.author ?? '')
+    )
+}
+
 export function calculateRecommendationScore(ctx: ScoringContext): {
     score: number
     signals: RecommendationSignal[]
@@ -348,6 +366,10 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     }
     if (EDM_MIX_RE.test(candidateTitle)) {
         return { score: -Infinity, signals: [], veto: 'edm-mix' }
+    }
+    // Unless the listener is already on covers: then a cover is on-mood.
+    if (isOtherVersion(candidate) && !isOtherVersion(currentTrack)) {
+        return { score: -Infinity, signals: [], veto: 'other-version' }
     }
 
     let score = 1

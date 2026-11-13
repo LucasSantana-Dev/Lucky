@@ -7,6 +7,7 @@ import {
     extractSongCore,
     hasVersionMarker,
     splitArtistAndSong,
+    songIdentityKeys,
 } from './searchQueryCleaner'
 
 describe('cleanTitle', () => {
@@ -407,5 +408,98 @@ describe('hasVersionMarker', () => {
 
     it('flags the last hyphenated segment even with an earlier hyphen in the title', () => {
         expect(hasVersionMarker('Artist - Song Title - Live')).toBe(true)
+    })
+})
+
+// Prod 2026-11-12/13 (guild Job): autoplay queued another version of a song
+// that had just played, because these noise parts kept the song keys apart.
+describe('songIdentityKeys', () => {
+    const key = (title: string, author?: string) =>
+        songIdentityKeys(title, author)
+
+    it.each([
+        [
+            'SZA - Kill Bill (Official Audio)',
+            'SZA',
+            'SZA - Kill Bill (SOS Tour Recap)',
+            'SZA',
+        ],
+        [
+            'Kanye West - Good Life ft. T-Pain',
+            'Kanye West',
+            'Good Life',
+            'Kanye West',
+        ],
+        [
+            'Michael Jackson - Thriller (Official Video - Shortened Version)',
+            'Michael Jackson',
+            'Thriller',
+            'Michael Jackson',
+        ],
+        [
+            'Michael Jackson - Beat It (Official 4K Video)',
+            'Michael Jackson',
+            'Beat It - Michael Jackson (Lyrics)',
+            'Art of Yourself',
+        ],
+        [
+            'Legends Never Die (ft. Against The Current) | Worlds 2017 - League of Legends',
+            'League of Legends',
+            'Legends Never Die (Cover)',
+            'Someone',
+        ],
+        [
+            'Sweet Home Alabama',
+            'Lynyrd Skynyrd',
+            'Sweet Home Alabama - Edit',
+            'Lynyrd Skynyrd',
+        ],
+    ])(
+        '"%s" and "%s" share a song key',
+        (playedTitle, playedAuthor, title, author) => {
+            const played = key(playedTitle, playedAuthor)
+            expect(key(title, author).some((k) => played.includes(k))).toBe(
+                true,
+            )
+        },
+    )
+
+    it.each([
+        [
+            'SZA - Kill Bill (Official Audio)',
+            'SZA',
+            'SZA - Snooze (Official Audio)',
+            'SZA',
+        ],
+        [
+            'Sweet Home Alabama - Edit',
+            'Lynyrd Skynyrd',
+            'Free Bird - Edit',
+            'Lynyrd Skynyrd',
+        ],
+        [
+            'Fortunate Son - Remastered',
+            'Creedence Clearwater Revival',
+            'Bad Moon Rising - Remastered',
+            'Creedence Clearwater Revival',
+        ],
+    ])(
+        '"%s" and "%s" are different songs',
+        (playedTitle, playedAuthor, title, author) => {
+            const played = key(playedTitle, playedAuthor)
+            expect(key(title, author).some((k) => played.includes(k))).toBe(
+                false,
+            )
+        },
+    )
+
+    it('drops the artist half of an "Artist - Song" title', () => {
+        expect(key('SZA - Kill Bill (Official Audio)', 'SZA')).toEqual([
+            'killbill',
+        ])
+    })
+
+    it('returns no key for an empty title', () => {
+        expect(key('', 'SZA')).toEqual([])
     })
 })

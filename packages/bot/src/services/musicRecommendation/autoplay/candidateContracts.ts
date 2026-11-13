@@ -86,7 +86,7 @@ export function upsertScoredCandidate(
                 author: candidate.author,
                 score: scored.score,
                 source: scored.source,
-                note: 'empty signals indicate hard-reject at scorer stage (blocked artist, too long, ambient noise, edm mix, spanish locale, disliked, or cross-genre drift)',
+                note: 'empty signals indicate hard-reject at scorer stage (blocked artist, too long, ambient noise, edm mix, spanish locale, disliked, cover or other version, or cross-genre drift)',
             },
         })
         const basis: RecommendationBasis = {

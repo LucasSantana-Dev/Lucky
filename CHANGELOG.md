@@ -1714,6 +1714,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(bot): autoplay no longer picks covers or other versions of a song you just heard: a re-upload with a different title ("Kill Bill (SOS Tour Recap)", "Good Life" after "Good Life ft. T-Pain") counts as the same song, a cover never beats the seed artist's own version, and cover, tribute, karaoke and mashup uploads are skipped unless you are already listening to one (#3031)
 - fix(bot): after a restart the restored queue no longer plays every song twice: the startup restore and the voice-connection restore both rebuilt the same queue at once (#3026)
 - fix(bot): SoundCloud searches now really reach SoundCloud in `/play`, `/playtop`, `/artist`, the onboarding station, dashboard play and autoplay seeding: the YouTube extractor was claiming them, so `/play` searched YouTube twice and failed with a YouTube "No results found" (#3021) (#3022)
 - fix(backend): clicks from the discordbotlist page are attributed to discordbotlist: the site appends its own `utm_source=discordbotlist.com` to the listing link, and the repeated key was read as no source
