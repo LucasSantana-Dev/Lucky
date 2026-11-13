@@ -287,6 +287,34 @@ describe('resolveQueryWithFallbacks', () => {
             })
         })
 
+        it('keeps the YouTube extractor off the SoundCloud fallback arm', async () => {
+            // discord-player-youtubei's validate() accepts any string, and it
+            // registers before SoundCloud, so without the block it claims
+            // SOUNDCLOUD_SEARCH and the "SoundCloud" arm re-runs YouTube.
+            mockPlayer.play
+                .mockRejectedValueOnce(new Error('Primary failed'))
+                .mockRejectedValueOnce(new Error('YouTube failed'))
+                .mockResolvedValueOnce({ track: { title: 'Test Song' } })
+
+            await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'domadinho tamixanny',
+                'default',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            const youtubeCall = mockPlayer.play.mock.calls[1]
+            expect(youtubeCall[2].blockExtractors).not.toContain(
+                'com.retrouser955.discord-player.discord-player-youtubei',
+            )
+            const soundcloudCall = mockPlayer.play.mock.calls[2]
+            expect(soundcloudCall[2].blockExtractors).toContain(
+                'com.retrouser955.discord-player.discord-player-youtubei',
+            )
+        })
+
         it('never lets a text-search arm reach an extractor that cannot search', async () => {
             const mockTrack = { title: 'Test Song' }
             mockPlayer.play
