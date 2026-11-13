@@ -42,7 +42,8 @@ Archive, then delete, in one pass for the 50 branches last changed before 2026-0
    rules apply.
 
 Tag names were checked: no duplicates after the slash-to-dash mapping and no clash with an
-existing tag or branch. Execution waits on the owner's go-ahead.
+existing tag or branch. Executed 2026-11-13 on the owner's go-ahead: 17 tags pushed and verified,
+50 branches deleted in one atomic, lease-guarded push.
 
 ## Alternatives considered
 
