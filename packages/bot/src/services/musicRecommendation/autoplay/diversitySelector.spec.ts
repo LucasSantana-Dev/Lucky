@@ -447,6 +447,112 @@ describe('diversitySelector', () => {
         })
     })
 
+    // Prod 2026-11-12/13 (guild Job): autoplay queued another version of a
+    // song that had just played, or a cover of the seed artist's own song.
+    describe('other versions of the same song', () => {
+        const played = (title: string, author: string) =>
+            buildExcludedKeys(
+                mockQueue as GuildQueue,
+                { title, author } as Track,
+                [],
+            )
+
+        test.each([
+            [
+                'SZA - Kill Bill (Official Audio)',
+                'SZA',
+                'SZA - Kill Bill (SOS Tour Recap)',
+                'SZA',
+            ],
+            [
+                'Kanye West - Good Life ft. T-Pain',
+                'Kanye West',
+                'Good Life',
+                'Kanye West',
+            ],
+            [
+                'Michael Jackson - Thriller (Official Video - Shortened Version)',
+                'Michael Jackson',
+                'Thriller',
+                'Michael Jackson',
+            ],
+            [
+                'Michael Jackson - Beat It (Official 4K Video)',
+                'Michael Jackson',
+                'Beat It - Michael Jackson (Lyrics)',
+                'Art of Yourself',
+            ],
+            ['Simple Man', 'Lynyrd Skynyrd', 'Simple Man (Cover)', 'Shinedown'],
+        ])(
+            'after "%s" (%s), "%s" (%s) is a duplicate',
+            (pt, pa, title, author) => {
+                const candidate = { title, author, url: 'https://x/y' } as Track
+                expect(
+                    isDuplicateCandidate(candidate, new Set(), played(pt, pa)),
+                ).toBe(true)
+            },
+        )
+
+        test('a different song by the same artist is not a duplicate', () => {
+            const candidate = {
+                title: 'SZA - Snooze (Official Audio)',
+                author: 'SZA',
+                url: 'https://x/y',
+            } as Track
+            expect(
+                isDuplicateCandidate(
+                    candidate,
+                    new Set(),
+                    played('SZA - Kill Bill (Official Audio)', 'SZA'),
+                ),
+            ).toBe(false)
+        })
+
+        test("keeps the seed artist's version over a higher-scored cover", () => {
+            const pick = (author: string, title: string, score: number) => ({
+                track: { author, title, source: 'spotify' } as Track,
+                score,
+                basis: { source: 'seed-similar' as const, signals: [] },
+            })
+            const candidates = new Map([
+                ['a', pick('Shinedown', 'Simple Man', 1.9)],
+                ['b', pick('Lynyrd Skynyrd', 'Simple Man', 1.6)],
+                ['c', pick('Tom Petty', 'Free Fallin', 1.5)],
+            ])
+            const selected = selectDiverseCandidates(
+                candidates,
+                3,
+                2,
+                5,
+                'lynyrd skynyrd',
+            )
+            expect(
+                selected.map((c) => `${c.track.title} - ${c.track.author}`),
+            ).toEqual([
+                'Simple Man - Lynyrd Skynyrd',
+                'Free Fallin - Tom Petty',
+            ])
+        })
+
+        test('picks one version of a song uploaded under different titles', () => {
+            const pick = (author: string, title: string, score: number) => ({
+                track: { author, title, source: 'youtube' } as Track,
+                score,
+                basis: { source: 'seed-similar' as const, signals: [] },
+            })
+            const candidates = new Map([
+                ['a', pick('Aerosmith', 'Aerosmith - Dream On (Audio)', 1.9)],
+                ['b', pick('Lost Panda', 'Aerosmith - Dream On (Lyrics)', 1.8)],
+                ['c', pick('Dire Straits', 'Sultans Of Swing', 1.5)],
+            ])
+            const selected = selectDiverseCandidates(candidates, 3, 2, 5, '')
+            expect(selected.map((c) => c.track.author)).toEqual([
+                'Aerosmith',
+                'Dire Straits',
+            ])
+        })
+    })
+
     describe('reserved anchor slot (#2961)', () => {
         const pick = (
             title: string,
@@ -645,18 +751,17 @@ describe('diversitySelector', () => {
             expect(selected).toEqual(['Lynyrd Skynyrd - Simple Man'])
         })
 
-        test('keeps both versions of an undecidable one-to-one pair', () => {
-            // Distinct titles, so the normal per-title dedupe does not merge
-            // them: only the cover filter could drop one.
+        test('keeps only the best-scored version of an undecidable one-to-one pair', () => {
+            // The cover filter cannot tell which is the original, so it drops
+            // neither; the song-identity dedupe (#3031) still keeps a batch to
+            // one version of a song, since the owner asked for related songs,
+            // not other versions of the same one.
             const selected = pick([
                 candidate('Hallelujah (Edit)', 'Jeff Buckley', 1.2),
                 candidate('Hallelujah (Version)', 'Leonard Cohen', 1.1),
             ])
 
-            expect(selected).toEqual([
-                'Jeff Buckley - Hallelujah (Edit)',
-                'Leonard Cohen - Hallelujah (Version)',
-            ])
+            expect(selected).toEqual(['Jeff Buckley - Hallelujah (Edit)'])
         })
 
         test('does not credit an artist whose name is only part of a title', () => {
@@ -706,6 +811,28 @@ describe('diversitySelector', () => {
     })
 
     describe('purgeDuplicatesOfCurrentTrack', () => {
+        test('purges a queued re-upload of the now-playing song', () => {
+            const reupload = {
+                url: 'https://www.youtube.com/watch?v=other',
+                title: 'SZA - Kill Bill (SOS Tour Recap)',
+                author: 'SZA',
+            } as Track
+            const remove = jest.fn()
+            const queue = {
+                ...mockQueue,
+                tracks: { toArray: jest.fn(() => [reupload]) },
+                node: { remove },
+            } as unknown as GuildQueue
+
+            purgeDuplicatesOfCurrentTrack(queue, {
+                url: 'https://www.youtube.com/watch?v=orig',
+                title: 'SZA - Kill Bill (Official Audio)',
+                author: 'SZA',
+            } as Track)
+
+            expect(remove).toHaveBeenCalledWith(reupload)
+        })
+
         test('removes duplicates and ignores non-duplicates and empty queues', () => {
             const dupTrack: Partial<Track> = {
                 url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',

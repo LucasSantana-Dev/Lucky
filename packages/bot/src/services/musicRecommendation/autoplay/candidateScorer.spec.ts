@@ -99,6 +99,55 @@ describe('candidateScorer', () => {
             expect(result.veto).toBe(veto)
         })
 
+        it.each([
+            ['Simple Man (Cover)', 'Some Band'],
+            ['Love Like You - Steven Universe Cover', 'Caleb Hyles'],
+            ['Dream On (Boston Marathon Bombing Tribute)', 'TheAerosmithVault'],
+            ['Beat It (Karaoke Version)', 'Sing King'],
+            [
+                'BEAT XONADA (Beat It x Montagem Xonada) MASHUP MIX',
+                'Luke Nightmare',
+            ],
+            ['Kill Bill', 'SZA Covers'],
+            ['Song', 'Mashup Central'],
+        ])(
+            'vetoes "%s" by %s as another version of a song',
+            (title, author) => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({ title, author }),
+                    currentTrack: createTrack(),
+                    recentArtists: new Set(),
+                })
+                expect(result.score).toBe(-Infinity)
+                expect(result.veto).toBe('other-version')
+            },
+        )
+
+        it.each([
+            ['The Cover of Rolling Stone', 'Dr. Hook'],
+            ['Undercover Martyn', 'Two Door Cinema Club'],
+            ['Tribute', 'Tenacious D'],
+            ['Everybody Get Up', 'Cover Drive'],
+        ])('keeps "%s" by %s, a real song title', (title, author) => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack({ title, author }),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+            })
+            expect(result.veto).toBeUndefined()
+        })
+
+        it('keeps a cover when the seed is itself a cover', () => {
+            const result = calculateRecommendationScore({
+                candidate: createTrack({ title: 'Creep (Cover)' }),
+                currentTrack: createTrack({
+                    title: 'Wonderwall (Acoustic Cover)',
+                }),
+                recentArtists: new Set(),
+            })
+            expect(result.veto).toBeUndefined()
+        })
+
         it('leaves veto unset on a finite score', () => {
             const result = calculateRecommendationScore({
                 candidate: createTrack(),

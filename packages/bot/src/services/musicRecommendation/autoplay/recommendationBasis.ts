@@ -57,6 +57,7 @@ export type VetoReason =
     | 'cross-locale'
     | 'cross-genre'
     | 'disliked'
+    | 'other-version'
 
 export interface RecommendationBasis {
     source: RecommendationSource

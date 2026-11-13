@@ -5,6 +5,7 @@ import {
     extractSongCore,
     cleanTitle,
     cleanAuthor,
+    songIdentityKeys,
 } from '../../../utils/music/searchQueryCleaner'
 import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import { calculateStringSimilarity } from '../../../utils/music/duplicateDetection/similarityChecker'
@@ -22,6 +23,16 @@ interface ScoredTrack {
 const MAX_TRACKS_PER_ARTIST = 2
 const MAX_TRACKS_PER_SOURCE = 3
 const FUZZY_TITLE_THRESHOLD = 0.75
+
+// Song-identity keys (see songIdentityKeys), so another upload or a cover of
+// a song that already played is caught even when its title carries different
+// noise ("(SOS Tour Recap)", "ft. T-Pain", "(Lyrics)"). Prefixed with "::" so
+// the fuzzy title loop below, which skips "::" keys, matches them exactly.
+function songKeysOf(track: { title?: string; author?: string }): string[] {
+    return songIdentityKeys(track.title ?? '', track.author).map(
+        (key) => `song::${key}`,
+    )
+}
 
 // #2667: autoplay used to write a track_history row when it queued a pick, so
 // the next replenish would not pick it again, but that row counted as a play
@@ -253,6 +264,7 @@ export function buildExcludedKeys(
         if (variantStripped) keys.push(normalizeTitleOnly(variantStripped))
         const core = extractSongCore(t.title ?? '', t.author)
         if (core) keys.push(normalizeText(core))
+        keys.push(...songKeysOf(t))
     }
     return new Set(keys)
 }
@@ -270,6 +282,7 @@ export function isDuplicateCandidate(
     if (excludedKeys.has(normalizeTrackKey(track.title, track.author)))
         return true
     if (excludedKeys.has(normalizeTitleOnly(track.title))) return true
+    if (songKeysOf(track).some((key) => excludedKeys.has(key))) return true
     const core = extractSongCore(track.title ?? '', track.author)
     if (core !== null && excludedKeys.has(normalizeText(core))) return true
 
@@ -465,12 +478,15 @@ export function selectDiverseCandidates(
         }
         if (selectedTitleKeys.has(titleKey || artistKey)) continue
         if (coreKey && selectedTitleKeys.has(coreKey)) continue
+        const songKeys = songKeysOf(candidate.track)
+        if (songKeys.some((key) => selectedTitleKeys.has(key))) continue
 
         selected.push(candidate)
         artistCount.set(artistKey, (artistCount.get(artistKey) ?? 0) + 1)
         sourceCount.set(sourceKey, (sourceCount.get(sourceKey) ?? 0) + 1)
         selectedTitleKeys.add(titleKey || artistKey)
         if (coreKey) selectedTitleKeys.add(coreKey)
+        for (const key of songKeys) selectedTitleKeys.add(key)
         if (albumName) selectedAlbums.add(albumName)
         if (selected.length >= missingTracks) {
             break
@@ -514,6 +530,7 @@ export async function addSelectedTracks(
             candidate.track.author,
         )
         if (core) excludedKeys.add(normalizeText(core))
+        for (const key of songKeysOf(candidate.track)) excludedKeys.add(key)
         rememberRecommended(guildId, candidate.track)
     }
 
@@ -535,6 +552,7 @@ export function purgeDuplicatesOfCurrentTrack(
     keys.add(normalizeTitleOnly(currentTrack.title))
     const core = extractSongCore(currentTrack.title ?? '', currentTrack.author)
     if (core) keys.add(normalizeText(core))
+    for (const key of songKeysOf(currentTrack)) keys.add(key)
 
     const removed: Track[] = []
     for (const track of queue.tracks.toArray()) {
