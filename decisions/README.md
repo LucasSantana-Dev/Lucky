@@ -1,10 +1,11 @@
 # Architecture Decision Records
 
-148 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
+149 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
-## Accepted (139)
+## Accepted (140)
 
+- [2026-11-13 - Stale remote branches: archive the unrecoverable ones as tags, then delete](2026-11-13-stale-branch-archive-then-delete.md)
 - [2026-11-13 - Music-first test: the acquisition phase never ran, so it restarts and every read moves 4 weeks](2026-11-13-music-first-acquisition-restart.md) - _Accepted (amends the dates of `2026-09-27-music-first-positioning.md` and decisions 5 and 7 of `2026-10-18-music-first-business-review-amendments.md`)_
 - [2026-10-21 - youtubei.js native stream as a bridge stage between yt-dlp and SoundCloud](2026-10-21-youtubei-native-bridge-stage.md) - _Accepted (a second YouTube client next to the yt-dlp ladder of `2026-06-18-youtube-extraction-reliability.md`)_
 - [2026-10-18 - Music-first amendments from the 2026-10-08 business review: activation fixes, spend gates, no recruiting](2026-10-18-music-first-business-review-amendments.md) - _Accepted (amends decisions 2, 5 and 6 of `2026-09-27-music-first-positioning.md`; decisions 5 and 7 amended by `2026-11-13-music-first-acquisition-restart.md`)_
