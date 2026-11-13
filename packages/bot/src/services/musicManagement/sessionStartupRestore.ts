@@ -3,6 +3,7 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { musicSessionSnapshotService } from '../musicRecommendation/sessionSnapshots'
 import { QUEUE_LEAVE_OPTIONS } from './queueLeaveOptions'
+import { musicWatchdogService } from './watchdog'
 
 const STARTUP_MAX_AGE_MS = 30 * 60 * 1_000
 
@@ -92,13 +93,26 @@ export async function restoreSessionsOnStartup(
                 await queue.connect(channel)
             }
 
-            const result = await musicSessionSnapshotService.restoreSnapshot(
-                queue,
-                undefined,
-                {
-                    maxAgeMs: STARTUP_MAX_AGE_MS,
-                },
-            )
+            // Registered with the watchdog so a /stop during startup aborts
+            // this restore too, including while it waits behind the
+            // connection handler's restore for the same guild (#3026).
+            const { controller, release } =
+                musicWatchdogService.registerRecoveryController(guildId)
+            let result: Awaited<
+                ReturnType<typeof musicSessionSnapshotService.restoreSnapshot>
+            >
+            try {
+                result = await musicSessionSnapshotService.restoreSnapshot(
+                    queue,
+                    undefined,
+                    {
+                        maxAgeMs: STARTUP_MAX_AGE_MS,
+                        signal: controller.signal,
+                    },
+                )
+            } finally {
+                release()
+            }
 
             if (result.restoredCount > 0) {
                 infoLog({

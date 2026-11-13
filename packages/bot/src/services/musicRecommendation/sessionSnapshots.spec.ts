@@ -568,6 +568,79 @@ describe('MusicSessionSnapshotService', () => {
             expect(mockFindUnique).toHaveBeenCalledTimes(2)
         })
 
+        it('lets the waiter restore after the first restore aborts and rolls back', async () => {
+            // First restore adds T1, is held on T2's search, gets aborted and
+            // undoes T1. The waiter, started while T1 was queued, must re-run
+            // the empty-queue guard and restore, not skip the session.
+            mockFindUnique.mockResolvedValue(
+                snapshotRow({
+                    upcomingTracks: [
+                        {
+                            title: 'T1',
+                            author: 'A',
+                            url: 'u1',
+                            duration: '1',
+                            source: 'x',
+                        },
+                        {
+                            title: 'T2',
+                            author: 'A',
+                            url: 'u2',
+                            duration: '1',
+                            source: 'x',
+                        },
+                    ],
+                }),
+            )
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-rollback')
+            const queued = new Set<unknown>()
+            const tracks = {
+                get size() {
+                    return queued.size
+                },
+            }
+            ;(queue as unknown as { tracks: typeof tracks }).tracks = tracks
+            ;(queue.addTrack as jest.Mock).mockImplementation((t) => {
+                queued.add(t)
+            })
+            ;(queue.node.remove as jest.Mock).mockImplementation((t) => {
+                queued.delete(t)
+            })
+            let releaseT2: () => void = () => undefined
+            let searchCalls = 0
+            ;(queue.player.search as jest.Mock).mockImplementation(async () => {
+                searchCalls += 1
+                if (searchCalls === 2) {
+                    await new Promise<void>((resolve) => {
+                        releaseT2 = resolve
+                    })
+                }
+                return {
+                    tracks: [
+                        { title: `t${searchCalls}`, setMetadata: jest.fn() },
+                    ],
+                }
+            })
+            const controller = new AbortController()
+
+            const first = service.restoreSnapshot(queue, undefined, {
+                signal: controller.signal,
+            })
+            while (searchCalls < 2) {
+                await new Promise((resolve) => setImmediate(resolve))
+            }
+            expect(queued.size).toBe(1)
+            const waiter = service.restoreSnapshot(queue)
+            controller.abort()
+            releaseT2()
+
+            expect((await first).restoredCount).toBe(0)
+            expect((await waiter).restoredCount).toBe(2)
+            expect(queued.size).toBe(2)
+            expect(queue.node.play).toHaveBeenCalledTimes(1)
+        })
+
         it('stops waiting on a stuck restore after the wait limit', async () => {
             jest.useFakeTimers()
             try {
