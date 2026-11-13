@@ -308,7 +308,10 @@ export class MusicSessionSnapshotService {
     // passed the empty-queue guard before either added a track, so every song
     // was queued twice and play() ran twice (prod 2026-11-13). A caller that
     // finds a restore in flight waits for it, then re-runs the guard.
-    private readonly restoresInFlight = new Map<string, Promise<unknown>>()
+    private readonly restoresInFlight = new Map<
+        string,
+        { done: Promise<unknown> }
+    >()
 
     async restoreSnapshot(
         queue: GuildQueue,
@@ -318,17 +321,19 @@ export class MusicSessionSnapshotService {
         const guildId = queue.guild.id
         let inFlight = this.restoresInFlight.get(guildId)
         while (inFlight) {
-            await inFlight.catch(() => undefined)
+            await inFlight.done.catch(() => undefined)
             inFlight = this.restoresInFlight.get(guildId)
         }
         // No await between the check above and this set, so two waiters
         // released together cannot both claim the guild.
-        const run = this.restoreSnapshotOnce(queue, requestedBy, options)
-        this.restoresInFlight.set(guildId, run)
+        const entry = {
+            done: this.restoreSnapshotOnce(queue, requestedBy, options),
+        }
+        this.restoresInFlight.set(guildId, entry)
         try {
-            return await run
+            return await entry.done
         } finally {
-            if (this.restoresInFlight.get(guildId) === run) {
+            if (this.restoresInFlight.get(guildId) === entry) {
                 this.restoresInFlight.delete(guildId)
             }
         }
