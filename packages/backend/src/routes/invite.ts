@@ -10,8 +10,14 @@ import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
 // OAuth as `state=src.<source>` and the callback records where the guild came
 // from. Sources off the allowlist are stored as `unknown`.
 
+// A repeated key arrives as an array. Keep the first value: discordbotlist
+// appends its own `utm_source=discordbotlist.com` after the listing's link,
+// which turned every click from that listing into `unknown`.
 function toUtmString(value: unknown): string | undefined {
-    return typeof value === 'string' ? value : undefined
+    const first: unknown = Array.isArray(value)
+        ? (value as unknown[])[0]
+        : value
+    return typeof first === 'string' ? first : undefined
 }
 
 export function setupInviteRoute(app: Express): void {
