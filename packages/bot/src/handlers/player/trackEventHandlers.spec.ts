@@ -25,7 +25,7 @@ const featureEnabledMock = jest.fn()
 const replenishQueueMock = jest.fn()
 const addTrackToHistoryMock = jest.fn()
 const sendNowPlayingEmbedMock = jest.fn()
-const setTrackStatusMock = jest.fn()
+const setTrackStatusMock = jest.fn(() => Promise.resolve())
 const updateLastFmNowPlayingMock = jest.fn()
 const scrobbleCurrentTrackIfLastFmMock = jest.fn()
 const resetAutoplayCountMock = jest.fn()
@@ -280,6 +280,21 @@ describe('trackHandlers autoplay replenishment', () => {
         await handlers.playerStart(queue, createTrack())
 
         expect(setTrackStatusMock).toHaveBeenCalledWith(queue)
+    })
+
+    it('logs a rejected voice status update instead of leaking it', async () => {
+        const handlers = setupHandlers()
+        const queue = createQueue(QueueRepeatMode.OFF)
+        setTrackStatusMock.mockRejectedValueOnce(new Error('status failed'))
+
+        await handlers.playerStart(queue, createTrack())
+        await Promise.resolve()
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Error setting voice channel status:',
+            }),
+        )
     })
 
     it('prefetches the next Spotify track only after handlePlayerStart finished', async () => {
