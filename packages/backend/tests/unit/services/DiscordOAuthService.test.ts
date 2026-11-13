@@ -76,6 +76,32 @@ describe('DiscordOAuthService', () => {
             ).rejects.toThrow('Network error')
         })
 
+        test('accepts a bot add token response with an empty scope (#2750)', async () => {
+            // Shape Discord returned in prod on 2026-11-12 for a landing add
+            // (scope `bot applications.commands`, response_type=code): the
+            // scope string is empty and the guild is present.
+            const botAddResponse = {
+                ...MOCK_TOKEN_RESPONSE,
+                scope: '',
+                guild: { id: '393786584186617858' },
+            }
+            const mockResponse = {
+                ok: true,
+                json: jest
+                    .fn<() => Promise<any>>()
+                    .mockResolvedValue(botAddResponse),
+                text: jest.fn<() => Promise<string>>(),
+            } as unknown as Response
+            global.fetch = jest
+                .fn<typeof fetch>()
+                .mockResolvedValue(mockResponse) as typeof fetch
+
+            const result =
+                await discordOAuthService.exchangeCodeForToken(MOCK_AUTH_CODE)
+
+            expect(result.guild?.id).toBe('393786584186617858')
+        })
+
         test('should throw when token response is missing required fields', async () => {
             const mockResponse = {
                 ok: true,

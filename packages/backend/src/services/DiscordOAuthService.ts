@@ -50,7 +50,9 @@ const tokenResponseSchema = z.object({
     token_type: z.string().min(1),
     expires_in: z.number().int().positive(),
     refresh_token: z.string().min(1),
-    scope: z.string().min(1),
+    // Empty for a bot add (landing flow, #2750): Discord returns `scope: ''`
+    // with the guild, so requiring a non-empty scope dropped every attributed add.
+    scope: z.string(),
     guild: z.object({ id: z.string().min(1) }).optional(),
 })
 
