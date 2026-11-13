@@ -114,6 +114,7 @@ export async function startClient({
                 infoLog({
                     message: `Global commands registered: ${global.length}`,
                 })
+                directoryStatsScheduler.setPublicCommands(global)
 
                 // The rest goes only to the guilds the operator lists. These
                 // are explicit ids, not the ready-time cache, so a new public

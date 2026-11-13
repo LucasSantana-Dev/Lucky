@@ -155,4 +155,101 @@ describe('DirectoryStatsScheduler', () => {
         expect(captureMessage).toHaveBeenCalledTimes(1)
         scheduler.stop()
     })
+
+    describe('discordbotlist command list', () => {
+        const DBL_COMMANDS_URL =
+            'https://discordbotlist.com/api/v1/bots/bot-1/commands'
+        const commands = [{ name: 'play', description: 'Play a song', type: 1 }]
+
+        test('posts the public commands once, with the token', async () => {
+            process.env.DISCORDBOTLIST_TOKEN = 'secret-a'
+            const fetchMock = jest.fn().mockResolvedValue(ok as never)
+            const scheduler = make(fetchMock)
+            scheduler.setPublicCommands(commands)
+
+            scheduler.start(client)
+            await settle()
+            await scheduler.tick()
+
+            const posts = fetchMock.mock.calls.filter(
+                (c) => c[0] === DBL_COMMANDS_URL,
+            )
+            expect(posts).toHaveLength(1)
+            const init = posts[0][1] as any
+            expect(init.method).toBe('POST')
+            expect(JSON.parse(init.body)).toEqual(commands)
+            expect(init.headers.Authorization).toBe('secret-a')
+            scheduler.stop()
+        })
+
+        test('retries on the next tick after a failure', async () => {
+            process.env.DISCORDBOTLIST_TOKEN = 'secret-a'
+            let commandAttempts = 0
+            const fetchMock = jest.fn((url: string) => {
+                if (url !== DBL_COMMANDS_URL) return Promise.resolve(ok)
+                commandAttempts++
+                return Promise.resolve(
+                    commandAttempts === 1
+                        ? { ok: false, status: 500, statusText: 'Error' }
+                        : ok,
+                )
+            })
+            const scheduler = make(fetchMock as any)
+            scheduler.setPublicCommands(commands)
+
+            scheduler.start(client)
+            await settle()
+            expect(commandAttempts).toBe(1)
+
+            await scheduler.tick()
+            expect(commandAttempts).toBe(2)
+
+            await scheduler.tick()
+            expect(commandAttempts).toBe(2)
+            expect(warnLog).toHaveBeenCalledTimes(1)
+            scheduler.stop()
+        })
+
+        test('reaches Sentry on the 3rd failed commands POST in a row', async () => {
+            process.env.DISCORDBOTLIST_TOKEN = 'secret-a'
+            const fetchMock = jest.fn((url: string) =>
+                Promise.resolve(
+                    url === DBL_COMMANDS_URL
+                        ? { ok: false, status: 500, statusText: 'Error' }
+                        : ok,
+                ),
+            )
+            const scheduler = make(fetchMock as any)
+            scheduler.setPublicCommands(commands)
+
+            scheduler.start(client)
+            await settle()
+            await scheduler.tick()
+            expect(captureMessage).not.toHaveBeenCalled()
+            await scheduler.tick()
+
+            expect(captureMessage).toHaveBeenCalledTimes(1)
+            const [message, , context] = (captureMessage as jest.Mock).mock
+                .calls[0] as [string, string, Record<string, string>]
+            expect(message).toContain(
+                'discordbotlist.com commands POST failed 3 times',
+            )
+            expect(context.category).toBe('directory.commands')
+            scheduler.stop()
+        })
+
+        test('sends nothing without the discordbotlist token', async () => {
+            process.env.DISCORD_BOTS_GG_TOKEN = 'secret-b'
+            const fetchMock = jest.fn().mockResolvedValue(ok as never)
+            const scheduler = make(fetchMock)
+            scheduler.setPublicCommands(commands)
+
+            scheduler.start(client)
+            await settle()
+
+            const urls = fetchMock.mock.calls.map((c) => c[0])
+            expect(urls).toEqual([DBGG_URL])
+            scheduler.stop()
+        })
+    })
 })
