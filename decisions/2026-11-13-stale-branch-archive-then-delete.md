@@ -34,8 +34,9 @@ Archive, then delete, in one pass for the 50 branches last changed before 2026-0
 
 1. **33 branches whose tip equals their `refs/pull/N/head`:** delete. The PR keeps the commits.
 2. **17 branches with no recovery path:** push an annotated tag
-   `archive/<branch, slashes as dashes>-2026-11-13` at the tip, confirm with `git ls-remote`
-   that it resolves to that SHA, then delete the branch.
+   `archive/<branch, slashes as dashes>-2026-11-13` at the tip, confirm that the peeled ref
+   (`git ls-remote origin refs/tags/<tag>^{}`) resolves to that SHA, then delete the branch.
+   The unpeeled ref is the tag object, not the commit.
 3. Every delete is lease-guarded (`--force-with-lease=refs/heads/<b>:<sha>`) and pushed with
    `--atomic`, so a branch that moved after the check is left alone.
 4. **9 branches changed since 2026-09-01:** deferred to the 2026-12-13 revisit, where the same
@@ -59,8 +60,14 @@ existing tag or branch. Executed 2026-11-13 on the owner's go-ahead: 17 tags pus
 ## Consequences
 
 - The branch list drops from 69 to 19 (5 open PRs, 5 `archive/*`, 9 deferred).
-- `archive/*` tags grow from 8 to 25. Every clone fetches them; no tooling reacts to them.
-- Recovery: `git push origin <tag-or-refs/pull/N/head>:refs/heads/<branch>` restores any branch.
+- `archive/*` tags grow from 8 to 25. A default clone fetches them (a `--no-tags` clone or a
+  remote with `tagOpt = --no-tags` needs `git fetch --tags`); no tooling reacts to them.
+- Recovery. Pushing an annotated tag to `refs/heads/*` is rejected because it is not a commit,
+  so peel it first:
+    - archived: `git fetch origin tag <tag>`, then
+      `git push origin '<tag>^{commit}:refs/heads/<branch>'`
+    - PR-backed: `git fetch origin refs/pull/N/head`, then
+      `git push origin FETCH_HEAD:refs/heads/<branch>`
 - `refs/pull/N/head` retention is observed GitHub behavior, not a documented guarantee, and it
   only exists in this repository.
 
