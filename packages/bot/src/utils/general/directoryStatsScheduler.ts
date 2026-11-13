@@ -118,19 +118,16 @@ export class DirectoryStatsScheduler extends IntervalScheduler {
             })
             if (response.ok) {
                 this.pendingCommands = null
+                this.failures.set(`${DBL_NAME} commands`, 0)
                 infoLog({
                     message: `${DBL_NAME} commands posted successfully`,
                     data: { count: commands.length },
                 })
                 return
             }
-            warnLog({
-                message: `${DBL_NAME} commands POST failed: HTTP ${response.status}`,
-            })
+            this.recordFailure(DBL_NAME, 'commands', `HTTP ${response.status}`)
         } catch (error) {
-            warnLog({
-                message: `${DBL_NAME} commands POST failed: ${String(error)}`,
-            })
+            this.recordFailure(DBL_NAME, 'commands', String(error))
         }
     }
 
@@ -151,7 +148,7 @@ export class DirectoryStatsScheduler extends IntervalScheduler {
                 signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
             })
             if (response.ok) {
-                this.failures.set(dir.name, 0)
+                this.failures.set(`${dir.name} stats`, 0)
                 infoLog({
                     message: `${dir.name} stats posted successfully`,
                     data: { guildCount },
@@ -165,21 +162,26 @@ export class DirectoryStatsScheduler extends IntervalScheduler {
                 })
                 return
             }
-            this.recordFailure(dir, `HTTP ${response.status}`)
+            this.recordFailure(dir.name, 'stats', `HTTP ${response.status}`)
         } catch (error) {
-            this.recordFailure(dir, String(error))
+            this.recordFailure(dir.name, 'stats', String(error))
         }
     }
 
-    private recordFailure(dir: Directory, reason: string): void {
-        const count = (this.failures.get(dir.name) ?? 0) + 1
-        this.failures.set(dir.name, count)
-        warnLog({ message: `${dir.name} stats POST failed: ${reason}` })
+    private recordFailure(
+        directory: string,
+        what: 'stats' | 'commands',
+        reason: string,
+    ): void {
+        const key = `${directory} ${what}`
+        const count = (this.failures.get(key) ?? 0) + 1
+        this.failures.set(key, count)
+        warnLog({ message: `${key} POST failed: ${reason}` })
         if (count === REPORT_AFTER_CONSECUTIVE_FAILURES) {
             captureMessage(
-                `${dir.name} stats POST failed ${count} times in a row: ${reason}`,
+                `${key} POST failed ${count} times in a row: ${reason}`,
                 'warning',
-                { category: 'directory.stats', directory: dir.name },
+                { category: 'directory.stats', directory },
             )
         }
     }

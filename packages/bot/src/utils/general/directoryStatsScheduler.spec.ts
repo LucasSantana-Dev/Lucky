@@ -176,6 +176,7 @@ describe('DirectoryStatsScheduler', () => {
             )
             expect(posts).toHaveLength(1)
             const init = posts[0][1] as any
+            expect(init.method).toBe('POST')
             expect(JSON.parse(init.body)).toEqual(commands)
             expect(init.headers.Authorization).toBe('secret-a')
             scheduler.stop()
@@ -183,9 +184,37 @@ describe('DirectoryStatsScheduler', () => {
 
         test('retries on the next tick after a failure', async () => {
             process.env.DISCORDBOTLIST_TOKEN = 'secret-a'
+            let commandAttempts = 0
+            const fetchMock = jest.fn((url: string) => {
+                if (url !== DBL_COMMANDS_URL) return Promise.resolve(ok)
+                commandAttempts++
+                return Promise.resolve(
+                    commandAttempts === 1
+                        ? { ok: false, status: 500, statusText: 'Error' }
+                        : ok,
+                )
+            })
+            const scheduler = make(fetchMock as any)
+            scheduler.setPublicCommands(commands)
+
+            scheduler.start(client)
+            await settle()
+            expect(commandAttempts).toBe(1)
+
+            await scheduler.tick()
+            expect(commandAttempts).toBe(2)
+
+            await scheduler.tick()
+            expect(commandAttempts).toBe(2)
+            expect(warnLog).toHaveBeenCalledTimes(1)
+            scheduler.stop()
+        })
+
+        test('reaches Sentry on the 3rd failed commands POST in a row', async () => {
+            process.env.DISCORDBOTLIST_TOKEN = 'secret-a'
             const fetchMock = jest.fn((url: string) =>
                 Promise.resolve(
-                    url === DBL_COMMANDS_URL && fetchMock.mock.calls.length < 3
+                    url === DBL_COMMANDS_URL
                         ? { ok: false, status: 500, statusText: 'Error' }
                         : ok,
                 ),
@@ -196,13 +225,13 @@ describe('DirectoryStatsScheduler', () => {
             scheduler.start(client)
             await settle()
             await scheduler.tick()
+            expect(captureMessage).not.toHaveBeenCalled()
             await scheduler.tick()
 
-            const posts = fetchMock.mock.calls.filter(
-                (c) => c[0] === DBL_COMMANDS_URL,
+            expect(captureMessage).toHaveBeenCalledTimes(1)
+            expect((captureMessage as jest.Mock).mock.calls[0][0]).toContain(
+                'discordbotlist.com commands POST failed 3 times',
             )
-            expect(posts).toHaveLength(2)
-            expect(warnLog).toHaveBeenCalledTimes(1)
             scheduler.stop()
         })
 
