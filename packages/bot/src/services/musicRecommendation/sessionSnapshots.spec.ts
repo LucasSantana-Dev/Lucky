@@ -9,6 +9,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),
     infoLog: jest.fn(),
+    warnLog: jest.fn(),
 }))
 
 jest.mock('@lucky/shared/config', () => ({
@@ -539,24 +540,69 @@ describe('MusicSessionSnapshotService', () => {
             expect(first.restoredCount + second.restoredCount).toBe(1)
         })
 
-        it('lets a waiting restore run when the one before it restored nothing', async () => {
-            // An aborted first restore undoes its tracks; the caller queued
-            // behind it must still be able to restore the session.
-            mockFindUnique.mockResolvedValue(snapshotRow())
+        it('makes a second restore wait, then run when the first restored nothing', async () => {
+            // Hold the first restore's snapshot read open: the second must not
+            // read until the first settles. The first finds no snapshot (as an
+            // aborted, undone restore would leave things), so the second runs.
+            let releaseFirst: (row: unknown) => void = () => undefined
+            mockFindUnique
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((resolve) => {
+                            releaseFirst = resolve
+                        }),
+                )
+                .mockResolvedValue(snapshotRow())
             const service = new MusicSessionSnapshotService()
-            const queue = restoringQueue('guild-after-abort')
+            const queue = restoringQueue('guild-waits')
+
+            const first = service.restoreSnapshot(queue)
+            const second = service.restoreSnapshot(queue)
+            await new Promise((resolve) => setImmediate(resolve))
+
+            expect(mockFindUnique).toHaveBeenCalledTimes(1)
+
+            releaseFirst(null)
+            expect((await first).restoredCount).toBe(0)
+            expect((await second).restoredCount).toBe(1)
+            expect(mockFindUnique).toHaveBeenCalledTimes(2)
+        })
+
+        it('stops waiting on a stuck restore after the wait limit', async () => {
+            jest.useFakeTimers()
+            try {
+                mockFindUnique
+                    .mockImplementationOnce(() => new Promise(() => undefined))
+                    .mockResolvedValue(snapshotRow())
+                const service = new MusicSessionSnapshotService()
+                const queue = restoringQueue('guild-stuck')
+
+                void service.restoreSnapshot(queue)
+                const second = service.restoreSnapshot(queue)
+                await jest.advanceTimersByTimeAsync(30_000)
+
+                expect((await second).restoredCount).toBe(1)
+            } finally {
+                jest.useRealTimers()
+            }
+        })
+
+        it('gives up waiting without reading when its own signal aborts', async () => {
+            mockFindUnique.mockImplementationOnce(
+                () => new Promise(() => undefined),
+            )
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-abort-wait')
             const controller = new AbortController()
+
+            void service.restoreSnapshot(queue)
+            const waiting = service.restoreSnapshot(queue, undefined, {
+                signal: controller.signal,
+            })
             controller.abort()
 
-            const [aborted, next] = await Promise.all([
-                service.restoreSnapshot(queue, undefined, {
-                    signal: controller.signal,
-                }),
-                service.restoreSnapshot(queue),
-            ])
-
-            expect(aborted.restoredCount).toBe(0)
-            expect(next.restoredCount).toBe(1)
+            expect((await waiting).restoredCount).toBe(0)
+            expect(mockFindUnique).toHaveBeenCalledTimes(1)
         })
 
         it('undoes only its own restored tracks when aborted mid-restore', async () => {
