@@ -243,6 +243,9 @@ describe('searchLastFmQuery', () => {
             expect(searchMock).toHaveBeenCalledTimes(2)
             expect(searchMock.mock.calls[1][1]).toMatchObject({
                 searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                blockExtractors: expect.arrayContaining([
+                    'com.retrouser955.discord-player.discord-player-youtubei',
+                ]),
             })
         })
     })

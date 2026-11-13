@@ -10,7 +10,10 @@ import { buildQueueState, repeatModeToEnum } from './mappers'
 import { resolveGuildQueue } from '../../services/musicManagement/queueResolver'
 import { setReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 import { resumeAutoplay } from '../player/autoplayFailureStreak'
-import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from '../../functions/music/commands/play/handlers/resolveProvider'
+import {
+    SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
+    TEXT_SEARCH_BLOCKED_EXTRACTORS,
+} from '../../functions/music/commands/play/handlers/resolveProvider'
 import { isUrl } from '../../functions/music/commands/play/queryUtils'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
 
@@ -54,7 +57,10 @@ async function searchDashboardQuery(client: CustomClient, query: string) {
             const fallback = await client.player.search(query, {
                 requestedBy: undefined,
                 searchEngine,
-                blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
+                blockExtractors:
+                    searchEngine === QueryType.SOUNDCLOUD_SEARCH
+                        ? SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS
+                        : TEXT_SEARCH_BLOCKED_EXTRACTORS,
             })
             if (fallback?.tracks.length) return fallback
         } catch (error) {

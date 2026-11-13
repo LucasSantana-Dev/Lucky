@@ -27,7 +27,10 @@ import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
-import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from './play/handlers/resolveProvider'
+import {
+    SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
+    TEXT_SEARCH_BLOCKED_EXTRACTORS,
+} from './play/handlers/resolveProvider'
 import { isHostedYoutubeEnabled } from '../../../config/featureFlags'
 import type { CustomClient } from '../../../types/CustomClient'
 import { QUEUE_LEAVE_OPTIONS } from '../../../services/musicManagement/queueLeaveOptions'
@@ -116,7 +119,7 @@ const SEARCH_ARMS = [
     },
     {
         engine: QueryType.SOUNDCLOUD_SEARCH,
-        blocked: TEXT_SEARCH_BLOCKED_EXTRACTORS,
+        blocked: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
     },
 ] as const
 

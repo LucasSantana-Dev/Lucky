@@ -53,6 +53,19 @@ export const TEXT_SEARCH_BLOCKED_EXTRACTORS = [
     ATTACHMENT_EXTRACTOR_ID,
 ]
 
+// discord-player-youtubei's validate() also returns true for any string, and
+// it registers before SoundCloud, so it claimed the SOUNDCLOUD_SEARCH arm too:
+// the "SoundCloud fallback" re-ran YouTube and failed as
+// "No results found (Extractor: ...discord-player-youtubei)". Use this list on
+// every SOUNDCLOUD_SEARCH text query (#3022); YouTube arms still need youtubei.
+const YOUTUBE_EXTRACTOR_ID =
+    'com.retrouser955.discord-player.discord-player-youtubei'
+
+export const SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS = [
+    ...TEXT_SEARCH_BLOCKED_EXTRACTORS,
+    YOUTUBE_EXTRACTOR_ID,
+]
+
 /**
  * Search options for a query that may be plain text or a URL, on an engine
  * that is not Spotify's. Plain text gets TEXT_SEARCH_BLOCKED_EXTRACTORS,
@@ -536,7 +549,7 @@ async function resolveWithChain({
                 const result = await player.play(voiceChannel, query, {
                     ...resolvedPlayOptions,
                     searchEngine: QueryType.SOUNDCLOUD_SEARCH,
-                    blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
+                    blockExtractors: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
                 })
                 telemetry.latencyMs = Date.now() - startTime
                 telemetry.resolvedVia = 'soundcloud-fallback'

@@ -4,7 +4,10 @@ import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
 
 const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
 import type { CustomClient } from '../../../../types'
-import { preferExactMatch } from './handlers/resolveProvider'
+import {
+    preferExactMatch,
+    SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
+} from './handlers/resolveProvider'
 import { ensureTrackMetadata } from './handlers/trackMetadataHydration'
 import {
     classifyPlayFailure,
@@ -373,7 +376,8 @@ export async function executePlayAtTop({
                         })
                         result = await client.player.play(voiceChannel, query, {
                             searchEngine: QueryType.SOUNDCLOUD_SEARCH,
-                            blockExtractors: [SPOTIFY_EXTRACTOR_ID],
+                            blockExtractors:
+                                SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
                             afterSearch,
                         })
                     }
@@ -389,7 +393,7 @@ export async function executePlayAtTop({
                     })
                     result = await client.player.play(voiceChannel, query, {
                         searchEngine: QueryType.SOUNDCLOUD_SEARCH,
-                        blockExtractors: [SPOTIFY_EXTRACTOR_ID],
+                        blockExtractors: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
                         afterSearch,
                     })
                 }

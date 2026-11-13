@@ -15,7 +15,11 @@ const runPostPlayBackgroundOpsMock = jest.fn<() => Promise<void>>()
 // unmodified to player.play — the real list lives in resolveProvider.ts and
 // exists to stop the Spotify/Attachment extractors from claiming a
 // SOUNDCLOUD_SEARCH text query (documented there against #1930).
-const FAKE_BLOCKED_EXTRACTORS = ['fake-spotify-id', 'fake-attachment-id']
+const FAKE_BLOCKED_EXTRACTORS = [
+    'fake-spotify-id',
+    'fake-attachment-id',
+    'fake-youtubei-id',
+]
 
 jest.mock('discord.js', () => {
     class MockButtonBuilder {
@@ -78,7 +82,8 @@ jest.mock('../functions/music/commands/play/queryUtils', () => ({
 }))
 
 jest.mock('../functions/music/commands/play/handlers/resolveProvider', () => ({
-    TEXT_SEARCH_BLOCKED_EXTRACTORS: FAKE_BLOCKED_EXTRACTORS,
+    TEXT_SEARCH_BLOCKED_EXTRACTORS: ['fake-spotify-id', 'fake-attachment-id'],
+    SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS: FAKE_BLOCKED_EXTRACTORS,
 }))
 
 jest.mock(
