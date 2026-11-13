@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.69.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.69.0...v2.69.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **bot:** keep covers and other versions out of autoplay ([#3032](https://github.com/LucasSantana-Dev/Lucky/issues/3032)) ([4299db7](https://github.com/LucasSantana-Dev/Lucky/commit/4299db7c8deeb0de9258588c06544bed96f4e79d))
+* **bot:** keep youtubei off soundcloud text searches ([#3023](https://github.com/LucasSantana-Dev/Lucky/issues/3023)) ([696d079](https://github.com/LucasSantana-Dev/Lucky/commit/696d079aee388024729cd540042cee4798ffeb2b))
+* **bot:** run one session restore per guild at a time ([#3028](https://github.com/LucasSantana-Dev/Lucky/issues/3028)) ([2fe3be8](https://github.com/LucasSantana-Dev/Lucky/commit/2fe3be8debc150a4374095f41bc1bdd89a063648))
+* **bot:** skip covers when the original is in the autoplay batch ([#3030](https://github.com/LucasSantana-Dev/Lucky/issues/3030)) ([55464c7](https://github.com/LucasSantana-Dev/Lucky/commit/55464c7eec397584c3aea422e51ad77c0c2df529))
+
 ## [2.69.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.68.0...v2.69.0) (2026-11-13)
 
 
