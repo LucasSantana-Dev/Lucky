@@ -645,13 +645,63 @@ describe('diversitySelector', () => {
             expect(selected).toEqual(['Lynyrd Skynyrd - Simple Man'])
         })
 
-        test('leaves an undecidable one-to-one pair to the score order', () => {
+        test('keeps both versions of an undecidable one-to-one pair', () => {
+            // Distinct titles, so the normal per-title dedupe does not merge
+            // them: only the cover filter could drop one.
             const selected = pick([
-                candidate('Hallelujah', 'Jeff Buckley', 1.2),
-                candidate('Hallelujah', 'Leonard Cohen', 1.1),
+                candidate('Hallelujah (Edit)', 'Jeff Buckley', 1.2),
+                candidate('Hallelujah (Version)', 'Leonard Cohen', 1.1),
             ])
 
-            expect(selected).toEqual(['Jeff Buckley - Hallelujah'])
+            expect(selected).toEqual([
+                'Jeff Buckley - Hallelujah (Edit)',
+                'Leonard Cohen - Hallelujah (Version)',
+            ])
+        })
+
+        test('does not credit an artist whose name is only part of a title', () => {
+            // "Heart" (the band) is in the batch; "Heart of Gold" must not
+            // count as a Heart upload, or Heart would win the vote and no
+            // version would be told apart from the original.
+            const selected = pick([
+                candidate('Barracuda', 'Heart', 1.3),
+                candidate('Heart of Gold', 'Boney M.', 1.25),
+                candidate('Heart of Gold', 'Neil Young', 1.2),
+                candidate(
+                    'Neil Young - Heart of Gold (Official)',
+                    'Neil Young',
+                    1.0,
+                ),
+            ])
+
+            expect(selected).not.toContain('Boney M. - Heart of Gold')
+            expect(selected).toContain('Neil Young - Heart of Gold')
+        })
+
+        test('detects covers between non-Latin artist names', () => {
+            const selected = pick([
+                candidate('Группа крови', 'Би-2', 1.3),
+                candidate('Группа крови', 'Кино', 1.2),
+                candidate('Кино - Группа крови (Official)', 'Кино', 1.0),
+            ])
+
+            expect(selected).not.toContain('Би-2 - Группа крови')
+            expect(selected).toContain('Кино - Группа крови')
+        })
+
+        test('groups an "Uploader - Artist - Song" upload with the song', () => {
+            const selected = pick([
+                candidate('Dream On', 'Some Cover Band', 1.3),
+                candidate('Dream On', 'Aerosmith', 1.2),
+                candidate(
+                    'Lost Panda - Aerosmith - Dream On (Lyrics)',
+                    'Lost Panda',
+                    0.9,
+                ),
+            ])
+
+            expect(selected).not.toContain('Some Cover Band - Dream On')
+            expect(selected).toContain('Aerosmith - Dream On')
         })
     })
 

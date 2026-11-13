@@ -293,19 +293,41 @@ export function isDuplicateCandidate(
     return false
 }
 
+// Unicode-aware, unlike normalizeText: a Cyrillic or CJK name must not
+// collapse to an empty key and silently skip cover detection.
+function identityKey(value?: string): string {
+    return (value ?? '')
+        .normalize('NFKC')
+        .toLowerCase()
+        .replaceAll(/[^\p{L}\p{N}\p{M}]+/gu, '')
+}
+
 // "RamJamVEVO" and "Ram Jam - Topic" are Ram Jam's own channels.
 function coverArtistKey(author?: string): string {
-    return normalizeText(primaryArtistKey(author ?? '')).replace(
+    return identityKey(primaryArtistKey(author ?? '')).replace(
         /(?:vevo|topic)$/,
         '',
     )
 }
 
+// "Lost Panda - Aerosmith - Dream On (Lyrics)", "Ram Jam | Black Betty".
+function titleSegmentKeys(title?: string): Set<string> {
+    return new Set(
+        (title ?? '')
+            .split(/\s+[-–—:/]\s+|\s*[|"“”]\s*/)
+            .map((segment) => identityKey(segment))
+            .filter(Boolean),
+    )
+}
+
 function songKeys(track: Track): string[] {
     const title = track.title ?? ''
-    const keys = [normalizeTitleOnly(stripVariantSuffix(title))]
+    const keys = [identityKey(cleanTitle(stripVariantSuffix(title)))]
     const core = extractSongCore(title, track.author)
-    if (core) keys.push(normalizeText(core))
+    if (core) keys.push(identityKey(core))
+    // "Uploader - Artist - Song": extractSongCore keeps "Artist - Song".
+    const segments = cleanTitle(title).split(/\s+[-–—]\s+/)
+    if (segments.length >= 3) keys.push(identityKey(segments.at(-1)))
     return [...new Set(keys.filter(Boolean))]
 }
 
@@ -327,16 +349,16 @@ function findCoverCandidates(
     const artistOf = new Map(
         candidates.map((c) => [c, coverArtistKey(c.track.author)]),
     )
-    const batchArtists = new Set(
-        [...artistOf.values()].filter((a) => a.length >= 4),
-    )
+    const batchArtists = new Set([...artistOf.values()].filter(Boolean))
     const credits = new Map<ScoredTrack, Set<string>>()
     for (const c of candidates) {
         const own = artistOf.get(c) ?? ''
-        const title = normalizeText(c.track.title)
+        // A whole title segment must be the artist's name: a bare substring
+        // would credit "Heart" for "Heart of Gold".
+        const segments = titleSegmentKeys(c.track.title)
         const credited = new Set(own ? [own] : [])
         for (const artist of batchArtists) {
-            if (title.includes(artist)) credited.add(artist)
+            if (segments.has(artist)) credited.add(artist)
         }
         credits.set(c, credited)
     }
@@ -348,7 +370,7 @@ function findCoverCandidates(
         }
     }
 
-    const seed = normalizeText(seedArtistKey)
+    const seed = identityKey(seedArtistKey)
     const covers = new Set<ScoredTrack>()
     for (const members of groups.values()) {
         const votes = new Map<string, number>()
