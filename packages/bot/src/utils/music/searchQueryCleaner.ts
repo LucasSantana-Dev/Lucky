@@ -326,29 +326,43 @@ export function extractSongCore(title: string, author?: string): string | null {
 }
 
 const FEATURING_TAIL_RE = /\s(?:feat\.?|ft\.?|featuring)\s.*$/i
+const SEPARATOR_RE = /\s[-–—]\s/
 
+// Keeps combining marks (\p{M}): in Devanagari "कु" and "क" are different words.
 function songKey(value: string): string {
     return value
         .normalize('NFKC')
         .toLowerCase()
-        .replaceAll(/[^\p{L}\p{N}]+/gu, '')
+        .replaceAll(/[^\p{L}\p{M}\p{N}]+/gu, '')
+}
+
+// Song and artist as one key, order-free, so a fan upload "Beat It - Michael
+// Jackson" matches Michael Jackson's own "Beat It" without ever keying on
+// "michaeljackson" alone. "+" never appears in a songKey.
+function songArtistPair(song: string, artist: string): string {
+    return [song, artist].sort().join('+')
 }
 
 /**
  * Keys that identify the song itself, whatever the upload: "SZA - Kill Bill
  * (SOS Tour Recap)", "Kill Bill" and "Kill Bill (Cover)" all give "killbill".
- * Drops everything in brackets, a "feat./ft." tail, anything after "|", the
- * version suffixes cleanTitle knows ("- Edit", "- Remastered") and the half of
- * an "Artist - Song" title that matches the author. When neither half matches
- * the author (a fan channel posting "Beat It - Michael Jackson"), both halves
- * are returned, since either may be the song.
+ * Drops everything in brackets, anything after "|", a "feat./ft." tail on
+ * either half and the version suffixes cleanTitle knows ("- Edit",
+ * "- Remastered"). When the song is known, returns it plus its song+artist
+ * pair. When neither half of an "A - B" title matches the author (a fan
+ * channel), the halves are not trusted alone: only the pair is returned, so
+ * that channel's other uploads of the same artist stay distinct songs.
  */
 export function songIdentityKeys(title: string, author?: string): string[] {
-    const withoutBrackets = (title.split('|')[0] ?? '')
-        .replaceAll(/\([^)]*\)|\[[^\]]*\]/g, ' ')
-        .replace(FEATURING_TAIL_RE, '')
-    const parts = cleanTitle(withoutBrackets)
-        .split(/\s[-–—]\s/)
+    // Per half and before cleanTitle (which rewrites "ft."), so a credit on
+    // the artist half ("Drake ft. Jay-Z - Light Up") cannot eat the song half.
+    const withoutCredits = (title.split('|')[0] ?? '')
+        .replaceAll(/\([^)]*\)|\[[^\]]*\]/g, ' ') // NOSONAR S5852 - each class stops at its closing bracket, linear
+        .split(SEPARATOR_RE)
+        .map((part) => part.replace(FEATURING_TAIL_RE, ''))
+        .join(' - ')
+    const parts = cleanTitle(withoutCredits)
+        .split(SEPARATOR_RE)
         .map((part) => part.trim())
         .filter(Boolean)
         .slice(0, 2)
@@ -357,21 +371,30 @@ export function songIdentityKeys(title: string, author?: string): string[] {
     // as a key it would match every other song carrying the same suffix.
     const isVersionHalf = (part: string) =>
         /^edit$/i.test(part) || hasVersionMarker(`x - ${part}`)
-    let songParts =
+    const halves = (
         parts.length === 2 && parts.some(isVersionHalf)
             ? parts.filter((part) => !isVersionHalf(part))
             : parts
+    )
+        .map(songKey)
+        .filter((key) => key.length >= 2)
     const authorKey = author ? songKey(cleanAuthor(author)) : ''
-    if (songParts.length === 2 && authorKey.length >= 2) {
-        const isAuthor = (part: string) => {
-            const key = songKey(part)
-            return key.includes(authorKey) || authorKey.includes(key)
-        }
-        if (isAuthor(songParts[0])) songParts = [songParts[1]]
-        else if (isAuthor(songParts[1])) songParts = [songParts[0]]
-    }
 
-    return [...new Set(songParts.map(songKey).filter((key) => key.length >= 2))]
+    if (halves.length === 1) {
+        const [song] = halves
+        return authorKey.length >= 2
+            ? [song, songArtistPair(song, authorKey)]
+            : [song]
+    }
+    if (halves.length !== 2) return []
+
+    const [left, right] = halves
+    const isAuthor = (key: string) =>
+        authorKey.length >= 2 &&
+        (key.includes(authorKey) || authorKey.includes(key))
+    if (isAuthor(left)) return [right, songArtistPair(right, left)]
+    if (isAuthor(right)) return [left, songArtistPair(left, right)]
+    return [songArtistPair(left, right)]
 }
 
 /**

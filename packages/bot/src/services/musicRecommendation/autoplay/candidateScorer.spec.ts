@@ -109,6 +109,7 @@ describe('candidateScorer', () => {
                 'Luke Nightmare',
             ],
             ['Kill Bill', 'SZA Covers'],
+            ['Song', 'Mashup Central'],
         ])(
             'vetoes "%s" by %s as another version of a song',
             (title, author) => {
@@ -126,6 +127,7 @@ describe('candidateScorer', () => {
             ['The Cover of Rolling Stone', 'Dr. Hook'],
             ['Undercover Martyn', 'Two Door Cinema Club'],
             ['Tribute', 'Tenacious D'],
+            ['Everybody Get Up', 'Cover Drive'],
         ])('keeps "%s" by %s, a real song title', (title, author) => {
             const result = calculateRecommendationScore({
                 candidate: createTrack({ title, author }),

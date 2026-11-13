@@ -496,7 +496,26 @@ describe('songIdentityKeys', () => {
     it('drops the artist half of an "Artist - Song" title', () => {
         expect(key('SZA - Kill Bill (Official Audio)', 'SZA')).toEqual([
             'killbill',
+            'killbill+sza',
         ])
+    })
+
+    it('keeps the song half when the artist half carries a feature credit', () => {
+        const lightUp = key('Drake ft. Jay-Z - Light Up', 'Drake')
+        const godsPlan = key("Drake ft. Future - God's Plan", 'Drake')
+        expect(lightUp).toContain('lightup')
+        expect(godsPlan.some((k) => lightUp.includes(k))).toBe(false)
+    })
+
+    it("keeps a fan channel's uploads of different songs by one artist apart", () => {
+        const dreamOn = key('Aerosmith - Dream On (Lyrics)', 'Lost Panda')
+        const walk = key('Aerosmith - Walk This Way (Lyrics)', 'Lost Panda')
+        expect(walk.some((k) => dreamOn.includes(k))).toBe(false)
+        expect(dreamOn).not.toContain('aerosmith')
+    })
+
+    it('keeps Devanagari combining marks apart', () => {
+        expect(key('कु', 'X')).not.toEqual(key('क', 'X'))
     })
 
     it('returns no key for an empty title', () => {

@@ -552,6 +552,7 @@ export function purgeDuplicatesOfCurrentTrack(
     keys.add(normalizeTitleOnly(currentTrack.title))
     const core = extractSongCore(currentTrack.title ?? '', currentTrack.author)
     if (core) keys.add(normalizeText(core))
+    for (const key of songKeysOf(currentTrack)) keys.add(key)
 
     const removed: Track[] = []
     for (const track of queue.tracks.toArray()) {

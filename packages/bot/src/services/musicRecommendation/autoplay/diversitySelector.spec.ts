@@ -811,6 +811,28 @@ describe('diversitySelector', () => {
     })
 
     describe('purgeDuplicatesOfCurrentTrack', () => {
+        test('purges a queued re-upload of the now-playing song', () => {
+            const reupload = {
+                url: 'https://www.youtube.com/watch?v=other',
+                title: 'SZA - Kill Bill (SOS Tour Recap)',
+                author: 'SZA',
+            } as Track
+            const remove = jest.fn()
+            const queue = {
+                ...mockQueue,
+                tracks: { toArray: jest.fn(() => [reupload]) },
+                node: { remove },
+            } as unknown as GuildQueue
+
+            purgeDuplicatesOfCurrentTrack(queue, {
+                url: 'https://www.youtube.com/watch?v=orig',
+                title: 'SZA - Kill Bill (Official Audio)',
+                author: 'SZA',
+            } as Track)
+
+            expect(remove).toHaveBeenCalledWith(reupload)
+        })
+
         test('removes duplicates and ignores non-duplicates and empty queues', () => {
             const dupTrack: Partial<Track> = {
                 url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',

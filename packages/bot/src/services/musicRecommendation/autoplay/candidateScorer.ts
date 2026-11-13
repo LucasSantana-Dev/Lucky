@@ -278,7 +278,10 @@ const OTHER_VERSION_TITLE_RE = new RegExp(
     String.raw`[([][^)\]]*${OTHER_VERSION_WORDS}[^)\]]*[)\]]|\s[-–—|]\s.*${OTHER_VERSION_WORDS}|\bmash-?up\b`,
     'i',
 )
-const OTHER_VERSION_AUTHOR_RE = new RegExp(OTHER_VERSION_WORDS, 'i')
+// Channel names: only words a real artist name rarely is ("Cover Drive" and
+// "Tribute" are bands), so "SZA Covers", "Sing King Karaoke", "Mashup Central".
+const OTHER_VERSION_AUTHOR_RE =
+    /\b(?:covers|karaoke|mash-?ups?|tribute band)\b/i
 
 function isOtherVersion(track: { title?: string; author?: string }): boolean {
     return (
