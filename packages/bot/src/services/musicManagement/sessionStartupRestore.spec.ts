@@ -25,6 +25,17 @@ jest.mock('../musicRecommendation/sessionSnapshots', () => ({
     },
 }))
 
+const releaseRecoveryMock = jest.fn()
+const recoveryController = { current: new AbortController() }
+jest.mock('./watchdog', () => ({
+    musicWatchdogService: {
+        registerRecoveryController: jest.fn(() => ({
+            controller: recoveryController.current,
+            release: releaseRecoveryMock,
+        })),
+    },
+}))
+
 import { restoreSessionsOnStartup } from './sessionStartupRestore'
 
 function clientWith(
@@ -88,6 +99,27 @@ describe('restoreSessionsOnStartup', () => {
 
         await restoreSessionsOnStartup(clientWith('g1'))
         expect(restoreSnapshotMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('passes a watchdog-registered signal so a stop aborts the restore', async () => {
+        recoveryController.current = new AbortController()
+        listGuildIdsMock.mockResolvedValue(['g1'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-1',
+        })
+        restoreSnapshotMock.mockResolvedValue({
+            restoredCount: 0,
+            sessionSnapshotId: null,
+        })
+
+        await restoreSessionsOnStartup(clientWith('g1'))
+
+        const options = restoreSnapshotMock.mock.calls[0][2] as {
+            signal: AbortSignal
+        }
+        expect(options.signal).toBe(recoveryController.current.signal)
+        expect(releaseRecoveryMock).toHaveBeenCalledTimes(1)
     })
 
     it('skips restore when no humans are in the saved channel', async () => {

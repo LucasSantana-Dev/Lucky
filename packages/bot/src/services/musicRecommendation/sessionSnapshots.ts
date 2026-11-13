@@ -8,6 +8,7 @@ import {
     debugLog,
     errorLog,
     infoLog,
+    warnLog,
 } from '@lucky/shared/utils'
 import type { Prisma } from '@lucky/shared/utils'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
@@ -131,6 +132,22 @@ function applySnapshotMetadata(
  * apply: `ttlSeconds` (storage TTL, lazy-expired on read) and `maxSnapshotAgeMs`
  * (the stricter restore guard — older snapshots are not auto-restored).
  */
+// How long a restore waits for another restore of the same guild to finish.
+// Well above a normal restore (a few searches plus play()), well below "stuck".
+const RESTORE_WAIT_TIMEOUT_MS = 30_000
+
+const EMPTY_RESTORE_RESULT: SnapshotRestoreResult = {
+    restoredCount: 0,
+    sessionSnapshotId: null,
+    skippedYoutubeCount: 0,
+}
+
+type RestoreOptions = {
+    maxAgeMs?: number
+    skipCurrentTrack?: boolean
+    signal?: AbortSignal
+}
+
 export class MusicSessionSnapshotService {
     constructor(
         private readonly ttlSeconds = ENVIRONMENT_CONFIG.SESSIONS
@@ -297,14 +314,93 @@ export class MusicSessionSnapshotService {
         }
     }
 
+    // One restore per guild at a time. The startup sweep's queue.connect()
+    // fires the connection handler's own restore on the same queue; both
+    // passed the empty-queue guard before either added a track, so every song
+    // was queued twice and play() ran twice (prod 2026-11-13). A caller that
+    // finds a restore in flight waits for it, then re-runs the guard.
+    private readonly restoresInFlight = new Map<
+        string,
+        { done: Promise<unknown> }
+    >()
+
     async restoreSnapshot(
         queue: GuildQueue,
         requestedBy?: User,
-        options: {
-            maxAgeMs?: number
-            skipCurrentTrack?: boolean
-            signal?: AbortSignal
-        } = {},
+        options: RestoreOptions = {},
+    ): Promise<SnapshotRestoreResult> {
+        const guildId = queue.guild.id
+        let inFlight = this.restoresInFlight.get(guildId)
+        while (inFlight) {
+            const outcome = await this.waitForRestore(
+                guildId,
+                inFlight,
+                options.signal,
+            )
+            if (outcome === 'aborted') return EMPTY_RESTORE_RESULT
+            if (outcome === 'timedOut') break
+            inFlight = this.restoresInFlight.get(guildId)
+        }
+        // No await between the map check above and this set, so two callers
+        // cannot both see the guild free and both claim it.
+        const entry = {
+            done: this.restoreSnapshotOnce(queue, requestedBy, options),
+        }
+        this.restoresInFlight.set(guildId, entry)
+        try {
+            return await entry.done
+        } finally {
+            if (this.restoresInFlight.get(guildId) === entry) {
+                this.restoresInFlight.delete(guildId)
+            }
+        }
+    }
+
+    // Waits for one in-flight restore to settle. Bounded: aborting a restore
+    // does not cancel a search or play() that never settles, so an unbounded
+    // wait could stall the startup sweep forever. On timeout the caller goes
+    // ahead; the empty-queue guard still stops a duplicate when the stuck
+    // restore already queued tracks.
+    private async waitForRestore(
+        guildId: string,
+        inFlight: { done: Promise<unknown> },
+        signal?: AbortSignal,
+    ): Promise<'done' | 'aborted' | 'timedOut'> {
+        if (signal?.aborted) return 'aborted'
+        let timer: ReturnType<typeof setTimeout> | undefined
+        let onAbort: (() => void) | undefined
+        const outcome = await Promise.race([
+            inFlight.done.then(
+                () => 'done' as const,
+                () => 'done' as const,
+            ),
+            new Promise<'timedOut'>((resolve) => {
+                timer = setTimeout(
+                    () => resolve('timedOut'),
+                    RESTORE_WAIT_TIMEOUT_MS,
+                )
+            }),
+            new Promise<'aborted'>((resolve) => {
+                onAbort = () => resolve('aborted')
+                signal?.addEventListener('abort', onAbort, { once: true })
+            }),
+        ])
+        clearTimeout(timer)
+        if (onAbort) signal?.removeEventListener('abort', onAbort)
+        if (outcome === 'timedOut') {
+            warnLog({
+                message:
+                    'Session restore still in flight after wait limit; restoring anyway',
+                data: { guildId, waitMs: RESTORE_WAIT_TIMEOUT_MS },
+            })
+        }
+        return outcome
+    }
+
+    private async restoreSnapshotOnce(
+        queue: GuildQueue,
+        requestedBy: User | undefined,
+        options: RestoreOptions,
     ): Promise<SnapshotRestoreResult> {
         try {
             if (queue.currentTrack || queue.tracks.size > 0) {
