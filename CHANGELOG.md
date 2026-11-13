@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.68.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.67.0...v2.68.0) (2026-11-13)
+
+
+### Features
+
+* **bot:** block asmr before it reaches the queue ([#3000](https://github.com/LucasSantana-Dev/Lucky/issues/3000)) ([0ccd170](https://github.com/LucasSantana-Dev/Lucky/commit/0ccd17072f22bd8aa2d4bea69e6ed3221447e5b8))
+* **bot:** compact music messages ([#3007](https://github.com/LucasSantana-Dev/Lucky/issues/3007)) ([323f012](https://github.com/LucasSantana-Dev/Lucky/commit/323f012c5ceca06d8b11b09ca457fdaa27f9da1a))
+
+
+### Bug Fixes
+
+* **backend:** keep the first utm_source when the key repeats ([#3014](https://github.com/LucasSantana-Dev/Lucky/issues/3014)) ([e67a1d3](https://github.com/LucasSantana-Dev/Lucky/commit/e67a1d337b23f7cb8be8822dd0da661cd627bd15))
+* **backend:** record the landing source of a bot add ([#3012](https://github.com/LucasSantana-Dev/Lucky/issues/3012)) ([514be04](https://github.com/LucasSantana-Dev/Lucky/commit/514be0469dc6bd353ce505c9907f68437efeda7e))
+* **bot:** ask yt-dlp for the visionos client first ([#3003](https://github.com/LucasSantana-Dev/Lucky/issues/3003)) ([cf8890b](https://github.com/LucasSantana-Dev/Lucky/commit/cf8890b6115e2bb8283de66d9fd58a9783f1e120))
+* **bot:** stop /skip resume from replacing the loading request ([#2997](https://github.com/LucasSantana-Dev/Lucky/issues/2997)) ([f9a928b](https://github.com/LucasSantana-Dev/Lucky/commit/f9a928bec0149c58e885a83df057a7114cd8a26e))
+* **music:** color track embeds by action, not by source ([#2998](https://github.com/LucasSantana-Dev/Lucky/issues/2998)) ([8e84cda](https://github.com/LucasSantana-Dev/Lucky/commit/8e84cda958124c35427ee36f468a9a24f68ab172))
+
 ## [2.67.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.66.2...v2.67.0) (2026-11-10)
 
 
