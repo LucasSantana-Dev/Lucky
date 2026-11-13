@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.69.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.68.0...v2.69.0) (2026-11-13)
+
+
+### Features
+
+* **bot:** post the public slash commands to discordbotlist.com ([#3016](https://github.com/LucasSantana-Dev/Lucky/issues/3016)) ([3fd06dc](https://github.com/LucasSantana-Dev/Lucky/commit/3fd06dcf694f1904d6750694670ecf0862723188))
+
 ## [2.68.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.67.0...v2.68.0) (2026-11-13)
 
 
