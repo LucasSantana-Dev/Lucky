@@ -11,6 +11,12 @@ const REJECTED_STATUS = new Set([401, 403])
 // about an outage after this many failed ticks in a row.
 const REPORT_AFTER_CONSECUTIVE_FAILURES = 3
 
+// discordbotlist.com also lists the bot's slash commands on its page, taken from
+// the same JSON the bot registers with Discord.
+const DBL_NAME = 'discordbotlist.com'
+const DBL_COMMANDS_URL = (id: string) =>
+    `https://discordbotlist.com/api/v1/bots/${id}/commands`
+
 type Directory = {
     name: string
     tokenEnv: string
@@ -23,7 +29,7 @@ type Directory = {
 // rate limit couples the lists, and it hides which list rejected which token.
 const DIRECTORIES: Directory[] = [
     {
-        name: 'discordbotlist.com',
+        name: DBL_NAME,
         tokenEnv: 'DISCORDBOTLIST_TOKEN',
         url: (id) => `https://discordbotlist.com/api/v1/bots/${id}/stats`,
         body: (guilds) => ({ guilds }),
@@ -43,10 +49,19 @@ export class DirectoryStatsScheduler extends IntervalScheduler {
     private readonly disabled = new Set<string>()
     private readonly failures = new Map<string, number>()
     private loggedMissingTokens = false
+    private pendingCommands: unknown[] | null = null
 
     constructor(options: Options = {}) {
         super(options.tickIntervalMs ?? DEFAULT_TICK_INTERVAL_MS)
         this.fetchFn = options.fetch ?? fetch
+    }
+
+    /**
+     * The commands registered globally, posted to discordbotlist.com on the next
+     * tick and retried each tick until it accepts them.
+     */
+    setPublicCommands(commands: unknown[]): void {
+        this.pendingCommands = commands
     }
 
     private enabled(): Directory[] {
@@ -79,6 +94,44 @@ export class DirectoryStatsScheduler extends IntervalScheduler {
         await Promise.all(
             this.enabled().map((d) => this.post(d, botId, guildCount)),
         )
+        if (
+            this.pendingCommands &&
+            this.enabled().some((d) => d.name === DBL_NAME)
+        ) {
+            await this.postCommands(botId, this.pendingCommands)
+        }
+    }
+
+    private async postCommands(
+        botId: string,
+        commands: unknown[],
+    ): Promise<void> {
+        try {
+            const response = await this.fetchFn(DBL_COMMANDS_URL(botId), {
+                method: 'POST',
+                headers: {
+                    Authorization: process.env.DISCORDBOTLIST_TOKEN as string,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(commands),
+                signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+            })
+            if (response.ok) {
+                this.pendingCommands = null
+                infoLog({
+                    message: `${DBL_NAME} commands posted successfully`,
+                    data: { count: commands.length },
+                })
+                return
+            }
+            warnLog({
+                message: `${DBL_NAME} commands POST failed: HTTP ${response.status}`,
+            })
+        } catch (error) {
+            warnLog({
+                message: `${DBL_NAME} commands POST failed: ${String(error)}`,
+            })
+        }
     }
 
     private async post(
