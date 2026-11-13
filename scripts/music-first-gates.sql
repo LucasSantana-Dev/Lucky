@@ -58,10 +58,11 @@
 -- where that happened; they stay in the denominator as misses, so
 -- heard_1h_pct is a floor. With the 28-day cohort it stays 0.
 
-\set excluded_ids '{110373943822540800,333949691962195969,1541452011466268704}'
+\set excluded_ids '{110373943822540800,333949691962195969,1541452011466268704,1208122433819906069}'
 -- 110373943822540800  Discord Bots (listing server)
 -- 333949691962195969  Top.gg Verification Center (listing review)
 -- 1541452011466268704 Lucky's Support Server (operator)
+-- 1208122433819906069 Anotações (operator test guild, used to verify attribution 2026-11-13)
 
 -- REPEATABLE READ: every statement reads the same snapshot.
 BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;

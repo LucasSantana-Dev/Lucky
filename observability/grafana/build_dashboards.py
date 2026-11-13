@@ -45,7 +45,7 @@ SENTRY_PROJECT_ID = "4509260792070144"  # Sentry project "lucky"
 # (scripts/music-first-gates.sql, decisions/2026-09-27-music-first-positioning.md).
 # No quotes in the value: Grafana's SQL datasources double single quotes when
 # interpolating a single-value variable, which broke ARRAY['...'] literals.
-EXCLUDED = "110373943822540800,333949691962195969,1541452011466268704"
+EXCLUDED = "110373943822540800,333949691962195969,1541452011466268704,1208122433819906069"
 EXCL = (
     "(SELECT unnest(string_to_array('$excluidas', ',')) "
     "UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' "

@@ -65,7 +65,7 @@
             {
                 "name": "excluidas",
                 "type": "constant",
-                "query": "110373943822540800,333949691962195969,1541452011466268704",
+                "query": "110373943822540800,333949691962195969,1541452011466268704,1208122433819906069",
                 "hide": 2,
                 "description": "Guildas do operador, de listagem e de teste: nunca contam como uso."
             }
