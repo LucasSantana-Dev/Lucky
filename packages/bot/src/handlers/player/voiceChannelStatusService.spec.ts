@@ -18,17 +18,35 @@ import {
 
 type PutMock = jest.Mock<(...args: unknown[]) => Promise<unknown>>
 
+const SET_VOICE_CHANNEL_STATUS = 1n << 48n
+const MANAGE_CHANNELS = 1n << 4n
+
 const makeChannel = (
-    opts: { hasPermission?: boolean; put?: PutMock; me?: unknown } = {},
+    opts: {
+        hasPermission?: boolean
+        manageChannels?: boolean
+        connected?: boolean
+        put?: PutMock
+        me?: unknown
+    } = {},
 ) => {
-    const has = jest.fn().mockReturnValue(opts.hasPermission ?? true)
+    const granted = new Set<bigint>()
+    if (opts.hasPermission ?? true) granted.add(SET_VOICE_CHANNEL_STATUS)
+    if (opts.manageChannels) granted.add(MANAGE_CHANNELS)
+    const has = jest.fn((perm: unknown) => granted.has(perm as bigint))
     const put: PutMock =
         opts.put ?? jest.fn<(...args: unknown[]) => Promise<unknown>>()
     if (!opts.put) put.mockResolvedValue(undefined)
+    const me = {
+        id: 'bot',
+        voice: {
+            channelId: (opts.connected ?? true) ? 'channel-1' : null,
+        },
+    }
     return {
         id: 'channel-1',
         guild: {
-            members: { me: 'me' in opts ? opts.me : { id: 'bot' } },
+            members: { me: 'me' in opts ? opts.me : me },
         },
         permissionsFor: jest.fn().mockReturnValue({ has }),
         client: { rest: { put } },
@@ -204,6 +222,32 @@ describe('VoiceChannelStatusService', () => {
         it('does nothing without a voice channel', async () => {
             const queue = makeQueue({ channel: null })
             await expect(clearStatus(queue as never)).resolves.toBeUndefined()
+        })
+
+        it('skips quietly after a disconnect without Manage Channels', async () => {
+            const queue = makeQueue({
+                channel: makeChannel({ connected: false }),
+            })
+            await clearStatus(queue as never)
+
+            expect(putOf(queue)).not.toHaveBeenCalled()
+            expect(warnLogMock).not.toHaveBeenCalled()
+            expect(errorLogMock).not.toHaveBeenCalled()
+        })
+
+        it('clears after a disconnect when the bot has Manage Channels', async () => {
+            const queue = makeQueue({
+                channel: makeChannel({
+                    connected: false,
+                    manageChannels: true,
+                }),
+            })
+            await clearStatus(queue as never)
+
+            expect(putOf(queue)).toHaveBeenCalledWith(
+                '/channels/channel-1/voice-status',
+                { body: { status: '' } },
+            )
         })
 
         it('logs API errors without throwing', async () => {

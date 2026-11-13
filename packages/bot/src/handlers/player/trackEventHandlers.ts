@@ -252,9 +252,10 @@ const handlePlayerStart = async (
             // flag out from under a real autoplay pick.
             setReplenishSuppressed(queue.guild.id, 0)
         }
-        // Before the refill and the embed: it never throws, and a failure in
-        // either of those must not keep the channel status stale.
-        await voiceStatus.setTrackStatus(queue)
+        // Before the refill and the embed, and not awaited: it never throws,
+        // a failure in either of those must not keep the channel status
+        // stale, and a slow REST call must not delay them.
+        void voiceStatus.setTrackStatus(queue)
         const isAutoplayEnabled = queue.repeatMode === QueueRepeatMode.AUTOPLAY
         handleAutoplayCounter(queue, isAutoplay, isAutoplayEnabled)
         await handleQueueReplenishment(queue, track)

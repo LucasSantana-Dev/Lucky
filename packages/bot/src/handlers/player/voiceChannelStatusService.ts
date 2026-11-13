@@ -29,14 +29,22 @@ function warnMissingPermission(guildId: string, channelId: string): void {
     })
 }
 
-function canSetStatus(channel: VoiceBasedChannel): boolean {
+type StatusAccess = 'allowed' | 'missing-permission' | 'not-connected'
+
+// Discord requires Set Voice Channel Status, plus Manage Channels when the
+// bot is not connected to that channel (the clear after a disconnect).
+function checkAccess(channel: VoiceBasedChannel): StatusAccess {
     const me = channel.guild.members.me
-    if (!me) return true // unknown: let the API decide
-    return (
-        channel
-            .permissionsFor(me)
-            ?.has(PermissionFlagsBits.SetVoiceChannelStatus) ?? false
+    if (!me) return 'allowed' // unknown: let the API decide
+    const permissions = channel.permissionsFor(me)
+    if (!permissions?.has(PermissionFlagsBits.SetVoiceChannelStatus))
+        return 'missing-permission'
+    if (
+        me.voice?.channelId !== channel.id &&
+        !permissions.has(PermissionFlagsBits.ManageChannels)
     )
+        return 'not-connected'
+    return 'allowed'
 }
 
 // discord.js v14 has no VoiceChannel#setStatus, so the status goes through
@@ -50,8 +58,18 @@ async function putStatus(
     if (!channel) return
 
     const guildId = queue.guild.id
-    if (!canSetStatus(channel)) {
+    const access = checkAccess(channel)
+    if (access === 'missing-permission') {
         warnMissingPermission(guildId, channel.id)
+        return
+    }
+    if (access === 'not-connected') {
+        // Expected after a disconnect without Manage Channels; not a
+        // misconfiguration worth a warning.
+        debugLog({
+            message: `Skipped voice channel status ${action}: bot is not in the channel`,
+            data: { guildId, channelId: channel.id },
+        })
         return
     }
 
