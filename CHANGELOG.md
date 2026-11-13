@@ -1689,6 +1689,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(backend): guild adds through the landing invite record their source again: Discord returns an empty `scope` in the token response of a bot add, which the validator rejected, so every attributed add since #2750 was dropped; a source with pasted punctuation (a trailing backtick, quote or period) is no longer read as unknown
 - fix(bot): music embeds are colored by what the bot did (now playing, queued, skipped, paused, resumed, previous, replay, seek), not by the source platform, so back-to-back replies no longer look the same; the source keeps its badge in the Source field (#2998)
 - fix(bot): `/play` picks the right track when the artist follows the song name, and autoplay seeds retry a swapped "Song - Artist" upload title only after a genuine empty Last.fm result (#2935)
 - fix(bot): a Spotify 429 block now survives restarts (kept in Redis), and `/play` and autoplay skip Spotify while it is blocked, with autoplay capped at 5 Spotify searches per refill (#2971 #2972)

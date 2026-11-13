@@ -87,7 +87,9 @@ export function normalizeLandingSource(raw: unknown): string {
     if (typeof raw !== 'string' || raw.length > MAX_SOURCE_INPUT_LENGTH) {
         return FALLBACK_LANDING_SOURCE
     }
-    const trimmed = raw.trim().toLowerCase()
+    // Keep letters and digits only: a link pasted from markdown or chat often
+    // carries a quote, backtick or period, which would drop the source.
+    const trimmed = raw.toLowerCase().replace(/[^a-z0-9]/g, '')
     const value = SOURCE_ALIASES[trimmed] ?? trimmed
     return (LANDING_SOURCES as readonly string[]).includes(value)
         ? value

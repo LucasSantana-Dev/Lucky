@@ -104,6 +104,14 @@ describe('landing source attribution (#2750)', () => {
         expect(normalizeLandingSource('bot')).toBe('bot')
     })
 
+    it('ignores punctuation pasted around a source', () => {
+        // Prod 2026-11-13: a listing link copied from markdown arrived as
+        // `utm_source=discordbotlist` plus a trailing backtick.
+        expect(normalizeLandingSource('discordbotlist`')).toBe('discordbotlist')
+        expect(normalizeLandingSource('"topgg".')).toBe('topgg')
+        expect(normalizeLandingSource('discord-bots-gg')).toBe('botsgg')
+    })
+
     it('collapses anything else to the fallback', () => {
         for (const raw of [
             '',
