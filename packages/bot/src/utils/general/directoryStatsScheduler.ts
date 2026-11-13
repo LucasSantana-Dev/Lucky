@@ -181,7 +181,7 @@ export class DirectoryStatsScheduler extends IntervalScheduler {
             captureMessage(
                 `${key} POST failed ${count} times in a row: ${reason}`,
                 'warning',
-                { category: 'directory.stats', directory },
+                { category: `directory.${what}`, directory },
             )
         }
     }

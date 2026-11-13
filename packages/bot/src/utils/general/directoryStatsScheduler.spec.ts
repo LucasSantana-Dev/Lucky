@@ -229,9 +229,12 @@ describe('DirectoryStatsScheduler', () => {
             await scheduler.tick()
 
             expect(captureMessage).toHaveBeenCalledTimes(1)
-            expect((captureMessage as jest.Mock).mock.calls[0][0]).toContain(
+            const [message, , context] = (captureMessage as jest.Mock).mock
+                .calls[0] as [string, string, Record<string, string>]
+            expect(message).toContain(
                 'discordbotlist.com commands POST failed 3 times',
             )
+            expect(context.category).toBe('directory.commands')
             scheduler.stop()
         })
 
