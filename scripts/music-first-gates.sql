@@ -1,7 +1,8 @@
 -- Music-first continue gates (decisions/2026-09-27-music-first-positioning.md).
 --
 -- Read-only, aggregates only (no user ids). Produces the three gates the ADR
--- decides on 2026-12-20:
+-- decides on 2027-01-17 (moved from 2026-12-20 by the 2026-11-13 amendment,
+-- decisions/2026-11-13-music-first-acquisition-restart.md):
 --   1. weekly active guilds (WAG): 20 or more for 3 consecutive weeks
 --   2. new guilds that hear a track within their first hour: 35% or more
 --   3. new guilds still active on day 8: 15% or more
@@ -29,7 +30,8 @@
 --   new       a guild with a counted join inside the cohort window; the cohort
 --             clock (first hour, day 8) starts at that counted join.
 --   WAG       the three gate weeks are fixed by the ADR: Monday to Sunday weeks
---             ending 2026-11-29, 2026-12-06 and 2026-12-13 (week_start below).
+--             ending 2026-12-27, 2027-01-03 and 2027-01-10 (week_start below;
+--             moved 4 weeks by the 2026-11-13 amendment).
 --             `closed` is false until the week has ended; a week that is not
 --             closed reads low by construction.
 --
@@ -74,7 +76,7 @@ WITH excluded AS (
 ),
 -- BEGIN SHARED wag_windows
 wag_windows AS (
-    SELECT week_start FROM (VALUES (DATE '2026-11-23'), (DATE '2026-11-30'), (DATE '2026-12-07')) AS v(week_start)
+    SELECT week_start FROM (VALUES (DATE '2026-12-21'), (DATE '2026-12-28'), (DATE '2027-01-04')) AS v(week_start)
 ),
 -- END SHARED wag_windows
 activity AS (

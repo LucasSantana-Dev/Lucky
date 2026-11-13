@@ -10,6 +10,9 @@
   measurement). The three continuation gates, the positioning check and the 2026-12-20 decision
   date stand. The pitch set by `2026-10-07-pitch-leads-with-weekly-recap.md` stands.
 - Closes: #2759
+- Amended by: `2026-11-13-music-first-acquisition-restart.md` (decisions 5 and 7: the WAG
+  windows move to the weeks ending 2026-12-27, 2027-01-03 and 2027-01-10, and the portfolio
+  read to 2026-12-28)
 
 ## Context
 
