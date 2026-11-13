@@ -252,6 +252,13 @@ const handlePlayerStart = async (
             // flag out from under a real autoplay pick.
             setReplenishSuppressed(queue.guild.id, 0)
         }
+        // Before the refill and the embed, and not awaited: a failure in
+        // either of those must not keep the channel status stale, and a slow
+        // REST call must not delay them. The catch keeps a rejection from
+        // reaching the process-wide unhandledRejection handler.
+        voiceStatus.setTrackStatus(queue).catch((error: unknown) => {
+            errorLog({ message: 'Error setting voice channel status:', error })
+        })
         const isAutoplayEnabled = queue.repeatMode === QueueRepeatMode.AUTOPLAY
         handleAutoplayCounter(queue, isAutoplay, isAutoplayEnabled)
         await handleQueueReplenishment(queue, track)
@@ -259,7 +266,6 @@ const handlePlayerStart = async (
         try {
             await sendNowPlayingEmbed(queue, track, isAutoplay)
             await updateLastFmNowPlaying(queue, track)
-            await voiceStatus.setTrackStatus(queue)
         } catch (error) {
             errorLog({ message: 'Error sending now playing message:', error })
         }
