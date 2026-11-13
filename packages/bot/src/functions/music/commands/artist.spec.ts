@@ -181,6 +181,14 @@ describe('artist command search fallback', () => {
             expect(search.mock.calls[1][1]).toMatchObject({
                 searchEngine: 'SOUNDCLOUD_SEARCH',
             })
+            // youtubei's validate() claims any text, so the SoundCloud arm
+            // must block it or it searches YouTube instead (#3022).
+            expect(
+                (search.mock.calls[1][1] as { blockExtractors: string[] })
+                    .blockExtractors,
+            ).toContain(
+                'com.retrouser955.discord-player.discord-player-youtubei',
+            )
         })
     })
 

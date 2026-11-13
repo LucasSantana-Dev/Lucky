@@ -56,8 +56,8 @@ export const TEXT_SEARCH_BLOCKED_EXTRACTORS = [
 // discord-player-youtubei's validate() also returns true for any string, and
 // it registers before SoundCloud, so it claimed the SOUNDCLOUD_SEARCH arm too:
 // the "SoundCloud fallback" re-ran YouTube and failed as
-// "No results found (Extractor: ...discord-player-youtubei)". Only the
-// SoundCloud arm blocks it; the YouTube arm obviously still needs it.
+// "No results found (Extractor: ...discord-player-youtubei)". Use this list on
+// every SOUNDCLOUD_SEARCH text query (#3022); YouTube arms still need youtubei.
 const YOUTUBE_EXTRACTOR_ID =
     'com.retrouser955.discord-player.discord-player-youtubei'
 

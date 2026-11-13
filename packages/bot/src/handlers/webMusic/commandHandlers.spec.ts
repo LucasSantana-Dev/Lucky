@@ -41,6 +41,11 @@ jest.mock(
             'blocked-spotify',
             'blocked-attachment',
         ],
+        SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS: [
+            'blocked-spotify',
+            'blocked-attachment',
+            'blocked-youtubei',
+        ],
     }),
 )
 
@@ -382,7 +387,7 @@ describe('handlePlay', () => {
         expect(search).toHaveBeenLastCalledWith('daft punk', {
             requestedBy: undefined,
             searchEngine: 'soundcloudSearch',
-            blockExtractors: FAKE_BLOCKED_EXTRACTORS,
+            blockExtractors: [...FAKE_BLOCKED_EXTRACTORS, 'blocked-youtubei'],
         })
         expect(addTrack).toHaveBeenCalledWith(track)
     })

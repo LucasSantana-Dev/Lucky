@@ -18,7 +18,7 @@ import {
 } from '../utils/general/embeds'
 import { interactionReply } from '../utils/general/interactionReply'
 import { isUnknownInteractionError } from '../functions/music/commands/play/queryUtils'
-import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from '../functions/music/commands/play/handlers/resolveProvider'
+import { SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS } from '../functions/music/commands/play/handlers/resolveProvider'
 import { runPostPlayBackgroundOps } from '../functions/music/commands/play/handlers/postPlayBackgroundOps'
 import { resolveGuildQueue } from '../services/musicManagement/queueResolver'
 import { translatorForInteraction } from '../i18n/translatorForInteraction'
@@ -190,7 +190,7 @@ export async function handleOnboardingStationButton(
         )
         const result = await client.player.play(voiceChannel, genre.query, {
             searchEngine: QueryType.SOUNDCLOUD_SEARCH,
-            blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
+            blockExtractors: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
             requestedBy: interaction.user,
             nodeOptions: {
                 metadata: {

@@ -31,7 +31,10 @@ import {
 } from './candidateCollector'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import { isHostedYoutubeEnabled } from '../../../config/featureFlags'
-import { TEXT_SEARCH_BLOCKED_EXTRACTORS } from '../../../functions/music/commands/play/handlers/resolveProvider'
+import {
+    SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
+    TEXT_SEARCH_BLOCKED_EXTRACTORS,
+} from '../../../functions/music/commands/play/handlers/resolveProvider'
 import type { ScoredTrack } from './diversitySelector'
 import type { AutoplayAuditCollector } from './autoplayAudit'
 
@@ -417,9 +420,15 @@ function searchOptionsFor(engine: QueryType, requestedBy: User) {
         // engine, so without this the YouTube and AUTO arms were
         // Spotify searches too: when Spotify returned nothing, every
         // arm did, and autoplay found no candidates (2026-10-19).
+        // youtubei claims any text too, so the SoundCloud arm blocks it.
         ...(engine === QueryType.SPOTIFY_SEARCH
             ? {}
-            : { blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS }),
+            : {
+                  blockExtractors:
+                      engine === QueryType.SOUNDCLOUD_SEARCH
+                          ? SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS
+                          : TEXT_SEARCH_BLOCKED_EXTRACTORS,
+              }),
     }
 }
 
