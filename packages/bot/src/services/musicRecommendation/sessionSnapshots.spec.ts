@@ -515,6 +515,50 @@ describe('MusicSessionSnapshotService', () => {
             expect(queue.clear).not.toHaveBeenCalled()
         })
 
+        it('restores a snapshot once when two restores for one guild overlap', async () => {
+            // Prod 2026-11-13: the startup sweep's queue.connect() fired the
+            // connection handler's own restore. Both passed the empty-queue
+            // guard before either added a track, so every song was queued
+            // twice (A A B B) and play() ran twice.
+            mockFindUnique.mockResolvedValue(snapshotRow())
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-overlap')
+            const tracks = { size: 0 }
+            ;(queue as unknown as { tracks: typeof tracks }).tracks = tracks
+            ;(queue.addTrack as jest.Mock).mockImplementation(() => {
+                tracks.size += 1
+            })
+
+            const [first, second] = await Promise.all([
+                service.restoreSnapshot(queue),
+                service.restoreSnapshot(queue),
+            ])
+
+            expect(queue.addTrack).toHaveBeenCalledTimes(1)
+            expect(queue.node.play).toHaveBeenCalledTimes(1)
+            expect(first.restoredCount + second.restoredCount).toBe(1)
+        })
+
+        it('lets a waiting restore run when the one before it restored nothing', async () => {
+            // An aborted first restore undoes its tracks; the caller queued
+            // behind it must still be able to restore the session.
+            mockFindUnique.mockResolvedValue(snapshotRow())
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-after-abort')
+            const controller = new AbortController()
+            controller.abort()
+
+            const [aborted, next] = await Promise.all([
+                service.restoreSnapshot(queue, undefined, {
+                    signal: controller.signal,
+                }),
+                service.restoreSnapshot(queue),
+            ])
+
+            expect(aborted.restoredCount).toBe(0)
+            expect(next.restoredCount).toBe(1)
+        })
+
         it('undoes only its own restored tracks when aborted mid-restore', async () => {
             // Two-track snapshot; abort fires during the 2nd search (after track 1 added).
             mockFindUnique.mockResolvedValueOnce(

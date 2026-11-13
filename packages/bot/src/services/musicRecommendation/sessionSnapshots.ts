@@ -131,6 +131,12 @@ function applySnapshotMetadata(
  * apply: `ttlSeconds` (storage TTL, lazy-expired on read) and `maxSnapshotAgeMs`
  * (the stricter restore guard — older snapshots are not auto-restored).
  */
+type RestoreOptions = {
+    maxAgeMs?: number
+    skipCurrentTrack?: boolean
+    signal?: AbortSignal
+}
+
 export class MusicSessionSnapshotService {
     constructor(
         private readonly ttlSeconds = ENVIRONMENT_CONFIG.SESSIONS
@@ -297,14 +303,41 @@ export class MusicSessionSnapshotService {
         }
     }
 
+    // One restore per guild at a time. The startup sweep's queue.connect()
+    // fires the connection handler's own restore on the same queue; both
+    // passed the empty-queue guard before either added a track, so every song
+    // was queued twice and play() ran twice (prod 2026-11-13). A caller that
+    // finds a restore in flight waits for it, then re-runs the guard.
+    private readonly restoresInFlight = new Map<string, Promise<unknown>>()
+
     async restoreSnapshot(
         queue: GuildQueue,
         requestedBy?: User,
-        options: {
-            maxAgeMs?: number
-            skipCurrentTrack?: boolean
-            signal?: AbortSignal
-        } = {},
+        options: RestoreOptions = {},
+    ): Promise<SnapshotRestoreResult> {
+        const guildId = queue.guild.id
+        let inFlight = this.restoresInFlight.get(guildId)
+        while (inFlight) {
+            await inFlight.catch(() => undefined)
+            inFlight = this.restoresInFlight.get(guildId)
+        }
+        // No await between the check above and this set, so two waiters
+        // released together cannot both claim the guild.
+        const run = this.restoreSnapshotOnce(queue, requestedBy, options)
+        this.restoresInFlight.set(guildId, run)
+        try {
+            return await run
+        } finally {
+            if (this.restoresInFlight.get(guildId) === run) {
+                this.restoresInFlight.delete(guildId)
+            }
+        }
+    }
+
+    private async restoreSnapshotOnce(
+        queue: GuildQueue,
+        requestedBy: User | undefined,
+        options: RestoreOptions,
     ): Promise<SnapshotRestoreResult> {
         try {
             if (queue.currentTrack || queue.tracks.size > 0) {
