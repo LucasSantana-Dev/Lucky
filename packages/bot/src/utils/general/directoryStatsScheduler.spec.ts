@@ -134,6 +134,30 @@ describe('DirectoryStatsScheduler', () => {
         scheduler.stop()
     })
 
+    test('stop() clears the timer, so no post happens after it', async () => {
+        jest.useFakeTimers()
+        try {
+            process.env.DISCORDBOTLIST_TOKEN = 'secret-a'
+            const fetchMock = jest.fn().mockResolvedValue(ok as never)
+            const scheduler = new DirectoryStatsScheduler({
+                tickIntervalMs: 1000,
+                fetch: fetchMock as any,
+            })
+
+            scheduler.start(client)
+            await jest.advanceTimersByTimeAsync(1000)
+            // One post on startup, one from the interval.
+            expect(fetchMock).toHaveBeenCalledTimes(2)
+
+            scheduler.stop()
+            await jest.advanceTimersByTimeAsync(5000)
+            expect(fetchMock).toHaveBeenCalledTimes(2)
+            expect(jest.getTimerCount()).toBe(0)
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
     test('a success resets the failure streak; network errors count as failures', async () => {
         process.env.DISCORD_BOTS_GG_TOKEN = 'secret-b'
         const fetchMock = jest
