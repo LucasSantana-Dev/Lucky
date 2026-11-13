@@ -340,7 +340,7 @@ function songKey(value: string): string {
 // Jackson" matches Michael Jackson's own "Beat It" without ever keying on
 // "michaeljackson" alone. "+" never appears in a songKey.
 function songArtistPair(song: string, artist: string): string {
-    return [song, artist].sort().join('+')
+    return [song, artist].sort((a, b) => a.localeCompare(b)).join('+')
 }
 
 /**
