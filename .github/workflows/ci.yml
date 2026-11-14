@@ -554,7 +554,7 @@ jobs:
                   fi
             - name: Install pinned toolchain
               run: rustup show active-toolchain || rustup toolchain install
-            - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+            - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
               with:
                   workspaces: packages/render
             - name: Fetch fonts
@@ -903,7 +903,7 @@ jobs:
               with:
                   name: coverage-frontend
                   path: packages/frontend/coverage
-            - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+            - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
               with:
                   distribution: temurin
                   java-version: '17'
@@ -922,7 +922,7 @@ jobs:
               id: sonar_pr
               if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'pull_request'
               continue-on-error: true
-              uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8
+              uses: SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65 # v8
               with:
                   args: -Dsonar.qualitygate.wait=true
               env:
@@ -932,7 +932,7 @@ jobs:
             # download 403 clears on the retry.
             - name: SonarCloud Scan (PR) — retry once on transient failure
               if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'pull_request' && steps.sonar_pr.outcome == 'failure'
-              uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8
+              uses: SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65 # v8
               with:
                   args: -Dsonar.qualitygate.wait=true
               env:
@@ -943,7 +943,7 @@ jobs:
             - name: SonarCloud Scan (main — informational, non-blocking)
               if: env.SONAR_TOKEN_PRESENT == 'true' && github.event_name == 'push'
               continue-on-error: true
-              uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8
+              uses: SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65 # v8
               with:
                   args: -Dsonar.qualitygate.wait=false
               env:
