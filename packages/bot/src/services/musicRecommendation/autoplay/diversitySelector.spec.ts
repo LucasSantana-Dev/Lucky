@@ -146,34 +146,42 @@ describe('diversitySelector', () => {
     })
 
     describe('isDuplicateCandidate', () => {
-        const track = (title: string, author: string, source = 'spotify') =>
+        const track = (title: string, author: string, source: string) =>
             ({ title, author, source, url: `u:${author}:${title}` }) as Track
-        const playedKeys = (title: string, author: string) =>
+        const playedKeys = (title: string, author: string, source: string) =>
             buildExcludedKeys(
                 {
                     tracks: { toArray: () => [] },
                     history: { tracks: { toArray: () => [] } },
                     metadata: {},
                 } as unknown as GuildQueue,
-                track(title, author),
+                track(title, author, source),
                 [],
             )
 
         test('treats another version of a song that just played as a repeat (prod 2026-11-15)', () => {
             // After The Vandals' "Don't Stop Me Now (BBC)" played, autoplay
             // queued Queen's "Don't Stop Me Now - ...Revisited".
-            const keys = playedKeys("Don't Stop Me Now (BBC)", 'The Vandals')
+            const keys = playedKeys(
+                "Don't Stop Me Now (BBC)",
+                'The Vandals',
+                'spotify',
+            )
 
             expect(
                 isDuplicateCandidate(
-                    track("Don't Stop Me Now - ...Revisited", 'Queen'),
+                    track(
+                        "Don't Stop Me Now - ...Revisited",
+                        'Queen',
+                        'spotify',
+                    ),
                     new Set(),
                     keys,
                 ),
             ).toBe(true)
             expect(
                 isDuplicateCandidate(
-                    track("Don't Stop Believin'", 'Journey'),
+                    track("Don't Stop Believin'", 'Journey', 'spotify'),
                     new Set(),
                     keys,
                 ),
@@ -181,7 +189,7 @@ describe('diversitySelector', () => {
         })
 
         test('does not read an artist half as a song that played ("Queen - Barracuda" after "Queen")', () => {
-            const keys = playedKeys('Queen', 'Some Band')
+            const keys = playedKeys('Queen', 'Some Band', 'spotify')
 
             expect(
                 isDuplicateCandidate(
@@ -193,11 +201,19 @@ describe('diversitySelector', () => {
         })
 
         test("keeps a fan channel's other uploads of the same artist apart", () => {
-            const keys = playedKeys('Aerosmith - Dream On', 'HQVideoClassics')
+            const keys = playedKeys(
+                'Aerosmith - Dream On',
+                'HQVideoClassics',
+                'youtube',
+            )
 
             expect(
                 isDuplicateCandidate(
-                    track('Aerosmith - Crazy (Official Video)', 'Lost Panda'),
+                    track(
+                        'Aerosmith - Crazy (Official Video)',
+                        'Lost Panda',
+                        'youtube',
+                    ),
                     new Set(),
                     keys,
                 ),
