@@ -6,6 +6,7 @@ import {
     cleanTitle,
     cleanAuthor,
     songIdentityKeys,
+    songTitleHalves,
 } from '../../../utils/music/searchQueryCleaner'
 import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import { calculateStringSimilarity } from '../../../utils/music/duplicateDetection/similarityChecker'
@@ -28,6 +29,23 @@ const FUZZY_TITLE_THRESHOLD = 0.75
 // a song that already played is caught even when its title carries different
 // noise ("(SOS Tour Recap)", "ft. T-Pain", "(Lyrics)"). Prefixed with "::" so
 // the fuzzy title loop below, which skips "::" keys, matches them exactly.
+/**
+ * The song part of a title, without brackets or descriptors, when it can be
+ * told apart: "Don't Stop Me Now (BBC)" gives "dontstopmenow". For "A - B"
+ * with neither half the author it is either Spotify's "Song - Descriptor" or
+ * a fan channel's "Artist - Song"; Spotify never puts the artist in the
+ * title, so only a Spotify track's left half is used. Otherwise nothing:
+ * keying on "Queen" from "Queen - Barracuda" would match unrelated songs.
+ */
+function songHalfOf(track: { title?: string; source?: unknown }): string[] {
+    const halves = songTitleHalves(track.title ?? '')
+    if (halves.length === 1) return halves
+    if (halves.length === 2 && trackSource(track as Track) === 'spotify') {
+        return [halves[0]]
+    }
+    return []
+}
+
 function songKeysOf(track: { title?: string; author?: string }): string[] {
     return songIdentityKeys(track.title ?? '', track.author).map(
         (key) => `song::${key}`,
@@ -283,6 +301,10 @@ export function isDuplicateCandidate(
         return true
     if (excludedKeys.has(normalizeTitleOnly(track.title))) return true
     if (songKeysOf(track).some((key) => excludedKeys.has(key))) return true
+    // The candidate's song half against songs already played: "Don't Stop Me
+    // Now - ...Revisited" is the "Don't Stop Me Now" that just played.
+    if (songHalfOf(track).some((half) => excludedKeys.has(`song::${half}`)))
+        return true
     const core = extractSongCore(track.title ?? '', track.author)
     if (core !== null && excludedKeys.has(normalizeText(core))) return true
 
@@ -316,9 +338,11 @@ function identityKey(value?: string): string {
 }
 
 // "RamJamVEVO" and "Ram Jam - Topic" are Ram Jam's own channels.
+// "Queen Official" and "Kid Abelha Oficial" too: an artist's own channel is
+// that artist, or its originals read as covers of themselves.
 function coverArtistKey(author?: string): string {
     return identityKey(primaryArtistKey(author ?? '')).replace(
-        /(?:vevo|topic)$/,
+        /(?:vevo|topic|official|oficial)$/,
         '',
     )
 }
@@ -326,7 +350,9 @@ function coverArtistKey(author?: string): string {
 // "Lost Panda - Aerosmith - Dream On (Lyrics)", "Ram Jam | Black Betty".
 function titleSegmentKeys(title?: string): Set<string> {
     return new Set(
+        // Brackets dropped first: "Adele (Lyrics)" credits Adele.
         (title ?? '')
+            .replaceAll(/\([^)]*\)|\[[^\]]*\]/g, ' ') // NOSONAR S5852 - each class stops at its closing bracket, linear
             .split(/\s+[-–—:/]\s+|\s*[|"“”]\s*/)
             .map((segment) => identityKey(segment))
             .filter(Boolean),
@@ -341,6 +367,9 @@ function songKeys(track: Track): string[] {
     // "Uploader - Artist - Song": extractSongCore keeps "Artist - Song".
     const segments = cleanTitle(title).split(/\s+[-–—]\s+/)
     if (segments.length >= 3) keys.push(identityKey(segments.at(-1)))
+    // Bracket and descriptor suffixes the variant list does not know: "(BBC)",
+    // "- With Long-Lost Guitars".
+    keys.push(...songHalfOf(track).map((half) => identityKey(half)))
     return [...new Set(keys.filter(Boolean))]
 }
 

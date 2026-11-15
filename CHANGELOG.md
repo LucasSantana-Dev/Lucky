@@ -1714,6 +1714,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(bot): autoplay catches covers and other versions whose title carries a suffix like "(BBC)" or "- ...Revisited", no longer replays a song that just played under another version, and treats an artist's official channel ("Queen Official") as that artist (#3040)
 - fix(bot): `/play` forgives a typo in the song or artist name ("eesquinas anavitorias" now prefers ANAVITÓRIA's "Esquinas" when the search returns it), while exact spellings still win (#3038)
 - fix(bot): disconnecting the bot from the voice channel now clears its queue, so the next `/play` starts fresh instead of resuming the old requests and autoplay picks (#3035)
 - fix(bot): autoplay no longer picks another version of a song you just heard: a re-upload with a different title ("Kill Bill (SOS Tour Recap)", "Good Life" after "Good Life ft. T-Pain") counts as the same song, and cover, tribute, karaoke and mashup uploads are skipped unless you are already listening to one (#3031)
