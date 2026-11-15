@@ -159,7 +159,15 @@ function fieldTypoCost(field: string, queryWords: string[]): number | null {
     let best: number | null = null
     for (let start = 0; start < queryWords.length; start++) {
         for (let end = start + 1; end <= queryWords.length; end++) {
-            const cost = typoCost(joined, queryWords.slice(start, end).join(''))
+            const typed = queryWords.slice(start, end).join('')
+            // Joining or splitting words is not dropping one: "ftisland"
+            // is not "island" with two typos.
+            if (
+                Math.abs(Array.from(typed).length - Array.from(joined).length) >
+                1
+            )
+                continue
+            const cost = typoCost(joined, typed)
             if (cost !== null && (best === null || cost < best)) best = cost
         }
     }
@@ -174,7 +182,9 @@ function trackTypoCost(track: Track, queryWords: string[]): number | null {
     const author = track.author ?? ''
     const artists = [
         author,
-        ...author.split(/\s*(?:,|&|\bfeat\.?|\bft\.?|\bx\b)\s*/i),
+        // Commas, semicolons and spaced feature credits only: "&" and "x"
+        // are part of names ("Simon & Garfunkel") and "FT Island" is a band.
+        ...author.split(/\s*[,;]\s*|\s+(?:feat\.?|ft\.?|featuring)\s+/i),
     ].filter((a) => a.trim())
     const costs = artists
         .map((artist) => fieldTypoCost(artist, queryWords))

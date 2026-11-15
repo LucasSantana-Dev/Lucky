@@ -1177,6 +1177,36 @@ describe('preferExactMatch', () => {
             ])
         })
 
+        it.each([
+            ['a semicolon', 'ANAVITÓRIA; Lenine'],
+            ['a spaced feature credit', 'ANAVITÓRIA feat. Lenine'],
+        ])('splits credits separated by %s', async (_sep, author) => {
+            const tracks = [
+                makeMockTrack('Lisboa', 'Some Cover Band'),
+                makeMockTrack('Lisboa', author),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('lisboa anavitoria')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[1],
+                tracks[0],
+            ])
+        })
+
+        it('does not split a band name that starts with FT', async () => {
+            const tracks = [
+                makeMockTrack('Other', 'Someone'),
+                makeMockTrack('Severely', 'FT Island'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('severely island')(result as any)
+
+            expect(result.setTracks).not.toHaveBeenCalled()
+        })
+
         it('matches one of several credited artists', async () => {
             const tracks = [
                 makeMockTrack('Lisboa', 'Some Cover Band'),
@@ -1224,11 +1254,13 @@ describe('preferExactMatch', () => {
         it('prefers an exact word match over a near one', async () => {
             const tracks = [
                 makeMockTrack('Other', 'Someone'),
-                makeMockTrack('Esquinas', 'Anavitorias Tribute'),
+                makeMockTrack('Esquinas', 'Anavitorias'),
                 makeMockTrack('Esquinas', 'ANAVITÓRIA'),
             ]
             const result = resultOf(tracks)
 
+            // "Anavitorias" is one typo away and ranks first in the search;
+            // the exact "ANAVITÓRIA" must still win.
             await preferExactMatch('esquinas anavitoria')(result as any)
 
             expect(result.setTracks).toHaveBeenCalledWith([
