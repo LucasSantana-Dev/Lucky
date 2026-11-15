@@ -8,6 +8,7 @@ import type {
 import type { VoiceBasedChannel } from 'discord.js'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
+import { levenshteinDistance } from '@lucky/shared/utils/similarity'
 import {
     cleanSearchQuery,
     hasVersionMarker,
@@ -92,6 +93,20 @@ function wordsOf(value: string): string[] {
         .filter(Boolean)
 }
 
+// A typed word one edit away from the real one ("eesquinas" for "esquinas",
+// "anavitorias" for "anavitoria"), two for long words. Short words must match
+// exactly: one character is a different word there ("halo"/"hale", and a
+// vowel sign in non-Latin scripts).
+function isNearWord(word: string, typed: string): boolean {
+    const length = Math.min(word.length, typed.length)
+    const allowed = length >= 8 ? 2 : length >= 5 ? 1 : 0
+    return (
+        allowed > 0 &&
+        Math.abs(word.length - typed.length) <= allowed &&
+        levenshteinDistance(word, typed) <= allowed
+    )
+}
+
 /**
  * Some extractors (Spotify's raw search API in particular) return their own
  * top hit as tracks[0] with no relevance re-ranking, so a short/ambiguous
@@ -163,14 +178,29 @@ export function preferExactMatch(
             // "halo beyonce" / "beyonce halo": every word of the title and
             // of the author is in the query, in any order. A cover titled
             // "Halo (Beyoncé Cover)" carries an extra word and stays put.
-            const queryWords = new Set(wordsOf(normalizedQuery))
-            const covered = (value?: string) => {
+            const queryWords = wordsOf(normalizedQuery)
+            const exact = new Set(queryWords)
+            const covered = (value: string | undefined, near: boolean) => {
                 const words = wordsOf(value ?? '')
-                return words.length > 0 && words.every((w) => queryWords.has(w))
+                return (
+                    words.length > 0 &&
+                    words.every(
+                        (w) =>
+                            exact.has(w) ||
+                            (near && queryWords.some((q) => isNearWord(w, q))),
+                    )
+                )
             }
-            bestIndex = tracks.findIndex(
-                (track) => covered(track.title) && covered(track.author),
-            )
+            const coveredBy = (near: boolean) =>
+                tracks.findIndex(
+                    (track) =>
+                        covered(track.title, near) &&
+                        covered(track.author, near),
+                )
+            // Exact words first; only then forgive a typo, so a right
+            // spelling never loses to a near one.
+            bestIndex = coveredBy(false)
+            if (bestIndex === -1) bestIndex = coveredBy(true)
         }
         if (bestIndex <= 0) return workingResult
 

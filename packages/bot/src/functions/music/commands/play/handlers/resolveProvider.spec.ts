@@ -1132,6 +1132,52 @@ describe('preferExactMatch', () => {
             ])
         })
 
+        it('tolerates a typo in the song and the artist (prod 2026-11-15)', async () => {
+            // "/play eesquinas anavitorias" played Dovirto Fks' "ESQUINA",
+            // Spotify's top hit, over ANAVITÓRIA's "Esquinas".
+            const tracks = [
+                makeMockTrack('ESQUINA', 'Dovirto Fks'),
+                makeMockTrack('Esquinas', 'ANAVITÓRIA'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('eesquinas anavitorias')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[1],
+                tracks[0],
+            ])
+        })
+
+        it('prefers an exact word match over a near one', async () => {
+            const tracks = [
+                makeMockTrack('Other', 'Someone'),
+                makeMockTrack('Esquinas', 'Anavitorias Tribute'),
+                makeMockTrack('Esquinas', 'ANAVITÓRIA'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('esquinas anavitoria')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[2],
+                tracks[0],
+                tracks[1],
+            ])
+        })
+
+        it('does not stretch a short word to a near one', async () => {
+            const tracks = [
+                makeMockTrack('Other', 'Someone'),
+                makeMockTrack('Hale', 'Bay'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('halo bay')(result as any)
+
+            expect(result.setTracks).not.toHaveBeenCalled()
+        })
+
         it('does not promote a cover that names the artist in its title', async () => {
             const tracks = [
                 makeMockTrack('Halo', 'Some Label'),
