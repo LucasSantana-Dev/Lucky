@@ -6,6 +6,7 @@ import {
     cleanTitle,
     cleanAuthor,
     songIdentityKeys,
+    songTitleHalves,
 } from '../../../utils/music/searchQueryCleaner'
 import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import { calculateStringSimilarity } from '../../../utils/music/duplicateDetection/similarityChecker'
@@ -283,6 +284,16 @@ export function isDuplicateCandidate(
         return true
     if (excludedKeys.has(normalizeTitleOnly(track.title))) return true
     if (songKeysOf(track).some((key) => excludedKeys.has(key))) return true
+    // Either half of the candidate against songs already played: "Don't Stop
+    // Me Now - ...Revisited" is the "Don't Stop Me Now" that just played.
+    // Played fan uploads ("Aerosmith - Dream On" by a channel) only store a
+    // song+artist pair, so their artist half never blocks other songs.
+    if (
+        songTitleHalves(track.title ?? '').some((half) =>
+            excludedKeys.has(`song::${half}`),
+        )
+    )
+        return true
     const core = extractSongCore(track.title ?? '', track.author)
     if (core !== null && excludedKeys.has(normalizeText(core))) return true
 
@@ -316,9 +327,11 @@ function identityKey(value?: string): string {
 }
 
 // "RamJamVEVO" and "Ram Jam - Topic" are Ram Jam's own channels.
+// "Queen Official" and "Kid Abelha Oficial" too: an artist's own channel is
+// that artist, or its originals read as covers of themselves.
 function coverArtistKey(author?: string): string {
     return identityKey(primaryArtistKey(author ?? '')).replace(
-        /(?:vevo|topic)$/,
+        /(?:vevo|topic|official|oficial)$/,
         '',
     )
 }
@@ -326,7 +339,9 @@ function coverArtistKey(author?: string): string {
 // "Lost Panda - Aerosmith - Dream On (Lyrics)", "Ram Jam | Black Betty".
 function titleSegmentKeys(title?: string): Set<string> {
     return new Set(
+        // Brackets dropped first: "Adele (Lyrics)" credits Adele.
         (title ?? '')
+            .replaceAll(/\([^)]*\)|\[[^\]]*\]/g, ' ') // NOSONAR S5852 - each class stops at its closing bracket, linear
             .split(/\s+[-–—:/]\s+|\s*[|"“”]\s*/)
             .map((segment) => identityKey(segment))
             .filter(Boolean),
@@ -341,6 +356,10 @@ function songKeys(track: Track): string[] {
     // "Uploader - Artist - Song": extractSongCore keeps "Artist - Song".
     const segments = cleanTitle(title).split(/\s+[-–—]\s+/)
     if (segments.length >= 3) keys.push(identityKey(segments.at(-1)))
+    // Bracket and descriptor suffixes the variant list does not know: "(BBC)",
+    // "- With Long-Lost Guitars". A fan channel's artist half joins a group
+    // too, but every member credits that artist, so nothing is dropped there.
+    keys.push(...songTitleHalves(title).map((half) => identityKey(half)))
     return [...new Set(keys.filter(Boolean))]
 }
 

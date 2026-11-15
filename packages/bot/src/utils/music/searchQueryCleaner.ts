@@ -354,30 +354,7 @@ function songArtistPair(song: string, artist: string): string {
  * that channel's other uploads of the same artist stay distinct songs.
  */
 export function songIdentityKeys(title: string, author?: string): string[] {
-    // Per half and before cleanTitle (which rewrites "ft."), so a credit on
-    // the artist half ("Drake ft. Jay-Z - Light Up") cannot eat the song half.
-    const withoutCredits = (title.split('|')[0] ?? '')
-        .replaceAll(/\([^)]*\)|\[[^\]]*\]/g, ' ') // NOSONAR S5852 - each class stops at its closing bracket, linear
-        .split(SEPARATOR_RE)
-        .map((part) => part.replace(FEATURING_TAIL_RE, ''))
-        .join(' - ')
-    const parts = cleanTitle(withoutCredits)
-        .split(SEPARATOR_RE)
-        .map((part) => part.trim())
-        .filter(Boolean)
-        .slice(0, 2)
-
-    // A version descriptor ("Edit", "Live", "Remastered 2011") is not a song:
-    // as a key it would match every other song carrying the same suffix.
-    const isVersionHalf = (part: string) =>
-        /^edit$/i.test(part) || hasVersionMarker(`x - ${part}`)
-    const halves = (
-        parts.length === 2 && parts.some(isVersionHalf)
-            ? parts.filter((part) => !isVersionHalf(part))
-            : parts
-    )
-        .map(songKey)
-        .filter((key) => key.length >= 2)
+    const halves = songTitleHalves(title)
     const authorKey = author ? songKey(cleanAuthor(author)) : ''
 
     if (halves.length === 1) {
@@ -395,6 +372,41 @@ export function songIdentityKeys(title: string, author?: string): string[] {
     if (isAuthor(left)) return [right, songArtistPair(right, left)]
     if (isAuthor(right)) return [left, songArtistPair(left, right)]
     return [songArtistPair(left, right)]
+}
+
+/**
+ * The song keys of a title's halves: "Don't Stop Me Now - ...Revisited"
+ * gives ["dontstopmenow", "revisited"], "Don't Stop Me Now (BBC)" gives
+ * ["dontstopmenow"]. Brackets, a "|" tail, "feat./ft." credits and version
+ * halves ("Edit", "Remastered 2011") are dropped. Which half is the song is
+ * not decided here: with neither half the author it can be a fan channel's
+ * "Artist - Song" or Spotify's "Song - Descriptor" (see songIdentityKeys).
+ */
+export function songTitleHalves(title: string): string[] {
+    // Per half and before cleanTitle (which rewrites "ft."), so a credit on
+    // the artist half ("Drake ft. Jay-Z - Light Up") cannot eat the song half.
+    const withoutCredits = (title.split('|')[0] ?? '')
+        .replaceAll(/\([^)]*\)|\[[^\]]*\]/g, ' ') // NOSONAR S5852 - each class stops at its closing bracket, linear
+        .split(SEPARATOR_RE)
+        .map((part) => part.replace(FEATURING_TAIL_RE, ''))
+        .join(' - ')
+    const parts = cleanTitle(withoutCredits)
+        .split(SEPARATOR_RE)
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .slice(0, 2)
+
+    // A version descriptor ("Edit", "Live", "Remastered 2011") is not a song:
+    // as a key it would match every other song carrying the same suffix.
+    const isVersionHalf = (part: string) =>
+        /^edit$/i.test(part) || hasVersionMarker(`x - ${part}`)
+    return (
+        parts.length === 2 && parts.some(isVersionHalf)
+            ? parts.filter((part) => !isVersionHalf(part))
+            : parts
+    )
+        .map(songKey)
+        .filter((key) => key.length >= 2)
 }
 
 /**

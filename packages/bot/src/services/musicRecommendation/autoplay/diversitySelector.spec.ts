@@ -146,6 +146,52 @@ describe('diversitySelector', () => {
     })
 
     describe('isDuplicateCandidate', () => {
+        const track = (title: string, author: string) =>
+            ({ title, author, url: `u:${author}:${title}` }) as Track
+        const playedKeys = (title: string, author: string) =>
+            buildExcludedKeys(
+                {
+                    tracks: { toArray: () => [] },
+                    history: { tracks: { toArray: () => [] } },
+                    metadata: {},
+                } as unknown as GuildQueue,
+                track(title, author),
+                [],
+            )
+
+        test('treats another version of a song that just played as a repeat (prod 2026-11-15)', () => {
+            // After The Vandals' "Don't Stop Me Now (BBC)" played, autoplay
+            // queued Queen's "Don't Stop Me Now - ...Revisited".
+            const keys = playedKeys("Don't Stop Me Now (BBC)", 'The Vandals')
+
+            expect(
+                isDuplicateCandidate(
+                    track("Don't Stop Me Now - ...Revisited", 'Queen'),
+                    new Set(),
+                    keys,
+                ),
+            ).toBe(true)
+            expect(
+                isDuplicateCandidate(
+                    track("Don't Stop Believin'", 'Journey'),
+                    new Set(),
+                    keys,
+                ),
+            ).toBe(false)
+        })
+
+        test("keeps a fan channel's other uploads of the same artist apart", () => {
+            const keys = playedKeys('Aerosmith - Dream On', 'HQVideoClassics')
+
+            expect(
+                isDuplicateCandidate(
+                    track('Aerosmith - Crazy (Official Video)', 'Lost Panda'),
+                    new Set(),
+                    keys,
+                ),
+            ).toBe(false)
+        })
+
         test('detects duplicates by URL, video ID, or normalized key', () => {
             let excludedUrls = new Set([
                 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
@@ -684,6 +730,55 @@ describe('diversitySelector', () => {
                 20,
                 seed,
             ).map((s) => `${s.track.author} - ${s.track.title}`)
+
+        test('groups a cover with a bracket or descriptor suffix (prod 2026-11-15)', () => {
+            // Seed "Killer Queen": The Vandals' "Don't Stop Me Now (BBC)" won
+            // with Queen's own song in the batch three times over.
+            const selected = pick(
+                [
+                    candidate("Don't Stop Me Now (BBC)", 'The Vandals', 1.79),
+                    candidate('Queen of love', 'Vesna', 1.7),
+                    candidate("Don't Stop Me Now", 'Queen', 1.64),
+                    candidate(
+                        "Don't Stop Me Now - With Long-Lost Guitars",
+                        'Queen',
+                        1.64,
+                    ),
+                    candidate(
+                        "Don't Stop Me Now - ...Revisited",
+                        'Queen',
+                        1.54,
+                    ),
+                    candidate("Don't Stop Believin'", 'Journey', 1.5),
+                ],
+                'queen',
+            )
+
+            expect(selected).not.toContain(
+                "The Vandals - Don't Stop Me Now (BBC)",
+            )
+            expect(selected).toContain("Queen - Don't Stop Me Now")
+            expect(selected).toContain("Journey - Don't Stop Believin'")
+        })
+
+        test("treats an artist's official channel as that artist", () => {
+            // "Queen Official - I Want It All" was dropped as a cover of
+            // Queen's own song in a real batch.
+            const selected = pick([
+                candidate(
+                    'I Want It All (Single Version)',
+                    'Queen Official',
+                    1.5,
+                ),
+                candidate('I Want It All', 'Queen', 1.2),
+                candidate('I Want It All', 'Some Cover Band', 1.1),
+            ])
+
+            expect(selected).toContain(
+                'Queen Official - I Want It All (Single Version)',
+            )
+            expect(selected).not.toContain('Some Cover Band - I Want It All')
+        })
 
         test('drops a higher-scored cover when the original is in the batch (prod 2026-11-13)', () => {
             // Seed "Free Bird": Shinedown's cover outscored Lynyrd Skynyrd's
