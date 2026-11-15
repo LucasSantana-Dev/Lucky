@@ -1149,6 +1149,78 @@ describe('preferExactMatch', () => {
             ])
         })
 
+        it.each([
+            ['extra letter at the start', 'eesquinas anavitoria'],
+            ['extra letter in the middle', 'esquuinas anavitoria'],
+            ['extra letter at the end', 'esquinass anavitoria'],
+            ['missing letter in the middle', 'esqinas anavitoria'],
+            ['missing letter at the end', 'esquinas anavitori'],
+            ['wrong letter', 'esquimas anavitoria'],
+            ['two letters swapped', 'esquians anavitoria'],
+            ['typos in both words', 'esquinnas anavittoria'],
+            ['two typos in a long word', 'esquinas aanavitoriaa'],
+            ['artist name split in two', 'esquinas ana vitoria'],
+            ['artist first, with a typo', 'anavitorria esquinas'],
+            ['missing accent and capitals', 'ESQUINAS ANAVITORIA'],
+        ])('promotes the named song with a %s', async (_shape, query) => {
+            const tracks = [
+                makeMockTrack('ESQUINA', 'Dovirto Fks'),
+                makeMockTrack('Esquinas', 'ANAVITÓRIA'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch(query)(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[1],
+                tracks[0],
+            ])
+        })
+
+        it('matches one of several credited artists', async () => {
+            const tracks = [
+                makeMockTrack('Lisboa', 'Some Cover Band'),
+                makeMockTrack('Lisboa', 'ANAVITÓRIA, Lenine'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('lisboaa anavitoria')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[1],
+                tracks[0],
+            ])
+        })
+
+        it('picks the closest of several near matches', async () => {
+            const tracks = [
+                makeMockTrack('Other', 'Someone'),
+                makeMockTrack('Esquinas', 'Anavitorinha'),
+                makeMockTrack('Esquinas', 'ANAVITÓRIA'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('esquinas anavitorias')(result as any)
+
+            expect(result.setTracks).toHaveBeenCalledWith([
+                tracks[2],
+                tracks[0],
+                tracks[1],
+            ])
+        })
+
+        it('does not treat a too-different word as a typo', async () => {
+            const tracks = [
+                makeMockTrack('Other', 'Someone'),
+                makeMockTrack('Esquinas', 'ANAVITÓRIA'),
+            ]
+            const result = resultOf(tracks)
+
+            await preferExactMatch('esquilos anabela')(result as any)
+
+            expect(result.setTracks).not.toHaveBeenCalled()
+        })
+
         it('prefers an exact word match over a near one', async () => {
             const tracks = [
                 makeMockTrack('Other', 'Someone'),

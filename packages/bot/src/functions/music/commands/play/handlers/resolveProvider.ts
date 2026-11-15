@@ -4,11 +4,11 @@ import type {
     PlayerNodeInitializerOptions,
     PlayerNodeInitializationResult,
     SearchResult,
+    Track,
 } from 'discord-player'
 import type { VoiceBasedChannel } from 'discord.js'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
-import { levenshteinDistance } from '@lucky/shared/utils/similarity'
 import {
     cleanSearchQuery,
     hasVersionMarker,
@@ -93,18 +93,93 @@ function wordsOf(value: string): string[] {
         .filter(Boolean)
 }
 
-// A typed word one edit away from the real one ("eesquinas" for "esquinas",
-// "anavitorias" for "anavitoria"), two for long words. Short words must match
+// Typing errors between two words: a letter added, dropped or replaced
+// anywhere, or two neighbours swapped ("esquians"), each count as one.
+function typoDistance(a: string, b: string): number {
+    const x = Array.from(a)
+    const y = Array.from(b)
+    const d = x.map((_, i) => [i + 1, ...y.map(() => 0)])
+    d.unshift(y.map((_, j) => j + 1))
+    d[0].unshift(0)
+    for (let i = 1; i <= x.length; i++) {
+        for (let j = 1; j <= y.length; j++) {
+            const same = x[i - 1] === y[j - 1] ? 0 : 1
+            d[i][j] = Math.min(
+                d[i - 1][j] + 1,
+                d[i][j - 1] + 1,
+                d[i - 1][j - 1] + same,
+            )
+            if (
+                i > 1 &&
+                j > 1 &&
+                x[i - 1] === y[j - 2] &&
+                x[i - 2] === y[j - 1]
+            ) {
+                d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1)
+            }
+        }
+    }
+    return d[x.length][y.length]
+}
+
+// About one error per four letters. Words under five characters must match
 // exactly: one character is a different word there ("halo"/"hale", and a
 // vowel sign in non-Latin scripts).
-function isNearWord(word: string, typed: string): boolean {
-    const length = Math.min(word.length, typed.length)
-    const allowed = length >= 8 ? 2 : length >= 5 ? 1 : 0
-    return (
-        allowed > 0 &&
-        Math.abs(word.length - typed.length) <= allowed &&
-        levenshteinDistance(word, typed) <= allowed
-    )
+function allowedTypos(word: string): number {
+    const length = Array.from(word).length
+    return length < 5 ? 0 : Math.floor(length / 4)
+}
+
+function typoCost(word: string, typed: string): number | null {
+    const cost = typoDistance(word, typed)
+    return cost <= allowedTypos(word) ? cost : null
+}
+
+// Errors needed to read `field` in the query, or null when it is not there.
+// Word by word first; failing that, the field with its spaces removed
+// against any run of consecutive query words joined together, so "ana
+// vitoria" finds "Anavitória" and "anavitoria" finds "Ana Vitória".
+function fieldTypoCost(field: string, queryWords: string[]): number | null {
+    const words = wordsOf(field)
+    if (words.length === 0) return null
+    let total = 0
+    for (const word of words) {
+        const costs = queryWords
+            .map((q) => (q === word ? 0 : typoCost(word, q)))
+            .filter((c): c is number => c !== null)
+        if (costs.length === 0) {
+            total = Number.NaN
+            break
+        }
+        total += Math.min(...costs)
+    }
+    if (!Number.isNaN(total)) return total
+
+    const joined = words.join('')
+    let best: number | null = null
+    for (let start = 0; start < queryWords.length; start++) {
+        for (let end = start + 1; end <= queryWords.length; end++) {
+            const cost = typoCost(joined, queryWords.slice(start, end).join(''))
+            if (cost !== null && (best === null || cost < best)) best = cost
+        }
+    }
+    return best
+}
+
+// A track's title plus its closest credited artist ("ANAVITÓRIA, Lenine"
+// is found by "anavitoria" alone), or null when either is missing.
+function trackTypoCost(track: Track, queryWords: string[]): number | null {
+    const title = fieldTypoCost(track.title ?? '', queryWords)
+    if (title === null) return null
+    const author = track.author ?? ''
+    const artists = [
+        author,
+        ...author.split(/\s*(?:,|&|\bfeat\.?|\bft\.?|\bx\b)\s*/i),
+    ].filter((a) => a.trim())
+    const costs = artists
+        .map((artist) => fieldTypoCost(artist, queryWords))
+        .filter((c): c is number => c !== null)
+    return costs.length > 0 ? title + Math.min(...costs) : null
 }
 
 /**
@@ -178,29 +253,18 @@ export function preferExactMatch(
             // "halo beyonce" / "beyonce halo": every word of the title and
             // of the author is in the query, in any order. A cover titled
             // "Halo (Beyoncé Cover)" carries an extra word and stays put.
+            // Typos are forgiven too (see trackTypoCost): the candidate with
+            // the fewest typing errors wins, so an exact spelling (cost 0)
+            // always beats a near one, and ties keep the search order.
             const queryWords = wordsOf(normalizedQuery)
-            const exact = new Set(queryWords)
-            const covered = (value: string | undefined, near: boolean) => {
-                const words = wordsOf(value ?? '')
-                return (
-                    words.length > 0 &&
-                    words.every(
-                        (w) =>
-                            exact.has(w) ||
-                            (near && queryWords.some((q) => isNearWord(w, q))),
-                    )
-                )
-            }
-            const coveredBy = (near: boolean) =>
-                tracks.findIndex(
-                    (track) =>
-                        covered(track.title, near) &&
-                        covered(track.author, near),
-                )
-            // Exact words first; only then forgive a typo, so a right
-            // spelling never loses to a near one.
-            bestIndex = coveredBy(false)
-            if (bestIndex === -1) bestIndex = coveredBy(true)
+            let bestCost = Number.POSITIVE_INFINITY
+            tracks.forEach((track, index) => {
+                const cost = trackTypoCost(track, queryWords)
+                if (cost !== null && cost < bestCost) {
+                    bestCost = cost
+                    bestIndex = index
+                }
+            })
         }
         if (bestIndex <= 0) return workingResult
 
