@@ -4,6 +4,7 @@ import type {
     PlayerNodeInitializerOptions,
     PlayerNodeInitializationResult,
     SearchResult,
+    Track,
 } from 'discord-player'
 import type { VoiceBasedChannel } from 'discord.js'
 import { infoLog, warnLog } from '@lucky/shared/utils'
@@ -92,6 +93,105 @@ function wordsOf(value: string): string[] {
         .filter(Boolean)
 }
 
+// Typing errors between two words: a letter added, dropped or replaced
+// anywhere, or two neighbours swapped ("esquians"), each count as one.
+function typoDistance(a: string, b: string): number {
+    const x = Array.from(a)
+    const y = Array.from(b)
+    const d = x.map((_, i) => [i + 1, ...y.map(() => 0)])
+    d.unshift(y.map((_, j) => j + 1))
+    d[0].unshift(0)
+    for (let i = 1; i <= x.length; i++) {
+        for (let j = 1; j <= y.length; j++) {
+            const same = x[i - 1] === y[j - 1] ? 0 : 1
+            d[i][j] = Math.min(
+                d[i - 1][j] + 1,
+                d[i][j - 1] + 1,
+                d[i - 1][j - 1] + same,
+            )
+            if (
+                i > 1 &&
+                j > 1 &&
+                x[i - 1] === y[j - 2] &&
+                x[i - 2] === y[j - 1]
+            ) {
+                d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1)
+            }
+        }
+    }
+    return d[x.length][y.length]
+}
+
+// About one error per four letters. Words under five characters must match
+// exactly: one character is a different word there ("halo"/"hale", and a
+// vowel sign in non-Latin scripts).
+function allowedTypos(word: string): number {
+    const length = Array.from(word).length
+    return length < 5 ? 0 : Math.floor(length / 4)
+}
+
+function typoCost(word: string, typed: string): number | null {
+    const cost = typoDistance(word, typed)
+    return cost <= allowedTypos(word) ? cost : null
+}
+
+// Errors needed to read `field` in the query, or null when it is not there.
+// Word by word first; failing that, the field with its spaces removed
+// against any run of consecutive query words joined together, so "ana
+// vitoria" finds "Anavitória" and "anavitoria" finds "Ana Vitória".
+function fieldTypoCost(field: string, queryWords: string[]): number | null {
+    const words = wordsOf(field)
+    if (words.length === 0) return null
+    let total = 0
+    for (const word of words) {
+        const costs = queryWords
+            .map((q) => (q === word ? 0 : typoCost(word, q)))
+            .filter((c): c is number => c !== null)
+        if (costs.length === 0) {
+            total = Number.NaN
+            break
+        }
+        total += Math.min(...costs)
+    }
+    if (!Number.isNaN(total)) return total
+
+    const joined = words.join('')
+    let best: number | null = null
+    for (let start = 0; start < queryWords.length; start++) {
+        for (let end = start + 1; end <= queryWords.length; end++) {
+            const typed = queryWords.slice(start, end).join('')
+            // Joining or splitting words is not dropping one: "ftisland"
+            // is not "island" with two typos.
+            if (
+                Math.abs(Array.from(typed).length - Array.from(joined).length) >
+                1
+            )
+                continue
+            const cost = typoCost(joined, typed)
+            if (cost !== null && (best === null || cost < best)) best = cost
+        }
+    }
+    return best
+}
+
+// A track's title plus its closest credited artist ("ANAVITÓRIA, Lenine"
+// is found by "anavitoria" alone), or null when either is missing.
+function trackTypoCost(track: Track, queryWords: string[]): number | null {
+    const title = fieldTypoCost(track.title ?? '', queryWords)
+    if (title === null) return null
+    const author = track.author ?? ''
+    const artists = [
+        author,
+        // Commas, semicolons and spaced feature credits only: "&" and "x"
+        // are part of names ("Simon & Garfunkel") and "FT Island" is a band.
+        ...author.split(/\s*[,;]\s*|\s+(?:feat\.?|ft\.?|featuring)\s+/i),
+    ].filter((a) => a.trim())
+    const costs = artists
+        .map((artist) => fieldTypoCost(artist, queryWords))
+        .filter((c): c is number => c !== null)
+    return costs.length > 0 ? title + Math.min(...costs) : null
+}
+
 /**
  * Some extractors (Spotify's raw search API in particular) return their own
  * top hit as tracks[0] with no relevance re-ranking, so a short/ambiguous
@@ -163,14 +263,18 @@ export function preferExactMatch(
             // "halo beyonce" / "beyonce halo": every word of the title and
             // of the author is in the query, in any order. A cover titled
             // "Halo (Beyoncé Cover)" carries an extra word and stays put.
-            const queryWords = new Set(wordsOf(normalizedQuery))
-            const covered = (value?: string) => {
-                const words = wordsOf(value ?? '')
-                return words.length > 0 && words.every((w) => queryWords.has(w))
-            }
-            bestIndex = tracks.findIndex(
-                (track) => covered(track.title) && covered(track.author),
-            )
+            // Typos are forgiven too (see trackTypoCost): the candidate with
+            // the fewest typing errors wins, so an exact spelling (cost 0)
+            // always beats a near one, and ties keep the search order.
+            const queryWords = wordsOf(normalizedQuery)
+            let bestCost = Number.POSITIVE_INFINITY
+            tracks.forEach((track, index) => {
+                const cost = trackTypoCost(track, queryWords)
+                if (cost !== null && cost < bestCost) {
+                    bestCost = cost
+                    bestIndex = index
+                }
+            })
         }
         if (bestIndex <= 0) return workingResult
 
