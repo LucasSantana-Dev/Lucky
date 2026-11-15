@@ -146,8 +146,8 @@ describe('diversitySelector', () => {
     })
 
     describe('isDuplicateCandidate', () => {
-        const track = (title: string, author: string) =>
-            ({ title, author, url: `u:${author}:${title}` }) as Track
+        const track = (title: string, author: string, source = 'spotify') =>
+            ({ title, author, source, url: `u:${author}:${title}` }) as Track
         const playedKeys = (title: string, author: string) =>
             buildExcludedKeys(
                 {
@@ -174,6 +174,18 @@ describe('diversitySelector', () => {
             expect(
                 isDuplicateCandidate(
                     track("Don't Stop Believin'", 'Journey'),
+                    new Set(),
+                    keys,
+                ),
+            ).toBe(false)
+        })
+
+        test('does not read an artist half as a song that played ("Queen - Barracuda" after "Queen")', () => {
+            const keys = playedKeys('Queen', 'Some Band')
+
+            expect(
+                isDuplicateCandidate(
+                    track('Queen - Barracuda', 'Rock Lyrics', 'youtube'),
                     new Set(),
                     keys,
                 ),
@@ -757,8 +769,33 @@ describe('diversitySelector', () => {
             expect(selected).not.toContain(
                 "The Vandals - Don't Stop Me Now (BBC)",
             )
-            expect(selected).toContain("Queen - Don't Stop Me Now")
+            // Score jitter decides which of Queen's equal-scored versions wins;
+            // what matters is that one of Queen's is picked, not the cover.
+            expect(
+                selected.filter((s) =>
+                    s.startsWith("Queen - Don't Stop Me Now"),
+                ),
+            ).toHaveLength(1)
             expect(selected).toContain("Journey - Don't Stop Believin'")
+        })
+
+        test("does not group a fan channel's uploads by their artist half", () => {
+            // Two "Queen - ..." uploads must not outvote an unrelated song
+            // titled "Queen" and drop it as a cover.
+            const yt = (title: string, author: string, score: number) => ({
+                ...candidate(title, author, score),
+                track: {
+                    ...candidate(title, author, score).track,
+                    source: 'youtube',
+                } as unknown as Track,
+            })
+            const selected = pick([
+                yt('Queen - Barracuda', 'Rock Lyrics', 1.3),
+                yt('Queen - Crazy On You', 'Rock Lyrics', 1.2),
+                candidate('Queen', 'Perfume Genius', 1.1),
+            ])
+
+            expect(selected).toContain('Perfume Genius - Queen')
         })
 
         test("treats an artist's official channel as that artist", () => {
