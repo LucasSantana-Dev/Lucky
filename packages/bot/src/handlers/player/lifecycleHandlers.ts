@@ -35,6 +35,13 @@ export const setupVoiceKickDetection = (client: Client): void => {
             // survives — the orphan-session monitor then rejoins and replays
             // it as if the disconnect never happened.
             await musicSessionSnapshotService.deleteSnapshot(oldState.guild.id)
+            // A kick ends the session: drop the queue too, like /leave does.
+            // Left alive, the next /play reused it and the kicked session's
+            // requests and autoplay picks kept playing (prod 2026-11-15).
+            const queue = (
+                client as Client & Partial<Pick<CustomClient, 'player'>>
+            ).player?.nodes.get(oldState.guild.id)
+            if (queue && !queue.deleted) queue.delete()
             infoLog({
                 message: `Bot was disconnected from voice in ${oldState.guild.name} — marked intentional`,
             })

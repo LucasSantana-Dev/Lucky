@@ -631,6 +631,40 @@ describe('setupVoiceKickDetection', () => {
         )
     })
 
+    it('deletes the queue when the bot is kicked, so a new /play starts clean (prod 2026-11-15)', async () => {
+        // Kicked at 21:35:38; the next /play reused the old queue and its
+        // earlier requests and autoplay picks kept playing.
+        const listeners: Array<(o: any, n: any) => Promise<void>> = []
+        const live = { deleted: false, delete: jest.fn() }
+        const gone = { deleted: true, delete: jest.fn() }
+        const queues = new Map<string, unknown>([
+            ['guild-1', live],
+            ['guild-2', gone],
+        ])
+        const client = {
+            user: { id: 'bot-user-id' },
+            player: { nodes: { get: (id: string) => queues.get(id) } },
+            on: jest.fn((event: string, handler: any) => {
+                if (event === 'voiceStateUpdate') listeners.push(handler)
+            }),
+        }
+        setupVoiceKickDetection(client as any)
+
+        for (const guildId of ['guild-1', 'guild-2', 'guild-3']) {
+            await listeners[0](
+                {
+                    member: { id: 'bot-user-id' },
+                    channelId: 'voice-channel-1',
+                    guild: { id: guildId, name: 'Job' },
+                },
+                { member: { id: 'bot-user-id' }, channelId: null },
+            )
+        }
+
+        expect(live.delete).toHaveBeenCalledTimes(1)
+        expect(gone.delete).not.toHaveBeenCalled()
+    })
+
     it('ignores voiceStateUpdate for non-bot members', () => {
         const voiceStateUpdateListeners: Array<
             (oldState: any, newState: any) => void
