@@ -11,6 +11,7 @@ import { infoLog, warnLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
 import {
     cleanSearchQuery,
+    cleanTitle,
     hasVersionMarker,
     queryRequestsVersion,
 } from '../../../../../utils/music/searchQueryCleaner'
@@ -247,14 +248,13 @@ export function preferExactMatch(
             const topHasMarker = hasVersionMarker(topTitle)
             // Only the same song without the marker: when every hit is a
             // live take, the first clean one can be an unrelated song.
-            const topWords = new Set(wordsOf(topTitle))
+            const topSong = wordsOf(cleanTitle(topTitle)).join(' ')
             const cleanIndex = tracks.findIndex((track) => {
                 const title = track.title ?? ''
-                const words = wordsOf(title)
                 return (
                     !hasVersionMarker(title) &&
-                    words.length > 0 &&
-                    words.every((word) => topWords.has(word))
+                    topSong.length > 0 &&
+                    wordsOf(title).join(' ') === topSong
                 )
             })
             if (topHasMarker && cleanIndex > 0) {

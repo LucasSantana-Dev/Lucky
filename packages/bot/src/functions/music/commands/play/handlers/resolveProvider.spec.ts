@@ -1147,7 +1147,7 @@ describe('preferExactMatch', () => {
             ])
         })
 
-        it('does not promote an unrelated song when every hit is a live take', async () => {
+        it('does not promote an unrelated song over a live top hit', async () => {
             // Prod, 2026-11-16: "ai ja era jorge e mateus" queued Racionais
             // because "Vida Loka, Pt. 1" was the first hit without a marker.
             const tracks = [
@@ -1171,6 +1171,22 @@ describe('preferExactMatch', () => {
 
             expect(result.setTracks).not.toHaveBeenCalled()
             expect(ranked.tracks[0]).toBe(tracks[0])
+        })
+
+        it('does not promote a clean title that is only part of the top title', async () => {
+            const tracks = [
+                makeMockTrack('Aí Já Era - Ao Vivo', 'Jorge & Mateus'),
+                makeMockTrack('Era', 'Someone Else'),
+            ]
+            const result = {
+                hasPlaylist: () => false,
+                tracks,
+                setTracks: jest.fn(() => result),
+            }
+
+            await preferExactMatch('ai ja era')(result as any)
+
+            expect(result.setTracks).not.toHaveBeenCalled()
         })
     })
 
