@@ -20,6 +20,8 @@ import {
     spotifyBlockRemainingSeconds,
 } from '../../../../../handlers/player/spotifyApiFailureLog'
 import { isHostedYoutubeEnabled } from '../../../../../config/featureFlags'
+import { resolveGuildQueue } from '../../../../../services/musicManagement/queueResolver'
+import { holdLoadingTrack } from './holdLoadingTrack'
 import { parseYoutubeLink, type YoutubeLink } from '../queryDetector'
 import {
     ensureTrackMetadata,
@@ -396,6 +398,36 @@ function rerankThenNotify(
  * (for example after a voice connect failure), it may fire more than once.
  */
 export async function resolveQueryWithFallbacks(
+    player: Player,
+    voiceChannel: VoiceBasedChannel,
+    query: string,
+    requestedProvider: string,
+    searchEngine: QueryType,
+    playOptions: PlayerNodeInitializerOptions<unknown>,
+    onSearchResolved?: (result: SearchResult) => void,
+): Promise<Resolution> {
+    // A request made while the next track loads must not let play() start
+    // the track queued behind it (see holdLoadingTrack).
+    const guildId = voiceChannel.guild?.id
+    const release = holdLoadingTrack(
+        guildId ? resolveGuildQueue({ player }, guildId).queue : null,
+    )
+    try {
+        return await resolveQuery(
+            player,
+            voiceChannel,
+            query,
+            requestedProvider,
+            searchEngine,
+            playOptions,
+            onSearchResolved,
+        )
+    } finally {
+        release()
+    }
+}
+
+async function resolveQuery(
     player: Player,
     voiceChannel: VoiceBasedChannel,
     query: string,

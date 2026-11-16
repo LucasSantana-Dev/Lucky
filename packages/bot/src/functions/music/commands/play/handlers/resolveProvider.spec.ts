@@ -12,6 +12,7 @@ const spotifyBlockRemainingSecondsMock = jest.fn<() => number>()
 jest.mock('@lucky/shared/utils', () => ({
     warnLog: warnLogMock,
     infoLog: infoLogMock,
+    debugLog: jest.fn(),
 }))
 
 jest.mock('../../../../../handlers/player/spotifyApiFailureLog', () => ({
@@ -74,6 +75,67 @@ describe('resolveQueryWithFallbacks', () => {
             expect(telemetry.requestedProvider).toBe('default')
             expect(telemetry.latencyMs).toBeGreaterThanOrEqual(0)
             expect(telemetry.errorClass).toBeUndefined()
+        })
+    })
+
+    describe('request made while the next track is still loading', () => {
+        // Prod, guild "Job", 2026-11-16: /play "im tired zendaya" arrived
+        // while the autoplay pick "Chamyto Freestyle 2" was current but its
+        // stream still resolving. discord-player's play() appends the request
+        // and calls node.play() because isPlaying() is false, which
+        // dispatched the next autoplay pick ahead of the request.
+        it('keeps play() from dispatching the track queued behind the loading one', async () => {
+            const dispatch = jest.fn(async () => undefined)
+            const queue = {
+                currentTrack: { title: 'Chamyto Freestyle 2' },
+                isPlaying: () => false,
+                node: { play: dispatch },
+            }
+            mockVoiceChannel.guild = { id: 'guild-job' }
+            mockPlayer.nodes = { get: jest.fn(() => queue) }
+            mockPlayer.play.mockImplementation(async () => {
+                await queue.node.play()
+                return { title: "Rue's I'm Tired (with Zendaya)" }
+            })
+
+            await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'im tired zendaya',
+                'default',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            expect(mockPlayer.nodes.get).toHaveBeenCalledWith('guild-job')
+            expect(dispatch).not.toHaveBeenCalled()
+            expect(queue.node.play).toBe(dispatch)
+        })
+
+        it('still starts a queue that has nothing current', async () => {
+            const dispatch = jest.fn(async () => undefined)
+            const queue = {
+                currentTrack: null,
+                isPlaying: () => false,
+                node: { play: dispatch },
+            }
+            mockVoiceChannel.guild = { id: 'guild-job' }
+            mockPlayer.nodes = { get: jest.fn(() => queue) }
+            mockPlayer.play.mockImplementation(async () => {
+                await queue.node.play()
+                return { title: 'Minto pra quem perguntar' }
+            })
+
+            await resolveQueryWithFallbacks(
+                mockPlayer,
+                mockVoiceChannel,
+                'minto pra quem perguntar',
+                'default',
+                QueryType.SPOTIFY_SEARCH,
+                mockPlayOptions,
+            )
+
+            expect(dispatch).toHaveBeenCalledTimes(1)
         })
     })
 
