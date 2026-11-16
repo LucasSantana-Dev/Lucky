@@ -12,6 +12,7 @@ import type { ScoredTrack } from './diversitySelector'
 import type { AutoplayAuditCollector } from './autoplayAudit'
 import { searchLastFmQuery, spotifySearchBudgetFor } from './lastFmSeeder'
 import { addSeedDerivedHits } from './seedDerivedHits'
+import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 
 // Boost applied to every seed-similar candidate. Sits above the lastfm-similar
 // boost (0.2) so the seed-grounded spine outranks weaker collateral sources
@@ -149,11 +150,22 @@ export async function collectSeedSimilarCandidates(
         // (never weighted below 0.5 even on a weak match), so the spine
         // still grounds a thin pool.
         const weight = 0.5 + 0.5 * Math.min(Math.max(s.match, 0), 1)
+        // The search is text-only: its other hits are lyric re-uploads and
+        // look-alike titles by unrelated channels. Keep one hit by the
+        // similar artist; anything else is word matching, not relatedness
+        // (#3042).
+        const similarArtist = primaryArtistKey(s.artist)
         await addSeedDerivedHits(
             ctx,
             tracks,
             candidates,
-            { boost: SEED_SIMILAR_BOOST, weight, getArtistTags },
+            {
+                boost: SEED_SIMILAR_BOOST,
+                weight,
+                getArtistTags,
+                accept: (t) => primaryArtistKey(t.author) === similarArtist,
+                limit: 1,
+            },
             auditCollector,
         )
     }

@@ -29,6 +29,7 @@ jest.mock('./artistTagCache', () => ({
 jest.mock('../../../utils/music/searchQueryCleaner', () => ({
     cleanSearchQuery: (...args: unknown[]) => cleanSearchQueryMock(...args),
     cleanTitle: (...args: unknown[]) => cleanTitleMock(...args),
+    cleanAuthor: (s: string) => s.replace(/\s+-\s+topic$/i, ''),
     splitArtistAndSong: (...args: unknown[]) => splitArtistAndSongMock(...args),
 }))
 
@@ -332,6 +333,45 @@ describe('collectSeedSimilarCandidates', () => {
         const candidates = new Map()
         await collectSeedSimilarCandidates(ctx, createUser(), candidates)
         expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
+    })
+
+    it('keeps only the hit by the similar artist, not word-matching uploads (#3042)', async () => {
+        getSimilarTracksMock.mockResolvedValue([
+            { title: 'Saoko', artist: 'ROSALÍA', match: 0.8 },
+        ])
+        // Prod 2026-11-16: the text search for a similar track returned
+        // lyric re-uploads and look-alike titles by unrelated channels.
+        searchLastFmQueryMock.mockResolvedValue([
+            createTrack('Saoko (Lyrics)', 'Letras Tropicales', 'u1'),
+            createTrack('Saoko', 'ROSALÍA', 'u2'),
+            createTrack('Bizcochito', 'ROSALÍA', 'u3'),
+            createTrack('Saoko remix', 'Roselita', 'u4'),
+        ])
+        upsertScoredCandidateMock.mockReturnValue(true)
+        const ctx = createAutoplayContext({
+            currentTrack: createTrack('La Perla', 'ROSALÍA'),
+        })
+        await collectSeedSimilarCandidates(ctx, createUser(), new Map())
+
+        const added = upsertScoredCandidateMock.mock.calls.map(
+            (c) => (c[1] as Track).url,
+        )
+        expect(added).toEqual(['u2'])
+    })
+
+    it('accepts a "- Topic" channel upload of the similar artist (#3042)', async () => {
+        getSimilarTracksMock.mockResolvedValue([
+            { title: 'Eloen', artist: 'Velorae', match: 0.5 },
+        ])
+        searchLastFmQueryMock.mockResolvedValue([
+            createTrack('Eloen', 'Velorae - Topic', 'u1'),
+        ])
+        upsertScoredCandidateMock.mockReturnValue(true)
+        const ctx = createAutoplayContext({
+            currentTrack: createTrack('Seed', 'SeedArtist'),
+        })
+        await collectSeedSimilarCandidates(ctx, createUser(), new Map())
+        expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
     })
 
     it('does not throw when the similar fetch rejects (never stalls)', async () => {
