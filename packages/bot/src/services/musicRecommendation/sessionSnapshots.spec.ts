@@ -853,18 +853,17 @@ describe('MusicSessionSnapshotService', () => {
         it('preserves autoplay metadata on restored tracks', async () => {
             mockFindUnique.mockResolvedValueOnce(
                 snapshotRow({
-                    upcomingTracks: [
-                        {
-                            title: 'Recommended Song',
-                            author: 'Recommended Artist',
-                            url: 'https://example.com/recommended',
-                            duration: '3:00',
-                            source: 'youtube',
-                            recommendationReason: 'Because you listened',
-                            isAutoplay: true,
-                            requestedById: 'user-1',
-                        },
-                    ],
+                    upcomingTracks: [],
+                    currentTrack: {
+                        title: 'Recommended Song',
+                        author: 'Recommended Artist',
+                        url: 'https://example.com/recommended',
+                        duration: '3:00',
+                        source: 'youtube',
+                        recommendationReason: 'Because you listened',
+                        isAutoplay: true,
+                        requestedById: 'user-1',
+                    },
                 }),
             )
             const restoredTrack = {
@@ -892,6 +891,79 @@ describe('MusicSessionSnapshotService', () => {
                     }),
                 }),
             )
+        })
+
+        it('drops queued autoplay picks so a restart does not replay stale recommendations', async () => {
+            // Prod 2026-11-16: after a deploy the restore replayed picks the
+            // old autoplay had queued, unrelated to what the user asked for.
+            // The current track still resumes and autoplay refills the rest.
+            const entry = (title: string, isAutoplay?: boolean) => ({
+                title,
+                author: 'A',
+                url: `https://example.com/${title}`,
+                duration: '3:00',
+                source: 'spotify',
+                ...(isAutoplay ? { isAutoplay } : {}),
+            })
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({
+                    currentTrack: entry('playing', true),
+                    upcomingTracks: [
+                        entry('stale-pick', true),
+                        entry('user-request'),
+                        entry('stale-pick-2', true),
+                    ],
+                }),
+            )
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-stale-autoplay', {
+                tracks: [
+                    {
+                        title: 'resolved',
+                        author: 'resolved',
+                        url: 'x',
+                        metadata: null,
+                        setMetadata: jest.fn(),
+                    },
+                ],
+            })
+
+            const result = await service.restoreSnapshot(queue)
+
+            const searched = (queue.player.search as jest.Mock).mock.calls.map(
+                (c) => c[0],
+            )
+            expect(searched).toEqual([
+                'https://example.com/playing',
+                'https://example.com/user-request',
+            ])
+            expect(result.restoredCount).toBe(2)
+        })
+
+        it('keeps queued autoplay picks for an in-process recovery', async () => {
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({
+                    upcomingTracks: [
+                        {
+                            title: 'pick',
+                            author: 'A',
+                            url: 'https://example.com/pick',
+                            duration: '3:00',
+                            source: 'spotify',
+                            isAutoplay: true,
+                        },
+                    ],
+                }),
+            )
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-keep-autoplay')
+
+            const result = await service.restoreSnapshot(queue, undefined, {
+                skipCurrentTrack: true,
+                keepAutoplay: true,
+            })
+
+            expect(result.restoredCount).toBe(1)
         })
 
         it('returns early when the queue already has tracks (no read)', async () => {

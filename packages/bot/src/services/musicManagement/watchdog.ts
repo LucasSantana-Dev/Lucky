@@ -451,6 +451,10 @@ export class MusicWatchdogService {
                         undefined,
                         {
                             skipCurrentTrack: true,
+                            // Same process: its autoplay picks are current,
+                            // and with the current track skipped they may be
+                            // all that is left to resume.
+                            keepAutoplay: true,
                             signal: restoreController.signal,
                         },
                     )
