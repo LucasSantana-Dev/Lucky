@@ -1136,21 +1136,41 @@ describe('preferExactMatch', () => {
 
             await preferExactMatch('Song Title')(result as any)
 
-            // Marker demotion first promotes tracks[1] (clean) ahead of
-            // tracks[0] (remix): [tracks[1], tracks[0], tracks[2]]. The
-            // exact-title-match pass then finds tracks[2] ("song title")
-            // in that demoted order and promotes it again.
-            expect(result.setTracks).toHaveBeenCalledTimes(2)
-            expect(result.setTracks).toHaveBeenNthCalledWith(1, [
-                tracks[1],
-                tracks[0],
+            // Marker demotion promotes tracks[2], the same song without the
+            // marker, skipping "Some Other Song". The exact-title pass then
+            // finds it already on top.
+            expect(result.setTracks).toHaveBeenCalledTimes(1)
+            expect(result.setTracks).toHaveBeenCalledWith([
                 tracks[2],
-            ])
-            expect(result.setTracks).toHaveBeenNthCalledWith(2, [
-                tracks[2],
-                tracks[1],
                 tracks[0],
+                tracks[1],
             ])
+        })
+
+        it('does not promote an unrelated song when every hit is a live take', async () => {
+            // Prod, 2026-11-16: "ai ja era jorge e mateus" queued Racionais
+            // because "Vida Loka, Pt. 1" was the first hit without a marker.
+            const tracks = [
+                makeMockTrack('Aí Já Era - Ao Vivo', 'Jorge & Mateus'),
+                makeMockTrack(
+                    'Aí Já Era - Live In Buenos Aires / 2010',
+                    'Jorge & Mateus',
+                ),
+                makeMockTrack('Vida Loka, Pt. 1', "Racionais MC's"),
+                makeMockTrack('Coração no 100 - Ao Vivo', 'Erick Montteiro'),
+            ]
+            const result = {
+                hasPlaylist: () => false,
+                tracks,
+                setTracks: jest.fn(() => result),
+            }
+
+            const ranked = await preferExactMatch('ai ja era jorge e mateus')(
+                result as any,
+            )
+
+            expect(result.setTracks).not.toHaveBeenCalled()
+            expect(ranked.tracks[0]).toBe(tracks[0])
         })
     })
 

@@ -243,10 +243,20 @@ export function preferExactMatch(
         let tracks = result.tracks
         let workingResult = result
         if (!queryRequestsVersion(normalizedQuery)) {
-            const topHasMarker = hasVersionMarker(tracks[0]?.title ?? '')
-            const cleanIndex = tracks.findIndex(
-                (track) => !hasVersionMarker(track.title ?? ''),
-            )
+            const topTitle = tracks[0]?.title ?? ''
+            const topHasMarker = hasVersionMarker(topTitle)
+            // Only the same song without the marker: when every hit is a
+            // live take, the first clean one can be an unrelated song.
+            const topWords = new Set(wordsOf(topTitle))
+            const cleanIndex = tracks.findIndex((track) => {
+                const title = track.title ?? ''
+                const words = wordsOf(title)
+                return (
+                    !hasVersionMarker(title) &&
+                    words.length > 0 &&
+                    words.every((word) => topWords.has(word))
+                )
+            })
             if (topHasMarker && cleanIndex > 0) {
                 const demoted = [...tracks]
                 const [cleanTrack] = demoted.splice(cleanIndex, 1)
