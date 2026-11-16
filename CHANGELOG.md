@@ -1714,6 +1714,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(bot): a `/play` sent while the next song is still loading no longer lets the autoplay pick queued behind it play before the request (#3047)
 - fix(bot): after a restart the restored queue no longer replays the songs autoplay had queued before it, which could come from an older build and have nothing to do with the request; the playing song resumes and autoplay picks fresh ones (#3044)
 - fix(bot): autoplay keeps only the matching artist's result for each Last.fm similar track, so lyric re-uploads and tracks that merely share words with the song ("Roselita" after Rosalía) no longer fill the queue (#3042)
 - fix(bot): autoplay catches covers and other versions whose title carries a suffix like "(BBC)" or "- ...Revisited", no longer replays a song that just played under another version, and treats an artist's official channel ("Queen Official") as that artist (#3040)
