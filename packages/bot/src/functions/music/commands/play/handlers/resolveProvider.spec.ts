@@ -12,6 +12,7 @@ const spotifyBlockRemainingSecondsMock = jest.fn<() => number>()
 jest.mock('@lucky/shared/utils', () => ({
     warnLog: warnLogMock,
     infoLog: infoLogMock,
+    debugLog: jest.fn(),
 }))
 
 jest.mock('../../../../../handlers/player/spotifyApiFailureLog', () => ({

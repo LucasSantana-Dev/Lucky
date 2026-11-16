@@ -20,6 +20,7 @@ import {
     spotifyBlockRemainingSeconds,
 } from '../../../../../handlers/player/spotifyApiFailureLog'
 import { isHostedYoutubeEnabled } from '../../../../../config/featureFlags'
+import { resolveGuildQueue } from '../../../../../services/musicManagement/queueResolver'
 import { holdLoadingTrack } from './holdLoadingTrack'
 import { parseYoutubeLink, type YoutubeLink } from '../queryDetector'
 import {
@@ -407,8 +408,9 @@ export async function resolveQueryWithFallbacks(
 ): Promise<Resolution> {
     // A request made while the next track loads must not let play() start
     // the track queued behind it (see holdLoadingTrack).
+    const guildId = voiceChannel.guild?.id
     const release = holdLoadingTrack(
-        player.nodes?.get(voiceChannel.guild?.id ?? ''),
+        guildId ? resolveGuildQueue({ player }, guildId).queue : null,
     )
     try {
         return await resolveQuery(
