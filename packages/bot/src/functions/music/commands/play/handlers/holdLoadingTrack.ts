@@ -35,14 +35,14 @@ export function holdLoadingTrack(
             dropped: false,
         }
         holds.set(queue, hold)
-        queue.node.play = (async (res, options) => {
+        queue.node.play = ((res, options) => {
             if (
                 res == null &&
                 queue.currentTrack != null &&
                 !queue.isPlaying()
             ) {
                 hold.dropped = true
-                return
+                return Promise.resolve()
             }
             return hold.original.call(queue.node, res, options)
         }) as NodePlay
