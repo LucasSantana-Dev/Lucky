@@ -451,10 +451,14 @@ export class MusicWatchdogService {
                         undefined,
                         {
                             skipCurrentTrack: true,
-                            // Same process: its autoplay picks are current,
-                            // and with the current track skipped they may be
-                            // all that is left to resume.
-                            keepAutoplay: true,
+                            // A live queue's autoplay picks come from this
+                            // process, and with the current track skipped
+                            // they may be all that is left to resume. A queue
+                            // created here restores a persisted snapshot, as
+                            // after a restart, so its picks are dropped (and
+                            // connect() above already started the lifecycle
+                            // restore, which drops them too).
+                            keepAutoplay: Boolean(existingQueue),
                             signal: restoreController.signal,
                         },
                     )

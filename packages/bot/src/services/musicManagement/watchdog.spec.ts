@@ -257,7 +257,7 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         expect(queue.connect).toHaveBeenCalledWith(voiceChannel)
         expect(restoreSnapshotMock).toHaveBeenCalledWith(queue, undefined, {
             skipCurrentTrack: true,
-            keepAutoplay: true,
+            keepAutoplay: false,
             signal: expect.any(AbortSignal),
         })
         expect(service.getGuildState('guild-recover')).toEqual(
