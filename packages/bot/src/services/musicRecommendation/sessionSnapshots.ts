@@ -145,6 +145,9 @@ const EMPTY_RESTORE_RESULT: SnapshotRestoreResult = {
 type RestoreOptions = {
     maxAgeMs?: number
     skipCurrentTrack?: boolean
+    // Keep queued autoplay picks. Only for an in-process recovery, where
+    // the picks came from the running build and are still current.
+    keepAutoplay?: boolean
     signal?: AbortSignal
 }
 
@@ -451,7 +454,13 @@ export class MusicSessionSnapshotService {
                 ...(snapshot.currentTrack && !options.skipCurrentTrack
                     ? [snapshot.currentTrack]
                     : []),
-                ...snapshot.upcomingTracks,
+                // After a restart, queued autoplay picks are dropped: the
+                // recommender that chose them ran before it (often an older
+                // build), and autoplay refills the queue from the restored
+                // track anyway. Replaying them looked like random songs.
+                ...snapshot.upcomingTracks.filter(
+                    (t) => options.keepAutoplay || !t.isAutoplay,
+                ),
             ]
 
             let restoredCount = 0
