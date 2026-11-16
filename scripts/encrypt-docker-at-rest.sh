@@ -24,6 +24,8 @@ echo ">> image tag: $TAG  container size: $SZ"
 sudo apt-get install -y cryptsetup rsync
 
 DUMP=~/lucky-pre-luks-$(date +%F).sql.gz
+# The dump is plaintext user data: create it owner-only.
+umask 077
 docker exec lucky-postgres pg_dumpall -U discordbot | gzip > "$DUMP"
 echo ">> backup: $DUMP ($(du -h "$DUMP" | cut -f1))"
 
@@ -37,21 +39,24 @@ sudo mkfs.ext4 -L dockercrypt /dev/mapper/dockercrypt
 
 echo ">> downtime starts"
 docker compose down
-sudo systemctl stop docker.socket docker.service containerd.service
+# Option A: Docker must never autostart on an empty, unmounted /var/lib/docker.
+# Disable before the move, so a reboot mid-migration cannot start it there.
+sudo systemctl disable docker.service docker.socket containerd.service
 # Without the mask, any `docker` command (another shell, a deploy) re-activates
 # dockerd via docker.socket mid-copy and it writes into the half-copied target.
+# Mask before stopping, so nothing can re-activate it in between.
 # --runtime: the mask lives in /run and is gone after a reboot.
 sudo systemctl mask --runtime docker.socket docker.service containerd.service
+trap 'echo "!! failed mid-migration: Docker units are still stopped and masked."; sudo systemctl unmask --runtime docker.socket docker.service containerd.service; echo "!! units unmasked. Follow Rollback in docs/runbooks/encryption-at-rest.md."' ERR
+sudo systemctl stop docker.socket docker.service containerd.service
 sudo mv /var/lib/docker /var/lib/docker.plain
 sudo mkdir /var/lib/docker
 sudo mount /dev/mapper/dockercrypt /var/lib/docker
 sudo rsync -aHAXS --numeric-ids /var/lib/docker.plain/ /var/lib/docker/
 sudo systemctl unmask --runtime docker.socket docker.service containerd.service
+trap - ERR
 sudo systemctl start containerd.service docker.service
 IMAGE_TAG=$TAG docker compose up -d
-
-# Option A: Docker must never autostart on an empty, unmounted /var/lib/docker.
-sudo systemctl disable docker.service docker.socket containerd.service
 
 sleep 20
 echo ">> checks"

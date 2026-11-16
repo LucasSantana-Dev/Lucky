@@ -64,7 +64,11 @@ data: keep it out of the repo, encrypt it if it leaves the host, delete it when 
 migration is verified.
 
 ```bash
-docker exec lucky-postgres pg_dumpall -U discordbot | gzip > ~/lucky-pre-luks-$(date +%F).sql.gz && ls -lh ~/lucky-pre-luks-*.sql.gz
+(zsh: `pipefail` makes a failed `pg_dumpall` fail the line instead of leaving a
+partial dump; the subshell keeps `umask 077` and `pipefail` out of your shell.)
+
+```bash
+(umask 077; setopt pipefail; docker exec lucky-postgres pg_dumpall -U discordbot | gzip > ~/lucky-pre-luks-$(date +%F).sql.gz) && ls -lh ~/lucky-pre-luks-*.sql.gz
 ```
 
 ## 2. Create and open the encrypted container
@@ -90,16 +94,14 @@ sudo cryptsetup open /srv/docker-crypt.img dockercrypt && sudo mkfs.ext4 -L dock
 docker compose down
 ```
 
-```bash
-sudo systemctl stop docker.socket docker.service containerd.service
-```
-
-Mask the units until the copy is done. Without this, any `docker` command (another
-shell, a deploy) re-activates dockerd through `docker.socket`, and it writes into the
-half-copied target. `--runtime` keeps the mask in `/run`, so a reboot clears it.
+Mask the units first, then stop them, and keep them masked until the copy is done.
+Without the mask, any `docker` command (another shell, a deploy) re-activates
+dockerd through `docker.socket`, and it writes into the half-copied target. Masking
+before stopping leaves no window for that. `--runtime` keeps the mask in `/run`, so
+a reboot clears it.
 
 ```bash
-sudo systemctl mask --runtime docker.socket docker.service containerd.service
+sudo systemctl mask --runtime docker.socket docker.service containerd.service && sudo systemctl stop docker.socket docker.service containerd.service
 ```
 
 ```bash
@@ -208,16 +210,25 @@ passphrase from step 2 still works as a fallback.
 The old plaintext copy still holds all the data. Remove it, and the dump from step 1:
 
 ```bash
-sudo rm -rf /var/lib/docker.plain && shred -u ~/lucky-pre-luks-*.sql.gz
+sudo rm -rf /var/lib/docker.plain && shred -u ~/lucky-pre-luks-*.sql.gz && sudo fstrim -v /
 ```
+
+Deleting does not erase the blocks. On the prod SSD, `shred` cannot guarantee an
+overwrite either (wear levelling remaps writes). `fstrim` tells the SSD to discard
+the freed blocks, which on most drives makes them read back as zeros, but it is not
+a guaranteed secure erase. The only full guarantee for data that once sat on this
+disk in plaintext is full-disk encryption of the host disk, or wiping the disk.
 
 ## Rollback
 
 If anything in step 4 fails and you have not run step 6:
 
 ```bash
-docker compose down; sudo systemctl stop docker.socket docker.service containerd.service; sudo umount /var/lib/docker && sudo rmdir /var/lib/docker && sudo mv /var/lib/docker.plain /var/lib/docker && sudo cryptsetup close dockercrypt && sudo systemctl start containerd docker
+docker compose down; sudo systemctl stop docker.socket docker.service containerd.service; sudo umount /var/lib/docker && sudo rmdir /var/lib/docker && sudo mv /var/lib/docker.plain /var/lib/docker && sudo cryptsetup close dockercrypt && sudo systemctl unmask --runtime docker.socket docker.service containerd.service && sudo systemctl enable --now containerd docker
 ```
+
+(The unmask covers a failure before step 4 unmasked the units; `enable` undoes the
+step 5 option A disable, since the plain directory needs no unlock.)
 
 Then start the stack with `IMAGE_TAG` as in step 4. If the data itself is damaged,
 restore the dump from step 1 with `gunzip -c <file> | docker exec -i lucky-postgres psql -U discordbot -d postgres`.
@@ -232,5 +243,7 @@ restore the dump from step 1 with `gunzip -c <file> | docker exec -i lucky-postg
   job must write encrypted output (for example `age` or `gpg`) to count as
   encrypted at rest.
 
-After this runbook (and step 5), answer "Yes" to both "Are you encrypting the data
-that you store at rest" questions in the Discord intents form.
+The Discord intents form asks "Are you encrypting the data that you store at rest".
+Answer "Yes" only when every store that holds Discord API data is encrypted: this
+runbook through step 6 (the plaintext copy removed), plus the `./logs` bind mount and
+any backups from the list above if they hold API data.
