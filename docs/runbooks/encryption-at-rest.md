@@ -235,15 +235,17 @@ restore the dump from step 1 with `gunzip -c <file> | docker exec -i lucky-postg
 
 ## Not covered
 
-- Bind mounts under the repo checkout (`./logs`, `./secrets`, `./downloads` in
-  `docker-compose.yml`) stay on the plain disk. `./secrets` holds credentials and
-  `./logs` may hold user identifiers: move the checkout onto an encrypted path too
-  if you want full coverage.
-- Database backups: none are automated in this repo today. Any future `pg_dump`
-  job must write encrypted output (for example `age` or `gpg`) to count as
-  encrypted at rest.
+- Bind mounts under the repo checkout (`./secrets`, `./downloads` in
+  `docker-compose.yml`) stay on the plain disk. `./secrets` holds credentials, not
+  Discord API data. Bot logs use the `bot_logs` named volume, so they live under
+  `/var/lib/docker` and are covered.
+- Database backups: the homelab cron job `lucky-db-backup`
+  (`~/homelab/scripts/maintenance/recover-lucky-db.sh --backup-only`, daily 03:00)
+  writes plain `pg_dump` files to `~/homelab/backups/lucky` on the plain disk, with
+  no retention. They must be encrypted (for example `age` or `gpg`) or written to an
+  encrypted path to count as encrypted at rest.
 
 The Discord intents form asks "Are you encrypting the data that you store at rest".
 Answer "Yes" only when every store that holds Discord API data is encrypted: this
-runbook through step 6 (the plaintext copy removed), plus the `./logs` bind mount and
-any backups from the list above if they hold API data.
+runbook through step 6 (the plaintext copy removed), plus the database backups from
+the list above.
