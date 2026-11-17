@@ -582,4 +582,71 @@ describe('nowPlayingDisplay', () => {
             )
         })
     })
+
+    // The controls were edited in place on every track, so once the chat
+    // moved on an autoplay pick updated a message nobody could see.
+    describe('buried controls', () => {
+        const setup = (newerCount: number) => {
+            const previous = {
+                id: 'previous-message',
+                edit: jest.fn().mockResolvedValue(undefined),
+                react: jest.fn().mockResolvedValue(undefined),
+                delete: jest.fn().mockResolvedValue(undefined),
+            }
+            const fresh = {
+                id: 'fresh-message',
+                react: jest.fn().mockResolvedValue(undefined),
+            }
+            const newer = new Map(
+                Array.from({ length: newerCount }, (_, i) => [`m${i}`, {}]),
+            )
+            ;(mockChannel.messages as unknown) = {
+                fetch: jest.fn(async (arg: unknown) =>
+                    typeof arg === 'string' ? previous : newer,
+                ),
+            }
+            return { previous, fresh }
+        }
+
+        const playTwice = async (previous: object, fresh: object) => {
+            ;(mockChannel.send as jest.Mock).mockResolvedValueOnce(previous)
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                false,
+            )
+            ;(mockChannel.send as jest.Mock).mockResolvedValueOnce(fresh)
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                true,
+            )
+        }
+
+        it('reposts the controls at the bottom once other messages bury them', async () => {
+            mockGuild.id = 'guild-buried'
+            const { previous, fresh } = setup(5)
+
+            await playTwice(previous, fresh)
+
+            expect(previous.edit).not.toHaveBeenCalled()
+            expect(previous.delete).toHaveBeenCalledTimes(1)
+            expect(mockChannel.send).toHaveBeenCalledTimes(2)
+            expect(mockChannel.messages?.fetch).toHaveBeenCalledWith({
+                after: 'previous-message',
+                limit: 5,
+            })
+        })
+
+        it('edits the controls in place while they are still near the bottom', async () => {
+            mockGuild.id = 'guild-visible'
+            const { previous, fresh } = setup(4)
+
+            await playTwice(previous, fresh)
+
+            expect(previous.edit).toHaveBeenCalledTimes(1)
+            expect(previous.delete).not.toHaveBeenCalled()
+            expect(mockChannel.send).toHaveBeenCalledTimes(1)
+        })
+    })
 })

@@ -296,6 +296,40 @@ async function tryUpdateExistingNowPlayingMessage(
     }
 }
 
+// Messages after the controls before they count as out of sight.
+const BURIED_AFTER = 5
+
+async function isBuried(
+    channel: NonNullable<QueueMetadata['channel']>,
+    messageId: string,
+): Promise<boolean> {
+    try {
+        const newer = await channel.messages.fetch({
+            after: messageId,
+            limit: BURIED_AFTER,
+        })
+        return newer.size >= BURIED_AFTER
+    } catch {
+        return false
+    }
+}
+
+async function deleteQuietly(
+    channel: NonNullable<QueueMetadata['channel']>,
+    messageId: string,
+): Promise<void> {
+    try {
+        const message = await channel.messages.fetch(messageId)
+        await message.delete()
+    } catch (error) {
+        debugLog({
+            message: 'Failed to delete buried now playing message',
+            error,
+            data: { messageId },
+        })
+    }
+}
+
 async function buildNowPlayingFooter(
     queue: GuildQueue,
     track: Track,
@@ -384,7 +418,17 @@ export async function sendNowPlayingEmbed(
     const moreLabel = t('music.messages.moreControls')
 
     const previousMessage = getSongInfoMessage(queue.guild.id)
-    if (previousMessage && previousMessage.channelId === metadata.channel.id) {
+    const sameChannel =
+        previousMessage && previousMessage.channelId === metadata.channel.id
+    if (
+        sameChannel &&
+        (await isBuried(metadata.channel, previousMessage.messageId))
+    ) {
+        // Chat moved on: post the controls again at the bottom and drop the
+        // old copy, so there is still only one controls message.
+        await deleteQuietly(metadata.channel, previousMessage.messageId)
+        deleteSongInfoMessage(queue.guild.id)
+    } else if (sameChannel) {
         const updated = await tryUpdateExistingNowPlayingMessage(
             queue,
             metadata.channel,
