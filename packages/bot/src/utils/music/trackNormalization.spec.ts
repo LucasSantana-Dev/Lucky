@@ -94,6 +94,12 @@ describe('primaryArtistKey', () => {
         expect(primaryArtistKey(author)).toBe(expected)
     })
 
+    it('keys a composed and a decomposed accent as one artist', () => {
+        expect(primaryArtistKey('ANAVITÓRIA')).toBe(
+            primaryArtistKey('ANAVITÓRIA'),
+        )
+    })
+
     it('keeps the casing in primaryArtistName', () => {
         expect(primaryArtistName('Michael Jackson feat. Steve Aoki')).toBe(
             'Michael Jackson',

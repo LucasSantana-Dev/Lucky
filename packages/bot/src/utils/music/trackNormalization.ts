@@ -21,9 +21,10 @@ const EXTRA_CREDIT_RE = /;|\s\(?(?:feat\.|ft\.|(?:feat|ft|featuring)\s)/i
  * Also cuts "feat." / "ft." / "featuring" / ";" credits, bare or in
  * parentheses, which `primaryArtist` keeps: that one feeds
  * `normalizeTrackKey`, and changing it would orphan stored vote keys.
+ * NFC so a composed and a decomposed "é" from two providers are one artist.
  */
 export function primaryArtistKey(author: string): string {
-    return primaryArtistName(author).toLowerCase()
+    return primaryArtistName(author).normalize('NFC').toLowerCase()
 }
 
 /** `primaryArtistKey` with the original casing, for artist lookups. */
