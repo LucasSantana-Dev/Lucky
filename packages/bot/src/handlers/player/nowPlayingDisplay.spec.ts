@@ -595,15 +595,17 @@ describe('nowPlayingDisplay', () => {
             }
             const fresh = {
                 id: 'fresh-message',
+                edit: jest.fn().mockResolvedValue(undefined),
                 react: jest.fn().mockResolvedValue(undefined),
             }
             const newer = new Map(
                 Array.from({ length: newerCount }, (_, i) => [`m${i}`, {}]),
             )
             ;(mockChannel.messages as unknown) = {
-                fetch: jest.fn(async (arg: unknown) =>
-                    typeof arg === 'string' ? previous : newer,
-                ),
+                fetch: jest.fn(async (arg: unknown) => {
+                    if (typeof arg !== 'string') return newer
+                    return arg === fresh.id ? fresh : previous
+                }),
             }
             return { previous, fresh }
         }
@@ -650,6 +652,51 @@ describe('nowPlayingDisplay', () => {
             expect(previous.edit).not.toHaveBeenCalledWith({ components: [] })
             expect(previous.delete).not.toHaveBeenCalled()
             expect(mockChannel.send).toHaveBeenCalledTimes(1)
+        })
+
+        it('updates in place, without a second copy, when the buttons cannot be removed', async () => {
+            mockGuild.id = 'guild-strip-fails'
+            const { previous, fresh } = setup(5)
+            previous.edit.mockImplementation(async (payload: unknown) => {
+                if ((payload as { embeds?: unknown }).embeds) return undefined
+                throw new Error('Missing Access')
+            })
+
+            await playTwice(previous, fresh)
+
+            expect(previous.edit).toHaveBeenCalledWith({ components: [] })
+            expect(previous.edit).toHaveBeenCalledWith(
+                expect.objectContaining({ components: ['compact-row'] }),
+            )
+            expect(mockChannel.send).toHaveBeenCalledTimes(1)
+        })
+
+        it('posts one replacement when two tracks start at once', async () => {
+            mockGuild.id = 'guild-concurrent'
+            const { previous, fresh } = setup(5)
+            ;(mockChannel.send as jest.Mock).mockResolvedValueOnce(previous)
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                false,
+            )
+            ;(mockChannel.send as jest.Mock).mockResolvedValue(fresh)
+
+            await Promise.all([
+                sendNowPlayingEmbed(
+                    mockQueue as GuildQueue,
+                    mockTrack as Track,
+                    true,
+                ),
+                sendNowPlayingEmbed(
+                    mockQueue as GuildQueue,
+                    mockTrack as Track,
+                    true,
+                ),
+            ])
+
+            // The second send sees the replacement, not the old message.
+            expect(previous.edit).toHaveBeenCalledTimes(1)
         })
     })
 })

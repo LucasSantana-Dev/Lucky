@@ -315,20 +315,23 @@ async function isBuried(
 }
 
 // Edits, never deletes: the old message stays as history, only its buttons
-// go, so there is still one set of controls in the channel.
+// go, so there is still one set of controls in the channel. False when the
+// buttons could not be removed, so the caller must not post a second copy.
 async function removeButtonsQuietly(
     channel: NonNullable<QueueMetadata['channel']>,
     messageId: string,
-): Promise<void> {
+): Promise<boolean> {
     try {
         const message = await channel.messages.fetch(messageId)
         await message.edit({ components: [] })
+        return true
     } catch (error) {
         debugLog({
             message: 'Failed to remove buttons from buried now playing message',
             error,
             data: { messageId },
         })
+        return false
     }
 }
 
@@ -402,7 +405,28 @@ async function buildNowPlayingEmbed(
     return embed
 }
 
-export async function sendNowPlayingEmbed(
+// One send at a time per guild: two track starts at once would both see the
+// same cached message as buried and each post a copy of the controls.
+const sendChains = new Map<string, Promise<void>>()
+
+export function sendNowPlayingEmbed(
+    queue: GuildQueue,
+    track: Track,
+    isAutoplay: boolean,
+): Promise<void> {
+    const guildId = queue.guild.id
+    const run = (sendChains.get(guildId) ?? Promise.resolve()).then(() =>
+        sendNowPlayingEmbedNow(queue, track, isAutoplay),
+    )
+    const tail = run.catch(() => undefined)
+    sendChains.set(guildId, tail)
+    void tail.then(() => {
+        if (sendChains.get(guildId) === tail) sendChains.delete(guildId)
+    })
+    return run
+}
+
+async function sendNowPlayingEmbedNow(
     queue: GuildQueue,
     track: Track,
     isAutoplay: boolean,
@@ -424,11 +448,15 @@ export async function sendNowPlayingEmbed(
         previousMessage && previousMessage.channelId === metadata.channel.id
     if (
         sameChannel &&
-        (await isBuried(metadata.channel, previousMessage.messageId))
+        (await isBuried(metadata.channel, previousMessage.messageId)) &&
+        // Chat moved on: post the controls again at the bottom once the old
+        // copy lost its buttons, so only one message has controls. If that
+        // edit fails, update the old message in place instead.
+        (await removeButtonsQuietly(
+            metadata.channel,
+            previousMessage.messageId,
+        ))
     ) {
-        // Chat moved on: post the controls again at the bottom and take the
-        // buttons off the old copy, so only one message has controls.
-        await removeButtonsQuietly(metadata.channel, previousMessage.messageId)
         deleteSongInfoMessage(queue.guild.id)
     } else if (sameChannel) {
         const updated = await tryUpdateExistingNowPlayingMessage(
