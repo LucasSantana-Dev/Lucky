@@ -273,7 +273,9 @@ export interface ScoringContext {
 // karaoke take or mashup. Only where a marker is structural (inside brackets,
 // after a " - " separator, or in the channel name), so real titles like "The
 // Cover of Rolling Stone" or Tenacious D's "Tribute" stay eligible.
-const OTHER_VERSION_WORDS = String.raw`\b(?:covers?|covered|tribute|karaoke)\b`
+// Karaoke labels credit the original instead: "(made popular by X)",
+// "- Originally Performed by X", "(In the Style of X)", "[backing version]".
+const OTHER_VERSION_WORDS = String.raw`\b(?:covers?|covered|tribute|karaoke|made\s+(?:popular|famous)\s+by|originally\s+performed\s+by|in\s+the\s+style\s+of|backing\s+(?:version|track))\b`
 const OTHER_VERSION_TITLE_RE = new RegExp(
     String.raw`[([][^)\]]*${OTHER_VERSION_WORDS}[^)\]]*[)\]]|\s[-–—|]\s.*${OTHER_VERSION_WORDS}|\bmash-?up\b`,
     'i',

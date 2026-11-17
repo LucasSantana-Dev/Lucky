@@ -29,7 +29,10 @@ import {
     cleanSearchQuery,
     cleanAuthor,
 } from '../../utils/music/searchQueryCleaner'
-import { normalizeTrackKey } from '../../utils/music/trackNormalization'
+import {
+    normalizeTrackKey,
+    primaryArtistKey,
+} from '../../utils/music/trackNormalization'
 
 const AUTOPLAY_BUFFER_SIZE = 8
 const SEARCH_RESULTS_LIMIT = 8
@@ -138,6 +141,10 @@ export async function collectBroadFallbackCandidates(
         ctx.currentTrack.author,
         `${ctx.currentTrack.author} popular`,
     ].filter(Boolean)
+    // The queries name the current artist, so only that artist's tracks
+    // belong here: a text search for "Michael Jackson" also returns karaoke
+    // labels whose titles credit him ("made popular by Michael Jackson").
+    const currentArtist = primaryArtistKey(ctx.currentTrack.author)
 
     for (const query of fallbackQueries) {
         // Spotify-only fallback: while Spotify is 429-blocked or this
@@ -156,8 +163,9 @@ export async function collectBroadFallbackCandidates(
             const tracks = result.tracks
                 .filter(
                     (t: Track) =>
-                        !t.durationMS ||
-                        t.durationMS <= MAX_AUTOPLAY_DURATION_MS,
+                        (!t.durationMS ||
+                            t.durationMS <= MAX_AUTOPLAY_DURATION_MS) &&
+                        primaryArtistKey(t.author) === currentArtist,
                 )
                 .slice(0, SEARCH_RESULTS_LIMIT)
 

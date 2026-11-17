@@ -72,6 +72,13 @@ jest.mock('../../utils/music/searchQueryCleaner', () => ({
 }))
 
 jest.mock('../../utils/music/trackNormalization', () => ({
+    // The real helper, so the fallback's artist gate is tested as it runs.
+    primaryArtistKey: (author: string) =>
+        jest
+            .requireActual<
+                typeof import('../../utils/music/trackNormalization')
+            >('../../utils/music/trackNormalization')
+            .primaryArtistKey(author),
     normalizeTrackKey: (...args: unknown[]) => normalizeTrackKeyMock(...args),
     calculateGenreFamilyPenalty: (...args: unknown[]) =>
         calculateGenreFamilyPenaltyMock(...args),
@@ -434,6 +441,12 @@ describe('collectBroadFallbackCandidates', () => {
         createArtistTagFetcherMock.mockReturnValue((...args: unknown[]) =>
             artistTagFetcherMock(...args),
         )
+        // primaryArtistKey cleans the author first.
+        cleanAuthorMock.mockImplementation(
+            jest.requireActual<
+                typeof import('../../utils/music/searchQueryCleaner')
+            >('../../utils/music/searchQueryCleaner').cleanAuthor as never,
+        )
     })
 
     it('makes no Spotify search while Spotify is blocked (#2972)', async () => {
@@ -521,8 +534,9 @@ describe('collectBroadFallbackCandidates', () => {
 
     it('adds candidates from search and fetches artist tags', async () => {
         const foundTrack = {
-            title: 'Hallelujah',
-            author: 'Felipe Dutra',
+            title: 'Princess of China',
+            // A feature credit: same primary artist, a different author.
+            author: 'Coldplay, Rihanna',
             url: 'u2',
             durationMS: 180_000,
         }
@@ -547,7 +561,7 @@ describe('collectBroadFallbackCandidates', () => {
         await collectBroadFallbackCandidates(ctx, candidates)
 
         expect(upsertScoredCandidateMock).toHaveBeenCalled()
-        expect(getArtistTagsMock).toHaveBeenCalledWith('Felipe Dutra')
+        expect(getArtistTagsMock).toHaveBeenCalledWith('Coldplay, Rihanna')
         expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 genreContext: expect.objectContaining({
@@ -557,10 +571,55 @@ describe('collectBroadFallbackCandidates', () => {
         )
     })
 
+    // Prod, 2026-11-17: searching "Michael Jackson" returned a karaoke label's
+    // "You Rock My World (made popular by Michael Jackson)", which autoplay
+    // then played. The fallback searches the current artist, so only that
+    // artist's tracks belong in it.
+    it('keeps only tracks by the current artist', async () => {
+        const searchMock = jest.fn().mockResolvedValue({
+            tracks: [
+                {
+                    title: 'You Rock My World (made popular by Michael Jackson)',
+                    author: 'Party Tyme',
+                    url: 'u2',
+                    durationMS: 180_000,
+                },
+                {
+                    title: 'Billie Jean',
+                    author: 'Michael Jackson',
+                    url: 'u3',
+                    durationMS: 180_000,
+                },
+            ],
+        })
+        const ctx = createAutoplayContext({
+            queue: { player: { search: searchMock } } as never,
+            currentTrack: {
+                author: 'Michael Jackson',
+                title: 'Human Nature',
+                url: 'u1',
+                durationMS: 200_000,
+            } as never,
+        })
+
+        await collectBroadFallbackCandidates(ctx, new Map())
+
+        const added = upsertScoredCandidateMock.mock.calls.map(
+            (call) => (call[1] as { author: string }).author,
+        )
+        expect(added.length).toBeGreaterThan(0)
+        expect(added.every((author) => author === 'Michael Jackson')).toBe(true)
+    })
+
     it('passes the seed-artist streak to the scorer (#2961)', async () => {
         const searchMock = jest.fn().mockResolvedValue({
             tracks: [
-                { title: 'Found', author: 'B', url: 'u2', durationMS: 180_000 },
+                {
+                    title: 'Found',
+                    author: 'Artist',
+                    url: 'u2',
+                    durationMS: 180_000,
+                },
             ],
         })
         const ctx = createAutoplayContext({

@@ -395,7 +395,7 @@ describe('queueManipulation.replenishQueue', () => {
                             tracks: [
                                 {
                                     title: 'Fallback Song',
-                                    author: 'Fallback Artist',
+                                    author: 'Artist A',
                                     url: fallbackUrl,
                                 },
                             ],
