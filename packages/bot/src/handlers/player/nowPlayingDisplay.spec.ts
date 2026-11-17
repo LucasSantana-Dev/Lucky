@@ -582,4 +582,126 @@ describe('nowPlayingDisplay', () => {
             )
         })
     })
+
+    // The controls were edited in place on every track, so once the chat
+    // moved on an autoplay pick updated a message nobody could see.
+    describe('buried controls', () => {
+        const setup = (newerCount: number) => {
+            const previous = {
+                id: 'previous-message',
+                edit: jest.fn().mockResolvedValue(undefined),
+                react: jest.fn().mockResolvedValue(undefined),
+                delete: jest.fn().mockResolvedValue(undefined),
+            }
+            const fresh = {
+                id: 'fresh-message',
+                edit: jest.fn().mockResolvedValue(undefined),
+                react: jest.fn().mockResolvedValue(undefined),
+            }
+            const newer = new Map(
+                Array.from({ length: newerCount }, (_, i) => [`m${i}`, {}]),
+            )
+            ;(mockChannel.messages as unknown) = {
+                fetch: jest.fn(async (arg: unknown) => {
+                    if (typeof arg !== 'string') return newer
+                    return arg === fresh.id ? fresh : previous
+                }),
+            }
+            return { previous, fresh }
+        }
+
+        const playTwice = async (previous: object, fresh: object) => {
+            ;(mockChannel.send as jest.Mock).mockResolvedValueOnce(previous)
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                false,
+            )
+            ;(mockChannel.send as jest.Mock).mockResolvedValueOnce(fresh)
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                true,
+            )
+        }
+
+        it('reposts the controls at the bottom once other messages bury them', async () => {
+            mockGuild.id = 'guild-buried'
+            const { previous, fresh } = setup(5)
+
+            await playTwice(previous, fresh)
+
+            // Buttons come off the old copy; it is never deleted.
+            expect(previous.edit).toHaveBeenCalledTimes(1)
+            expect(previous.edit).toHaveBeenCalledWith({ components: [] })
+            expect(previous.delete).not.toHaveBeenCalled()
+            expect(mockChannel.send).toHaveBeenCalledTimes(2)
+            expect(mockChannel.messages?.fetch).toHaveBeenCalledWith({
+                after: 'previous-message',
+                limit: 5,
+            })
+        })
+
+        it('edits the controls in place while they are still near the bottom', async () => {
+            mockGuild.id = 'guild-visible'
+            const { previous, fresh } = setup(4)
+
+            await playTwice(previous, fresh)
+
+            expect(previous.edit).toHaveBeenCalledTimes(1)
+            expect(previous.edit).not.toHaveBeenCalledWith(
+                expect.objectContaining({ components: [] }),
+            )
+            expect(previous.edit).toHaveBeenCalledWith(
+                expect.objectContaining({ components: ['compact-row'] }),
+            )
+            expect(previous.delete).not.toHaveBeenCalled()
+            expect(mockChannel.send).toHaveBeenCalledTimes(1)
+        })
+
+        it('updates in place, without a second copy, when the buttons cannot be removed', async () => {
+            mockGuild.id = 'guild-strip-fails'
+            const { previous, fresh } = setup(5)
+            previous.edit.mockImplementation(async (payload: unknown) => {
+                if ((payload as { embeds?: unknown }).embeds) return undefined
+                throw new Error('Missing Access')
+            })
+
+            await playTwice(previous, fresh)
+
+            expect(previous.edit).toHaveBeenCalledWith({ components: [] })
+            expect(previous.edit).toHaveBeenCalledWith(
+                expect.objectContaining({ components: ['compact-row'] }),
+            )
+            expect(mockChannel.send).toHaveBeenCalledTimes(1)
+        })
+
+        it('posts one replacement when two tracks start at once', async () => {
+            mockGuild.id = 'guild-concurrent'
+            const { previous, fresh } = setup(5)
+            ;(mockChannel.send as jest.Mock).mockResolvedValueOnce(previous)
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                false,
+            )
+            ;(mockChannel.send as jest.Mock).mockResolvedValue(fresh)
+
+            await Promise.all([
+                sendNowPlayingEmbed(
+                    mockQueue as GuildQueue,
+                    mockTrack as Track,
+                    true,
+                ),
+                sendNowPlayingEmbed(
+                    mockQueue as GuildQueue,
+                    mockTrack as Track,
+                    true,
+                ),
+            ])
+
+            // The second send sees the replacement, not the old message.
+            expect(previous.edit).toHaveBeenCalledTimes(1)
+        })
+    })
 })
