@@ -24,6 +24,7 @@ describe('albumIntentQuery', () => {
         )
         expect(albumIntentQuery('Esquinas Álbum Completo')).toBe('Esquinas')
         expect(albumIntentQuery('full album abbey road')).toBe('abbey road')
+        expect(albumIntentQuery('álbum: esquinas, completo')).toBe('esquinas,')
     })
 
     it('returns null without an album word, for a link, or for nothing else', () => {
@@ -48,7 +49,7 @@ describe('resolveAlbumIntent', () => {
         ).resolves.toBe('https://open.spotify.com/album/esq')
         expect(searchSpotifyAlbums).toHaveBeenCalledWith(
             'esquinas anavitória',
-            5,
+            20,
         )
     })
 
@@ -84,6 +85,12 @@ describe('resolveAlbumIntent', () => {
         await expect(resolveAlbumIntent('album anavitoria')).resolves.toBe(
             'https://open.spotify.com/album/self',
         )
+    })
+
+    it('keeps marks outside Latin scripts when matching names', async () => {
+        searchSpotifyAlbums.mockResolvedValue([album('क', 'X', 'ka')])
+
+        await expect(resolveAlbumIntent('album कु')).resolves.toBeNull()
     })
 
     it('does not search without an album word', async () => {

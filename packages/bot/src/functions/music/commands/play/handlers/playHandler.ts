@@ -234,8 +234,12 @@ export async function executePlayHandler({
         normalizeSoundCloudUrl(expandedQuery),
     )
     // "album esquinas anavitória completo": queue the album's link, which
-    // plays the whole album, instead of searching for a single track.
-    const query = (await resolveAlbumIntent(normalizedQuery)) ?? normalizedQuery
+    // plays the whole album, instead of searching for a single track. A
+    // YouTube or SoundCloud provider choice keeps its own search.
+    const query =
+        provider && provider !== 'spotify'
+            ? normalizedQuery
+            : ((await resolveAlbumIntent(normalizedQuery)) ?? normalizedQuery)
 
     const collaborativeCheck = collaborativePlaylistService.canAddTracks(
         interaction.guildId,

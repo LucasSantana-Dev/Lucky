@@ -11,15 +11,19 @@ const FULL_WORDS = new Set([
 ])
 
 function fold(word: string): string {
-    return word
-        .normalize('NFD')
-        .replaceAll(/\p{M}+/gu, '')
-        .toLowerCase()
+    return (
+        word
+            .normalize('NFD')
+            // Latin accents only: in other scripts a mark changes the word.
+            .replaceAll(/(\p{Script=Latin})\p{M}+/gu, '$1')
+            .toLowerCase()
+            .replaceAll(/^[^\p{L}\p{M}\p{N}]+|[^\p{L}\p{M}\p{N}]+$/gu, '')
+    )
 }
 
 function wordsOf(value: string): string[] {
     return fold(value)
-        .split(/[^\p{L}\p{N}]+/u)
+        .split(/[^\p{L}\p{M}\p{N}]+/u)
         .filter(Boolean)
 }
 
@@ -59,7 +63,7 @@ export async function resolveAlbumIntent(
             return words.length > 0 && words.every((w) => queryWords.has(w))
         }
         const requested = wordsOf(albumQuery).join(' ')
-        const matches = (await searchSpotifyAlbums(albumQuery, 5)).filter(
+        const matches = (await searchSpotifyAlbums(albumQuery, 20)).filter(
             (album) =>
                 within(album.name) &&
                 // A self-titled album only for the artist's name alone:
