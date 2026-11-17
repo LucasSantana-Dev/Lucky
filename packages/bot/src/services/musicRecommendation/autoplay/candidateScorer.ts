@@ -275,7 +275,7 @@ export interface ScoringContext {
 // Cover of Rolling Stone" or Tenacious D's "Tribute" stay eligible.
 // Karaoke labels credit the original instead: "(made popular by X)",
 // "- Originally Performed by X", "(In the Style of X)", "[backing version]".
-const OTHER_VERSION_WORDS = String.raw`\b(?:covers?|covered|tribute|karaoke|made (?:popular|famous) by|originally performed by|in the style of|backing (?:version|track))\b`
+const OTHER_VERSION_WORDS = String.raw`\b(?:covers?|covered|tribute|karaoke|made\s+(?:popular|famous)\s+by|originally\s+performed\s+by|in\s+the\s+style\s+of|backing\s+(?:version|track))\b`
 const OTHER_VERSION_TITLE_RE = new RegExp(
     String.raw`[([][^)\]]*${OTHER_VERSION_WORDS}[^)\]]*[)\]]|\s[-–—|]\s.*${OTHER_VERSION_WORDS}|\bmash-?up\b`,
     'i',

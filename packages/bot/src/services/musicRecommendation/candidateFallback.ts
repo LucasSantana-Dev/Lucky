@@ -144,7 +144,10 @@ export async function collectBroadFallbackCandidates(
     // The queries name the current artist, so only that artist's tracks
     // belong here: a text search for "Michael Jackson" also returns karaoke
     // labels whose titles credit him ("made popular by Michael Jackson").
-    const currentArtist = primaryArtistKey(ctx.currentTrack.author)
+    // NFC on both sides: providers can send "é" composed or decomposed.
+    const artistKey = (author: string) =>
+        primaryArtistKey(author.normalize('NFC'))
+    const currentArtist = artistKey(ctx.currentTrack.author)
 
     for (const query of fallbackQueries) {
         // Spotify-only fallback: while Spotify is 429-blocked or this
@@ -165,7 +168,7 @@ export async function collectBroadFallbackCandidates(
                     (t: Track) =>
                         (!t.durationMS ||
                             t.durationMS <= MAX_AUTOPLAY_DURATION_MS) &&
-                        primaryArtistKey(t.author) === currentArtist,
+                        artistKey(t.author) === currentArtist,
                 )
                 .slice(0, SEARCH_RESULTS_LIMIT)
 

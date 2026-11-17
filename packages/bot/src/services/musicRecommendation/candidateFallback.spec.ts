@@ -72,7 +72,13 @@ jest.mock('../../utils/music/searchQueryCleaner', () => ({
 }))
 
 jest.mock('../../utils/music/trackNormalization', () => ({
-    primaryArtistKey: (author: string) => author.split(',')[0].toLowerCase(),
+    // The real helper, so the fallback's artist gate is tested as it runs.
+    primaryArtistKey: (author: string) =>
+        jest
+            .requireActual<
+                typeof import('../../utils/music/trackNormalization')
+            >('../../utils/music/trackNormalization')
+            .primaryArtistKey(author),
     normalizeTrackKey: (...args: unknown[]) => normalizeTrackKeyMock(...args),
     calculateGenreFamilyPenalty: (...args: unknown[]) =>
         calculateGenreFamilyPenaltyMock(...args),
@@ -435,6 +441,12 @@ describe('collectBroadFallbackCandidates', () => {
         createArtistTagFetcherMock.mockReturnValue((...args: unknown[]) =>
             artistTagFetcherMock(...args),
         )
+        // primaryArtistKey cleans the author first.
+        cleanAuthorMock.mockImplementation(
+            jest.requireActual<
+                typeof import('../../utils/music/searchQueryCleaner')
+            >('../../utils/music/searchQueryCleaner').cleanAuthor as never,
+        )
     })
 
     it('makes no Spotify search while Spotify is blocked (#2972)', async () => {
@@ -522,8 +534,9 @@ describe('collectBroadFallbackCandidates', () => {
 
     it('adds candidates from search and fetches artist tags', async () => {
         const foundTrack = {
-            title: 'Fix You',
-            author: 'Coldplay',
+            title: 'Princess of China',
+            // A feature credit: same primary artist, a different author.
+            author: 'Coldplay, Rihanna',
             url: 'u2',
             durationMS: 180_000,
         }
@@ -548,7 +561,7 @@ describe('collectBroadFallbackCandidates', () => {
         await collectBroadFallbackCandidates(ctx, candidates)
 
         expect(upsertScoredCandidateMock).toHaveBeenCalled()
-        expect(getArtistTagsMock).toHaveBeenCalledWith('Coldplay')
+        expect(getArtistTagsMock).toHaveBeenCalledWith('Coldplay, Rihanna')
         expect(calculateRecommendationScoreMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 genreContext: expect.objectContaining({
