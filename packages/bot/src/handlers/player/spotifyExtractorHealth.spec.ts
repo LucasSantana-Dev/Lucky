@@ -77,6 +77,31 @@ describe('registerSpotifyExtractor health signal', () => {
         )
     })
 
+    // #3055: market 'US' ranked "album esquinas anavitória completo" to an
+    // unrelated US track; with no market ANAVITÓRIA comes first.
+    it('searches without a market unless SPOTIFY_MARKET sets one', async () => {
+        const register = jest.fn(async () => ({ id: 'x' }))
+        const saved = process.env.SPOTIFY_MARKET
+        try {
+            delete process.env.SPOTIFY_MARKET
+            await registerSpotifyExtractor(playerWith(register))
+            expect(register).toHaveBeenLastCalledWith(
+                expect.anything(),
+                expect.objectContaining({ market: undefined }),
+            )
+
+            process.env.SPOTIFY_MARKET = 'BR'
+            await registerSpotifyExtractor(playerWith(register))
+            expect(register).toHaveBeenLastCalledWith(
+                expect.anything(),
+                expect.objectContaining({ market: 'BR' }),
+            )
+        } finally {
+            if (saved === undefined) delete process.env.SPOTIFY_MARKET
+            else process.env.SPOTIFY_MARKET = saved
+        }
+    })
+
     it('never leaves the flag unset — every path reports health', async () => {
         for (const register of [
             async () => ({ id: 'x' }),
