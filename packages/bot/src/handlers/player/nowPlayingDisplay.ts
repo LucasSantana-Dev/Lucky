@@ -314,16 +314,18 @@ async function isBuried(
     }
 }
 
-async function deleteQuietly(
+// Edits, never deletes: the old message stays as history, only its buttons
+// go, so there is still one set of controls in the channel.
+async function removeButtonsQuietly(
     channel: NonNullable<QueueMetadata['channel']>,
     messageId: string,
 ): Promise<void> {
     try {
         const message = await channel.messages.fetch(messageId)
-        await message.delete()
+        await message.edit({ components: [] })
     } catch (error) {
         debugLog({
-            message: 'Failed to delete buried now playing message',
+            message: 'Failed to remove buttons from buried now playing message',
             error,
             data: { messageId },
         })
@@ -424,9 +426,9 @@ export async function sendNowPlayingEmbed(
         sameChannel &&
         (await isBuried(metadata.channel, previousMessage.messageId))
     ) {
-        // Chat moved on: post the controls again at the bottom and drop the
-        // old copy, so there is still only one controls message.
-        await deleteQuietly(metadata.channel, previousMessage.messageId)
+        // Chat moved on: post the controls again at the bottom and take the
+        // buttons off the old copy, so only one message has controls.
+        await removeButtonsQuietly(metadata.channel, previousMessage.messageId)
         deleteSongInfoMessage(queue.guild.id)
     } else if (sameChannel) {
         const updated = await tryUpdateExistingNowPlayingMessage(

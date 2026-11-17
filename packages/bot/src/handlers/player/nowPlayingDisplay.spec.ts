@@ -629,8 +629,10 @@ describe('nowPlayingDisplay', () => {
 
             await playTwice(previous, fresh)
 
-            expect(previous.edit).not.toHaveBeenCalled()
-            expect(previous.delete).toHaveBeenCalledTimes(1)
+            // Buttons come off the old copy; it is never deleted.
+            expect(previous.edit).toHaveBeenCalledTimes(1)
+            expect(previous.edit).toHaveBeenCalledWith({ components: [] })
+            expect(previous.delete).not.toHaveBeenCalled()
             expect(mockChannel.send).toHaveBeenCalledTimes(2)
             expect(mockChannel.messages?.fetch).toHaveBeenCalledWith({
                 after: 'previous-message',
@@ -645,6 +647,7 @@ describe('nowPlayingDisplay', () => {
             await playTwice(previous, fresh)
 
             expect(previous.edit).toHaveBeenCalledTimes(1)
+            expect(previous.edit).not.toHaveBeenCalledWith({ components: [] })
             expect(previous.delete).not.toHaveBeenCalled()
             expect(mockChannel.send).toHaveBeenCalledTimes(1)
         })
