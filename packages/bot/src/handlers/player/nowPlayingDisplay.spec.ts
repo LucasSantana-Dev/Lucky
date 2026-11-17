@@ -649,7 +649,12 @@ describe('nowPlayingDisplay', () => {
             await playTwice(previous, fresh)
 
             expect(previous.edit).toHaveBeenCalledTimes(1)
-            expect(previous.edit).not.toHaveBeenCalledWith({ components: [] })
+            expect(previous.edit).not.toHaveBeenCalledWith(
+                expect.objectContaining({ components: [] }),
+            )
+            expect(previous.edit).toHaveBeenCalledWith(
+                expect.objectContaining({ components: ['compact-row'] }),
+            )
             expect(previous.delete).not.toHaveBeenCalled()
             expect(mockChannel.send).toHaveBeenCalledTimes(1)
         })
