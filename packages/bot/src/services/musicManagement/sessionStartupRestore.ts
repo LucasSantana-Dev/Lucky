@@ -4,6 +4,7 @@ import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { musicSessionSnapshotService } from '../musicRecommendation/sessionSnapshots'
 import { QUEUE_LEAVE_OPTIONS } from './queueLeaveOptions'
 import { musicWatchdogService } from './watchdog'
+import { applyStoredAutoplayPreference } from '../../functions/music/commands/play/handlers/autoplayPreference'
 
 const STARTUP_MAX_AGE_MS = 30 * 60 * 1_000
 
@@ -88,6 +89,9 @@ export async function restoreSessionsOnStartup(
                 metadata: { channel: null, requestedBy: null },
                 ...QUEUE_LEAVE_OPTIONS,
             })
+            // Same as /play: without it the queue runs with repeat mode OFF
+            // and stops after the restored track (#3061).
+            await applyStoredAutoplayPreference(queue, guildId) // NOSONAR: S9382, guilds restore one at a time and the mode must be set before the restore
 
             if (!queue.connection) {
                 await queue.connect(channel)
