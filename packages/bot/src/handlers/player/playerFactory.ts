@@ -103,7 +103,10 @@ export const registerSpotifyExtractor = async (
         const registered = await player.extractors.register(SpotifyExtractor, {
             clientId: process.env.SPOTIFY_CLIENT_ID ?? undefined,
             clientSecret: process.env.SPOTIFY_CLIENT_SECRET ?? undefined,
-            market: 'US',
+            // No market by default: 'US' ranked Brazilian requests below
+            // unrelated US tracks (#3055). Audio comes through the YouTube
+            // bridge, so the market only changes the search order.
+            market: process.env.SPOTIFY_MARKET || undefined,
         })
         if (!registered) {
             setExtractorDegraded('spotify', true)

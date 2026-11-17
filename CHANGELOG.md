@@ -1715,6 +1715,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(bot): Spotify searches no longer rank for the US market, which buried Brazilian results ("album esquinas anavitória completo" played an unrelated US track); `SPOTIFY_MARKET` can still pin a market (#3055)
 - fix(bot): `/play` no longer swaps a live or remix top hit for an unrelated song: it only moves up a marker-free result titled exactly like the top hit once its version marker is removed, so "ai ja era jorge e mateus" plays Jorge & Mateus instead of Racionais (#3051)
 - fix(bot): a `/play` sent while the next song is still loading no longer lets the autoplay pick queued behind it play before the request (#3047)
 - fix(bot): after a restart the restored queue no longer replays the songs autoplay had queued before it, which could come from an older build and have nothing to do with the request; the playing song resumes and autoplay picks fresh ones (#3044)
