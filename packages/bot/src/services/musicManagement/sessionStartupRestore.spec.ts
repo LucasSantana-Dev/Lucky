@@ -36,6 +36,15 @@ jest.mock('./watchdog', () => ({
     },
 }))
 
+const applyAutoplayPreferenceMock = jest.fn<any>(async () => undefined)
+jest.mock(
+    '../../functions/music/commands/play/handlers/autoplayPreference',
+    () => ({
+        applyStoredAutoplayPreference: (...a: unknown[]) =>
+            applyAutoplayPreferenceMock(...a),
+    }),
+)
+
 import { restoreSessionsOnStartup } from './sessionStartupRestore'
 
 function clientWith(
@@ -99,6 +108,32 @@ describe('restoreSessionsOnStartup', () => {
 
         await restoreSessionsOnStartup(clientWith('g1'))
         expect(restoreSnapshotMock).toHaveBeenCalledTimes(1)
+    })
+
+    // #3061: the restored queue kept repeat mode OFF, so autoplay never ran
+    // after the restored track ended.
+    it('applies the stored autoplay preference before restoring', async () => {
+        listGuildIdsMock.mockResolvedValue(['g1'])
+        getSnapshotMock.mockResolvedValue({
+            savedAt: Date.now() - 60_000,
+            voiceChannelId: 'vc-1',
+        })
+        const order: string[] = []
+        applyAutoplayPreferenceMock.mockImplementation(async () => {
+            order.push('preference')
+        })
+        restoreSnapshotMock.mockImplementation(async () => {
+            order.push('restore')
+            return { restoredCount: 1, sessionSnapshotId: 's1' }
+        })
+        const client = clientWith('g1')
+
+        await restoreSessionsOnStartup(client)
+
+        const queue = (client.player.nodes.create as jest.Mock).mock.results[0]
+            .value
+        expect(applyAutoplayPreferenceMock).toHaveBeenCalledWith(queue, 'g1')
+        expect(order).toEqual(['preference', 'restore'])
     })
 
     it('passes a watchdog-registered signal so a stop aborts the restore', async () => {
