@@ -91,7 +91,7 @@ export async function restoreSessionsOnStartup(
             })
             // Same as /play: without it the queue runs with repeat mode OFF
             // and stops after the restored track (#3061).
-            await applyStoredAutoplayPreference(queue, guildId)
+            await applyStoredAutoplayPreference(queue, guildId) // NOSONAR: S9382, guilds restore one at a time and the mode must be set before the restore
 
             if (!queue.connection) {
                 await queue.connect(channel)
