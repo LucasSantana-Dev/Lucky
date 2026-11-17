@@ -110,6 +110,15 @@ describe('candidateScorer', () => {
             ],
             ['Kill Bill', 'SZA Covers'],
             ['Song', 'Mashup Central'],
+            // Prod, 2026-11-17: an autoplay pick from a karaoke label.
+            [
+                'You Rock My World (made popular by Michael Jackson) [backing version]',
+                'Party Tyme',
+            ],
+            ['Thriller (Made Famous by Michael Jackson)', 'Hit Crew'],
+            ['Halo - Originally Performed by Beyoncé', 'Ameritz'],
+            ['Halo (In the Style of Beyoncé)', 'Ameritz'],
+            ['Halo [Backing Track]', 'Some Label'],
         ])(
             'vetoes "%s" by %s as another version of a song',
             (title, author) => {
