@@ -69,6 +69,51 @@ const ACCEPTED = {
         until: 'same exit as the zod entry',
         advisories: TRANSITIVE,
     },
+    picomatch: {
+        reason:
+            'Reaches the production tree only because discord-voip@7.2.0 lists tsup ' +
+            'as a runtime dependency (tsup -> tinyglobby/fdir/sucrase -> picomatch). ' +
+            'Lucky never imports tsup at runtime and passes no user-controlled glob ' +
+            'patterns to picomatch, so the ReDoS has no reachable input. 4.0.7 is the ' +
+            'latest release and is still in the vulnerable range.',
+        until: 'picomatch >4.0.7 is published, or discord-voip drops tsup from dependencies (#3070)',
+        onlyAt: ['node_modules/picomatch'],
+        advisories: {
+            1247710: 'GHSA-fc5q-39xc-vjpf: picomatch ReDoS through single-branch repeated extglobs',
+        },
+    },
+    fdir: {
+        reason: 'Reported only because of its picomatch dependency, accepted above.',
+        until: 'same exit as the picomatch entry',
+        advisories: TRANSITIVE,
+    },
+    tinyglobby: {
+        reason: 'Reported only because of fdir and picomatch, accepted above.',
+        until: 'same exit as the picomatch entry',
+        advisories: TRANSITIVE,
+    },
+    sucrase: {
+        reason: 'Reported only because of tinyglobby, accepted above.',
+        until: 'same exit as the picomatch entry',
+        advisories: TRANSITIVE,
+    },
+    tsup: {
+        reason:
+            'A build tool, devDependency of every workspace. It shows in the --omit=dev ' +
+            'tree only through discord-voip, and is reported only because of tinyglobby.',
+        until: 'same exit as the picomatch entry',
+        advisories: TRANSITIVE,
+    },
+    'discord-voip': {
+        reason: 'Reported only because it wrongly lists tsup as a runtime dependency.',
+        until: 'same exit as the picomatch entry',
+        advisories: TRANSITIVE,
+    },
+    'discord-player': {
+        reason: 'Reported only because of discord-voip, accepted above.',
+        until: 'same exit as the picomatch entry',
+        advisories: TRANSITIVE,
+    },
 };
 
 // The policy above is only worth something if every entry actually carries its

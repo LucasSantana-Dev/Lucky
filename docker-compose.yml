@@ -156,7 +156,9 @@ services:
             YTDLP_POT_PROVIDER_URL: ${YTDLP_POT_PROVIDER_URL:-}
         volumes:
             - ./downloads:/app/downloads
-            - ./logs:/app/logs
+            # Named volume, not a bind mount: it lives under /var/lib/docker, which
+            # is LUKS-encrypted on prod (docs/runbooks/encryption-at-rest.md).
+            - bot_logs:/app/logs
             # Directory mount (not single-file): a single-file bind-mount to a
             # host path that doesn't exist yet gets autocreated as a directory
             # by Docker, breaking the container. See the `webhook` service's
@@ -614,6 +616,7 @@ secrets:
         environment: WATCHDOG_PING_URL
 
 volumes:
+    bot_logs:
     postgres_data:
     redis_data:
     prometheus_data:
