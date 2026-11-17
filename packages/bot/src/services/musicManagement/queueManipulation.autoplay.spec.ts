@@ -589,6 +589,16 @@ describe('queueManipulation — multi-user VC blend', () => {
                             durationMS: 500000,
                             requestedBy: null,
                         },
+                        // The artist fallback keeps only the current
+                        // artist's tracks (#3065).
+                        {
+                            url: 'https://example.com/same-artist',
+                            title: 'Another Song',
+                            author: 'Current Artist',
+                            id: 'same1',
+                            durationMS: 200000,
+                            requestedBy: null,
+                        },
                         {
                             url: 'https://open.spotify.com/track/def456',
                             title: 'Spotify Candidate',
