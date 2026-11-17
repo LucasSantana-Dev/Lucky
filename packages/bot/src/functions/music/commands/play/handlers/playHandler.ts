@@ -34,6 +34,7 @@ import {
     emitPlayResolutionTelemetry,
 } from './resolveProvider'
 import { runPostPlayBackgroundOps } from './postPlayBackgroundOps'
+import { resolveAlbumIntent } from './albumIntent'
 import {
     classifyPlayFailure,
     resolvePlayErrorMessage,
@@ -229,7 +230,16 @@ export async function executePlayHandler({
     const expandedQuery = await expandSoundCloudShortUrl(rawQuery)
     // Then normalize: SoundCloud `?in=` playlist context, and YouTube Mix
     // (`list=RD...`) context that the youtubei extractor cannot resolve.
-    const query = normalizeYouTubeUrl(normalizeSoundCloudUrl(expandedQuery))
+    const normalizedQuery = normalizeYouTubeUrl(
+        normalizeSoundCloudUrl(expandedQuery),
+    )
+    // "album esquinas anavitória completo": queue the album's link, which
+    // plays the whole album, instead of searching for a single track. A
+    // YouTube or SoundCloud provider choice keeps its own search.
+    const query =
+        provider && provider !== 'spotify'
+            ? normalizedQuery
+            : ((await resolveAlbumIntent(normalizedQuery)) ?? normalizedQuery)
 
     const collaborativeCheck = collaborativePlaylistService.canAddTracks(
         interaction.guildId,
