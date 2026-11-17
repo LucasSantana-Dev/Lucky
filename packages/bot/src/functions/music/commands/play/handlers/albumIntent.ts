@@ -10,14 +10,26 @@ const FULL_WORDS = new Set([
     'entire',
 ])
 
+const WORD_CHAR = /[\p{L}\p{M}\p{N}]/u
+
+// Drops punctuation around a word ("album:" -> "album") with a linear scan:
+// an anchored `[^...]+$` regex backtracks on long punctuation runs.
+function trimPunctuation(word: string): string {
+    const chars = Array.from(word)
+    let start = 0
+    let end = chars.length
+    while (start < end && !WORD_CHAR.test(chars[start])) start++
+    while (end > start && !WORD_CHAR.test(chars[end - 1])) end--
+    return chars.slice(start, end).join('')
+}
+
 function fold(word: string): string {
-    return (
+    return trimPunctuation(
         word
             .normalize('NFD')
             // Latin accents only: in other scripts a mark changes the word.
             .replaceAll(/(\p{Script=Latin})\p{M}+/gu, '$1')
-            .toLowerCase()
-            .replaceAll(/^[^\p{L}\p{M}\p{N}]+|[^\p{L}\p{M}\p{N}]+$/gu, '')
+            .toLowerCase(),
     )
 }
 
