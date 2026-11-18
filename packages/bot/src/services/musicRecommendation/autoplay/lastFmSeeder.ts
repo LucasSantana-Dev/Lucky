@@ -412,9 +412,10 @@ function mayUseEngine(
     )
 }
 
-function searchOptionsFor(engine: QueryType, requestedBy: User) {
+function searchOptionsFor(engine: QueryType, requestedBy: User | null) {
     return {
-        requestedBy,
+        // A session restored after a restart has no requester (#3072).
+        ...(requestedBy ? { requestedBy } : {}),
         searchEngine: engine,
         // SpotifyExtractor claims every plain-text query whatever the
         // engine, so without this the YouTube and AUTO arms were
@@ -441,7 +442,7 @@ function recordSpotifyOutcome(engine: QueryType, hadResults: boolean): void {
 export async function searchLastFmQuery(
     queue: GuildQueue,
     query: string,
-    requestedBy: User,
+    requestedBy: User | null,
     spotifyBudget?: SpotifySearchBudget,
 ): Promise<Track[]> {
     // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-positioning.md

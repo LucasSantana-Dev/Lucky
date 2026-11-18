@@ -246,7 +246,7 @@ describe('replenishQueue', () => {
                 candidatePoolSize: 0,
                 sources: expect.objectContaining({
                     recommendation: 0,
-                    seedSimilar: { skipped: true },
+                    seedSimilar: 0,
                     lastfm: { skipped: true },
                     fallback: 0,
                     genre: { skipped: true, reason: 'no-requester' },
@@ -293,9 +293,9 @@ describe('replenishQueue', () => {
         expect(call[0].data.sources.recommendation).toBe(2)
 
         // And this is the distinction the breakdown exists to make. The seed
-        // collector is gated on a requester; here one is present, so it ran and
-        // legitimately found nothing. Its 0 therefore means "empty", not
-        // "skipped" — and hasRequester is what tells the two apart in the log.
+        // collector always runs (#3072), so its 0 means "ran and found
+        // nothing". Only lastfm and genre are gated on a requester, and
+        // hasRequester tells their "skipped" apart from "empty" in the log.
         expect(collectSeedSimilarCandidates).toHaveBeenCalled()
         expect(call[0].data.sources.seedSimilar).toBe(0)
         expect(call[0].data.hasRequester).toBe(true)
@@ -860,14 +860,14 @@ describe('replenishQueue', () => {
         expect(auditCalls[0][0].data.sourceCounts).toEqual(
             expect.objectContaining({
                 recommendation: 0,
-                seedSimilar: { skipped: true },
+                seedSimilar: 0,
                 lastfm: { skipped: true },
                 genre: { skipped: true, reason: 'no-requester' },
             }),
         )
     })
 
-    it('skips the seed-similarity spine when no requester is resolvable', async () => {
+    it('runs the seed-similarity spine when no requester is resolvable (#3072)', async () => {
         const queue = createGuildQueue({
             currentTrack: createTrack({ requestedBy: null }),
             metadata: {},
@@ -878,7 +878,12 @@ describe('replenishQueue', () => {
 
         await replenishQueue(queue)
 
-        expect(collectSeedSimilarCandidates).not.toHaveBeenCalled()
+        expect(collectSeedSimilarCandidates).toHaveBeenCalledWith(
+            expect.anything(),
+            null,
+            expect.any(Map),
+            expect.anything(),
+        )
     })
 
     it('respects blockSertanejo=true setting to block sertanejo candidates when seed is not sertanejo', async () => {
