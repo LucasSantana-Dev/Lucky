@@ -94,6 +94,10 @@ jest.mock('./seedSimilarityCollector', () => ({
     collectSeedSimilarCandidates: jest.fn(),
 }))
 
+jest.mock('./relatedArtistCollector', () => ({
+    collectRelatedArtistCandidates: jest.fn(),
+}))
+
 jest.mock('../../../spotify/spotifyApi', () => ({
     getArtistPopularity: jest.fn(),
     getArtistGenres: jest.fn(),
@@ -923,6 +927,10 @@ describe('replenisher seam functions', () => {
                 collectSeedSimilarCandidates,
             } = require('./seedSimilarityCollector')
             collectSeedSimilarCandidates.mockClear()
+            const {
+                collectRelatedArtistCandidates,
+            } = require('./relatedArtistCollector')
+            collectRelatedArtistCandidates.mockClear()
 
             const autoplayContext = {
                 queue: createGuildQueue(),
@@ -970,6 +978,12 @@ describe('replenisher seam functions', () => {
             )
 
             expect(collectSeedSimilarCandidates).toHaveBeenCalledWith(
+                autoplayContext,
+                null,
+                expect.any(Map),
+                undefined,
+            )
+            expect(collectRelatedArtistCandidates).toHaveBeenCalledWith(
                 autoplayContext,
                 null,
                 expect.any(Map),

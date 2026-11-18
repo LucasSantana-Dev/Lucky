@@ -293,9 +293,9 @@ describe('replenishQueue', () => {
         expect(call[0].data.sources.recommendation).toBe(2)
 
         // And this is the distinction the breakdown exists to make. The seed
-        // collector is gated on a requester; here one is present, so it ran and
-        // legitimately found nothing. Its 0 therefore means "empty", not
-        // "skipped" — and hasRequester is what tells the two apart in the log.
+        // collector always runs (#3072), so its 0 means "ran and found
+        // nothing". Only lastfm and genre are gated on a requester, and
+        // hasRequester tells their "skipped" apart from "empty" in the log.
         expect(collectSeedSimilarCandidates).toHaveBeenCalled()
         expect(call[0].data.sources.seedSimilar).toBe(0)
         expect(call[0].data.hasRequester).toBe(true)
