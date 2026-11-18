@@ -184,6 +184,53 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         expect(restoreSnapshotMock).not.toHaveBeenCalled()
     })
 
+    // #3071: between two tracks isPlaying() is false while the next stream
+    // resolves; the scan must not restore into, or clear, a live session.
+    it.each([
+        ['a current track', { title: 'Next' }, 0],
+        ['queued tracks', null, 2],
+    ])(
+        'scanOrphanSessions leaves a connected queue with %s alone',
+        async (_label, currentTrack, queued) => {
+            listGuildIdsMock.mockResolvedValue(['guild-gap'])
+            getSnapshotMock.mockResolvedValue({
+                savedAt: Date.now() - 4_000,
+                voiceChannelId: 'vc-1',
+                tracks: [{ title: 'Song', url: 'https://example.com/song' }],
+            })
+
+            const existingQueue = {
+                node: { isPlaying: () => false },
+                connection: {},
+                currentTrack,
+                tracks: { size: queued },
+            }
+            const voiceChannel = {
+                type: ChannelType.GuildVoice,
+                members: { filter: jest.fn().mockReturnValue({ size: 2 }) },
+            }
+            const guild = {
+                channels: {
+                    cache: { get: jest.fn().mockReturnValue(voiceChannel) },
+                },
+            }
+            const nodes = {
+                get: jest.fn().mockReturnValue(existingQueue),
+                create: jest.fn(),
+            }
+            const client = {
+                guilds: { cache: { get: jest.fn().mockReturnValue(guild) } },
+            }
+            const player = { nodes, client } as unknown as Player
+
+            const service = new MusicWatchdogService()
+            await service.scanOrphanSessions(player)
+
+            expect(restoreSnapshotMock).not.toHaveBeenCalled()
+            expect(deleteSnapshotMock).not.toHaveBeenCalled()
+        },
+    )
+
     it('scanOrphanSessions skips guild when voice channel has no non-bot members', async () => {
         listGuildIdsMock.mockResolvedValue(['guild-empty'])
         getSnapshotMock.mockResolvedValue({

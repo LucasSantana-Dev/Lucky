@@ -21,6 +21,20 @@ export type WatchdogGuildState = {
 
 const SNAPSHOT_MAX_AGE_MS = 30 * 60 * 1_000
 
+/**
+ * Between two tracks isPlaying() is false while the next stream resolves.
+ * A connected queue with a track to play is live, not an orphan: restoring
+ * into it and then clearing its snapshot (#3071) would lose the session on
+ * the next restart.
+ */
+function isLiveQueue(queue: GuildQueue): boolean {
+    if (queue.node.isPlaying()) return true
+    return (
+        Boolean(queue.connection) &&
+        (Boolean(queue.currentTrack) || queue.tracks.size > 0)
+    )
+}
+
 type MusicWatchdogOptions = {
     timeoutMs?: number
     recoveryWaitTimeoutMs?: number
@@ -373,7 +387,7 @@ export class MusicWatchdogService {
         guildId: string,
     ): Promise<void> {
         const existingQueue = player.nodes.get(guildId)
-        if (existingQueue?.node.isPlaying()) return
+        if (existingQueue && isLiveQueue(existingQueue)) return
         if (this.intentionalStops.has(guildId)) return
         if (isReplenishSuppressed(guildId)) return
         if (this.isRecoveryInProgress(guildId)) return
