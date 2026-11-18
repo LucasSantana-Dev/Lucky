@@ -896,33 +896,32 @@ export async function collectAllCandidates(
     // similars regardless of whether the user linked Last.fm. Runs before the
     // user-linked Last.fm collector so the pool is anchored to the seed even
     // for unlinked sessions (the common case the drift fix targets).
-    if (requestedBy) {
-        const beforeSeedSimilar = candidates.size
-        await collectSeedSimilarCandidates(
-            autoplayContext,
-            requestedBy,
-            candidates,
-            autoplayContext.auditCollector,
-        )
-        await collectRelatedArtistCandidates(
-            autoplayContext,
-            requestedBy,
-            candidates,
-            autoplayContext.auditCollector,
-        )
-        sourcesCounts.seedSimilar = candidates.size - beforeSeedSimilar
-        debugLog({
-            message: 'Autoplay: seed-similar candidates',
-            data: {
-                guildId,
-                added: candidates.size - beforeSeedSimilar,
-                total: candidates.size,
-                source: 'seed-similar',
-            },
-        })
-    } else {
-        sourcesCounts.seedSimilar = { skipped: true }
-    }
+    // No requester gate: these two only need the seed track. A session
+    // restored after a restart has no requester, and skipping them left
+    // the pool empty, so autoplay looped on history replay (#3072).
+    const beforeSeedSimilar = candidates.size
+    await collectSeedSimilarCandidates(
+        autoplayContext,
+        requestedBy,
+        candidates,
+        autoplayContext.auditCollector,
+    )
+    await collectRelatedArtistCandidates(
+        autoplayContext,
+        requestedBy,
+        candidates,
+        autoplayContext.auditCollector,
+    )
+    sourcesCounts.seedSimilar = candidates.size - beforeSeedSimilar
+    debugLog({
+        message: 'Autoplay: seed-similar candidates',
+        data: {
+            guildId,
+            added: candidates.size - beforeSeedSimilar,
+            total: candidates.size,
+            source: 'seed-similar',
+        },
+    })
 
     if (requestedBy?.id) {
         const beforeLastFm = candidates.size

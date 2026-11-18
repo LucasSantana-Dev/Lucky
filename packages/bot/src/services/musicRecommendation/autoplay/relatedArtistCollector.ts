@@ -105,7 +105,7 @@ async function buildPicks(
  */
 export async function collectRelatedArtistCandidates(
     ctx: AutoplayContext,
-    requestedBy: User,
+    requestedBy: User | null,
     candidates: Map<string, ScoredTrack>,
     auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {
@@ -126,7 +126,7 @@ export async function collectRelatedArtistCandidates(
 
 async function collectRelatedArtistCandidatesUnsafe(
     ctx: AutoplayContext,
-    requestedBy: User,
+    requestedBy: User | null,
     candidates: Map<string, ScoredTrack>,
     auditCollector?: AutoplayAuditCollector,
 ): Promise<void> {

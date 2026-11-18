@@ -174,6 +174,15 @@ describe('searchLastFmQuery', () => {
         expect(result[0]).toBe(track)
     })
 
+    it('searches without a requester on a restored session (#3072)', async () => {
+        const track = createTrack()
+        const queue = createQueue({ tracks: [track] })
+        const result = await searchLastFmQuery(queue, 'test query', null)
+        expect(result).toEqual([track])
+        const options = (queue.player.search as jest.Mock).mock.calls[0][1]
+        expect(options).not.toHaveProperty('requestedBy')
+    })
+
     it('falls through to next engine when first throws', async () => {
         const track = createTrack()
         const queue = createQueue({ tracks: [] })

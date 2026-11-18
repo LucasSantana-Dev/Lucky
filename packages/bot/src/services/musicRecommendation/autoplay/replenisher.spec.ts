@@ -246,7 +246,7 @@ describe('replenishQueue', () => {
                 candidatePoolSize: 0,
                 sources: expect.objectContaining({
                     recommendation: 0,
-                    seedSimilar: { skipped: true },
+                    seedSimilar: 0,
                     lastfm: { skipped: true },
                     fallback: 0,
                     genre: { skipped: true, reason: 'no-requester' },
@@ -860,14 +860,14 @@ describe('replenishQueue', () => {
         expect(auditCalls[0][0].data.sourceCounts).toEqual(
             expect.objectContaining({
                 recommendation: 0,
-                seedSimilar: { skipped: true },
+                seedSimilar: 0,
                 lastfm: { skipped: true },
                 genre: { skipped: true, reason: 'no-requester' },
             }),
         )
     })
 
-    it('skips the seed-similarity spine when no requester is resolvable', async () => {
+    it('runs the seed-similarity spine when no requester is resolvable (#3072)', async () => {
         const queue = createGuildQueue({
             currentTrack: createTrack({ requestedBy: null }),
             metadata: {},
@@ -878,7 +878,12 @@ describe('replenishQueue', () => {
 
         await replenishQueue(queue)
 
-        expect(collectSeedSimilarCandidates).not.toHaveBeenCalled()
+        expect(collectSeedSimilarCandidates).toHaveBeenCalledWith(
+            expect.anything(),
+            null,
+            expect.any(Map),
+            expect.anything(),
+        )
     })
 
     it('respects blockSertanejo=true setting to block sertanejo candidates when seed is not sertanejo', async () => {

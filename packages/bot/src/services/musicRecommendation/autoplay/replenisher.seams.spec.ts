@@ -915,10 +915,14 @@ describe('replenisher seam functions', () => {
             expect(genreCtx.spotifySearchBudget).toBeDefined()
         })
 
-        it('skips seedSimilar when requestedBy is null', async () => {
+        // A session restored after a restart has no requester. The seed
+        // collectors only need the seed track, so they must still run, or
+        // the pool empties and autoplay loops on history replay (#3072).
+        it('runs seedSimilar without a requester', async () => {
             const {
                 collectSeedSimilarCandidates,
             } = require('./seedSimilarityCollector')
+            collectSeedSimilarCandidates.mockClear()
 
             const autoplayContext = {
                 queue: createGuildQueue(),
@@ -965,8 +969,19 @@ describe('replenisher seam functions', () => {
                 new Map(),
             )
 
-            expect(result.sourcesCounts.seedSimilar).toEqual({ skipped: true })
-            expect(collectSeedSimilarCandidates).not.toHaveBeenCalled()
+            expect(collectSeedSimilarCandidates).toHaveBeenCalledWith(
+                autoplayContext,
+                null,
+                expect.any(Map),
+                undefined,
+            )
+            expect(result.sourcesCounts.seedSimilar).toBe(0)
+            // The user-linked collectors still need a requester.
+            expect(result.sourcesCounts.lastfm).toEqual({ skipped: true })
+            expect(result.sourcesCounts.genre).toEqual({
+                skipped: true,
+                reason: 'no-requester',
+            })
         })
     })
 
