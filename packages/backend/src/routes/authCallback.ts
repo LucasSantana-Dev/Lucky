@@ -17,7 +17,11 @@ export async function handleOAuthCallback(
         const frontendUrl = getPrimaryFrontendUrl()
 
         if (error) {
-            errorLog({
+            // `access_denied` is the user pressing Cancel on Discord's consent
+            // screen (LUCKY-7E): expected, so it stays out of Sentry. Any other
+            // value is a misconfiguration or a Discord fault and is an error.
+            const log = error === 'access_denied' ? warnLog : errorLog
+            log({
                 message: 'Discord OAuth error',
                 data: { error: String(error) },
             })
