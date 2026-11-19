@@ -6,7 +6,7 @@ import { handleOAuthCallback } from '../../../src/routes/authCallback'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { discordOAuthService } from '../../../src/services/DiscordOAuthService'
-import { errorLog, telemetryLog } from '@lucky/shared/utils'
+import { errorLog, telemetryLog, warnLog } from '@lucky/shared/utils'
 import {
     MOCK_DISCORD_USER,
     MOCK_TOKEN_RESPONSE,
@@ -493,6 +493,32 @@ describe('OAuth Callback (handleOAuthCallback)', () => {
             expect(
                 getDiscordOAuthMock().exchangeCodeForToken,
             ).not.toHaveBeenCalled()
+        })
+
+        test('should log a cancelled consent as a warning, not an error', async () => {
+            await request(app)
+                .get('/api/auth/callback')
+                .query({ error: 'access_denied' })
+                .expect(302)
+
+            expect(warnLog).toHaveBeenCalledWith({
+                message: 'Discord OAuth error',
+                data: { error: 'access_denied' },
+            })
+            expect(errorLog).not.toHaveBeenCalled()
+        })
+
+        test('should log any other Discord OAuth error as an error', async () => {
+            const response = await request(app)
+                .get('/api/auth/callback')
+                .query({ error: 'invalid_scope' })
+                .expect(302)
+
+            expect(response.headers.location).toContain('error=auth_failed')
+            expect(errorLog).toHaveBeenCalledWith({
+                message: 'Discord OAuth error',
+                data: { error: 'invalid_scope' },
+            })
         })
 
         test('should handle token exchange failure', async () => {
