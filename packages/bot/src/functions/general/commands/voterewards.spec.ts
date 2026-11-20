@@ -19,7 +19,10 @@ jest.mock('../../../utils/general/interactionReply.js', () => ({
 }))
 
 import voterewardsCommand from './voterewards.js'
-import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
+import {
+    asInteraction,
+    createMockClient,
+} from '../../../../tests/utils/command/fixtures.js'
 
 function makeInteraction() {
     return {
@@ -55,7 +58,7 @@ describe('/voterewards', () => {
         process.env.WEBAPP_BACKEND_URL = 'http://localhost:3000'
         process.env.LUCKY_NOTIFY_API_KEY = 'test-key'
 
-        const interaction = makeInteraction() as never
+        const interaction = asInteraction(makeInteraction())
 
         await voterewardsCommand.execute({
             client: createMockClient({}),
@@ -69,7 +72,7 @@ describe('/voterewards', () => {
         process.env.WEBAPP_BACKEND_URL = 'http://localhost:3000'
         process.env.LUCKY_NOTIFY_API_KEY = 'test-key'
 
-        const interaction = makeInteraction() as never
+        const interaction = asInteraction(makeInteraction())
 
         await voterewardsCommand.execute({
             client: createMockClient({}),
@@ -86,7 +89,7 @@ describe('/voterewards', () => {
         process.env.WEBAPP_BACKEND_URL = 'http://localhost:3000'
         process.env.LUCKY_NOTIFY_API_KEY = 'test-key'
 
-        const interaction = makeInteraction() as never
+        const interaction = asInteraction(makeInteraction())
 
         await voterewardsCommand.execute({
             client: createMockClient({}),
@@ -104,7 +107,7 @@ describe('/voterewards', () => {
         delete process.env.WEBAPP_BACKEND_URL
         delete process.env.LUCKY_NOTIFY_API_KEY
 
-        const interaction = makeInteraction() as never
+        const interaction = asInteraction(makeInteraction())
 
         await voterewardsCommand.execute({
             client: createMockClient({}),
@@ -118,7 +121,7 @@ describe('/voterewards', () => {
         process.env.WEBAPP_BACKEND_URL = 'http://localhost:3000'
         process.env.LUCKY_NOTIFY_API_KEY = 'test-key'
 
-        const interaction = makeInteraction() as never
+        const interaction = asInteraction(makeInteraction())
 
         // Simulate network error by overriding fetch
         global.fetch = jest
@@ -141,7 +144,7 @@ describe('/voterewards', () => {
         process.env.WEBAPP_BACKEND_URL = 'http://localhost:3000'
         process.env.LUCKY_NOTIFY_API_KEY = 'test-key'
 
-        const interaction = makeInteraction() as never
+        const interaction = asInteraction(makeInteraction())
 
         await voterewardsCommand.execute({
             client: createMockClient({}),
@@ -159,7 +162,7 @@ describe('/voterewards', () => {
         delete process.env.WEBAPP_BACKEND_URL
         delete process.env.LUCKY_NOTIFY_API_KEY
 
-        const interaction = makeInteraction() as never
+        const interaction = asInteraction(makeInteraction())
 
         await voterewardsCommand.execute({
             client: createMockClient({}),

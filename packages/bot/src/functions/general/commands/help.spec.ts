@@ -32,8 +32,10 @@ jest.mock('../../../i18n/translatorForInteraction.js', () => ({
 }))
 
 import { errorLog } from '@lucky/shared/utils'
+import type { StringSelectMenuInteraction } from 'discord.js'
 import helpCommand, { handleHelpCategorySelect } from './help.js'
 import {
+    asInteraction,
     createMockClient,
     createMockInteraction,
 } from '../../../../tests/utils/command/fixtures.js'
@@ -238,7 +240,10 @@ describe('/help', () => {
         ])
         const interaction = makeSelectInteraction('general')
 
-        await handleHelpCategorySelect(interaction as never, client as never)
+        await handleHelpCategorySelect(
+            asInteraction<StringSelectMenuInteraction>(interaction),
+            createMockClient(client),
+        )
 
         expect(interaction.update).toHaveBeenCalledTimes(1)
         expect(interaction.reply).not.toHaveBeenCalled()
@@ -264,7 +269,10 @@ describe('/help', () => {
         const client = makeClient(commands)
         const interaction = makeSelectInteraction('general')
 
-        await handleHelpCategorySelect(interaction as never, client as never)
+        await handleHelpCategorySelect(
+            asInteraction<StringSelectMenuInteraction>(interaction),
+            createMockClient(client),
+        )
 
         expect(interaction.update).toHaveBeenCalledTimes(1)
         expect(interaction.followUp.mock.calls.length).toBeGreaterThan(0)
@@ -275,7 +283,10 @@ describe('/help', () => {
         const interaction = makeSelectInteraction('music')
         interaction.update.mockRejectedValueOnce(new Error('stale interaction'))
 
-        await handleHelpCategorySelect(interaction as never, client as never)
+        await handleHelpCategorySelect(
+            asInteraction<StringSelectMenuInteraction>(interaction),
+            createMockClient(client),
+        )
 
         expect(errorLog).toHaveBeenCalled()
         expect(interactionReply).toHaveBeenCalledTimes(1)
@@ -285,7 +296,10 @@ describe('/help', () => {
         const client = makeClient([makeCommand('play', 'Play music', 'music')])
         const interaction = makeSelectInteraction('music', 'someone-else')
 
-        await handleHelpCategorySelect(interaction as never, client as never)
+        await handleHelpCategorySelect(
+            asInteraction<StringSelectMenuInteraction>(interaction),
+            createMockClient(client),
+        )
 
         expect(interaction.update).not.toHaveBeenCalled()
         expect(interactionReply).toHaveBeenCalledTimes(1)
@@ -303,7 +317,10 @@ describe('/help', () => {
             message: {},
         }
 
-        await handleHelpCategorySelect(interaction as never, client as never)
+        await handleHelpCategorySelect(
+            asInteraction<StringSelectMenuInteraction>(interaction),
+            createMockClient(client),
+        )
 
         expect(interaction.update).not.toHaveBeenCalled()
         expect(interactionReply).toHaveBeenCalledTimes(1)
