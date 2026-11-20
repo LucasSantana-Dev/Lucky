@@ -21,6 +21,9 @@ export function asVoiceChannel(mock: object = {}): VoiceBasedChannel {
  * Builds the `{ client, interaction }` argument of `command.execute`. Keys
  * the spec omits stay absent, matching the previous `as never` literals.
  */
-export function createCommandParams(parts: object): CommandExecuteParams {
+export function createCommandParams(parts: {
+    client?: object
+    interaction?: object
+}): CommandExecuteParams {
     return parts as unknown as CommandExecuteParams
 }
