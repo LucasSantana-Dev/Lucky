@@ -1,3 +1,4 @@
+import { asFixture } from '../../../../tests/utils/services/serviceFixtures.js'
 import {
     TrackUtils,
     getTrackInfo,
@@ -53,19 +54,19 @@ describe('standalone function exports', () => {
     test('delegates to trackUtils singleton', () => {
         const track = createMockTrack('Song A', 'Artist A', 'track-standalone')
 
-        expect(getTrackInfo(track as never)).toBeDefined()
-        expect(getTrackCacheKey(track as never)).toBeDefined()
-        expect(categorizeTracks([track as never])).toBeDefined()
-        expect(findSimilarTracks([track as never], 'query')).toEqual([])
+        expect(getTrackInfo(asFixture(track))).toBeDefined()
+        expect(getTrackCacheKey(asFixture(track))).toBeDefined()
+        expect(categorizeTracks([asFixture(track)])).toBeDefined()
+        expect(findSimilarTracks([asFixture(track)], 'query')).toEqual([])
         expect(
-            searchTracks([track as never], {
+            searchTracks([asFixture(track)], {
                 query: 'Song',
                 limit: 10,
                 includeAutoplay: true,
             }),
         ).toBeDefined()
-        cacheTrackInfo(track as never)
-        expect(getCachedTrackInfo(track as never)).toBeDefined()
+        cacheTrackInfo(asFixture(track))
+        expect(getCachedTrackInfo(asFixture(track))).toBeDefined()
         clearCache()
         expect(getCacheSize()).toBe(0)
         startCacheCleanup()
@@ -83,7 +84,7 @@ describe('TrackUtils class', () => {
         test('extracts track information', () => {
             const track = createMockTrack('Song A', 'Artist A')
 
-            const info = instance.getTrackInfo(track as never)
+            const info = instance.getTrackInfo(asFixture(track))
 
             expect(info.title).toBe('Song A')
             expect(info.duration).toBe('3:00')
@@ -95,7 +96,7 @@ describe('TrackUtils class', () => {
             const track = createMockTrack('Song A')
             track.requestedBy = null as never
 
-            const info = instance.getTrackInfo(track as never)
+            const info = instance.getTrackInfo(asFixture(track))
 
             expect(info.requester).toBe('Unknown')
         })
@@ -109,7 +110,7 @@ describe('TrackUtils class', () => {
                 sessionSnapshotId: 'snap-123',
             }
 
-            const info = instance.getTrackInfo(track as never)
+            const info = instance.getTrackInfo(asFixture(track))
 
             expect(info.isAutoplay).toBe(true)
             expect(info.recommendationReason).toBe('artist rotation')
@@ -122,7 +123,7 @@ describe('TrackUtils class', () => {
         test('creates cache key from track', () => {
             const track = createMockTrack('Song A', 'Artist A', 'track-123')
 
-            const key = instance.getTrackCacheKey(track as never)
+            const key = instance.getTrackCacheKey(asFixture(track))
 
             expect(key.id).toBe('track-123')
             expect(key.title).toBe('Song A')
@@ -134,7 +135,7 @@ describe('TrackUtils class', () => {
             const track = createMockTrack('Song A', 'Artist A', 'track-123')
             track.requestedBy = null as never
 
-            const key = instance.getTrackCacheKey(track as never)
+            const key = instance.getTrackCacheKey(asFixture(track))
 
             expect(key.requesterId).toBeUndefined()
         })
@@ -149,7 +150,7 @@ describe('TrackUtils class', () => {
                 createMockTrack('Song D', 'Artist D', 'd', true),
             ]
 
-            const result = instance.categorizeTracks(tracks as never)
+            const result = instance.categorizeTracks(asFixture(tracks))
 
             expect(result.manualTracks).toHaveLength(2)
             expect(result.autoplayTracks).toHaveLength(2)
@@ -161,8 +162,8 @@ describe('TrackUtils class', () => {
             expect(emptyResult.autoplayTracks).toHaveLength(0)
 
             const allManual = instance.categorizeTracks([
-                createMockTrack('Song A', 'Artist A', 'a', false) as never,
-                createMockTrack('Song B', 'Artist B', 'b', false) as never,
+                asFixture(createMockTrack('Song A', 'Artist A', 'a', false)),
+                asFixture(createMockTrack('Song B', 'Artist B', 'b', false)),
             ])
             expect(allManual.manualTracks).toHaveLength(2)
             expect(allManual.autoplayTracks).toHaveLength(0)
@@ -184,7 +185,7 @@ describe('TrackUtils class', () => {
                 createMockTrack('Other Song', 'Artist C', 'c'),
             ]
 
-            const result = instance.findSimilarTracks(tracks as never, 'A')
+            const result = instance.findSimilarTracks(asFixture(tracks), 'A')
 
             expect(result.length).toBeGreaterThan(0)
         })
@@ -198,7 +199,7 @@ describe('TrackUtils class', () => {
             )
 
             const result = instance.findSimilarTracks(
-                tracks as never,
+                asFixture(tracks),
                 'Song',
                 3,
             )
@@ -214,7 +215,7 @@ describe('TrackUtils class', () => {
                 createMockTrack(`Song ${i}`, 'Artist', `${i}`),
             )
 
-            const result = instance.findSimilarTracks(tracks as never, 'Song')
+            const result = instance.findSimilarTracks(asFixture(tracks), 'Song')
 
             expect(result.length).toBeLessThanOrEqual(5)
         })
@@ -229,7 +230,7 @@ describe('TrackUtils class', () => {
             ]
 
             const result = instance.findSimilarTracks(
-                tracks as never,
+                asFixture(tracks),
                 'NonExistent',
             )
 
@@ -251,7 +252,7 @@ describe('TrackUtils class', () => {
                 includeAutoplay: true,
             }
 
-            const result = instance.searchTracks(tracks as never, options)
+            const result = instance.searchTracks(asFixture(tracks), options)
             expect(result.length).toBeGreaterThan(0)
             expect(result.some((t) => t.title.includes('Song'))).toBe(true)
         })
@@ -261,7 +262,7 @@ describe('TrackUtils class', () => {
                 createMockTrack(`Song A ${i}`, 'Artist', `${i}`, i % 2 === 0),
             )
 
-            const limitResult = instance.searchTracks(tracks as never, {
+            const limitResult = instance.searchTracks(asFixture(tracks), {
                 query: 'Song',
                 limit: 3,
                 includeAutoplay: true,
@@ -269,7 +270,7 @@ describe('TrackUtils class', () => {
             expect(limitResult.length).toBeLessThanOrEqual(3)
 
             const excludeAutoplayResult = instance.searchTracks(
-                tracks as never,
+                asFixture(tracks),
                 {
                     query: 'Song',
                     limit: 10,
@@ -288,7 +289,7 @@ describe('TrackUtils class', () => {
                 createMockTrack('ROCK', 'Artist B', 'b'),
             ]
 
-            const result = instance.searchTracks(tracks as never, {
+            const result = instance.searchTracks(asFixture(tracks), {
                 query: 'BLUES',
                 limit: 10,
                 includeAutoplay: true,
@@ -304,8 +305,8 @@ describe('TrackUtils class', () => {
         test('caches track info', () => {
             const track = createMockTrack('Song A', 'Artist A')
 
-            instance.cacheTrackInfo(track as never)
-            const cached = instance.getCachedTrackInfo(track as never)
+            instance.cacheTrackInfo(asFixture(track))
+            const cached = instance.getCachedTrackInfo(asFixture(track))
 
             expect(cached).toBeDefined()
             expect(cached?.title).toBe('Song A')
@@ -314,7 +315,7 @@ describe('TrackUtils class', () => {
         test('returns undefined for uncached track', () => {
             const track = createMockTrack('Song A', 'Artist A')
 
-            const cached = instance.getCachedTrackInfo(track as never)
+            const cached = instance.getCachedTrackInfo(asFixture(track))
 
             expect(cached).toBeUndefined()
         })
@@ -322,9 +323,9 @@ describe('TrackUtils class', () => {
         test('clears cache', () => {
             const track = createMockTrack('Song A', 'Artist A')
 
-            instance.cacheTrackInfo(track as never)
+            instance.cacheTrackInfo(asFixture(track))
             instance.clearCache()
-            const cached = instance.getCachedTrackInfo(track as never)
+            const cached = instance.getCachedTrackInfo(asFixture(track))
 
             expect(cached).toBeUndefined()
         })
@@ -333,10 +334,10 @@ describe('TrackUtils class', () => {
             const track1 = createMockTrack('Song A', 'Artist A', 'a')
             const track2 = createMockTrack('Song B', 'Artist B', 'b')
 
-            instance.cacheTrackInfo(track1 as never)
+            instance.cacheTrackInfo(asFixture(track1))
             expect(instance.getCacheSize()).toBe(1)
 
-            instance.cacheTrackInfo(track2 as never)
+            instance.cacheTrackInfo(asFixture(track2))
             expect(instance.getCacheSize()).toBe(2)
         })
 

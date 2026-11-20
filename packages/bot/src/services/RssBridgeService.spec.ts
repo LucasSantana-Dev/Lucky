@@ -1,3 +1,4 @@
+import { asFixture } from '../../tests/utils/services/serviceFixtures.js'
 const parseURLMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
@@ -114,7 +115,7 @@ afterEach(() => {
 describe('startRssBridgeService', () => {
     it('returns early when feature flag disabled', async () => {
         featureToggleMock.mockResolvedValue(false)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
 
         expect(parseURLMock).not.toHaveBeenCalled()
         expect(errorLogMock).not.toHaveBeenCalled()
@@ -123,7 +124,7 @@ describe('startRssBridgeService', () => {
 
     it('debugLogs and skips polling when no subscriptions exist', async () => {
         subFindManyMock.mockResolvedValue([])
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
 
         expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -135,7 +136,7 @@ describe('startRssBridgeService', () => {
 
     it('errorLogs feed errors internally without failing startup', async () => {
         parseURLMock.mockRejectedValue(new Error('network error') as never)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
 
         // pollRssFeed has its own try-catch — error is swallowed there, not at startup
         expect(errorLogMock).toHaveBeenCalledWith(
@@ -151,7 +152,7 @@ describe('startRssBridgeService', () => {
 
     it('logs startup message and begins polling on happy path', async () => {
         parseURLMock.mockResolvedValue({ items: [] } as never)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
 
         expect(infoLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -170,7 +171,7 @@ describe('stopRssBridgeService', () => {
 
     it('clears the interval and logs when service is running', async () => {
         parseURLMock.mockResolvedValue({ items: [] } as never)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
         infoLogMock.mockClear()
 
         stopRssBridgeService()
@@ -184,7 +185,7 @@ describe('stopRssBridgeService', () => {
 
     it('is a no-op when called twice', async () => {
         parseURLMock.mockResolvedValue({ items: [] } as never)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
         stopRssBridgeService()
         infoLogMock.mockClear()
 
@@ -197,7 +198,7 @@ describe('stopRssBridgeService', () => {
 describe('RSS feed polling', () => {
     it('debugLogs and returns when feed has no items', async () => {
         parseURLMock.mockResolvedValue({ items: [] } as never)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
 
         expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -210,7 +211,7 @@ describe('RSS feed polling', () => {
     it('errorLogs when channel is not text-based', async () => {
         const nonTextChannel = { isTextBased: () => false }
         parseURLMock.mockResolvedValue({ items: [makeFeedItem()] } as never)
-        await startRssBridgeService(makeClient(nonTextChannel) as never)
+        await startRssBridgeService(asFixture(makeClient(nonTextChannel)))
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -223,7 +224,7 @@ describe('RSS feed polling', () => {
     it('errorLogs when channel lacks send method', async () => {
         const channelNoSend = { isTextBased: () => true }
         parseURLMock.mockResolvedValue({ items: [makeFeedItem()] } as never)
-        await startRssBridgeService(makeClient(channelNoSend) as never)
+        await startRssBridgeService(asFixture(makeClient(channelNoSend)))
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -236,7 +237,7 @@ describe('RSS feed polling', () => {
         parseURLMock.mockResolvedValue({
             items: [makeFeedItem({ link: undefined, guid: undefined })],
         } as never)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
 
         expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -251,7 +252,7 @@ describe('RSS feed polling', () => {
         parseURLMock.mockResolvedValue({
             items: [makeFeedItem({ link: 'not-a-url' })],
         } as never)
-        await startRssBridgeService(makeClient(channel) as never)
+        await startRssBridgeService(asFixture(makeClient(channel)))
 
         // Unparseable URL → extractSlug null → the raw link becomes the key
         expect(findUniqueMock).toHaveBeenCalledWith(
@@ -263,7 +264,7 @@ describe('RSS feed polling', () => {
     it('debugLogs and skips items already in DB', async () => {
         findUniqueMock.mockResolvedValue({ slug: 'my-guide' })
         parseURLMock.mockResolvedValue({ items: [makeFeedItem()] } as never)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
 
         expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -276,7 +277,7 @@ describe('RSS feed polling', () => {
     it('creates DB record and sends Discord embed for new item', async () => {
         const channel = makeChannel()
         parseURLMock.mockResolvedValue({ items: [makeFeedItem()] } as never)
-        await startRssBridgeService(makeClient(channel) as never)
+        await startRssBridgeService(asFixture(makeClient(channel)))
 
         expect(createMock).toHaveBeenCalledWith({
             data: { slug: 'guild-1:my-guide', title: 'Guide Title' },
@@ -308,7 +309,7 @@ describe('RSS feed polling', () => {
                 }),
             ],
         } as never)
-        await startRssBridgeService(makeClient(channel) as never)
+        await startRssBridgeService(asFixture(makeClient(channel)))
 
         expect(channel.send).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -324,7 +325,7 @@ describe('RSS feed polling', () => {
         parseURLMock.mockResolvedValue({
             items: [makeFeedItem({ title: undefined })],
         } as never)
-        await startRssBridgeService(makeClient(channel) as never)
+        await startRssBridgeService(asFixture(makeClient(channel)))
 
         expect(channel.send).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -341,7 +342,7 @@ describe('RSS feed polling', () => {
         parseURLMock.mockResolvedValue({
             items: [makeFeedItem({ description: longDesc })],
         } as never)
-        await startRssBridgeService(makeClient(channel) as never)
+        await startRssBridgeService(asFixture(makeClient(channel)))
 
         const embed = (channel.send as jest.Mock).mock.calls[0] as [
             { embeds: { description: string }[] },
@@ -357,7 +358,7 @@ describe('RSS feed polling', () => {
         parseURLMock.mockResolvedValue({
             items: [makeFeedItem({ description: desc })],
         } as never)
-        await startRssBridgeService(makeClient(channel) as never)
+        await startRssBridgeService(asFixture(makeClient(channel)))
 
         const embed = (channel.send as jest.Mock).mock.calls[0] as [
             { embeds: { description: string }[] },
@@ -379,7 +380,7 @@ describe('RSS feed polling', () => {
             .mockResolvedValueOnce({ slug: 'guide-2' } as never)
         parseURLMock.mockResolvedValue({ items: [item1, item2] } as never)
 
-        await startRssBridgeService(makeClient(channel) as never)
+        await startRssBridgeService(asFixture(makeClient(channel)))
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -404,7 +405,7 @@ describe('RSS feed polling', () => {
         ]
         parseURLMock.mockResolvedValue({ items } as never)
 
-        await startRssBridgeService(makeClient(channel) as never)
+        await startRssBridgeService(asFixture(makeClient(channel)))
 
         expect(createMock).toHaveBeenCalledTimes(2)
         expect(channel.send).toHaveBeenCalledTimes(2)
@@ -429,7 +430,7 @@ describe('RSS feed polling', () => {
                 items: [makeFeedItem({ guid: 'guid-1' })],
             } as never)
             const channel = makeChannel()
-            await startRssBridgeService(makeClient(channel) as never)
+            await startRssBridgeService(asFixture(makeClient(channel)))
 
             expect(channel.send).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -445,7 +446,7 @@ describe('RSS feed polling', () => {
                 items: [makeFeedItem({ guid: 'guid-1' })],
             } as never)
             const channel = makeChannel()
-            await startRssBridgeService(makeClient(channel) as never)
+            await startRssBridgeService(asFixture(makeClient(channel)))
 
             expect(channel.send).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -469,7 +470,7 @@ describe('dead feed handling (#3088)', () => {
 
     it('logs a 404 at warning level, not as a Sentry error', async () => {
         parseURLMock.mockRejectedValue(deadFeed() as never)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
 
         expect(errorLogMock).not.toHaveBeenCalled()
         expect(warnLogMock).toHaveBeenCalledWith(
@@ -479,7 +480,7 @@ describe('dead feed handling (#3088)', () => {
 
     it('still reports other failures as errors', async () => {
         parseURLMock.mockRejectedValue(new Error('boom') as never)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({ message: 'Error polling RSS feed' }),
@@ -489,7 +490,7 @@ describe('dead feed handling (#3088)', () => {
     it('backs off after 3 failures and tells the guild once', async () => {
         parseURLMock.mockRejectedValue(deadFeed() as never)
         const channel = makeChannel()
-        await startRssBridgeService(makeClient(channel) as never)
+        await startRssBridgeService(asFixture(makeClient(channel)))
         await jest.advanceTimersByTimeAsync(HOUR)
         await jest.advanceTimersByTimeAsync(HOUR)
         expect(parseURLMock).toHaveBeenCalledTimes(3)
@@ -515,7 +516,9 @@ describe('dead feed handling (#3088)', () => {
             .fn()
             .mockRejectedValueOnce(new Error('discord down') as never)
             .mockResolvedValue(undefined as never)
-        await startRssBridgeService(makeClient(makeChannel({ send })) as never)
+        await startRssBridgeService(
+            asFixture(makeClient(makeChannel({ send }))),
+        )
         await jest.advanceTimersByTimeAsync(HOUR * 2)
         expect(send).toHaveBeenCalledTimes(1)
 
@@ -530,7 +533,7 @@ describe('dead feed handling (#3088)', () => {
 
     it('downgrades non-dead failures to warnings after the threshold', async () => {
         parseURLMock.mockRejectedValue(new Error('boom') as never)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
         await jest.advanceTimersByTimeAsync(HOUR * 2)
         expect(errorLogMock).toHaveBeenCalledTimes(3)
         expect(warnLogMock).not.toHaveBeenCalled()
@@ -553,7 +556,7 @@ describe('dead feed handling (#3088)', () => {
             .mockRejectedValueOnce(new Error('boom') as never)
             .mockResolvedValueOnce({ items: [] } as never)
             .mockRejectedValue(new Error('boom') as never)
-        await startRssBridgeService(makeClient() as never)
+        await startRssBridgeService(asFixture(makeClient()))
         await jest.advanceTimersByTimeAsync(HOUR * 2)
         expect(parseURLMock).toHaveBeenCalledTimes(3)
 

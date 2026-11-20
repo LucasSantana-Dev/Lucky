@@ -1,3 +1,4 @@
+import { asFixture } from '../../../../tests/utils/services/serviceFixtures.js'
 import { AsyncQueueManager } from './asyncQueueManager'
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -37,8 +38,8 @@ describe('AsyncQueueManager', () => {
             const track = createMockTrack('Song A')
 
             const result = await AsyncQueueManager.addTracksSafely(
-                queue as never,
-                [track as never],
+                asFixture(queue),
+                [asFixture(track)],
             )
 
             expect(result.success).toBe(true)
@@ -56,8 +57,8 @@ describe('AsyncQueueManager', () => {
             ]
 
             const result = await AsyncQueueManager.addTracksSafely(
-                queue as never,
-                tracks as never,
+                asFixture(queue),
+                asFixture(tracks),
             )
 
             expect(result.success).toBe(true)
@@ -76,8 +77,8 @@ describe('AsyncQueueManager', () => {
             ]
 
             const result = await AsyncQueueManager.addTracksSafely(
-                queue as never,
-                tracks as never,
+                asFixture(queue),
+                asFixture(tracks),
                 true,
             )
 
@@ -92,8 +93,8 @@ describe('AsyncQueueManager', () => {
             const queue = createMockQueue(false)
             const track = createMockTrack('Song A')
 
-            await AsyncQueueManager.addTracksSafely(queue as never, [
-                track as never,
+            await AsyncQueueManager.addTracksSafely(asFixture(queue), [
+                asFixture(track),
             ])
 
             expect(queue.node.play).toHaveBeenCalled()
@@ -103,8 +104,8 @@ describe('AsyncQueueManager', () => {
             const queue = createMockQueue(true)
             const track = createMockTrack('Song A')
 
-            await AsyncQueueManager.addTracksSafely(queue as never, [
-                track as never,
+            await AsyncQueueManager.addTracksSafely(asFixture(queue), [
+                asFixture(track),
             ])
 
             expect(queue.node.play).not.toHaveBeenCalled()
@@ -114,7 +115,7 @@ describe('AsyncQueueManager', () => {
             const queue = createMockQueue()
 
             const result = await AsyncQueueManager.addTracksSafely(
-                queue as never,
+                asFixture(queue),
                 [],
             )
 
@@ -132,8 +133,8 @@ describe('AsyncQueueManager', () => {
 
             const tracks = [createMockTrack('Song A')]
             const result = await AsyncQueueManager.addTracksSafely(
-                queue as never,
-                tracks as never,
+                asFixture(queue),
+                asFixture(tracks),
             )
 
             expect(result.success).toBe(false)
@@ -150,8 +151,8 @@ describe('AsyncQueueManager', () => {
 
             const tracks = [createMockTrack('Song A')]
             const result = await AsyncQueueManager.addTracksSafely(
-                queue as never,
-                tracks as never,
+                asFixture(queue),
+                asFixture(tracks),
                 true,
             )
 
@@ -168,8 +169,8 @@ describe('AsyncQueueManager', () => {
 
             const tracks = [createMockTrack('Song A')]
             const result = await AsyncQueueManager.addTracksSafely(
-                queue as never,
-                tracks as never,
+                asFixture(queue),
+                asFixture(tracks),
             )
 
             expect(result.success).toBe(false)
@@ -183,8 +184,8 @@ describe('AsyncQueueManager', () => {
 
             const tracks = [createMockTrack('Song A')]
             const result = await AsyncQueueManager.addTracksSafely(
-                queue as never,
-                tracks as never,
+                asFixture(queue),
+                asFixture(tracks),
             )
 
             expect(result.success).toBe(false)
@@ -198,8 +199,8 @@ describe('AsyncQueueManager', () => {
             const track = createMockTrack('Song A')
 
             const result = await AsyncQueueManager.playTrackSafely(
-                queue as never,
-                track as never,
+                asFixture(queue),
+                asFixture(track),
             )
 
             expect(result.success).toBe(true)
@@ -213,8 +214,8 @@ describe('AsyncQueueManager', () => {
             const track = createMockTrack('Song A')
 
             const result = await AsyncQueueManager.playTrackSafely(
-                queue as never,
-                track as never,
+                asFixture(queue),
+                asFixture(track),
             )
 
             expect(result.success).toBe(true)
@@ -231,8 +232,8 @@ describe('AsyncQueueManager', () => {
 
             const track = createMockTrack('Song A')
             const result = await AsyncQueueManager.playTrackSafely(
-                queue as never,
-                track as never,
+                asFixture(queue),
+                asFixture(track),
             )
 
             expect(result.success).toBe(false)
@@ -246,8 +247,8 @@ describe('AsyncQueueManager', () => {
 
             const track = createMockTrack('Song A')
             const result = await AsyncQueueManager.playTrackSafely(
-                queue as never,
-                track as never,
+                asFixture(queue),
+                asFixture(track),
             )
 
             expect(result.success).toBe(false)
@@ -262,8 +263,8 @@ describe('AsyncQueueManager', () => {
 
             const track = createMockTrack('Song A')
             const result = await AsyncQueueManager.playTrackSafely(
-                queue as never,
-                track as never,
+                asFixture(queue),
+                asFixture(track),
             )
 
             expect(result.success).toBe(false)
@@ -276,7 +277,7 @@ describe('AsyncQueueManager', () => {
             const queue = createMockQueue()
 
             const result = await AsyncQueueManager.clearQueueSafely(
-                queue as never,
+                asFixture(queue),
             )
 
             expect(result.success).toBe(true)
@@ -292,7 +293,7 @@ describe('AsyncQueueManager', () => {
             })
 
             const result = await AsyncQueueManager.clearQueueSafely(
-                queue as never,
+                asFixture(queue),
             )
 
             expect(result.success).toBe(false)
@@ -306,7 +307,7 @@ describe('AsyncQueueManager', () => {
             })
 
             const result = await AsyncQueueManager.clearQueueSafely(
-                queue as never,
+                asFixture(queue),
             )
 
             expect(result.success).toBe(false)
