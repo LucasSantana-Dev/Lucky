@@ -1,3 +1,4 @@
+import { errorLog, warnLog } from '@lucky/shared/utils'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { isExtractorDegraded } from '../../../../../handlers/player/extractorHealth'
 import {
@@ -74,4 +75,24 @@ export function classifyPlayFailure(error: unknown): ClassifiedOutcome {
     return isNoResults || error instanceof AsmrBlockedError
         ? { ...classified, outcome: 'user_error' }
         : classified
+}
+
+/**
+ * "Nothing found" is the user's query, not a bot fault: log it as a warning
+ * and leave the query text out (it would become the Sentry issue title and
+ * split every distinct search into its own group). Anything else is an error.
+ */
+export function logPlayFailure(
+    message: string,
+    error: unknown,
+    data: { query?: string; guildId: string | null },
+): void {
+    if (classifyPlayFailure(error).outcome === 'user_error') {
+        warnLog({
+            message: `${message} no results (expected)`,
+            data: { guildId: data.guildId },
+        })
+        return
+    }
+    errorLog({ message, error, data })
 }
