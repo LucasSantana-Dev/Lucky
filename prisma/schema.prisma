@@ -1391,10 +1391,12 @@ model WeeklyDigestSnapshot {
 model AfkStatus {
   id        String   @id @default(cuid())
   guildId   String
-  guild     Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade)
+  /// onUpdate: NoAction matches the shipped migration (20260703051000_afk_status),
+  /// which created the FK with ON DELETE CASCADE only. Keeps `migrate diff` clean.
+  guild     Guild    @relation(fields: [guildId], references: [discordId], onDelete: Cascade, onUpdate: NoAction)
   userId    String
   reason    String?
-  since     DateTime @default(now())
+  since    DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
