@@ -159,6 +159,19 @@ describe('guildMembershipService', () => {
             expect(eventArgs.data.guildName).toBe('Unknown guild')
             expect(errorLogMock).not.toHaveBeenCalled()
         })
+
+        it('still writes the leave when the name lookup fails', async () => {
+            findUniqueMock.mockRejectedValueOnce(new Error('lookup down'))
+
+            await recordGuildLeave('444', undefined)
+
+            expect(updateManyMock).toHaveBeenCalledTimes(1)
+            const eventArgs = createMock.mock.calls[0]?.[0] as {
+                data: Record<string, unknown>
+            }
+            expect(eventArgs.data.kind).toBe('LEAVE')
+            expect(eventArgs.data.guildName).toBe('Unknown guild')
+        })
     })
 
     describe('syncGuildsOnReady', () => {

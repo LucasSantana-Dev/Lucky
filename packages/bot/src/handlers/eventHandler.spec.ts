@@ -1434,6 +1434,8 @@ describe('eventHandler', () => {
                     cache: { size: 1 },
                 } as any
                 recordGuildLeaveMock.mockClear()
+                guildLeavesTotalIncMock.mockClear()
+                cleanupGuildStateMock.mockClear()
 
                 handleEvents(client as unknown as never)
 
@@ -1445,6 +1447,8 @@ describe('eventHandler', () => {
                 })
 
                 expect(recordGuildLeaveMock).not.toHaveBeenCalled()
+                expect(guildLeavesTotalIncMock).not.toHaveBeenCalled()
+                expect(cleanupGuildStateMock).not.toHaveBeenCalled()
             })
 
             it('logs error if recording guild leave fails', async () => {

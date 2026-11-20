@@ -607,16 +607,16 @@ function handleGuildDelete(client: Client): void {
                 totalGuilds,
             },
         })
-        // available === false means a Discord outage, not a real leave.
-        if (guild.available !== false) {
-            guildLeavesTotal.inc()
-            await recordGuildLeave(guild.id, guild.name).catch((error) => {
-                errorLog({
-                    message: 'Error recording guild leave',
-                    error,
-                })
+        // available === false means a Discord outage, not a real leave:
+        // keep metrics, DB state and in-memory caches untouched.
+        if (guild.available === false) return
+        guildLeavesTotal.inc()
+        await recordGuildLeave(guild.id, guild.name).catch((error) => {
+            errorLog({
+                message: 'Error recording guild leave',
+                error,
             })
-        }
+        })
         try {
             const duplicateDetection =
                 (await import('../utils/music/duplicateDetection/index.js')) as {

@@ -59,14 +59,23 @@ export async function recordGuildLeave(
     const prisma = getPrismaClient()
     const leftAt = new Date()
     let guildName = guildNameInput ?? ''
-    try {
-        if (!guildName) {
+    if (!guildName) {
+        try {
             const stored = await prisma.guild.findUnique({
                 where: { discordId: guildDiscordId },
                 select: { name: true },
             })
             guildName = stored?.name || 'Unknown guild'
+        } catch (error) {
+            guildName = 'Unknown guild'
+            errorLog({
+                message: 'guildMembershipService: guild name lookup failed',
+                data: { guildId: guildDiscordId },
+                error,
+            })
         }
+    }
+    try {
         await prisma.$transaction([
             prisma.guild.updateMany({
                 where: { discordId: guildDiscordId },
