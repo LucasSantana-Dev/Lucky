@@ -56,8 +56,8 @@ function FeatureCard({
     return (
         <article className='bg-lucky-bg-secondary rounded-xl p-5 border border-lucky-border'>
             <div className='flex items-start justify-between gap-4'>
-                <div className='flex-1'>
-                    <div className='flex items-center gap-2 mb-1'>
+                <div className='min-w-0 flex-1'>
+                    <div className='flex flex-wrap items-center gap-2 mb-1'>
                         <h3 className='font-semibold text-white'>
                             {featureName}
                         </h3>

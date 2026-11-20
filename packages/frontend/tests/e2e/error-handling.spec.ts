@@ -1,20 +1,9 @@
 import { test, expect } from '@playwright/test'
-import {
-    navigateToServers,
-    navigateToDashboard,
-    navigateToFeatures,
-} from './helpers/page-helpers'
+import { setupMockApiResponses } from './helpers/api-helpers'
+import { navigateToFeatures } from './helpers/page-helpers'
+import { MOCK_API_RESPONSES } from './fixtures/test-data'
 
 test.describe('Error Handling', () => {
-    test('network errors display user-friendly messages', async ({ page }) => {
-        await page.route('**/api/guilds', async (route) => {
-            await route.abort('failed')
-        })
-
-        await navigateToServers(page)
-        await page.waitForTimeout(2000)
-    })
-
     test('401 errors redirect to login', async ({ page }) => {
         await page.route('**/api/auth/status', async (route) => {
             await route.fulfill({
@@ -28,104 +17,70 @@ test.describe('Error Handling', () => {
         await page.evaluate(() => localStorage.clear())
         await page.reload()
         await page.waitForLoadState('domcontentloaded')
-        await page.waitForTimeout(2000)
 
         const loginButton = page.getByRole('button', {
             name: /login with discord/i,
         })
-        await expect(loginButton).toBeVisible({ timeout: 5000 })
+        await expect(loginButton).toBeVisible({ timeout: 10000 })
     })
 
-    test('403 errors show appropriate messages', async ({ page }) => {
-        await page.route('**/api/toggles/global', async (route) => {
+    test('unauthenticated visit to a protected page shows the landing page', async ({
+        page,
+    }) => {
+        await page.route('**/api/auth/status', async (route) => {
             await route.fulfill({
-                status: 403,
+                status: 200,
                 contentType: 'application/json',
-                body: JSON.stringify({ error: 'Forbidden' }),
+                body: JSON.stringify({ authenticated: false }),
             })
         })
 
-        await navigateToFeatures(page)
-        await page.waitForTimeout(2000)
+        await page.goto('/features')
 
-        const globalSection = page.locator('text=/Global Toggles/i')
-        const isVisible = await globalSection
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
-        expect(isVisible).toBe(false)
+        await expect(
+            page.getByRole('banner').getByRole('link', { name: 'docs' }),
+        ).toBeVisible({ timeout: 10000 })
+        await expect(
+            page.getByRole('heading', { name: 'Available Features' }),
+        ).toHaveCount(0)
+        await expect(page.getByRole('switch')).toHaveCount(0)
     })
 
-    test('404 errors handled gracefully', async ({ page }) => {
-        await page.route('**/api/guilds/999999999999999999', async (route) => {
+    test('feature load failure shows an error banner with retry', async ({
+        page,
+    }) => {
+        await setupMockApiResponses(page)
+        let failing = true
+        await page.route('**/api/features', async (route) => {
+            if (failing) {
+                await route.fulfill({
+                    status: 500,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ error: 'Internal server error' }),
+                })
+                return
+            }
             await route.fulfill({
-                status: 404,
+                status: 200,
                 contentType: 'application/json',
-                body: JSON.stringify({ error: 'Not found' }),
-            })
-        })
-
-        await navigateToDashboard(page)
-        await page.waitForTimeout(2000)
-    })
-
-    test('API timeout handling', async ({ page }) => {
-        await page.route('**/api/guilds', async (route) => {
-            await page.waitForTimeout(10000)
-            await route.continue()
-        })
-
-        await navigateToServers(page)
-        await page.waitForTimeout(2000)
-    })
-
-    test('invalid server selection', async ({ page }) => {
-        await navigateToDashboard(page)
-
-        await page.route('**/api/guilds/invalid-id', async (route) => {
-            await route.fulfill({
-                status: 404,
-                contentType: 'application/json',
-                body: JSON.stringify({ error: 'Guild not found' }),
-            })
-        })
-
-        await page.waitForTimeout(1000)
-    })
-
-    test('feature toggle failures', async ({ page }) => {
-        await page.route('**/api/guilds/*/features/*', async (route) => {
-            await route.fulfill({
-                status: 500,
-                contentType: 'application/json',
-                body: JSON.stringify({ error: 'Internal server error' }),
+                body: JSON.stringify(MOCK_API_RESPONSES.featuresList),
             })
         })
 
         await navigateToFeatures(page)
 
-        const featureCard = page.locator('[class*="card"]').first()
-        const switchButton = featureCard.locator('[role="switch"]').first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await switchButton.click()
-            await page.waitForTimeout(1000)
-        }
-    })
-
-    test('server fetch failures', async ({ page }) => {
-        await page.route('**/api/guilds', async (route) => {
-            await route.fulfill({
-                status: 500,
-                contentType: 'application/json',
-                body: JSON.stringify({ error: 'Failed to fetch guilds' }),
-            })
+        const banner = page.getByRole('heading', {
+            name: 'Unable to load feature data',
         })
+        await expect(banner).toBeVisible({ timeout: 10000 })
+        await expect(page.getByRole('switch')).toHaveCount(0)
 
-        await navigateToServers(page)
-        await page.waitForTimeout(2000)
+        failing = false
+        await page.getByRole('button', { name: 'Retry' }).click()
+
+        await expect(banner).toHaveCount(0)
+        await expect(
+            page.getByRole('switch', { name: 'Toggle Autoplay' }),
+        ).toBeVisible()
     })
 })

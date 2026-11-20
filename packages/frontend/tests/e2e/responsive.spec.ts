@@ -1,75 +1,124 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import { setupMockApiResponses } from './helpers/api-helpers'
 import {
     navigateToDashboard,
     navigateToServers,
     navigateToFeatures,
+    waitForServerList,
+    waitForFeatures,
 } from './helpers/page-helpers'
-import { getSidebar, getMobileMenuButton } from './helpers/ui-helpers'
+import {
+    getServerCard,
+    getSidebar,
+    getMobileMenuButton,
+} from './helpers/ui-helpers'
+import { MOCK_GUILDS, MOCK_FEATURES } from './fixtures/test-data'
+
+const VIEWPORTS = [
+    { width: 375, height: 667 },
+    { width: 768, height: 1024 },
+    { width: 1920, height: 1080 },
+]
+
+// .lucky-shell clips overflow-x and <main> is the scroll container, so the
+// document never grows: content wider than the viewport only shows up as
+// <main> scrolling sideways or as elements crossing the viewport edge.
+async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+    const overflow = await page.evaluate(() => {
+        const main = document.querySelector('main')
+        if (!main) throw new Error('main scroll container not found')
+        const viewport = window.innerWidth
+        const escaping = Array.from(main.querySelectorAll('*'))
+            .filter((el) => {
+                const rect = el.getBoundingClientRect()
+                return rect.width > 0 && rect.right > viewport + 1
+            })
+            .map((el) => `${el.tagName.toLowerCase()}.${el.className}`)
+        return {
+            document: Math.max(
+                0,
+                document.documentElement.scrollWidth - viewport,
+            ),
+            main: main.scrollWidth - main.clientWidth,
+            escaping: escaping.slice(0, 5),
+        }
+    })
+    expect(overflow).toEqual({ document: 0, main: 0, escaping: [] })
+}
 
 test.describe('Responsive Design', () => {
     test.beforeEach(async ({ page }) => {
         await setupMockApiResponses(page)
     })
 
-    test('mobile menu toggle', async ({ page }) => {
+    test('mobile menu opens and closes the navigation sidebar', async ({
+        page,
+    }) => {
         await page.setViewportSize({ width: 375, height: 667 })
         await navigateToDashboard(page)
 
-        const mobileMenuButton = getMobileMenuButton(page)
-        const isVisible = await mobileMenuButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
+        const menuButton = page.locator('[aria-controls="mobile-sidebar"]')
+        const mobileSidebar = page.locator('#mobile-sidebar')
+        await expect(menuButton).toHaveAttribute('aria-expanded', 'false')
+        await expect(mobileSidebar).toHaveCount(0)
 
-        if (isVisible) {
-            await mobileMenuButton.click()
-            await page.waitForTimeout(500)
+        await menuButton.click()
 
-            const sidebar = getSidebar(page)
-            await expect(sidebar).toBeVisible()
-        }
+        await expect(mobileSidebar).toBeVisible()
+        await expect(menuButton).toHaveAttribute('aria-expanded', 'true')
+        await expect(
+            mobileSidebar.getByRole('link', { name: 'Features' }),
+        ).toBeVisible()
+
+        await page.mouse.click(340, 400)
+
+        await expect(mobileSidebar).toHaveCount(0)
+        await expect(menuButton).toHaveAttribute('aria-expanded', 'false')
     })
 
-    test('sidebar behavior on mobile', async ({ page }) => {
+    test('a link in the mobile sidebar navigates and closes it', async ({
+        page,
+    }) => {
         await page.setViewportSize({ width: 375, height: 667 })
         await navigateToDashboard(page)
 
-        const mobileMenuButton = getMobileMenuButton(page)
-        const menuVisible = await mobileMenuButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
+        await page.locator('[aria-controls="mobile-sidebar"]').click()
+        await page
+            .locator('#mobile-sidebar')
+            .getByRole('link', { name: 'Features' })
+            .click()
 
-        if (menuVisible) {
-            await mobileMenuButton.click()
-            await page.waitForTimeout(500)
-        }
+        await expect(page).toHaveURL(/\/features$/)
+        await expect(page.locator('#mobile-sidebar')).toHaveCount(0)
     })
 
-    test('server grid layout on different screen sizes', async ({ page }) => {
-        const viewports = [
-            { width: 375, height: 667 },
-            { width: 768, height: 1024 },
-            { width: 1920, height: 1080 },
-        ]
-
-        for (const viewport of viewports) {
+    for (const viewport of VIEWPORTS) {
+        test(`server list fits a ${viewport.width}px viewport`, async ({
+            page,
+        }) => {
             await page.setViewportSize(viewport)
             await navigateToServers(page)
-        }
-    })
+            await waitForServerList(page)
 
-    test('feature cards responsive layout', async ({ page }) => {
-        const viewports = [
-            { width: 375, height: 667 },
-            { width: 768, height: 1024 },
-            { width: 1920, height: 1080 },
-        ]
+            for (const guild of MOCK_GUILDS) {
+                await expect(getServerCard(page, guild.name)).toBeVisible()
+            }
+            await expectNoHorizontalOverflow(page)
+        })
 
-        for (const viewport of viewports) {
+        test(`feature cards fit a ${viewport.width}px viewport`, async ({
+            page,
+        }) => {
             await page.setViewportSize(viewport)
             await navigateToFeatures(page)
-        }
-    })
+            await waitForFeatures(page)
+
+            await expect(page.getByRole('switch')).toHaveCount(
+                MOCK_FEATURES.length,
+            )
+            await expectNoHorizontalOverflow(page)
+        })
+    }
 
     test('mobile menu button on mobile', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 667 })
@@ -95,19 +144,11 @@ test.describe('Responsive Design', () => {
         await page.setViewportSize({ width: 375, height: 667 })
         await navigateToDashboard(page)
 
-        const sidebar = getSidebar(page)
-        const isVisible = await sidebar
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
-
-        const mobileMenuButton = getMobileMenuButton(page)
-        const menuVisible = await mobileMenuButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (menuVisible && !isVisible) {
-            expect(isVisible).toBe(false)
-        }
+        await expect(
+            page.locator('[aria-controls="mobile-sidebar"]'),
+        ).toBeVisible({ timeout: 10000 })
+        await expect(page.locator('#mobile-sidebar')).toHaveCount(0)
+        await expect(page.locator('aside').first()).toBeHidden()
     })
 
     for (const width of [360, 390, 768, 1023]) {

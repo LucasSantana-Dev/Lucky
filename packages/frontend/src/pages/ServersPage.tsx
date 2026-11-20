@@ -102,7 +102,7 @@ export default function ServersPage() {
             </div>
 
             <div className='space-y-6'>
-                <div className='flex items-baseline justify-between'>
+                <div className='flex flex-wrap items-baseline justify-between gap-4'>
                     <div>
                         <div className='flex items-center gap-2'>
                             <h2 className='text-xs uppercase tracking-wider font-semibold text-lucky-text-tertiary'>
@@ -122,7 +122,7 @@ export default function ServersPage() {
                             })}
                         </p>
                     </div>
-                    <nav className='flex gap-2'>
+                    <nav className='flex flex-wrap gap-2'>
                         {(
                             [
                                 {

@@ -156,6 +156,23 @@ jobs:
         timeout-minutes: 15
         needs: [changes, build-shared]
         if: needs.changes.outputs.code == 'true' || github.event_name != 'pull_request'
+        # Throwaway database for the *.db.spec.ts suites (#2534). The health check
+        # probes TCP on 127.0.0.1: the init-time temp server only listens on the
+        # unix socket, so a socket probe reports ready too early (#1846).
+        services:
+            postgres:
+                image: postgres:18-alpine
+                env:
+                    POSTGRES_USER: discordbot
+                    POSTGRES_PASSWORD: ci
+                    POSTGRES_DB: discordbot
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd "pg_isready -h 127.0.0.1 -U discordbot -d discordbot"
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 20
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
             - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
@@ -173,6 +190,16 @@ jobs:
               env:
                   # Some shared service modules eagerly init Prisma at import time (#1249)
                   DATABASE_URL: postgresql://localhost:5432/test
+            # Raw SQL (advisory locks, ON CONFLICT) against a real, migrated Postgres:
+            # the unit specs above mock $queryRaw / $executeRaw (#2534).
+            - name: Apply migrations to the test database
+              run: npm run db:deploy
+              env:
+                  DATABASE_URL: postgresql://discordbot:ci@127.0.0.1:5432/discordbot
+            - name: Run shared database tests
+              run: npm run test:db --workspace=packages/shared
+              env:
+                  DATABASE_URL: postgresql://discordbot:ci@127.0.0.1:5432/discordbot
 
     test-backend:
         name: Test — backend

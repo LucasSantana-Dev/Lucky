@@ -5,35 +5,34 @@ const embedNameParam = guildIdParam.extend({
     name: z.string().min(1).max(100),
 })
 
-const embedDataSchema = z.object({
-    title: z.string().max(256).optional(),
-    description: z.string().max(4096).optional(),
-    color: z
-        .string()
-        .regex(/^#[0-9a-fA-F]{6}$/)
-        .optional(),
-    url: z.string().url().max(2048).optional(),
-    thumbnail: z.string().url().max(2048).optional(),
-    image: z.string().url().max(2048).optional(),
-    author: z
-        .object({
-            name: z.string().max(256).optional(),
-            icon_url: z.string().url().max(2048).optional(),
-            url: z.string().url().max(2048).optional(),
-        })
-        .optional(),
-    footer: z.string().max(2048).optional(),
-    fields: z
-        .array(
-            z.object({
-                name: z.string().min(1).max(256),
-                value: z.string().min(1).max(1024),
-                inline: z.boolean().optional(),
-            }),
-        )
-        .max(25)
-        .optional(),
-})
+// Only fields EmbedTemplate can store. `author` and `url` used to be declared
+// here but no column, service or bot code ever read them, so a caller's value
+// was accepted and silently dropped (#2444). Strict: unknown keys are a 400.
+const embedDataSchema = z
+    .object({
+        title: z.string().max(256).optional(),
+        description: z.string().max(4096).optional(),
+        color: z
+            .string()
+            .regex(/^#[0-9a-fA-F]{6}$/)
+            .optional(),
+        thumbnail: z.string().url().max(2048).optional(),
+        image: z.string().url().max(2048).optional(),
+        footer: z.string().max(2048).optional(),
+        fields: z
+            .array(
+                z
+                    .object({
+                        name: z.string().min(1).max(256),
+                        value: z.string().min(1).max(1024),
+                        inline: z.boolean().optional(),
+                    })
+                    .strict(),
+            )
+            .max(25)
+            .optional(),
+    })
+    .strict()
 
 const createEmbedBody = z.object({
     name: z.string().min(1, 'Name is required').max(100),
@@ -43,9 +42,8 @@ const createEmbedBody = z.object({
 
 // Flat, matching what EmbedBuilder.tsx sends and what
 // EmbedBuilderService.updateTemplate persists directly (no `embedData`
-// wrapper). See #2407. `author`/`url` are omitted: EmbedTemplate has no
-// columns for them (kept in embedDataSchema only for #2444) and letting
-// them through here 500s on the Prisma update. `description` keeps the same
+// wrapper). See #2407. Strict, like embedDataSchema: an unknown key such as
+// `author`/`url` would 500 on the Prisma update. `description` keeps the same
 // max (4096, matching createEmbedBody's embedData.description and the DB
 // column) so edits to a template create had already accepted are not rejected.
 // title/description/color/thumbnail/image/footer are widened to nullable here
@@ -53,7 +51,6 @@ const createEmbedBody = z.object({
 // sense once a template exists - createEmbedBody keeps them non-nullable
 // (#2445 review, #2645).
 const updateEmbedBody = embedDataSchema
-    .omit({ author: true, url: true })
     .extend({
         name: z.string().min(1).max(100).optional(),
         title: z.string().max(256).nullable().optional(),
