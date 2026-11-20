@@ -157,6 +157,65 @@ describe('LogService', () => {
         })
     })
 
+    // #2404: JSON.stringify escapes newlines inside values, but the String()
+    // fallback does not, and prefixLines prefixes every line it is given.
+    describe('pretty mode cannot be made to forge a record', () => {
+        const forged = 'x\n[ERROR] forged record'
+        const flat = 'x [ERROR] forged record'
+
+        it('keeps a data value with a newline on its own JSON line', () => {
+            const consoleSpy = jest.spyOn(console, 'log')
+            consoleSpy.mockClear()
+            service.info({ message: 'm', data: { name: forged } })
+            const lines = (consoleSpy.mock.calls[1]?.[0] as string).split('\n')
+            expect(lines).toHaveLength(3)
+            expect(lines[1]).toContain('x\\n[ERROR] forged record')
+        })
+
+        it('flattens the String() fallback of unserializable data', () => {
+            const consoleSpy = jest.spyOn(console, 'log')
+            consoleSpy.mockClear()
+            const data = { toJSON: () => undefined, toString: () => forged }
+            service.info({ message: 'm', data })
+            expect(consoleSpy.mock.calls[1]?.[0]).toBe(`[INFO] ${flat}`)
+        })
+
+        it('flattens the String() fallback when data cannot be stringified', () => {
+            const consoleSpy = jest.spyOn(console, 'log')
+            consoleSpy.mockClear()
+            const data: Record<string, unknown> = { toString: () => forged }
+            data['self'] = data
+            service.info({ message: 'm', data })
+            expect(consoleSpy.mock.calls[1]?.[0]).toBe(`[INFO] ${flat}`)
+        })
+
+        it('flattens the String() fallback of a non-Error error', () => {
+            const errorSpy = jest.spyOn(console, 'error')
+            errorSpy.mockClear()
+            const error = { toJSON: () => undefined, toString: () => forged }
+            service.warn({ message: 'm', error })
+            expect(errorSpy.mock.calls[0]?.[0]).toBe(`[WARN] ${flat}`)
+        })
+
+        it('flattens the fallback when a non-Error error cannot be stringified', () => {
+            const errorSpy = jest.spyOn(console, 'error')
+            errorSpy.mockClear()
+            const error: Record<string, unknown> = { toString: () => forged }
+            error['self'] = error
+            service.warn({ message: 'm', error })
+            expect(errorSpy.mock.calls[0]?.[0]).toBe(`[WARN] ${flat}`)
+        })
+
+        it('strips a carriage return and a line feed from the message', () => {
+            const consoleSpy = jest.spyOn(console, 'log')
+            consoleSpy.mockClear()
+            service.info({ message: 'a\r\nb' })
+            const logged = consoleSpy.mock.calls[0]?.[0] as string
+            expect(logged.endsWith(' a  b')).toBe(true)
+            expect(logged).not.toMatch(/[\r\n]/)
+        })
+    })
+
     describe('toError non-string path', () => {
         it('converts a number error to an Error via JSON.stringify', () => {
             service.error({ message: 'num err', error: 42 })
