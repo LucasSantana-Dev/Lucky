@@ -1,5 +1,5 @@
 import type { GuildQueue } from 'discord-player'
-import { debugLog, warnLog } from '@lucky/shared/utils'
+import { debugLog } from '@lucky/shared/utils'
 import { addBreadcrumb } from '@lucky/shared/utils/monitoring'
 import type { CustomClient } from '../../types'
 
@@ -179,8 +179,9 @@ export function resolveGuildQueue(
         }
     }
 
-    const log = diagnostics.cacheSize > 0 ? warnLog : debugLog
-    log({
+    // A miss is an expected outcome (first /play in a guild, queue already
+    // destroyed), so it stays at debug whatever the cache holds (#2875).
+    debugLog({
         message: 'Unable to resolve guild queue',
         data: diagnostics,
     })
