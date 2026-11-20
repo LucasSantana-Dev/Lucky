@@ -44,6 +44,7 @@ import {
 } from './bridgeExhaustedError'
 import {
     claimBreakerEpisodeReport,
+    getBreakerEpisode,
     classifyYtDlpFailure,
     isYtDlpBlocked,
     recordYtDlpFailure,
@@ -75,6 +76,8 @@ type BridgeTrack = Pick<
 // YouTube failure is kept per track so the single all-exhausted event can be
 // fingerprinted by root cause.
 const firstYouTubeFailure = new WeakMap<object, string>()
+// Breaker episode a play was blocked in, so its report claims that episode.
+const breakerEpisodeByTrack = new WeakMap<object, number>()
 // Tracks whose empty YouTube search went on to the broad retry, so the
 // exhausted event can list that stage in stages_tried.
 const broadSearchTried = new WeakSet<object>()
@@ -858,6 +861,24 @@ async function attemptCoreStageOrLogExhausted(
     }
 }
 
+// Counts one breaker-open play and says whether it is the first of its episode.
+function claimBreakerReport(track: BridgeTrack): boolean {
+    extractionFailuresTotal.inc({ type: 'breaker_open' })
+    return claimBreakerEpisodeReport(
+        breakerEpisodeByTrack.get(track) ?? getBreakerEpisode(),
+    )
+}
+
+// Exhausted without the all-exhausted event (empty title, SoundCloud circuit
+// open). A breaker-open play still counts, and only the first of its episode
+// leaves the error unmarked so it is captured as an exception once.
+function earlyExhaustedError(track: BridgeTrack, message: string): Error {
+    const duplicate =
+        firstYouTubeFailure.get(track) === 'breaker_open' &&
+        !claimBreakerReport(track)
+    return new BridgeExhaustedError(message, duplicate)
+}
+
 function logAllStagesExhausted(
     track: BridgeTrack,
     cleanedTitle: string,
@@ -872,11 +893,8 @@ function logAllStagesExhausted(
     const failureClass = firstYouTubeFailure.get(track) ?? 'none'
     // An open breaker is a known condition: count each play, but send one
     // Sentry event per episode instead of one per play (#3082).
-    let sendToSentry = true
-    if (failureClass === 'breaker_open') {
-        extractionFailuresTotal.inc({ type: 'breaker_open' })
-        sendToSentry = claimBreakerEpisodeReport()
-    }
+    const sendToSentry =
+        failureClass !== 'breaker_open' || claimBreakerReport(track)
     if (sendToSentry) {
         captureMessage(
             'YouTube extraction exhausted all fallback stages',
@@ -1137,6 +1155,7 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         youtubeStages = ['yt-dlp-blocked']
         if (!firstYouTubeFailure.has(track)) {
             firstYouTubeFailure.set(track, 'breaker_open')
+            breakerEpisodeByTrack.set(track, getBreakerEpisode())
         }
         debugLog({
             message:
@@ -1188,7 +1207,10 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
                 'Bridge: yt-dlp failed and title is empty, cannot fallback',
             data: { url: track.url },
         })
-        throw new Error('Bridge exhausted: no stream for empty title')
+        throw earlyExhaustedError(
+            track,
+            'Bridge exhausted: no stream for empty title',
+        )
     }
 
     if (!providerHealthService.isAvailable('soundcloud')) {
@@ -1206,7 +1228,10 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
                 url: track.url,
             },
         })
-        throw new Error(`Bridge exhausted: no stream for "${track.title}"`)
+        throw earlyExhaustedError(
+            track,
+            `Bridge exhausted: no stream for "${track.title}"`,
+        )
     }
 
     const expectedArtists = soundCloudArtists(cleanedTitle, cleanedAuthor)

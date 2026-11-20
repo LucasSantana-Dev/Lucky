@@ -8,6 +8,7 @@ const mockSearchYtDlpCandidates = jest.fn()
 const mockStreamViaSoundCloud = jest.fn()
 const mockGetSpotifySource = jest.fn()
 const mockFailureInc = jest.fn()
+let mockSoundCloudAvailable = true
 
 jest.mock('./ytdlpProcess', () => ({
     streamViaYtDlp: (...args: unknown[]) => mockStreamViaYtDlp(...args),
@@ -43,7 +44,7 @@ jest.mock('./extractorHealth', () => ({
     setExtractorDegraded: jest.fn(),
 }))
 jest.mock('../../services/musicManagement/search/providerHealth', () => ({
-    providerHealthService: { isAvailable: () => true },
+    providerHealthService: { isAvailable: () => mockSoundCloudAvailable },
 }))
 jest.mock('../../config/featureFlags', () => ({
     isHostedYoutubeEnabled: () => false,
@@ -72,7 +73,14 @@ jest.mock('../../utils/monitoring/sentry', () => ({
 
 import { captureMessage } from '../../utils/monitoring/sentry'
 import { createResilientStream } from './resilientStreamBridge'
-import { isYtDlpBlocked, recordYtDlpSuccess } from './ytdlpBlockBreaker'
+import { isReportedBridgeExhausted } from './bridgeExhaustedError'
+import {
+    getBreakerEpisode,
+    isYtDlpBlocked,
+    recordYtDlpSuccess,
+    claimBreakerEpisodeReport,
+    YTDLP_BLOCK_COOLDOWN_MS,
+} from './ytdlpBlockBreaker'
 
 const botcheck = () =>
     new Error(
@@ -258,6 +266,85 @@ describe('breaker open: one Sentry event per episode (#3082)', () => {
         )
 
         expect(exhaustedEvents()).toHaveLength(2)
+    })
+
+    it('counts and dedupes plays that fail on the SoundCloud-circuit-open branch', async () => {
+        await openBreaker()
+        jest.clearAllMocks()
+        mockSoundCloudAvailable = false
+        try {
+            const errors: unknown[] = []
+            for (const id of ['s1', 's2', 's3']) {
+                errors.push(
+                    await createResilientStream(spotifyTrack(id) as never).then(
+                        () => null,
+                        (e: unknown) => e,
+                    ),
+                )
+            }
+            expect(errors.map(isReportedBridgeExhausted)).toEqual([
+                false,
+                true,
+                true,
+            ])
+            expect(failureCount('breaker_open')).toBe(3)
+        } finally {
+            mockSoundCloudAvailable = true
+        }
+    })
+
+    it('counts and dedupes plays that fail on the empty-title branch', async () => {
+        await openBreaker()
+        jest.clearAllMocks()
+        const errors: unknown[] = []
+        for (const id of ['e1', 'e2']) {
+            const track = makeTrack(`https://open.spotify.com/track/${id}`, '')
+            errors.push(
+                await createResilientStream(track as never).then(
+                    () => null,
+                    (e: unknown) => e,
+                ),
+            )
+        }
+        expect(errors.map(isReportedBridgeExhausted)).toEqual([false, true])
+        expect(failureCount('breaker_open')).toBe(2)
+    })
+
+    it('a stale play cannot consume the slot of a newer episode', async () => {
+        await openBreaker()
+        const staleEpisode = getBreakerEpisode()
+        recordYtDlpSuccess()
+        await openBreaker()
+        const freshEpisode = getBreakerEpisode()
+        expect(freshEpisode).not.toBe(staleEpisode)
+
+        expect(claimBreakerEpisodeReport(staleEpisode)).toBe(true)
+        expect(claimBreakerEpisodeReport(staleEpisode)).toBe(false)
+        expect(claimBreakerEpisodeReport(freshEpisode)).toBe(true)
+        expect(claimBreakerEpisodeReport(freshEpisode)).toBe(false)
+    })
+
+    it('reports again in a new episode after the cooldown expired', async () => {
+        jest.useFakeTimers()
+        try {
+            await openBreaker()
+            jest.clearAllMocks()
+            await createResilientStream(spotifyTrack('c1') as never).catch(
+                () => undefined,
+            )
+            expect(exhaustedEvents()).toHaveLength(1)
+
+            jest.advanceTimersByTime(YTDLP_BLOCK_COOLDOWN_MS + 1)
+            expect(isYtDlpBlocked()).toBe(false)
+
+            await openBreaker()
+            await createResilientStream(spotifyTrack('c2') as never).catch(
+                () => undefined,
+            )
+            expect(exhaustedEvents()).toHaveLength(2)
+        } finally {
+            jest.useRealTimers()
+        }
     })
 
     it('keeps reporting other failure classes per play', async () => {

@@ -131,6 +131,13 @@ jest.mock('./ytdlpBlockBreaker', () => ({
                 classifyYtDlpFailure: (e: unknown) => string
             }
         ).classifyYtDlpFailure(error),
+    getBreakerEpisode: () => 1,
+    claimBreakerEpisodeReport: (episode: number) =>
+        (
+            jest.requireActual('./ytdlpBlockBreaker') as {
+                claimBreakerEpisodeReport: (e: number) => boolean
+            }
+        ).claimBreakerEpisodeReport(episode),
     isYtDlpBlocked: () => mockIsYtDlpBlocked(),
     recordYtDlpFailure: (...args: unknown[]) => mockRecordYtDlpFailure(...args),
     recordYtDlpSuccess: () => mockRecordYtDlpSuccess(),
