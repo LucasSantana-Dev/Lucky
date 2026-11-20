@@ -49,7 +49,10 @@ import { collectRelatedArtistCandidates } from './relatedArtistCollector'
 import { isAnchorTrack, selectAnchorSeeds } from './anchorSeeds'
 import { serializeBasis } from './recommendationBasis'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
-import { primaryArtistKey } from '../../../utils/music/trackNormalization'
+import {
+    normalizeTrackKey,
+    primaryArtistKey,
+} from '../../../utils/music/trackNormalization'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import {
     collectBroadFallbackCandidates,
@@ -1184,9 +1187,25 @@ export async function enqueueAndFinalize(
                 ...queue.tracks.toArray().map((t) => t.url),
             ].filter((u): u is string => Boolean(u)),
         )
-        const historyPool = allHistoryTracks.filter(
-            (t) => t.url && !replayExcluded.has(t.url),
+        // History holds a replayed song once per play, so dedupe by URL and
+        // by normalized title/artist key: otherwise one song can fill both
+        // replay slots and repeat songs get picked more often (#3077).
+        const replayKeys = new Set<string>(
+            [currentTrack, ...queue.tracks.toArray()]
+                .filter((t): t is Track => Boolean(t))
+                .map((t) => normalizeTrackKey(t.title, t.author)),
         )
+        const seenReplay = new Set<string>()
+        const seenReplayUrls = new Set<string>()
+        const historyPool = allHistoryTracks.filter((t) => {
+            if (!t.url || replayExcluded.has(t.url)) return false
+            if (seenReplayUrls.has(t.url)) return false
+            seenReplayUrls.add(t.url)
+            const key = normalizeTrackKey(t.title, t.author)
+            if (replayKeys.has(key) || seenReplay.has(key)) return false
+            seenReplay.add(key)
+            return true
+        })
         // Shuffle so successive empty passes don't always replay the same track.
         for (let i = historyPool.length - 1; i > 0; i--) {
             const j = randomInt(i + 1)
