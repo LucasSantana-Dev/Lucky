@@ -6,6 +6,7 @@ import {
 } from '@lucky/shared/services'
 import { buildQueueState } from './mappers'
 import { resolveGuildQueue } from '../../services/musicManagement/queueResolver'
+import { AsmrBlockedError, isAsmrTrack } from '../../utils/music/asmrFilter'
 
 type Result = MusicCommandResult
 
@@ -101,7 +102,12 @@ export async function handleImportPlaylist(
     if (!result?.tracks.length)
         return fail(cmd.id, cmd.guildId, 'No tracks found in playlist')
 
-    for (const track of result.tracks) queue.addTrack(track)
+    // The queue drops ASMR as it is added, so add and count what stays (#3001).
+    const tracks = result.tracks.filter((track) => !isAsmrTrack(track))
+    if (!tracks.length)
+        return fail(cmd.id, cmd.guildId, new AsmrBlockedError().message)
+
+    for (const track of tracks) queue.addTrack(track)
     if (!queue.node.isPlaying() && !queue.node.isPaused())
         await queue.node.play()
 
@@ -109,7 +115,7 @@ export async function handleImportPlaylist(
     await musicControlService.publishState(state)
 
     return ok(cmd.id, cmd.guildId, {
-        tracksAdded: result.tracks.length,
+        tracksAdded: tracks.length,
         playlistName: result.playlist?.title ?? 'Unknown Playlist',
         source: detectSource(url),
     })

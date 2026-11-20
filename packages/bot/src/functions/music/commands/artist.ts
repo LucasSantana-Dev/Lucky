@@ -34,6 +34,7 @@ import {
 import { isHostedYoutubeEnabled } from '../../../config/featureFlags'
 import type { CustomClient } from '../../../types/CustomClient'
 import { QUEUE_LEAVE_OPTIONS } from '../../../services/musicManagement/queueLeaveOptions'
+import { AsmrBlockedError, isAsmrTrack } from '../../../utils/music/asmrFilter'
 
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 20
@@ -358,10 +359,10 @@ export default new Command({
                       : substringMatch.length >= 3
                         ? substringMatch
                         : []
-            const tracks = (byArtist.length > 0 ? byArtist : tracksPool).slice(
-                0,
-                limit,
-            )
+            // The queue drops ASMR as it is added, so count what stays (#3001).
+            const tracks = (byArtist.length > 0 ? byArtist : tracksPool)
+                .filter((track) => !isAsmrTrack(track))
+                .slice(0, limit)
 
             const firstTrack = tracks[0]
             if (!firstTrack) {
@@ -369,7 +370,10 @@ export default new Command({
                     interaction,
                     content: {
                         embeds: [
-                            createErrorEmbed('No results', 'No tracks found.'),
+                            createErrorEmbed(
+                                'No results',
+                                new AsmrBlockedError().message,
+                            ),
                         ],
                     },
                 })

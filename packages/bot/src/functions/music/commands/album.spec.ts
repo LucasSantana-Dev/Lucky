@@ -186,6 +186,52 @@ describe('album command album resolution', () => {
         expect(search.mock.calls[0][0]).toBe(ALBUM_URL)
     })
 
+    it('counts only the tracks left after the ASMR filter (#3001)', async () => {
+        const asmr = { ...createTrack('Rain ASMR'), author: 'Sleepy' }
+        const addTrack = jest.fn()
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({
+            queue: { addTrack },
+        })
+        const search = jest.fn(async () => ({
+            tracks: [
+                createTrack('Come Together'),
+                asmr,
+                createTrack('Something'),
+            ],
+            playlist: { title: 'Abbey Road' },
+        }))
+
+        await albumCommand.execute({
+            client: {
+                player: {
+                    search,
+                    play: jest.fn(async () => ({ track: null })),
+                },
+            },
+            interaction: createInteraction(ALBUM_URL),
+        } as never)
+
+        expect(addTrack).toHaveBeenCalledTimes(1)
+        expect(addTrack).not.toHaveBeenCalledWith(asmr)
+        expect(lastReply().content.embeds[0].description).toContain('**2**')
+    })
+
+    it('says ASMR is blocked when the whole album is ASMR (#3001)', async () => {
+        const play = jest.fn()
+        const search = jest.fn(async () => ({
+            tracks: [{ ...createTrack('Rain ASMR'), author: 'Sleepy' }],
+            playlist: { title: 'Sleep' },
+        }))
+
+        await albumCommand.execute({
+            client: { player: { search, play } },
+            interaction: createInteraction(ALBUM_URL),
+        } as never)
+
+        expect(play).not.toHaveBeenCalled()
+        expect(lastReply().content.embeds[0].description).toContain('ASMR')
+    })
+
     it('reports an actionable message when no album matches', async () => {
         searchSpotifyAlbumsMock.mockResolvedValue([])
         const search = jest.fn()

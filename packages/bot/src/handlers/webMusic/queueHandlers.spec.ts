@@ -142,4 +142,31 @@ describe('web music queueHandlers queue resolution', () => {
         expect(publishStateMock).toHaveBeenCalledWith({ guildId: 'guild-1' })
         expect(result.success).toBe(true)
     })
+
+    it('counts only the imported tracks left after the ASMR filter (#3001)', async () => {
+        const song = { title: 'Song' }
+        const addTrack = jest.fn()
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                addTrack,
+                node: { isPlaying: () => true, isPaused: () => false },
+            },
+        })
+        const client = createClient()
+        ;(client.player.search as jest.Mock).mockResolvedValue({
+            tracks: [song, { title: 'Rain ASMR' }],
+            playlist: { title: 'Mix' },
+        } as never)
+
+        const result = await handleImportPlaylist(
+            client,
+            createCommand({ url: 'https://youtube.com/playlist?list=1' }),
+        )
+
+        expect(addTrack).toHaveBeenCalledTimes(1)
+        expect(addTrack).toHaveBeenCalledWith(song)
+        expect(
+            (result as { data?: { tracksAdded?: number } }).data?.tracksAdded,
+        ).toBe(1)
+    })
 })
