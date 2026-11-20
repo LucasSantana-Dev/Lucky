@@ -52,6 +52,8 @@ async function main(): Promise<void> {
     process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
     await ensureEnvironment()
+    // A signal during the await above already started the shutdown.
+    if (isShuttingDown) return
 
     setupErrorHandlers()
     initializeSentry({
