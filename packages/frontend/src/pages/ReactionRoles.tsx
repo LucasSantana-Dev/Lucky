@@ -212,7 +212,7 @@ function MessageCard({
                         aria-label='Delete'
                         onClick={() => void handleDelete()}
                         disabled={deleting}
-                        className='text-lucky-error hover:border-lucky-error/40 hover:bg-lucky-error/10'
+                        className='text-lucky-error-text hover:border-lucky-error/40 hover:bg-lucky-error/10'
                     >
                         <Trash2 className='h-3.5 w-3.5' />
                     </Button>
@@ -568,7 +568,7 @@ function MessageForm({
 
                 <div className='space-y-4 py-2'>
                     {error && (
-                        <p className='type-body-sm rounded-md border border-lucky-error/30 bg-lucky-error/10 px-3 py-2 text-lucky-error'>
+                        <p className='type-body-sm rounded-md border border-lucky-error/30 bg-lucky-error/10 px-3 py-2 text-lucky-error-text'>
                             {error}
                         </p>
                     )}
@@ -686,7 +686,7 @@ function MessageForm({
                                     <button
                                         type='button'
                                         onClick={handleFileClear}
-                                        className='ml-2 text-lucky-text-tertiary hover:text-lucky-error'
+                                        className='ml-2 text-lucky-text-tertiary hover:text-lucky-error-text'
                                         aria-label='Clear file'
                                     >
                                         <X className='h-3.5 w-3.5' />
@@ -736,7 +736,7 @@ function MessageForm({
                                                 type='button'
                                                 aria-label='Remove'
                                                 onClick={() => removeEntry(i)}
-                                                className='text-lucky-text-tertiary hover:text-lucky-error'
+                                                className='text-lucky-text-tertiary hover:text-lucky-error-text'
                                             >
                                                 <X className='h-3.5 w-3.5' />
                                             </button>
@@ -1039,7 +1039,7 @@ export default function ReactionRoles() {
 
             {(error ?? deleteError) && (
                 <Card className='border-lucky-error/30 bg-lucky-error/5 p-4'>
-                    <p className='type-body-sm text-lucky-error'>
+                    <p className='type-body-sm text-lucky-error-text'>
                         {error ?? deleteError}
                     </p>
                     {error && (

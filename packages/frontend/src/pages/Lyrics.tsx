@@ -117,7 +117,7 @@ export default function LyricsPage() {
             </form>
 
             {error && (
-                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-sm'>
+                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error-text text-sm'>
                     {error}
                 </div>
             )}

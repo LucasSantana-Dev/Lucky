@@ -74,7 +74,7 @@ function ServerCard({ guild }: ServerCardProps) {
                                 'type-meta normal-case tracking-normal gap-1 transition-colors',
                                 guild.botAdded
                                     ? 'bg-lucky-success/10 text-lucky-success border-lucky-success/30'
-                                    : 'bg-lucky-error/10 text-lucky-error border-lucky-error/30',
+                                    : 'bg-lucky-error/10 text-lucky-error-text border-lucky-error/30',
                             )}
                             aria-label={
                                 guild.botAdded

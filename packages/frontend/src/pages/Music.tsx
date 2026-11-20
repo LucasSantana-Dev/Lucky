@@ -151,7 +151,7 @@ export default function MusicPage() {
 
             {player.error && (
                 <div
-                    className='type-body-sm text-lucky-error bg-lucky-error/10 border border-lucky-error/20 rounded-lg p-3 flex items-start gap-3'
+                    className='type-body-sm text-lucky-error-text bg-lucky-error/10 border border-lucky-error/20 rounded-lg p-3 flex items-start gap-3'
                     role='alert'
                 >
                     <AlertCircle
@@ -162,7 +162,7 @@ export default function MusicPage() {
                     <button
                         type='button'
                         onClick={() => player.clearError()}
-                        className='shrink-0 type-meta text-lucky-error/80 hover:text-lucky-error underline'
+                        className='shrink-0 type-meta text-lucky-error-text/80 hover:text-lucky-error-text underline'
                     >
                         {t('music.dismissError')}
                     </button>

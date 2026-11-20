@@ -117,7 +117,7 @@ function CompactStat({
                             'rounded-sm px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider',
                             delta >= 0
                                 ? 'bg-lucky-success/20 text-lucky-success'
-                                : 'bg-lucky-error/20 text-lucky-error',
+                                : 'bg-lucky-error/20 text-lucky-error-text',
                         )}
                     >
                         {delta >= 0 ? '+' : ''}

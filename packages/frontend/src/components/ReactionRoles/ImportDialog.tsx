@@ -136,15 +136,15 @@ export function ImportDialog({
                     {validationErrors.length > 0 && (
                         <Card className='border-lucky-error/30 bg-lucky-error/5 p-4'>
                             <div className='flex gap-3'>
-                                <AlertCircle className='h-5 w-5 shrink-0 text-lucky-error' />
+                                <AlertCircle className='h-5 w-5 shrink-0 text-lucky-error-text' />
                                 <div className='space-y-1'>
-                                    <p className='type-body-sm font-medium text-lucky-error'>
+                                    <p className='type-body-sm font-medium text-lucky-error-text'>
                                         Validation errors
                                     </p>
                                     {validationErrors.map((error, i) => (
                                         <p
                                             key={i}
-                                            className='type-body-sm text-lucky-error/90'
+                                            className='type-body-sm text-lucky-error-text/90'
                                         >
                                             • {error}
                                         </p>
@@ -164,14 +164,14 @@ export function ImportDialog({
 
                     {Object.keys(importErrors).length > 0 && (
                         <Card className='border-lucky-error/30 bg-lucky-error/5 p-4'>
-                            <p className='type-body-sm font-medium text-lucky-error mb-2'>
+                            <p className='type-body-sm font-medium text-lucky-error-text mb-2'>
                                 Import errors
                             </p>
                             {Object.entries(importErrors).map(
                                 ([index, error]) => (
                                     <p
                                         key={index}
-                                        className='type-body-sm text-lucky-error/90'
+                                        className='type-body-sm text-lucky-error-text/90'
                                     >
                                         • Item {index}: {error}
                                     </p>

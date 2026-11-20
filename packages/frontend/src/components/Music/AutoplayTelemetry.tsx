@@ -99,7 +99,7 @@ export default function AutoplayTelemetry({ guildId }: AutoplayTelemetryProps) {
                     {t('music.autoplayLoading')}
                 </p>
             ) : failed ? (
-                <p className='px-6 py-8 text-center type-body-sm text-lucky-error'>
+                <p className='px-6 py-8 text-center type-body-sm text-lucky-error-text'>
                     {t('music.autoplayLoadFailed')}
                 </p>
             ) : perSource.length === 0 ? (

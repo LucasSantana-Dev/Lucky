@@ -79,7 +79,7 @@ function AdminSupportContent() {
 
             {list.isError && (
                 <div
-                    className='type-body-sm text-lucky-error bg-lucky-error/10 border border-lucky-error/20 rounded-lg p-3'
+                    className='type-body-sm text-lucky-error-text bg-lucky-error/10 border border-lucky-error/20 rounded-lg p-3'
                     role='alert'
                 >
                     {t('support.admin.loadError')}
@@ -176,7 +176,7 @@ function AdminSupportContent() {
                             </div>
                         ) : (
                             <p
-                                className='type-body-sm text-lucky-error'
+                                className='type-body-sm text-lucky-error-text'
                                 role='alert'
                             >
                                 {t('support.admin.loadError')}

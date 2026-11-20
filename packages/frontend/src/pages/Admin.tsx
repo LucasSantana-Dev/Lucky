@@ -66,7 +66,7 @@ export default function AdminPage() {
                 <div className='flex flex-col items-center gap-4 text-center max-w-sm'>
                     <div className='p-3 rounded-lg bg-lucky-surface-elevated'>
                         <ShieldCheck
-                            className='w-8 h-8 text-lucky-error'
+                            className='w-8 h-8 text-lucky-error-text'
                             aria-hidden='true'
                         />
                     </div>

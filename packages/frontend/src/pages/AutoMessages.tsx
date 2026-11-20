@@ -412,7 +412,7 @@ export default function AutoMessagesPage() {
                                                     onClick={() =>
                                                         setDeleteTarget(msg)
                                                     }
-                                                    className='p-1.5 rounded-md text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors'
+                                                    className='p-1.5 rounded-md text-lucky-text-tertiary hover:text-lucky-error-text hover:bg-lucky-error/10 transition-colors'
                                                     aria-label={t(
                                                         'autoMessages.deleteAriaLabel',
                                                         {

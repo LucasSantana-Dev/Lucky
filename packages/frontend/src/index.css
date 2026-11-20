@@ -88,6 +88,7 @@
   /* Status colors */
   --color-lucky-success: #23a55a;
   --color-lucky-error: #f23f42;
+  --color-lucky-error-text: #ff8587; /* 4.5:1+ for error text on panels, incl. /80 and error-tinted surfaces */
   --color-lucky-warning: #f0b232;
   --color-lucky-info: #00aafc;
 

@@ -163,7 +163,7 @@ export default function TrackHistoryPage() {
                     canManageMusic && (
                         <button
                             onClick={() => setShowClearDialog(true)}
-                            className='flex min-h-[44px] items-center gap-2 rounded-sm bg-lucky-error/10 px-3 type-body-sm font-semibold uppercase text-lucky-error transition-colors hover:bg-lucky-error/20'
+                            className='flex min-h-[44px] items-center gap-2 rounded-sm bg-lucky-error/10 px-3 type-body-sm font-semibold uppercase text-lucky-error-text transition-colors hover:bg-lucky-error/20'
                         >
                             <Trash2 className='h-4 w-4' />
                             {t('trackHistory.clear')}
@@ -173,7 +173,7 @@ export default function TrackHistoryPage() {
             />
 
             {error && (
-                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error type-body-sm'>
+                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error-text type-body-sm'>
                     {error}
                 </div>
             )}

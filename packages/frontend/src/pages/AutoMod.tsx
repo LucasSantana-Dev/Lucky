@@ -188,7 +188,7 @@ function TagList({
                             {item}
                             <button
                                 onClick={() => onRemove(item)}
-                                className='hover:text-lucky-error transition-colors p-0.5'
+                                className='hover:text-lucky-error-text transition-colors p-0.5'
                             >
                                 <X className='w-3 h-3' />
                             </button>
@@ -250,7 +250,7 @@ function ChannelPicker({
                             {getChannelName(id)}
                             <button
                                 onClick={() => onRemove(id)}
-                                className='hover:text-lucky-error transition-colors p-0.5'
+                                className='hover:text-lucky-error-text transition-colors p-0.5'
                             >
                                 <X className='w-3 h-3' />
                             </button>
@@ -317,7 +317,7 @@ function RolePicker({
                             {getRoleName(id)}
                             <button
                                 onClick={() => onRemove(id)}
-                                className='hover:text-lucky-error transition-colors p-0.5'
+                                className='hover:text-lucky-error-text transition-colors p-0.5'
                             >
                                 <X className='w-3 h-3' />
                             </button>
@@ -603,7 +603,7 @@ export default function AutoModPage() {
     const renderTemplates = () => {
         if (templatesError) {
             return (
-                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-sm'>
+                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error-text text-sm'>
                     {templatesError}
                 </div>
             )
@@ -719,7 +719,7 @@ export default function AutoModPage() {
             </div>
 
             {settingsError && (
-                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-sm'>
+                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error-text text-sm'>
                     {settingsError}
                 </div>
             )}
@@ -829,7 +829,7 @@ export default function AutoModPage() {
                                 }
                             />
                             {channelsError && (
-                                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-xs'>
+                                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error-text text-xs'>
                                     {channelsError}
                                 </div>
                             )}
@@ -879,7 +879,7 @@ export default function AutoModPage() {
                                 }
                             />
                             {rolesError && (
-                                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-xs'>
+                                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error-text text-xs'>
                                     {rolesError}
                                 </div>
                             )}
