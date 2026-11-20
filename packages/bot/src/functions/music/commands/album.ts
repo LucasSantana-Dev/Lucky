@@ -203,14 +203,18 @@ export default new Command({
                     },
                     requestedBy: interaction.user,
                     searchEngine: QueryType.SPOTIFY_SONG,
+                    // Played by URL, so it lost the link the other tracks
+                    // keep. Put it back before the track starts, or now
+                    // playing could not name the album.
+                    afterSearch: async (result) => {
+                        const played = result.tracks[0]
+                        if (played && searchResult.playlist) {
+                            played.playlist ??= searchResult.playlist
+                        }
+                        return result
+                    },
                 },
             )
-
-            // Played by URL, so it lost the link the other tracks keep and
-            // now playing could not name the album.
-            if (playResult.track) {
-                playResult.track.playlist ??= searchResult.playlist
-            }
 
             const { queue } = resolveGuildQueue(client, interaction.guildId)
             if (!queue) {
