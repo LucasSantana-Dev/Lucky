@@ -1,6 +1,16 @@
 import { QueryType } from 'discord-player'
-import type { SearchResult } from 'discord-player'
-import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
+import type {
+    GuildQueue,
+    PlayerNodeInitializationResult,
+    PlayerNodeInitializerOptions,
+    SearchResult,
+    Track,
+} from 'discord-player'
+import type {
+    ChatInputCommandInteraction,
+    GuildMember,
+    VoiceBasedChannel,
+} from 'discord.js'
 
 const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
 import type { CustomClient } from '../../../../types'
@@ -304,6 +314,166 @@ export function stampPlaylistTracks(
     return true
 }
 
+type PlayAtTopArms = {
+    client: CustomClient
+    voiceChannel: VoiceBasedChannel
+    query: string
+    searchEngine: QueryType
+    afterSearch: NonNullable<
+        PlayerNodeInitializerOptions<unknown>['afterSearch']
+    >
+}
+
+/**
+ * Primary search, then YouTube (when hosted YouTube is on), then SoundCloud.
+ * ASMR blocks are rethrown at every arm: another provider would only find
+ * the same ASMR. AUTO has no fallbacks.
+ */
+export async function playWithFallbacks({
+    client,
+    voiceChannel,
+    query,
+    searchEngine,
+    afterSearch,
+}: PlayAtTopArms): Promise<PlayerNodeInitializationResult<unknown>> {
+    try {
+        return await client.player.play(voiceChannel, query, {
+            searchEngine,
+            afterSearch,
+        })
+    } catch (primaryError) {
+        if (primaryError instanceof AsmrBlockedError) throw primaryError
+        if (searchEngine === QueryType.AUTO) throw primaryError
+
+        if (!isHostedYoutubeEnabled()) {
+            warnLog({
+                message:
+                    'Primary search failed, YouTube disabled, falling back to SoundCloud',
+                data: {
+                    query,
+                    searchEngine: String(searchEngine),
+                    error: String(primaryError),
+                },
+            })
+            return playSoundCloudArm(client, voiceChannel, query, afterSearch)
+        }
+
+        warnLog({
+            message: 'Primary search failed, falling back to YouTube',
+            data: {
+                query,
+                searchEngine: String(searchEngine),
+                error: String(primaryError),
+            },
+        })
+        try {
+            return await client.player.play(voiceChannel, query, {
+                searchEngine: QueryType.YOUTUBE_SEARCH,
+                blockExtractors: [SPOTIFY_EXTRACTOR_ID],
+                afterSearch,
+            })
+        } catch (youtubeError) {
+            if (youtubeError instanceof AsmrBlockedError) throw youtubeError
+            warnLog({
+                message: 'YouTube search failed, falling back to SoundCloud',
+                data: { query, error: String(youtubeError) },
+            })
+            return playSoundCloudArm(client, voiceChannel, query, afterSearch)
+        }
+    }
+}
+
+function playSoundCloudArm(
+    client: CustomClient,
+    voiceChannel: VoiceBasedChannel,
+    query: string,
+    afterSearch: PlayAtTopArms['afterSearch'],
+): Promise<PlayerNodeInitializationResult<unknown>> {
+    return client.player.play(voiceChannel, query, {
+        searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+        blockExtractors: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
+        afterSearch,
+    })
+}
+
+/** Rerank, hydrate and ASMR-gate a search result before it is queued. */
+export function buildAfterSearch(query: string): PlayAtTopArms['afterSearch'] {
+    const rerank = preferExactMatch(query)
+    return async (found: SearchResult) => {
+        // Hydrated first: a bare link has no title or artist to check.
+        assertQueryNotAsmr(query)
+        const ranked = await ensureTrackMetadata(await rerank(found))
+        assertNotAsmr(query, ranked)
+        return ranked
+    }
+}
+
+/** Moves the track to the head of a non-empty queue, optionally skipping. */
+export function moveTrackToTop(
+    queue: GuildQueue,
+    track: Track,
+    skipCurrent: boolean,
+): void {
+    if (queue.tracks.toArray().length === 0) return
+    queue.node.remove(track)
+    queue.insertTrack(track, 0)
+    if (skipCurrent) queue.node.skip()
+}
+
+async function replyPlayAtTopError(
+    interaction: ChatInputCommandInteraction,
+    commandName: string,
+    query: string,
+    error: unknown,
+): Promise<void> {
+    logPlayFailure(`${commandName} error:`, error, {
+        query,
+        guildId: interaction.guildId,
+    })
+    markCommandOutcome(interaction, classifyPlayFailure(error))
+
+    let t: ((key: string) => string) | undefined
+    try {
+        t = await translatorForInteraction(interaction)
+    } catch {
+        // English fallback text in resolvePlayErrorMessage
+    }
+
+    try {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Play Error',
+                        resolvePlayErrorMessage(error, query, t),
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+    } catch (replyError) {
+        warnLog({
+            message: `failed to send ${commandName} error reply`,
+            error: replyError,
+            data: { guildId: interaction.guildId },
+        })
+    }
+}
+
+/** Returns false when the interaction expired and nothing more can be sent. */
+async function deferPublicReply(
+    interaction: ChatInputCommandInteraction,
+): Promise<boolean> {
+    try {
+        await interaction.deferReply()
+        return true
+    } catch (error) {
+        if (isUnknownInteractionError(error)) return false
+        throw error
+    }
+}
+
 export async function executePlayAtTop({
     client,
     interaction,
@@ -342,84 +512,16 @@ export async function executePlayAtTop({
     // below, which would strip the ephemeral flag.
     if (await replyYoutubeDisabledIfNeeded(interaction, query)) return
 
-    try {
-        await interaction.deferReply()
-    } catch (error) {
-        if (isUnknownInteractionError(error)) return
-        throw error
-    }
+    if (!(await deferPublicReply(interaction))) return
 
     try {
-        const searchEngine = resolveSearchEngine(query)
-        const rerank = preferExactMatch(query)
-        const afterSearch = async (found: SearchResult) => {
-            // Hydrated first: a bare link has no title or artist to check.
-            assertQueryNotAsmr(query)
-            const ranked = await ensureTrackMetadata(await rerank(found))
-            assertNotAsmr(query, ranked)
-            return ranked
-        }
-        let result
-        try {
-            result = await client.player.play(voiceChannel, query, {
-                searchEngine,
-                afterSearch,
-            })
-        } catch (primaryError) {
-            if (primaryError instanceof AsmrBlockedError) throw primaryError
-            if (searchEngine !== QueryType.AUTO) {
-                if (isHostedYoutubeEnabled()) {
-                    warnLog({
-                        message:
-                            'Primary search failed, falling back to YouTube',
-                        data: {
-                            query,
-                            searchEngine: String(searchEngine),
-                            error: String(primaryError),
-                        },
-                    })
-                    try {
-                        result = await client.player.play(voiceChannel, query, {
-                            searchEngine: QueryType.YOUTUBE_SEARCH,
-                            blockExtractors: [SPOTIFY_EXTRACTOR_ID],
-                            afterSearch,
-                        })
-                    } catch (youtubeError) {
-                        if (youtubeError instanceof AsmrBlockedError) {
-                            throw youtubeError
-                        }
-                        warnLog({
-                            message:
-                                'YouTube search failed, falling back to SoundCloud',
-                            data: { query, error: String(youtubeError) },
-                        })
-                        result = await client.player.play(voiceChannel, query, {
-                            searchEngine: QueryType.SOUNDCLOUD_SEARCH,
-                            blockExtractors:
-                                SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
-                            afterSearch,
-                        })
-                    }
-                } else {
-                    warnLog({
-                        message:
-                            'Primary search failed, YouTube disabled, falling back to SoundCloud',
-                        data: {
-                            query,
-                            searchEngine: String(searchEngine),
-                            error: String(primaryError),
-                        },
-                    })
-                    result = await client.player.play(voiceChannel, query, {
-                        searchEngine: QueryType.SOUNDCLOUD_SEARCH,
-                        blockExtractors: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
-                        afterSearch,
-                    })
-                }
-            } else {
-                throw primaryError
-            }
-        }
+        const result = await playWithFallbacks({
+            client,
+            voiceChannel,
+            query,
+            searchEngine: resolveSearchEngine(query),
+            afterSearch: buildAfterSearch(query),
+        })
         const track = result.track
         stampPlaylistTracks(result.searchResult)
 
@@ -437,12 +539,7 @@ export async function executePlayAtTop({
             return
         }
 
-        const tracks = queue.tracks.toArray()
-        if (tracks.length > 0) {
-            queue.node.remove(track)
-            queue.insertTrack(track, 0)
-            if (skipCurrent) queue.node.skip()
-        }
+        moveTrackToTop(queue, track, skipCurrent)
 
         // The controls live on the now-playing message, not on this reply.
         const embed = buildPlayResponseEmbed(
@@ -476,39 +573,6 @@ export async function executePlayAtTop({
             })
             return
         }
-
-        logPlayFailure(`${commandName} error:`, error, {
-            query,
-            guildId: interaction.guildId,
-        })
-        markCommandOutcome(interaction, classifyPlayFailure(error))
-
-        let t: ((key: string) => string) | undefined
-        try {
-            t = await translatorForInteraction(interaction)
-        } catch {
-            // English fallback text in resolvePlayErrorMessage
-        }
-
-        try {
-            await interactionReply({
-                interaction,
-                content: {
-                    embeds: [
-                        createErrorEmbed(
-                            'Play Error',
-                            resolvePlayErrorMessage(error, query, t),
-                        ),
-                    ],
-                    ephemeral: true,
-                },
-            })
-        } catch (replyError) {
-            warnLog({
-                message: `failed to send ${commandName} error reply`,
-                error: replyError,
-                data: { guildId: interaction.guildId },
-            })
-        }
+        await replyPlayAtTopError(interaction, commandName, query, error)
     }
 }
