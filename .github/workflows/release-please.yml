@@ -80,3 +80,29 @@ jobs:
                     fi
                   done
                   exit "$stale"
+
+            # release-please skips, with a green run, any squash commit whose
+            # body its conventional-commit parser rejects: the change vanishes
+            # from the changelog and the version bump can be too small (#2710).
+            # Re-run the same parser over the commits since the last release
+            # and fail loudly instead. Runs even when the guard above failed.
+            - name: Check out the commit check script
+              if: ${{ !cancelled() }}
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+              with:
+                  sparse-checkout: scripts/check-release-commits.mjs
+                  sparse-checkout-cone-mode: false
+                  persist-credentials: false
+
+            - name: Fail on commits release-please would silently drop
+              if: ${{ !cancelled() }}
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  REPO: ${{ github.repository }}
+                  RELEASE_PLEASE_DIR: ${{ runner.temp }}/release-please
+                  # Keep in step with the version release-please-action bundles.
+                  RELEASE_PLEASE_VERSION: 17.6.0
+              run: |
+                  set -euo pipefail
+                  npm install --prefix "$RELEASE_PLEASE_DIR" --no-save --no-audit                     --no-fund --ignore-scripts "release-please@$RELEASE_PLEASE_VERSION"
+                  node scripts/check-release-commits.mjs
