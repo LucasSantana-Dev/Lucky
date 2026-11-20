@@ -61,6 +61,7 @@ import {
 } from '../candidateFallback'
 import { buildVcContributionWeights } from './vcWeights'
 import { getRejectionCounts } from './candidateContracts'
+import { getAllHistoryTracks } from '../../../utils/music/historyTracks'
 
 // Autoplay backfill target. Reduced from 8→2 to prevent over-queueing: when
 // too many songs are queued ahead, most get evicted before playerStart without
@@ -1403,17 +1404,6 @@ function buildArtistFrequency(
         }
     }
     return freq
-}
-
-function getAllHistoryTracks(queue: GuildQueue): Track[] {
-    const history = queue.history as
-        { tracks?: { toArray?: () => Track[]; data?: Track[] } } | undefined
-
-    if (!history?.tracks) return []
-    if (typeof history.tracks.toArray === 'function')
-        return history.tracks.toArray()
-    if (Array.isArray(history.tracks.data)) return history.tracks.data
-    return []
 }
 
 export function clearSessionMoodCache(guildId: string): void {
