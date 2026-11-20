@@ -113,7 +113,9 @@ describe('Levels', () => {
 
         expect(await screen.findByText('111')).toBeInTheDocument()
         expect(screen.getByText('222')).toBeInTheDocument()
-        expect(screen.getByText('1,500 XP')).toBeInTheDocument()
+        expect(
+            screen.getByText(`${(1500).toLocaleString()} XP`),
+        ).toBeInTheDocument()
         expect(screen.getByText('800 XP')).toBeInTheDocument()
         expect(container.querySelectorAll('h1')).toHaveLength(1)
     })
