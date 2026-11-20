@@ -62,6 +62,11 @@ import { handleArtistDiscography } from './artistDiscography'
 import { interactionReply } from '../../../../utils/general/interactionReply'
 import { resolveGuildQueue } from '../../../../services/musicManagement/queueResolver'
 import { moveUserTrackToPriority } from '../../../../services/musicManagement/queueManipulation'
+import {
+    asClient,
+    asVoiceChannel,
+} from '../../../../../tests/utils/music/commandFixtures.js'
+import { asInteraction } from '../../../../../tests/utils/command/fixtures.js'
 
 const createTrack = (title: string, author: string) => ({
     title,
@@ -102,9 +107,9 @@ describe('handleArtistDiscography', () => {
         getSpotifyClientTokenMock.mockResolvedValue(null)
 
         await handleArtistDiscography({
-            client: client as never,
-            interaction: interaction as never,
-            voiceChannel: {} as never,
+            client: asClient(client),
+            interaction: asInteraction(interaction),
+            voiceChannel: asVoiceChannel(),
             artistName: 'Queen',
         })
 
@@ -119,9 +124,9 @@ describe('handleArtistDiscography', () => {
         searchSpotifyArtistsMock.mockResolvedValue([])
 
         await handleArtistDiscography({
-            client: client as never,
-            interaction: interaction as never,
-            voiceChannel: {} as never,
+            client: asClient(client),
+            interaction: asInteraction(interaction),
+            voiceChannel: asVoiceChannel(),
             artistName: 'Some Obscure Name',
         })
 
@@ -139,9 +144,9 @@ describe('handleArtistDiscography', () => {
         getSpotifyArtistAlbumsMock.mockResolvedValue([])
 
         await handleArtistDiscography({
-            client: client as never,
-            interaction: interaction as never,
-            voiceChannel: {} as never,
+            client: asClient(client),
+            interaction: asInteraction(interaction),
+            voiceChannel: asVoiceChannel(),
             artistName: 'queen',
         })
 
@@ -185,9 +190,9 @@ describe('handleArtistDiscography', () => {
         })
 
         await handleArtistDiscography({
-            client: client as never,
-            interaction: interaction as never,
-            voiceChannel: {} as never,
+            client: asClient(client),
+            interaction: asInteraction(interaction),
+            voiceChannel: asVoiceChannel(),
             artistName: 'Queen',
         })
 
@@ -225,9 +230,9 @@ describe('handleArtistDiscography', () => {
             })
 
         await handleArtistDiscography({
-            client: client as never,
-            interaction: interaction as never,
-            voiceChannel: {} as never,
+            client: asClient(client),
+            interaction: asInteraction(interaction),
+            voiceChannel: asVoiceChannel(),
             artistName: 'Queen',
         })
 
@@ -254,9 +259,9 @@ describe('handleArtistDiscography', () => {
         search.mockResolvedValue({ tracks: [] })
 
         await handleArtistDiscography({
-            client: client as never,
-            interaction: interaction as never,
-            voiceChannel: {} as never,
+            client: asClient(client),
+            interaction: asInteraction(interaction),
+            voiceChannel: asVoiceChannel(),
             artistName: 'Queen',
         })
 
@@ -278,9 +283,9 @@ describe('handleArtistDiscography', () => {
         })
 
         await handleArtistDiscography({
-            client: client as never,
-            interaction: interaction as never,
-            voiceChannel: {} as never,
+            client: asClient(client),
+            interaction: asInteraction(interaction),
+            voiceChannel: asVoiceChannel(),
             artistName: 'Whisper',
         })
 
@@ -305,9 +310,9 @@ describe('handleArtistDiscography', () => {
             })
 
         await handleArtistDiscography({
-            client: client as never,
-            interaction: interaction as never,
-            voiceChannel: {} as never,
+            client: asClient(client),
+            interaction: asInteraction(interaction),
+            voiceChannel: asVoiceChannel(),
             artistName: 'Queen',
         })
 

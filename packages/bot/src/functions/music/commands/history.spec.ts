@@ -37,6 +37,7 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 import historyCommand from './history'
+import { createCommandParams } from '../../../../tests/utils/music/commandFixtures.js'
 
 const fakeEmbed = { setFooter: jest.fn().mockReturnThis() }
 
@@ -88,14 +89,14 @@ describe('history command', () => {
     it('returns early when requireGuild fails', async () => {
         requireGuildMock.mockResolvedValue(false)
         const interaction = makeInteraction()
-        await historyCommand.execute({ interaction } as never)
+        await historyCommand.execute(createCommandParams({ interaction }))
         expect(interaction.deferReply).not.toHaveBeenCalled()
     })
 
     it('shows warning embed when history is empty', async () => {
         getTrackHistoryMock.mockResolvedValue([])
         const interaction = makeInteraction()
-        await historyCommand.execute({ interaction } as never)
+        await historyCommand.execute(createCommandParams({ interaction }))
         expect(createWarningEmbedMock).toHaveBeenCalledWith(
             'No history',
             expect.stringContaining('No tracks'),
@@ -113,7 +114,7 @@ describe('history command', () => {
         const entries = Array.from({ length: 5 }, (_, i) => makeEntry(i + 1))
         getTrackHistoryMock.mockResolvedValue(entries)
         const interaction = makeInteraction()
-        await historyCommand.execute({ interaction } as never)
+        await historyCommand.execute(createCommandParams({ interaction }))
         expect(musicEmbedMock).toHaveBeenCalledWith(
             'Recently Played',
             expect.stringContaining('Track 1'),
@@ -125,7 +126,7 @@ describe('history command', () => {
         const entries = [makeEntry(1, true)]
         getTrackHistoryMock.mockResolvedValue(entries)
         const interaction = makeInteraction()
-        await historyCommand.execute({ interaction } as never)
+        await historyCommand.execute(createCommandParams({ interaction }))
         const description = musicEmbedMock.mock.calls[0][1] as string
         expect(description).toContain('🤖')
     })
@@ -137,7 +138,7 @@ describe('history command', () => {
         const interaction = makeInteraction({
             options: { getInteger: jest.fn().mockReturnValue(2) },
         })
-        await historyCommand.execute({ interaction } as never)
+        await historyCommand.execute(createCommandParams({ interaction }))
         expect(createErrorEmbedMock).toHaveBeenCalledWith(
             'Page not found',
             expect.any(String),
@@ -149,7 +150,7 @@ describe('history command', () => {
             Array.from({ length: 10 }, (_, i) => makeEntry(i + 1)),
         )
         const interaction = makeInteraction()
-        await historyCommand.execute({ interaction } as never)
+        await historyCommand.execute(createCommandParams({ interaction }))
         expect(getTrackHistoryMock).toHaveBeenCalledWith('guild-1', 10)
     })
 
@@ -159,7 +160,7 @@ describe('history command', () => {
         const interaction = makeInteraction({
             options: { getInteger: jest.fn().mockReturnValue(2) },
         })
-        await historyCommand.execute({ interaction } as never)
+        await historyCommand.execute(createCommandParams({ interaction }))
         expect(getTrackHistoryMock).toHaveBeenCalledWith('guild-1', 20)
         const description = musicEmbedMock.mock.calls[0][1] as string
         expect(description).toContain('Track 11')

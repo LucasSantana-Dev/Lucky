@@ -55,6 +55,7 @@ jest.mock('../../../services/musicRecommendation/feedbackService', () => ({
 
 import musicCommand from './music'
 import { interactionReply } from '../../../utils/general/interactionReply'
+import { createCommandParams } from '../../../../tests/utils/music/commandFixtures.js'
 
 const reply = () =>
     (interactionReply as jest.Mock).mock.calls.at(-1)?.[0] as {
@@ -122,20 +123,24 @@ describe('music command', () => {
     it('returns early when the guild guard fails', async () => {
         requireGuildMock.mockResolvedValue(false)
 
-        await musicCommand.execute({
-            client: {},
-            interaction: createInteraction('health'),
-        } as never)
+        await musicCommand.execute(
+            createCommandParams({
+                client: {},
+                interaction: createInteraction('health'),
+            }),
+        )
 
         expect(interactionReply).not.toHaveBeenCalled()
         expect(resolveGuildQueueMock).not.toHaveBeenCalled()
     })
 
     it('clearfeedback clears the caller feedback and confirms ephemerally', async () => {
-        await musicCommand.execute({
-            client: {},
-            interaction: createInteraction('clearfeedback'),
-        } as never)
+        await musicCommand.execute(
+            createCommandParams({
+                client: {},
+                interaction: createInteraction('clearfeedback'),
+            }),
+        )
 
         expect(clearFeedbackMock).toHaveBeenCalledWith('u1')
         expect(reply().content.ephemeral).toBe(true)
@@ -145,10 +150,12 @@ describe('music command', () => {
     })
 
     it('rejects an unknown subcommand instead of treating it as health', async () => {
-        await musicCommand.execute({
-            client: {},
-            interaction: createInteraction('bogus'),
-        } as never)
+        await musicCommand.execute(
+            createCommandParams({
+                client: {},
+                interaction: createInteraction('bogus'),
+            }),
+        )
 
         expect(reply().content.embeds[0].description).toBe(
             'Unknown subcommand.',
@@ -157,10 +164,12 @@ describe('music command', () => {
     })
 
     it('health reports diagnostics for an active queue', async () => {
-        await musicCommand.execute({
-            client: {},
-            interaction: createInteraction('health'),
-        } as never)
+        await musicCommand.execute(
+            createCommandParams({
+                client: {},
+                interaction: createInteraction('health'),
+            }),
+        )
 
         expect(resolveGuildQueueMock).toHaveBeenCalledWith({}, 'g1')
         const body = JSON.stringify(reply().content.embeds[0])
@@ -176,10 +185,12 @@ describe('music command', () => {
             diagnostics: { cacheSize: 0, cacheSampleKeys: [] },
         })
 
-        await musicCommand.execute({
-            client: {},
-            interaction: createInteraction('health'),
-        } as never)
+        await musicCommand.execute(
+            createCommandParams({
+                client: {},
+                interaction: createInteraction('health'),
+            }),
+        )
 
         const body = JSON.stringify(reply().content.embeds[0])
         expect(body).toContain('No active queue')
@@ -202,10 +213,12 @@ describe('music command', () => {
             },
         })
 
-        await musicCommand.execute({
-            client: {},
-            interaction: createInteraction('health'),
-        } as never)
+        await musicCommand.execute(
+            createCommandParams({
+                client: {},
+                interaction: createInteraction('health'),
+            }),
+        )
 
         const body = JSON.stringify(reply().content.embeds[0])
         expect(body).toContain('youtube: 90% (ready, failures: 0)')
@@ -225,10 +238,12 @@ describe('music command', () => {
             lastRecoveryDetail: 'stream stalled',
         })
 
-        await musicCommand.execute({
-            client: {},
-            interaction: createInteraction('health'),
-        } as never)
+        await musicCommand.execute(
+            createCommandParams({
+                client: {},
+                interaction: createInteraction('health'),
+            }),
+        )
 
         const body = JSON.stringify(reply().content.embeds[0])
         expect(body).toContain('Last watchdog recovery failed')
@@ -238,10 +253,12 @@ describe('music command', () => {
     it('health reports the no-data case rather than an empty provider list', async () => {
         getAllStatusesMock.mockReturnValue({})
 
-        await musicCommand.execute({
-            client: {},
-            interaction: createInteraction('health'),
-        } as never)
+        await musicCommand.execute(
+            createCommandParams({
+                client: {},
+                interaction: createInteraction('health'),
+            }),
+        )
 
         expect(JSON.stringify(reply().content.embeds[0])).toContain(
             'No provider status data collected yet.',

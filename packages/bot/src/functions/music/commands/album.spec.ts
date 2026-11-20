@@ -66,6 +66,7 @@ jest.mock('@lucky/shared/services', () => ({
 import albumCommand from './album'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
+import { createCommandParams } from '../../../../tests/utils/music/commandFixtures.js'
 
 const ALBUM_URL = 'https://open.spotify.com/album/0ETFjACtuP2ADo6LFhL6HN'
 
@@ -127,10 +128,12 @@ describe('album command album resolution', () => {
             track: createTrack('Come Together'),
         }))
 
-        await albumCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction('Abbey Road'),
-        } as never)
+        await albumCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction('Abbey Road'),
+            }),
+        )
 
         expect(searchSpotifyAlbumsMock).toHaveBeenCalledWith('Abbey Road', 20)
         expect(search).toHaveBeenCalledTimes(1)
@@ -153,15 +156,17 @@ describe('album command album resolution', () => {
             playlist: { title: 'Abbey Road' },
         }))
 
-        await albumCommand.execute({
-            client: {
-                player: {
-                    search,
-                    play: jest.fn(async () => ({ track: null })),
+        await albumCommand.execute(
+            createCommandParams({
+                client: {
+                    player: {
+                        search,
+                        play: jest.fn(async () => ({ track: null })),
+                    },
                 },
-            },
-            interaction: createInteraction('Abbey Road', 'The Beatles'),
-        } as never)
+                interaction: createInteraction('Abbey Road', 'The Beatles'),
+            }),
+        )
 
         expect(searchSpotifyAlbumsMock).toHaveBeenCalledWith(
             'Abbey Road The Beatles',
@@ -185,15 +190,17 @@ describe('album command album resolution', () => {
             playlist: { title: 'Esquinas' },
         }))
 
-        await albumCommand.execute({
-            client: {
-                player: {
-                    search,
-                    play: jest.fn(async () => ({ track: null })),
+        await albumCommand.execute(
+            createCommandParams({
+                client: {
+                    player: {
+                        search,
+                        play: jest.fn(async () => ({ track: null })),
+                    },
                 },
-            },
-            interaction: createInteraction('Esquinas', 'Anavitória'),
-        } as never)
+                interaction: createInteraction('Esquinas', 'Anavitória'),
+            }),
+        )
 
         expect(search.mock.calls[0][0]).toBe(wanted)
     })
@@ -212,15 +219,17 @@ describe('album command album resolution', () => {
             playlist: { title: 'Abbey Road' },
         }))
 
-        await albumCommand.execute({
-            client: {
-                player: {
-                    search,
-                    play: jest.fn(async () => ({ track: null })),
+        await albumCommand.execute(
+            createCommandParams({
+                client: {
+                    player: {
+                        search,
+                        play: jest.fn(async () => ({ track: null })),
+                    },
                 },
-            },
-            interaction: createInteraction('abbey road'),
-        } as never)
+                interaction: createInteraction('abbey road'),
+            }),
+        )
 
         expect(search.mock.calls[0][0]).toBe(ALBUM_URL)
     })
@@ -231,15 +240,17 @@ describe('album command album resolution', () => {
             playlist: { title: 'Abbey Road' },
         }))
 
-        await albumCommand.execute({
-            client: {
-                player: {
-                    search,
-                    play: jest.fn(async () => ({ track: null })),
+        await albumCommand.execute(
+            createCommandParams({
+                client: {
+                    player: {
+                        search,
+                        play: jest.fn(async () => ({ track: null })),
+                    },
                 },
-            },
-            interaction: createInteraction(ALBUM_URL),
-        } as never)
+                interaction: createInteraction(ALBUM_URL),
+            }),
+        )
 
         expect(searchSpotifyAlbumsMock).not.toHaveBeenCalled()
         expect(search.mock.calls[0][0]).toBe(ALBUM_URL)
@@ -250,24 +261,26 @@ describe('album command album resolution', () => {
         const playedTrack = { ...createTrack('Come Together'), playlist: null }
         let linkedBeforeStart: unknown
 
-        await albumCommand.execute({
-            client: {
-                player: {
-                    search: jest.fn(async () => ({
-                        tracks: [createTrack('Come Together')],
-                        playlist,
-                    })),
-                    // discord-player runs afterSearch, then starts the track
-                    // (and now playing) before play() resolves.
-                    play: jest.fn(async (_channel, _query, options) => {
-                        await options.afterSearch({ tracks: [playedTrack] })
-                        linkedBeforeStart = playedTrack.playlist
-                        return { track: playedTrack }
-                    }),
+        await albumCommand.execute(
+            createCommandParams({
+                client: {
+                    player: {
+                        search: jest.fn(async () => ({
+                            tracks: [createTrack('Come Together')],
+                            playlist,
+                        })),
+                        // discord-player runs afterSearch, then starts the track
+                        // (and now playing) before play() resolves.
+                        play: jest.fn(async (_channel, _query, options) => {
+                            await options.afterSearch({ tracks: [playedTrack] })
+                            linkedBeforeStart = playedTrack.playlist
+                            return { track: playedTrack }
+                        }),
+                    },
                 },
-            },
-            interaction: createInteraction(ALBUM_URL),
-        } as never)
+                interaction: createInteraction(ALBUM_URL),
+            }),
+        )
 
         expect(linkedBeforeStart).toBe(playlist)
     })
@@ -295,10 +308,14 @@ describe('album command album resolution', () => {
         })
         const random = jest.spyOn(Math, 'random').mockReturnValue(0)
 
-        await albumCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction(ALBUM_URL, null, { shuffle: true }),
-        } as never)
+        await albumCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(ALBUM_URL, null, {
+                    shuffle: true,
+                }),
+            }),
+        )
         random.mockRestore()
 
         const played = [
@@ -333,10 +350,12 @@ describe('album command album resolution', () => {
         }
         ;(resolveGuildQueue as jest.Mock).mockReturnValue({ queue })
 
-        await albumCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction(ALBUM_URL, null, { next: true }),
-        } as never)
+        await albumCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(ALBUM_URL, null, { next: true }),
+            }),
+        )
 
         expect(queue.node.remove).toHaveBeenCalledWith(first)
         expect(queue.insertTrack.mock.calls).toEqual([
@@ -361,18 +380,20 @@ describe('album command album resolution', () => {
         }
         ;(resolveGuildQueue as jest.Mock).mockReturnValue({ queue })
 
-        await albumCommand.execute({
-            client: {
-                player: {
-                    search: jest.fn(async () => ({
-                        tracks: [first, second],
-                        playlist: { title: 'Abbey Road' },
-                    })),
-                    play: jest.fn(async () => ({ track: first })),
+        await albumCommand.execute(
+            createCommandParams({
+                client: {
+                    player: {
+                        search: jest.fn(async () => ({
+                            tracks: [first, second],
+                            playlist: { title: 'Abbey Road' },
+                        })),
+                        play: jest.fn(async () => ({ track: first })),
+                    },
                 },
-            },
-            interaction: createInteraction(ALBUM_URL, null, { next: true }),
-        } as never)
+                interaction: createInteraction(ALBUM_URL, null, { next: true }),
+            }),
+        )
 
         expect(queue.node.remove).not.toHaveBeenCalled()
         expect(queue.insertTrack.mock.calls).toEqual([[second, 0]])
@@ -393,15 +414,17 @@ describe('album command album resolution', () => {
             playlist: { title: 'Abbey Road' },
         }))
 
-        await albumCommand.execute({
-            client: {
-                player: {
-                    search,
-                    play: jest.fn(async () => ({ track: null })),
+        await albumCommand.execute(
+            createCommandParams({
+                client: {
+                    player: {
+                        search,
+                        play: jest.fn(async () => ({ track: null })),
+                    },
                 },
-            },
-            interaction: createInteraction(ALBUM_URL),
-        } as never)
+                interaction: createInteraction(ALBUM_URL),
+            }),
+        )
 
         expect(addTrack).toHaveBeenCalledTimes(1)
         expect(addTrack).not.toHaveBeenCalledWith(asmr)
@@ -415,10 +438,12 @@ describe('album command album resolution', () => {
             playlist: { title: 'Sleep' },
         }))
 
-        await albumCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction(ALBUM_URL),
-        } as never)
+        await albumCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(ALBUM_URL),
+            }),
+        )
 
         expect(play).not.toHaveBeenCalled()
         expect(lastReply().content.embeds[0].description).toContain('ASMR')
@@ -428,10 +453,12 @@ describe('album command album resolution', () => {
         searchSpotifyAlbumsMock.mockResolvedValue([])
         const search = jest.fn()
 
-        await albumCommand.execute({
-            client: { player: { search, play: jest.fn() } },
-            interaction: createInteraction('zzzz not an album'),
-        } as never)
+        await albumCommand.execute(
+            createCommandParams({
+                client: { player: { search, play: jest.fn() } },
+                interaction: createInteraction('zzzz not an album'),
+            }),
+        )
 
         expect(search).not.toHaveBeenCalled()
         const embed = lastReply().content.embeds[0]
