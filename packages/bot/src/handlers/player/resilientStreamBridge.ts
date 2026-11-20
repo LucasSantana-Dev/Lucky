@@ -56,6 +56,7 @@ import {
     type SpotifySourceEntry,
 } from './spotifySourceCache'
 import { ensureSpotifyIsrc, trackIsrc } from './spotifyIsrc'
+import { runBridgeStreamOnce } from './bridgeStreamsInFlight'
 import {
     clearBridgeStamps,
     stampBridgeSource,
@@ -1002,7 +1003,22 @@ export async function streamSpotifyTrackViaBridge(
     track: Pick<Track, 'source'> & BridgeTrack,
 ): Promise<Readable | null> {
     if (track.source !== 'spotify') return null
-    return createResilientStream(track)
+    // Two plays of the same Track at once (#3064) ran every stage twice in
+    // parallel. The second waits and replays the first one's cached match;
+    // the stack names the caller that asked for it.
+    return runBridgeStreamOnce(
+        track,
+        () => createResilientStream(track),
+        () =>
+            warnLog({
+                message:
+                    'Bridge: stream requested again while still resolving, waiting for the first',
+                data: {
+                    title: track.title,
+                    caller: new Error('duplicate stream request').stack,
+                },
+            }),
+    )
 }
 
 type SpotifyCacheRead = {

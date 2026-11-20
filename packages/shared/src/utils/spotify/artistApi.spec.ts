@@ -281,3 +281,43 @@ describe('getSpotifyArtistAlbums', () => {
         ).resolves.toEqual([])
     })
 })
+
+// #3124: top tracks and albums were pinned to the US catalog while /play
+// follows SPOTIFY_MARKET.
+describe('spotify market (#3124)', () => {
+    const originalFetch = global.fetch
+    const originalMarket = process.env.SPOTIFY_MARKET
+
+    afterEach(() => {
+        global.fetch = originalFetch
+        if (originalMarket === undefined) delete process.env.SPOTIFY_MARKET
+        else process.env.SPOTIFY_MARKET = originalMarket
+    })
+
+    function captureUrls(): string[] {
+        const urls: string[] = []
+        global.fetch = jest.fn(async (url: unknown) => {
+            urls.push(String(url))
+            return { ok: true, json: async () => ({ tracks: [], items: [] }) }
+        }) as unknown as typeof fetch
+        return urls
+    }
+
+    it('uses SPOTIFY_MARKET for top tracks and albums', async () => {
+        process.env.SPOTIFY_MARKET = 'BR'
+        const urls = captureUrls()
+        await getSpotifyArtistTopTracks('token', 'a1')
+        await getSpotifyArtistAlbums('token', 'a1')
+        expect(urls[0]).toContain('market=BR')
+        expect(urls[1]).toContain('market=BR')
+    })
+
+    it('falls back to US for top tracks and omits it for albums', async () => {
+        delete process.env.SPOTIFY_MARKET
+        const urls = captureUrls()
+        await getSpotifyArtistTopTracks('token', 'a1')
+        await getSpotifyArtistAlbums('token', 'a1')
+        expect(urls[0]).toContain('market=US')
+        expect(urls[1]).not.toContain('market=')
+    })
+})

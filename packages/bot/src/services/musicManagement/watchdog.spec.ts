@@ -3,6 +3,7 @@ import type { GuildQueue, Player } from 'discord-player'
 import { ChannelType } from 'discord.js'
 import { setReplenishSuppressed } from './replenishSuppressionStore'
 import { MusicWatchdogService } from './watchdog'
+import { runBridgeStreamOnce } from '../../handlers/player/bridgeStreamsInFlight'
 
 // --- mocks ---
 
@@ -1061,6 +1062,43 @@ describe('MusicWatchdogService — checkAndRecover edge cases', () => {
 
         expect(action).toBe('none')
         expect(play).not.toHaveBeenCalled()
+    })
+
+    it('does not replay the current track while its bridge stream is still resolving (#3064)', async () => {
+        const play = jest.fn(async () => undefined)
+        const service = new MusicWatchdogService({ timeoutMs: 100 })
+        const currentTrack = { title: 'Human Nature', url: 'https://x/hn' }
+        const queue = {
+            guild: { id: 'guild-resolving' },
+            currentTrack,
+            connection: { state: { status: 'ready' } },
+            node: { isPlaying: () => false, isPaused: () => false, play },
+            tracks: { size: 0 },
+        } as unknown as GuildQueue
+        let finishResolve: (value: string) => void = () => {}
+        const resolving = runBridgeStreamOnce(
+            currentTrack,
+            () =>
+                new Promise<string>((resolve) => {
+                    finishResolve = resolve
+                }),
+            jest.fn(),
+        )
+
+        const action = await service.checkAndRecover(queue)
+
+        expect(action).toBe('none')
+        expect(play).not.toHaveBeenCalled()
+        expect(service.getGuildState('guild-resolving')).toMatchObject({
+            lastRecoveryDetail: 'stream_resolving',
+        })
+
+        // Re-armed: once the resolve settled and the track still is not
+        // playing, the next check replays it.
+        finishResolve('stream')
+        await resolving
+        await jest.advanceTimersByTimeAsync(100)
+        expect(play).toHaveBeenCalledWith(currentTrack, { queue: false })
     })
 
     it('a concurrent checkAndRecover call for the same guild is a no-op (#1949 lock)', async () => {

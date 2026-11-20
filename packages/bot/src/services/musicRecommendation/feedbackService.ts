@@ -20,8 +20,8 @@ const IMPLICIT_ARTIST_DISLIKE_CAP = 2
 export type RecommendationFeedback = 'like' | 'dislike'
 export type ArtistFeedback = 'prefer' | 'block'
 
-function decayWeight(updatedAt: number): number {
-    const daysSince = (Date.now() - updatedAt) / 86_400_000
+function decayWeight(updatedAt: number, now = Date.now()): number {
+    const daysSince = (now - updatedAt) / 86_400_000
     return Math.max(0.15, 1.0 - (daysSince / 30) * 0.85)
 }
 
@@ -668,7 +668,9 @@ export class RecommendationFeedbackService {
         const previous = cache.get(artist)
         const live =
             previous && now - previous.updatedAt < this.implicitCacheTTL
-                ? previous.weight
+                ? // Fold in the decay earned so far: only the newest rejection's
+                  // timestamp is stored, so older ones must not regain full weight.
+                  previous.weight * decayWeight(previous.updatedAt, now)
                 : 0
         cache.set(artist, {
             weight: Math.min(
@@ -694,7 +696,10 @@ export class RecommendationFeedbackService {
         if (!cache) return result
         for (const [artist, entry] of cache) {
             if (now - entry.updatedAt < this.implicitCacheTTL) {
-                result.set(artist, entry.weight)
+                result.set(
+                    artist,
+                    entry.weight * decayWeight(entry.updatedAt, now),
+                )
             } else {
                 cache.delete(artist)
             }

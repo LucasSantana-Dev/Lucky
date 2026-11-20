@@ -263,10 +263,16 @@ function spawnTimed(
         return spawnYtDlp(url, cookiesArgs, timeoutMs)
     }
     const startedAt = Date.now()
-    const report = (outcome: string) =>
+    const report = (outcome: string, timing?: StartTiming) =>
         infoLog({
             message: 'Bridge: yt-dlp attempt',
-            data: { attempt, outcome, ms: Date.now() - startedAt, timeoutMs },
+            data: {
+                attempt,
+                outcome,
+                ms: Date.now() - startedAt,
+                timeoutMs,
+                ...timing,
+            },
         })
     return spawnYtDlp(url, cookiesArgs, timeoutMs).then(
         (stream) => {
@@ -274,7 +280,7 @@ function spawnTimed(
             return stream
         },
         (error: unknown) => {
-            report(classifyYtDlpFailure(error))
+            report(classifyYtDlpFailure(error), startTimingOf(error))
             throw error
         },
     )
@@ -412,12 +418,25 @@ function needsSignIn(error: unknown): boolean {
     )
 }
 
+// A timeout that fired 1.9 s past its 8 s budget (#2927) was either a slow
+// synchronous spawn (the timer was armed only after spawn() returned) or an
+// event-loop stall. The timer now counts the spawn against the budget, and a
+// timeout carries both numbers so the attempt log tells them apart.
+type StartTiming = { spawnMs: number; timerLagMs: number }
+
+function startTimingOf(error: unknown): StartTiming | undefined {
+    const timing = (error as { startTiming?: StartTiming } | null)?.startTiming
+    return timing ?? undefined
+}
+
 function spawnYtDlp(
     url: string,
     cookiesArgs: string[],
     timeoutMs = YTDLP_STREAM_START_TIMEOUT_MS,
 ): Promise<Readable> {
     return new Promise<Readable>((resolve, reject) => {
+        // Monotonic: a wall-clock step must not stretch or cut the budget.
+        const startedAt = performance.now()
         // HLS sources (SoundCloud AAC) make yt-dlp write fragment .part
         // files (`--Frag1.part`) to the cwd even with `-o -`. The container's
         // cwd (/app) is root-owned, and concurrent streams would clobber each
@@ -461,10 +480,23 @@ function spawnYtDlp(
         // degraded (rate-limited/blocked) rather than erroring fast. See the
         // constants above for why these aren't shorter. The 403 retry adds one
         // more attempt only after a fast failure, never after a timeout.
+        const spawnMs = Math.round(performance.now() - startedAt)
+        const delayMs = Math.max(0, timeoutMs - spawnMs)
+        const dueAt = performance.now() + delayMs
         const timeout = setTimeout(() => {
             proc.kill()
-            reject(new Error('yt-dlp: timed out waiting for stream start'))
-        }, timeoutMs)
+            reject(
+                Object.assign(
+                    new Error('yt-dlp: timed out waiting for stream start'),
+                    {
+                        startTiming: {
+                            spawnMs,
+                            timerLagMs: Math.round(performance.now() - dueAt),
+                        },
+                    },
+                ),
+            )
+        }, delayMs)
 
         const stderrChunks: Buffer[] = []
         assertDefined(proc.stderr, 'stderr guaranteed by stdio config').on(

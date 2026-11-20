@@ -51,6 +51,18 @@ export default new Command({
                 .setName('artist')
                 .setDescription('Artist name to narrow the search (optional)')
                 .setRequired(false),
+        )
+        .addBooleanOption((option) =>
+            option
+                .setName('shuffle')
+                .setDescription('Shuffle the album before queueing it')
+                .setRequired(false),
+        )
+        .addBooleanOption((option) =>
+            option
+                .setName('next')
+                .setDescription('Play the album right after the current track')
+                .setRequired(false),
         ),
     category: 'music',
     execute: async ({
@@ -105,6 +117,8 @@ export default new Command({
         )
         const query = interaction.options.getString('query', true)
         const artistFilter = interaction.options.getString('artist')
+        const shuffle = interaction.options.getBoolean('shuffle') ?? false
+        const playNext = interaction.options.getBoolean('next') ?? false
 
         try {
             await interaction.deferReply()
@@ -193,6 +207,12 @@ export default new Command({
             const tracks = searchResult.tracks.filter(
                 (track) => !isAsmrTrack(track),
             )
+            if (shuffle) {
+                for (let i = tracks.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1))
+                    ;[tracks[i], tracks[j]] = [tracks[j], tracks[i]]
+                }
+            }
             const firstTrack = tracks[0]
             if (!firstTrack) {
                 await interactionReply({
@@ -254,9 +274,20 @@ export default new Command({
                 return
             }
 
+            // With `next` the album goes to the front of the queue in order.
+            // The first track is only in the queue when something else was
+            // already playing.
+            let position = 0
+            if (playNext && queue.tracks.toArray().includes(playResult.track)) {
+                queue.node.remove(playResult.track)
+                queue.insertTrack(playResult.track, 0)
+                position = 1
+            }
+
             for (const track of tracks.slice(1)) {
                 track.requestedBy = interaction.user
-                queue.addTrack(track)
+                if (playNext) queue.insertTrack(track, position++)
+                else queue.addTrack(track)
             }
 
             moveUserTrackToPriority(queue, playResult.track)
@@ -269,7 +300,7 @@ export default new Command({
                     embeds: [
                         createSuccessEmbed(
                             `💿 ${albumTitle}`,
-                            `Queued **${tracks.length}** track${tracks.length === 1 ? '' : 's'} from **${albumTitle}**.`,
+                            `Queued **${tracks.length}** track${tracks.length === 1 ? '' : 's'} from **${albumTitle}**.${shuffle ? ' Shuffled.' : ''}${playNext ? ' Playing next.' : ''}`,
                         ),
                     ],
                 },

@@ -36,6 +36,20 @@ import { QUEUE_LEAVE_OPTIONS } from '../services/musicManagement/queueLeaveOptio
 
 export const ONBOARDING_STATION_BUTTON_PREFIX = 'station_'
 
+// Guilds with a station play in flight. The reply only lands once the stream
+// starts (~10s), and users click again meanwhile, which queued the station
+// twice (#2922). Entries expire so a hung play cannot block the guild forever.
+const STATION_START_LOCK_MS = 30_000
+const stationStartsInFlight = new Map<string, { startedAt: number }>()
+
+function isStationStarting(guildId: string): boolean {
+    const entry = stationStartsInFlight.get(guildId)
+    if (entry === undefined) return false
+    if (Date.now() - entry.startedAt < STATION_START_LOCK_MS) return true
+    stationStartsInFlight.delete(guildId)
+    return false
+}
+
 type StationGenre = {
     id: string
     query: string
@@ -168,9 +182,39 @@ export async function handleOnboardingStationButton(
         return
     }
 
+    if (isStationStarting(guildId)) {
+        logStationClick({
+            guildId,
+            genre: genre.id,
+            started: false,
+            reason: 'already_playing',
+        })
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createWarningEmbed(
+                        t('music.station.alreadyStartingTitle'),
+                        t('music.station.alreadyStartingDescription'),
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+    const startToken = { startedAt: Date.now() }
+    stationStartsInFlight.set(guildId, startToken)
+    // An expired start must not release a newer click's lock.
+    const releaseStart = (): void => {
+        if (stationStartsInFlight.get(guildId) === startToken)
+            stationStartsInFlight.delete(guildId)
+    }
+
     try {
         await interaction.deferReply({ ephemeral: true })
     } catch (error) {
+        releaseStart()
         if (isUnknownInteractionError(error)) {
             logStationClick({
                 guildId,
@@ -274,5 +318,7 @@ export async function handleOnboardingStationButton(
                 ephemeral: true,
             },
         })
+    } finally {
+        releaseStart()
     }
 }

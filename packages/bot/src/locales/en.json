@@ -70,7 +70,9 @@
             "startedTitle": "Station started",
             "startedDescription": "Playing {{genre}} now. Skip, check the queue, or explore more with /play.",
             "failedTitle": "Couldn't start the station",
-            "failedDescription": "Something went wrong starting the station. Try /play instead."
+            "failedDescription": "Something went wrong starting the station. Try /play instead.",
+            "alreadyStartingTitle": "Station already starting",
+            "alreadyStartingDescription": "A station is already starting here. Give it a few seconds."
         },
         "queue": {
             "nowPlaying": "🎵 Now Playing",

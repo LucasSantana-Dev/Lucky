@@ -70,6 +70,23 @@ describe('GET /api/guilds/:guildId/threads/:slug', () => {
         expect(res.body).toEqual({ error: 'Thread not found' })
     })
 
+    test('flags the 404 as an expected miss so the request logger does not warn', async () => {
+        mockFindUnique.mockResolvedValueOnce(null)
+        let flagged: unknown
+        const app = express()
+        app.use((_req, res, next) => {
+            res.on('finish', () => {
+                flagged = res.locals.expectedNotFound
+            })
+            next()
+        })
+        setupForumsRoutes(app)
+
+        await request(app).get(`/api/guilds/${GUILD_ID}/threads/nope`)
+
+        expect(flagged).toBe(true)
+    })
+
     test('queries by guildId and slug composite key', async () => {
         mockFindUnique.mockResolvedValueOnce(null)
 
