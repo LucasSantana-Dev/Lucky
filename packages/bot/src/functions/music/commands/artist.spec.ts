@@ -71,6 +71,7 @@ import {
     getSpotifyClientToken,
     searchSpotifyTracks,
 } from '@lucky/shared/utils'
+import { createCommandParams } from '../../../../tests/utils/music/commandFixtures.js'
 
 const createTrack = (title: string, author: string, url?: string) => ({
     title,
@@ -117,10 +118,12 @@ describe('artist command search fallback', () => {
         }))
         const interaction = createInteraction()
 
-        await artistCommand.execute({
-            client: { player: { search, play } },
-            interaction,
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction,
+            }),
+        )
 
         expect(search).toHaveBeenCalledTimes(2)
         expect(search.mock.calls[0][1]).toMatchObject({
@@ -170,10 +173,12 @@ describe('artist command search fallback', () => {
             }))
             const interaction = createInteraction()
 
-            await artistCommand.execute({
-                client: { player: { search, play } },
-                interaction,
-            } as never)
+            await artistCommand.execute(
+                createCommandParams({
+                    client: { player: { search, play } },
+                    interaction,
+                }),
+            )
 
             // Only 2 arms attempted (Spotify, SoundCloud): YouTube skipped.
             expect(search).toHaveBeenCalledTimes(2)
@@ -208,10 +213,12 @@ describe('artist command search fallback', () => {
         const search = jest.fn().mockResolvedValueOnce({ tracks })
         const play = jest.fn(async (..._a: unknown[]) => ({ track: tracks[0] }))
 
-        await artistCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction(),
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(),
+            }),
+        )
 
         expect(addTrack).toHaveBeenCalledTimes(1)
         expect(addTrack).not.toHaveBeenCalledWith(asmr)
@@ -225,10 +232,12 @@ describe('artist command search fallback', () => {
         })
         const play = jest.fn()
 
-        await artistCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction(),
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(),
+            }),
+        )
 
         expect(play).not.toHaveBeenCalled()
         const reply = (interactionReply as jest.Mock).mock.calls.at(-1)?.[0]
@@ -254,10 +263,12 @@ describe('artist command search fallback', () => {
         })
         const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
 
-        await artistCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction(),
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(),
+            }),
+        )
 
         // Only the one Queen track is queued; nothing by i-dle, Fleetwood Mac
         // or ABBA reaches the queue or the first-play slot.
@@ -288,10 +299,12 @@ describe('artist command search fallback', () => {
         const interaction = createInteraction()
         interaction.options.getString = jest.fn(() => 'Prince')
 
-        await artistCommand.execute({
-            client: { player: { search, play } },
-            interaction,
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction,
+            }),
+        )
 
         // Guards the fuzzy >= 3 threshold ONLY: one wordMatch does not promote
         // Prince Royce to the artist filter, so byArtist stays empty and the
@@ -315,10 +328,12 @@ describe('artist command search fallback', () => {
         })
         const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
 
-        await artistCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction(),
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(),
+            }),
+        )
 
         // No author matched, so the raw order is still used rather than
         // reporting nothing — this covers misspellings and odd metadata.
@@ -332,10 +347,12 @@ describe('artist command search fallback', () => {
         }))
         const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
 
-        await artistCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction(),
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(),
+            }),
+        )
 
         expect(search).toHaveBeenCalledTimes(1)
         expect(play.mock.calls[0][2]).toMatchObject({
@@ -352,10 +369,12 @@ describe('artist command search fallback', () => {
             })
         const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
 
-        await artistCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction(),
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(),
+            }),
+        )
 
         expect(play.mock.calls[0][2]).toMatchObject({
             searchEngine: 'AUTO',
@@ -365,10 +384,12 @@ describe('artist command search fallback', () => {
     it('reports no results only after every arm is exhausted', async () => {
         const search = jest.fn(async () => ({ tracks: [] }))
 
-        await artistCommand.execute({
-            client: { player: { search, play: jest.fn() } },
-            interaction: createInteraction(),
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play: jest.fn() } },
+                interaction: createInteraction(),
+            }),
+        )
 
         expect(search).toHaveBeenCalledTimes(3)
         const reply = (interactionReply as jest.Mock).mock.calls.at(-1)?.[0]
@@ -385,10 +406,12 @@ describe('artist command search fallback', () => {
             })
         const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
 
-        await artistCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction(),
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(),
+            }),
+        )
 
         expect(search).toHaveBeenCalledTimes(3)
         expect(search.mock.calls[2][1]).toMatchObject({
@@ -405,10 +428,12 @@ describe('artist command search fallback', () => {
                 tracks: [createTrack('Somebody To Love', 'Queen')],
             })
 
-        await artistCommand.execute({
-            client: { player: { search, play: jest.fn(async () => ({})) } },
-            interaction: createInteraction(),
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play: jest.fn(async () => ({})) } },
+                interaction: createInteraction(),
+            }),
+        )
 
         const logged = (warnLog as jest.Mock).mock.calls.map(
             ([params]) =>
@@ -477,10 +502,12 @@ describe('artist command search fallback', () => {
             queue: { addTrack },
         })
 
-        await artistCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction(15),
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(15),
+            }),
+        )
 
         expect(searchSpotifyTracks).toHaveBeenCalledWith(
             'spotify-token',
@@ -512,10 +539,12 @@ describe('artist command search fallback', () => {
         }))
         const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
 
-        await artistCommand.execute({
-            client: { player: { search, play } },
-            interaction: createInteraction(),
-        } as never)
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(),
+            }),
+        )
 
         expect(getSpotifyClientToken).not.toHaveBeenCalled()
         expect(searchSpotifyTracks).not.toHaveBeenCalled()
