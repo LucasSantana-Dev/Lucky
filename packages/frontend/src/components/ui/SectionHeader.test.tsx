@@ -17,4 +17,25 @@ describe('SectionHeader', () => {
         ).toBeInTheDocument()
         expect(screen.queryByRole('heading', { level: 1 })).toBeNull()
     })
+
+    test('renders description, actions and a status band', () => {
+        render(
+            <SectionHeader
+                title='Page'
+                description='About'
+                actions={<button type='button'>Go</button>}
+                statusBand={[
+                    { id: 'a', label: 'One', status: 'Ok', tone: 'success' },
+                    { label: 'Two', status: 'Down', tone: 'error' },
+                    { label: 'Three', status: 'Idle' },
+                ]}
+            />,
+        )
+        expect(screen.getByText('About')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Go' })).toBeInTheDocument()
+        expect(screen.getAllByRole('listitem')).toHaveLength(3)
+        expect(screen.getByText('Down').className).toContain(
+            'text-lucky-error-text',
+        )
+    })
 })
