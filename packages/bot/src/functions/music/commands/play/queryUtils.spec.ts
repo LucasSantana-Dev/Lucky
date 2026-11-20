@@ -778,6 +778,8 @@ describe('moveTrackToTop', () => {
     it('skips the current track when asked', () => {
         const queue = makeQueue(1)
         moveTrackToTop(queue as never, track as never, true)
+        expect(queue.node.remove).toHaveBeenCalledWith(track)
+        expect(queue.insertTrack).toHaveBeenCalledWith(track, 0)
         expect(queue.node.skip).toHaveBeenCalledTimes(1)
     })
 })
