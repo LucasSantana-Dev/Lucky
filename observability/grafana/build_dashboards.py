@@ -494,6 +494,21 @@ def erros():
         "max by (extractor) (lucky_music_extractor_degraded)", "{{extractor}}")], w=12, h=8, mappings=UP_MAP[:0] or [
         {"type": "value", "options": {"0": {"text": "ok", "color": GREEN}, "1": {"text": "degradado", "color": RED}}}],
         options={"showValue": "never", "legend": {"showLegend": False}}, desc="YouTube/Spotify fora ou limitados.")
+    failed = ('(sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}[15m])) or vector(0)) '
+              '- (sum(increase(lucky_bot_play_rescued_total[15m])) or vector(0))')
+    b.add("timeseries", "Plays que falharam (% do total)", [prom(
+        f'({failed}) / sum(increase(lucky_bot_play_stage_seconds_count{{stage="bridge_total"}}[15m]))', "plays que falharam")],
+        w=12, h=8, unit="percentunit", min_val=0, max_val=1, th=thresholds((GREEN, 0), (RED, 0.5)),
+        custom={**LINES, "thresholdsStyle": {"mode": "line"}}, options=TS_OPTS,
+        desc="Parcela dos /play em que o bridge esgotou todas as etapas (YouTube e SoundCloud), em janela de 15 min, "
+             "sem contar os que o fallback resgatou. Mesma conta do alerta LuckyPlayFailureRateHigh (#3079).")
+    b.add("timeseries", "Falhas de extração por classe", [
+        prom("sum by (type) (increase(lucky_bot_extraction_failures_total[$__rate_interval]))", "yt-dlp: {{type}}"),
+        prom('sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}[$__rate_interval]))',
+             "plays que esgotaram todas as etapas")],
+        w=12, h=8, custom={**BARS, "stacking": {"mode": "none"}}, options=TS_OPTS, no_value="0",
+        desc="Plays que esgotaram todas as etapas, e falhas do yt-dlp por classe (forbidden = HTTP 403, botcheck = "
+             "\"not a bot\", empty, timeout, other). forbidden e botcheck abrem o breaker do yt-dlp.")
     b.add("logs", "Linhas de erro (mais recentes primeiro)", [loki(f"{{{APP}}} {ERR_LINE}")], w=24, h=10,
           options={"showTime": True, "wrapLogMessage": True, "sortOrder": "Descending", "enableLogDetails": True})
     return b

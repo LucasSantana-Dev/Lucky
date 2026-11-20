@@ -188,6 +188,19 @@ export const playStageSeconds = new Histogram<'stage' | 'outcome'>({
     registers: [registry],
 })
 
+/**
+ * Counter: plays whose bridge pass had already failed (bridge_total
+ * outcome=fail) and that discord-player's fallback search hit then rescued
+ * with a direct yt-dlp attempt. The failed-play alert subtracts it, so a
+ * rescued play does not count as failed (#3079).
+ */
+export const playRescuedTotal = new Counter({
+    name: 'lucky_bot_play_rescued_total',
+    help: 'Plays rescued by the fallback search hit after the bridge pass had failed (offsets bridge_total outcome=fail).',
+    registers: [registry],
+})
+playRescuedTotal.inc(0)
+
 /** Counter: command events lost before reaching the database (reason: overflow|flush_failure|stopped|internal_error). */
 export const commandEventsDroppedTotal = new Counter<'reason'>({
     name: 'lucky_bot_command_events_dropped_total',

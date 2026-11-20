@@ -1,0 +1,94 @@
+# promtool unit tests for the lucky-play-failures group (#3079).
+# Run: promtool test rules observability/prometheus/rules/tests/lucky-play-failures.test.yml
+# Kept in tests/ so the /etc/prometheus/rules/*.yml glob never loads it.
+rule_files:
+  - ../play-failures.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # Every play fails, one per minute. The fail increase reaches 3 at 3m, so
+  # the alert is pending from 3m and fires at 8m (for: 5m).
+  - name: every play failing fires after the for window
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}'
+        values: '0+1x40'
+      - series: 'lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="ok"}'
+        values: '0+0x40'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: LuckyPlayFailureRateHigh
+        exp_alerts: []
+      - eval_time: 10m
+        alertname: LuckyPlayFailureRateHigh
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: lucky-bot
+            exp_annotations:
+              summary: "More than half of plays exhaust every stream stage (15m window)"
+              description: >-
+                Over 50% of /play attempts in the last 15 minutes failed on every
+                stage (yt-dlp and SoundCloud), with at least 3 failures. Check
+                lucky_bot_extraction_failures_total by type, the LuckyYouTubeDegraded
+                alert, and Sentry issues tagged youtube-extraction-exhausted.
+
+  # One failed play out of one attempt: ratio is 100% but below the floor.
+  - name: a single failed play stays silent
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}'
+        values: '0+0x10 1+0x30'
+      - series: 'lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="ok"}'
+        values: '0+0x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: LuckyPlayFailureRateHigh
+        exp_alerts: []
+
+  # Busy and mostly healthy: 1 failure for every 10 plays that work.
+  - name: low failure share stays silent
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}'
+        values: '0+1x40'
+      - series: 'lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="ok"}'
+        values: '0+10x40'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: LuckyPlayFailureRateHigh
+        exp_alerts: []
+
+  # Four failures in a row, then plays recover: the share drops under 50%
+  # one minute after it crossed, well inside the for window.
+  - name: short burst that recovers stays silent
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}'
+        values: '0+0x5 1 2 3 4+0x30'
+      - series: 'lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="ok"}'
+        values: '0+0x8 5+5x30'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: LuckyPlayFailureRateHigh
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: LuckyPlayFailureRateHigh
+        exp_alerts: []
+
+  # Every failed pass was rescued by the fallback search hit: users heard
+  # every track, so nothing fires.
+  - name: rescued plays do not count as failed
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}'
+        values: '0+1x40'
+      - series: 'lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="ok"}'
+        values: '0+0x40'
+      - series: 'lucky_bot_play_rescued_total'
+        values: '0+1x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: LuckyPlayFailureRateHigh
+        exp_alerts: []
