@@ -8,7 +8,7 @@ import {
     createSuccessEmbed,
 } from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
-import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
+import { acknowledgeAndTranslate } from '../../../i18n/acknowledgeAndTranslate'
 import {
     requireGuild,
     requireDJRoleInGuild,
@@ -88,7 +88,7 @@ async function sendPreviousSuccess(
         return
     }
 
-    const t = await translatorForInteraction(interaction)
+    const t = await acknowledgeAndTranslate(interaction)
     const title = historyWasEmpty
         ? t('music.messages.statusRestarting')
         : t('music.messages.statusPrevious')
