@@ -1,12 +1,3 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
-
 const incMock = jest.fn()
 const warnLogMock = jest.fn()
 
@@ -40,12 +31,12 @@ const row = (n = 0): CommandEventRow => ({
 })
 
 describe('commandEventBuffer', () => {
-    let flushFn: jest.Mock<(rows: CommandEventRow[]) => Promise<unknown>>
+    let flushFn: jest.Mock<Promise<unknown>, [CommandEventRow[]]>
 
     beforeEach(() => {
         jest.useFakeTimers()
         jest.clearAllMocks()
-        flushFn = jest.fn(async () => undefined)
+        flushFn = jest.fn(async () => undefined) as never
     })
     afterEach(() => {
         jest.useRealTimers()
@@ -95,7 +86,7 @@ describe('commandEventBuffer', () => {
     })
 
     it('counts the batch size on flush failure, warns, does not throw or retry', async () => {
-        flushFn.mockRejectedValueOnce(new Error('db down'))
+        flushFn.mockRejectedValueOnce(new Error('db down') as never)
         const buf = createCommandEventBuffer({ flush: flushFn, flushSize: 100 })
         buf.push(row(1))
         buf.push(row(2))
@@ -152,7 +143,9 @@ describe('commandEventBuffer', () => {
     })
 
     it('stays bounded when the DB never resolves (exact overflow counts)', async () => {
-        flushFn.mockImplementation(() => new Promise(() => undefined))
+        flushFn.mockImplementation(
+            (() => new Promise(() => undefined)) as never,
+        )
         const buf = createCommandEventBuffer({
             flush: flushFn,
             maxSize: 200,
@@ -181,7 +174,9 @@ describe('commandEventBuffer', () => {
     })
 
     it('stop gives up after the timeout when the flush hangs', async () => {
-        flushFn.mockImplementation(() => new Promise(() => undefined))
+        flushFn.mockImplementation(
+            (() => new Promise(() => undefined)) as never,
+        )
         const buf = createCommandEventBuffer({
             flush: flushFn,
             stopTimeoutMs: 5000,
@@ -250,7 +245,9 @@ describe('commandEventBuffer', () => {
     })
 
     it('counts abandoned rows when stop times out', async () => {
-        flushFn.mockImplementation(() => new Promise(() => undefined))
+        flushFn.mockImplementation(
+            (() => new Promise(() => undefined)) as never,
+        )
         const buf = createCommandEventBuffer({
             flush: flushFn,
             stopTimeoutMs: 100,

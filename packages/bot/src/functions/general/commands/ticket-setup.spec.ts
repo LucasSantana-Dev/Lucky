@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 const requireGuildMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
@@ -23,9 +21,12 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
-    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
-    createEmbed: (...args: unknown[]) => createEmbedMock(...args),
+    createSuccessEmbed: (...args: Parameters<typeof createSuccessEmbedMock>) =>
+        createSuccessEmbedMock(...args),
+    createErrorEmbed: (...args: Parameters<typeof createErrorEmbedMock>) =>
+        createErrorEmbedMock(...args),
+    createEmbed: (...args: Parameters<typeof createEmbedMock>) =>
+        createEmbedMock(...args),
 }))
 
 jest.mock('@lucky/shared/services', () => ({

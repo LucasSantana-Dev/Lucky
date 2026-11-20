@@ -1,4 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import type { Message } from 'discord.js'
 import { afkHandler } from '../afkHandler'
 import type { MessageContext } from '../types'
@@ -29,7 +28,10 @@ describe('afkHandler', () => {
                 author: { bot: true },
             } as unknown as Message
 
-            const result = await afkHandler.canHandle(message)
+            const result = await afkHandler.canHandle(
+                message,
+                {} as unknown as MessageContext,
+            )
             expect(result).toBe(false)
         })
 
@@ -38,7 +40,10 @@ describe('afkHandler', () => {
                 author: { bot: false },
             } as unknown as Message
 
-            const result = await afkHandler.canHandle(message)
+            const result = await afkHandler.canHandle(
+                message,
+                {} as unknown as MessageContext,
+            )
             expect(result).toBe(true)
         })
     })

@@ -1,5 +1,3 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals'
-
 // #2740: Spotify tracks must reach the bridge through discord-player's
 // onBeforeCreateStream hook, registered when the player is created and before
 // any queue exists (the hook is read at queue creation).

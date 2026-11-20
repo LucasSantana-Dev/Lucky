@@ -1,4 +1,3 @@
-import { describe, expect, it } from '@jest/globals'
 import { translatorFor } from './index'
 
 describe('translatorFor (spec D2: no global language state)', () => {

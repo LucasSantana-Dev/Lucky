@@ -1,4 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 
 // Mock lru-cache early to prevent LRUCache constructor errors in spotifyApi
@@ -508,7 +507,7 @@ describe('replenishQueue', () => {
             })
             entries.push([`track${i}`, track])
         }
-        queue.tracks = createTracksMap(entries)
+        queue.tracks = createTracksMap(entries) as never
         const initialSize = queue.tracks.size
 
         await replenishQueue(queue)
@@ -528,7 +527,7 @@ describe('replenishQueue', () => {
             metadata: { isAutoplay: true } as Record<string, unknown>,
         })
         entries.push(['auto0', autoTrack])
-        queue.tracks = createTracksMap(entries)
+        queue.tracks = createTracksMap(entries) as never
 
         const {
             collectRecommendationCandidates,
@@ -551,7 +550,7 @@ describe('replenishQueue', () => {
             metadata: { isAutoplay: true } as Record<string, unknown>,
         })
         entries.push(['auto0', autoTrack])
-        queue.tracks = createTracksMap(entries)
+        queue.tracks = createTracksMap(entries) as never
 
         const { trackHistoryService } = require('@lucky/shared/services')
 

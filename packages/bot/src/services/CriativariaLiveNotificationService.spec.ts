@@ -1,11 +1,3 @@
-import {
-    describe,
-    test,
-    expect,
-    jest,
-    beforeEach,
-    afterEach,
-} from '@jest/globals'
 import type { Client, TextChannel } from 'discord.js'
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -42,13 +34,13 @@ describe('CriativariaLiveNotificationService', () => {
             send: jest.fn(async () => mockMessage),
             messages: {
                 delete: jest.fn(async () => {}),
-            },
-        }
+            } as never,
+        } as never
 
         mockClient = {
             channels: {
-                fetch: jest.fn(async () => mockChannel),
-            },
+                fetch: jest.fn(async () => mockChannel) as never,
+            } as never,
         }
 
         service = new CriativariaLiveNotificationService(
@@ -240,7 +232,7 @@ describe('CriativariaLiveNotificationService', () => {
 
             // Message should be deleted
             expect(
-                (mockChannel.messages.delete as jest.Mock).mock.calls.length,
+                (mockChannel.messages!.delete as jest.Mock).mock.calls.length,
             ).toBeGreaterThan(0)
             service2.stop()
         })
@@ -274,13 +266,13 @@ describe('CriativariaLiveNotificationService', () => {
                     delete: jest.fn(async () => {
                         throw new Error('Unknown Message')
                     }),
-                },
-            }
+                } as never,
+            } as never
 
             const mockClientWithError: Partial<Client> = {
                 channels: {
-                    fetch: jest.fn(async () => mockChannelWithError),
-                },
+                    fetch: jest.fn(async () => mockChannelWithError) as never,
+                } as never,
             }
 
             // Manual track to avoid re-posting
@@ -481,7 +473,7 @@ describe('CriativariaLiveNotificationService', () => {
                 2000,
             )
             service2.start(mockClient as Client)
-            expect(mockClient.channels.fetch).not.toHaveBeenCalled()
+            expect(mockClient.channels!.fetch).not.toHaveBeenCalled()
             service2.stop()
         })
 
@@ -569,7 +561,7 @@ describe('CriativariaLiveNotificationService', () => {
                 started_at: new Date().toISOString(),
             })
 
-            jest.mocked(mockChannel.send).mockRejectedValue(
+            ;(mockChannel.send as jest.Mock).mockRejectedValue(
                 new Error('Send failed'),
             )
 

@@ -1,5 +1,3 @@
-import { jest } from '@jest/globals'
-
 const mockGetPrismaClient = jest.fn()
 const mockCreateEmbed = jest.fn().mockReturnValue({ mocked: 'embed' })
 const mockWarnLog = jest.fn()
@@ -13,7 +11,7 @@ jest.mock('@lucky/shared/utils', () => ({
     EMBED_COLORS: { INFO: '#2196F3' },
 }))
 
-const mockCheckRateLimit = jest.fn<(...args: any[]) => any>()
+const mockCheckRateLimit = jest.fn()
 jest.mock('@lucky/shared/services', () => ({
     DatabaseService: class {
         checkRateLimit = mockCheckRateLimit
@@ -25,17 +23,17 @@ jest.mock('@lucky/shared/constants', () => ({
     DEFAULT_BOT_LANGUAGE: 'en',
 }))
 
-const mockInteractionReply = jest.fn<(...args: any[]) => any>()
+const mockInteractionReply = jest.fn()
 jest.mock('../utils/general/interactionReply', () => ({
     interactionReply: mockInteractionReply,
 }))
 
-const mockTranslatorForInteraction = jest.fn<(...args: any[]) => any>()
+const mockTranslatorForInteraction = jest.fn()
 jest.mock('../i18n/translatorForInteraction', () => ({
     translatorForInteraction: mockTranslatorForInteraction,
 }))
 
-const mockTranslatorFor = jest.fn<(...args: any[]) => any>()
+const mockTranslatorFor = jest.fn()
 jest.mock('../i18n', () => ({
     translatorFor: mockTranslatorFor,
 }))
@@ -54,9 +52,9 @@ const t = ((key: string, options?: { url?: string }) => {
     return key
 }) as any
 
-const mockUserFeedbackCreate = jest.fn<(...args: any[]) => any>()
-const mockChannelSend = jest.fn<(...args: any[]) => any>()
-const mockChannelsFetch = jest.fn<(...args: any[]) => any>()
+const mockUserFeedbackCreate = jest.fn()
+const mockChannelSend = jest.fn()
+const mockChannelsFetch = jest.fn()
 
 function createMockModalSubmit(overrides: Record<string, unknown> = {}) {
     return {

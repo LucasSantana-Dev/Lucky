@@ -1,4 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import type { Track } from 'discord-player'
 
 jest.mock('@lucky/shared/utils', () => ({

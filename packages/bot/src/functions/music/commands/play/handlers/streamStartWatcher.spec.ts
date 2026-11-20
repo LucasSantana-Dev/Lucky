@@ -1,4 +1,3 @@
-import { describe, expect, it } from '@jest/globals'
 import { EventEmitter } from 'node:events'
 import { watchStreamStartFailures } from './streamStartWatcher'
 

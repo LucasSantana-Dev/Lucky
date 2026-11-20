@@ -1,4 +1,3 @@
-import { describe, test, expect } from '@jest/globals'
 import { smartShuffle } from './smartShuffle'
 
 function makeTrack(
@@ -48,9 +47,9 @@ describe('smartShuffle', () => {
         ]
         const result = smartShuffle(tracks)
         expect(result).toHaveLength(tracks.length)
-        expect(result.map((t) => t.title).sort((a, b) => a.localeCompare(b))).toEqual(
-            tracks.map((t) => t.title).sort((a, b) => a.localeCompare(b)),
-        )
+        expect(
+            result.map((t) => t.title).sort((a, b) => a.localeCompare(b)),
+        ).toEqual(tracks.map((t) => t.title).sort((a, b) => a.localeCompare(b)))
     })
 
     test('high-energy tracks (short youtube) appear before long youtube tracks', () => {
@@ -85,7 +84,9 @@ describe('smartShuffle', () => {
         )
         const result = smartShuffle(tracks, { streakLimit: 2 })
         for (let i = 2; i < result.length; i++) {
-            const ids = result.slice(i - 2, i + 1).map((t) => t.requestedBy?.id ?? '__none__')
+            const ids = result
+                .slice(i - 2, i + 1)
+                .map((t) => t.requestedBy?.id ?? '__none__')
             const allSame = ids.every((id) => id === ids[0])
             expect(allSame).toBe(false)
         }
@@ -102,7 +103,9 @@ describe('smartShuffle', () => {
             // With only 2 requesters and 4:2 ratio, perfect alternation may not be possible
             // but no 3-streak should occur
             if (i >= 2) {
-                const ids = result.slice(i - 1, i + 1).map((t) => t.requestedBy?.id ?? '__none__')
+                const ids = result
+                    .slice(i - 1, i + 1)
+                    .map((t) => t.requestedBy?.id ?? '__none__')
                 // just verify we have the right tracks
                 expect(ids).toHaveLength(2)
             }

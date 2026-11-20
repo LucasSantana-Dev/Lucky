@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 const isExtractorDegradedMock = jest.fn(() => false)
 
 const errorLogMock = jest.fn()
@@ -11,8 +9,9 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 jest.mock('../../../../../handlers/player/extractorHealth', () => ({
-    isExtractorDegraded: (...args: unknown[]) =>
-        isExtractorDegradedMock(...args),
+    isExtractorDegraded: (
+        ...args: Parameters<typeof isExtractorDegradedMock>
+    ) => isExtractorDegradedMock(...args),
 }))
 
 import {

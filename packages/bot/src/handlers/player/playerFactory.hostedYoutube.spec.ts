@@ -1,12 +1,3 @@
-import {
-    describe,
-    it,
-    expect,
-    jest,
-    beforeEach,
-    afterEach,
-} from '@jest/globals'
-
 // #2475: HOSTED_YOUTUBE_ENABLED kill switch. Verifies registerExtractorsInOrder
 // skips the YouTube extractor entirely when explicitly disabled, and still
 // registers it by default (unset defaults to enabled, so self-hosters are

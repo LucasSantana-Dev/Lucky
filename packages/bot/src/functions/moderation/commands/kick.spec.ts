@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 const moderationServiceMock = {
     createCase: jest.fn(),
 }
@@ -98,7 +96,7 @@ describe('kick command', () => {
             name === 'user' ? targetUser : null,
         )
 
-        await kickCommand.execute({ interaction })
+        await kickCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -121,7 +119,7 @@ describe('kick command', () => {
             reason: 'disruptive',
         })
 
-        await kickCommand.execute({ interaction })
+        await kickCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -145,7 +143,7 @@ describe('kick command', () => {
             silent: false,
         })
 
-        await kickCommand.execute({ interaction })
+        await kickCommand.execute({ client: {} as never, interaction })
 
         expect(targetUser.send).toHaveBeenCalled()
         expect(targetUser.send.mock.calls.length).toBeGreaterThan(0)
@@ -164,7 +162,7 @@ describe('kick command', () => {
             silent: true,
         })
 
-        await kickCommand.execute({ interaction })
+        await kickCommand.execute({ client: {} as never, interaction })
 
         expect(targetUser.send).not.toHaveBeenCalled()
     })
@@ -182,7 +180,7 @@ describe('kick command', () => {
             silent: true,
         })
 
-        await kickCommand.execute({ interaction })
+        await kickCommand.execute({ client: {} as never, interaction })
 
         expect(targetMember.kick).toHaveBeenCalledWith('spam')
     })
@@ -201,7 +199,7 @@ describe('kick command', () => {
             reason: 'harassment',
         })
 
-        await kickCommand.execute({ interaction })
+        await kickCommand.execute({ client: {} as never, interaction })
 
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith({
             guildId: 'guild-456',
@@ -227,7 +225,7 @@ describe('kick command', () => {
             reason: null,
         })
 
-        await kickCommand.execute({ interaction })
+        await kickCommand.execute({ client: {} as never, interaction })
 
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -253,7 +251,7 @@ describe('kick command', () => {
             caseNumber: 99,
         })
 
-        await kickCommand.execute({ interaction })
+        await kickCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalled()
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith(
@@ -275,7 +273,7 @@ describe('kick command', () => {
             reason: 'spam',
         })
 
-        await kickCommand.execute({ interaction })
+        await kickCommand.execute({ client: {} as never, interaction })
 
         expect(postToModLogMock).toHaveBeenCalledWith(guild, expect.any(Object))
     })
@@ -294,7 +292,7 @@ describe('kick command', () => {
             reason: 'spam',
         })
 
-        await kickCommand.execute({ interaction })
+        await kickCommand.execute({ client: {} as never, interaction })
 
         expect(infoLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -317,7 +315,7 @@ describe('kick command', () => {
             silent: false,
         })
 
-        await kickCommand.execute({ interaction })
+        await kickCommand.execute({ client: {} as never, interaction })
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -340,7 +338,7 @@ describe('kick command', () => {
             reason: 'spam',
         })
 
-        await kickCommand.execute({ interaction })
+        await kickCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({

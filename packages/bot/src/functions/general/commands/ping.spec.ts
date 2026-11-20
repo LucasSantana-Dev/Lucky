@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
 }))
@@ -32,12 +30,15 @@ beforeEach(() => {
 
 describe('/ping', () => {
     test('sends initial pinging message', async () => {
-        const interaction = makeInteraction() as never
+        const interaction = makeInteraction()
         ;(interaction.fetchReply as jest.Mock).mockResolvedValueOnce({
             createdTimestamp: 1050,
         })
 
-        await pingCommand.execute({ interaction })
+        await pingCommand.execute({
+            client: {} as never,
+            interaction: interaction as never,
+        })
 
         expect(interactionReply).toHaveBeenCalledTimes(2)
         const firstCall = interactionReply.mock.calls[0][0] as {
@@ -47,12 +48,15 @@ describe('/ping', () => {
     })
 
     test('calculates and displays latency correctly', async () => {
-        const interaction = makeInteraction() as never
+        const interaction = makeInteraction()
         ;(interaction.fetchReply as jest.Mock).mockResolvedValueOnce({
             createdTimestamp: 1050,
         })
 
-        await pingCommand.execute({ interaction })
+        await pingCommand.execute({
+            client: {} as never,
+            interaction: interaction as never,
+        })
 
         const secondCall = interactionReply.mock.calls[1][0] as {
             content: { content: string }
@@ -63,12 +67,15 @@ describe('/ping', () => {
     })
 
     test('displays API latency from client.ws.ping', async () => {
-        const interaction = makeInteraction() as never
+        const interaction = makeInteraction()
         ;(interaction.fetchReply as jest.Mock).mockResolvedValueOnce({
             createdTimestamp: 1025,
         })
 
-        await pingCommand.execute({ interaction })
+        await pingCommand.execute({
+            client: {} as never,
+            interaction: interaction as never,
+        })
 
         const secondCall = interactionReply.mock.calls[1][0] as {
             content: { content: string }
@@ -81,12 +88,15 @@ describe('/ping', () => {
             ...makeInteraction(),
             createdTimestamp: 1000,
             client: { ws: { ping: 0 } },
-        } as never
+        }
         ;(interaction.fetchReply as jest.Mock).mockResolvedValueOnce({
             createdTimestamp: 1000,
         })
 
-        await pingCommand.execute({ interaction })
+        await pingCommand.execute({
+            client: {} as never,
+            interaction: interaction as never,
+        })
 
         const secondCall = interactionReply.mock.calls[1][0] as {
             content: { content: string }

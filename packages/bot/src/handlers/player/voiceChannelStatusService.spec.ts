@@ -1,5 +1,3 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals'
-
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const warnLogMock = jest.fn()
@@ -16,7 +14,7 @@ import {
     resetWarnedGuilds,
 } from './voiceChannelStatusService'
 
-type PutMock = jest.Mock<(...args: unknown[]) => Promise<unknown>>
+type PutMock = jest.Mock<Promise<unknown>, unknown[]>
 
 const SET_VOICE_CHANNEL_STATUS = 1n << 48n
 const MANAGE_CHANNELS = 1n << 4n
@@ -34,9 +32,9 @@ const makeChannel = (
     if (opts.hasPermission ?? true) granted.add(SET_VOICE_CHANNEL_STATUS)
     if (opts.manageChannels) granted.add(MANAGE_CHANNELS)
     const has = jest.fn((perm: unknown) => granted.has(perm as bigint))
-    const put: PutMock =
-        opts.put ?? jest.fn<(...args: unknown[]) => Promise<unknown>>()
-    if (!opts.put) put.mockResolvedValue(undefined)
+    const put: PutMock = (opts.put ??
+        jest.fn<Promise<unknown>, unknown[]>()) as never
+    if (!opts.put) put.mockResolvedValue(undefined as never)
     const me = {
         id: 'bot',
         voice: {
@@ -162,7 +160,7 @@ describe('VoiceChannelStatusService', () => {
         })
 
         it('treats a 50013 API error as a missing permission, warning once', async () => {
-            const put = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+            const put = jest.fn<Promise<unknown>, unknown[]>()
             put.mockRejectedValue(
                 Object.assign(new Error('Missing Permissions'), {
                     code: 50013,
@@ -185,7 +183,7 @@ describe('VoiceChannelStatusService', () => {
         })
 
         it('logs other API errors without throwing', async () => {
-            const put = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+            const put = jest.fn<Promise<unknown>, unknown[]>()
             put.mockRejectedValue(new Error('API error'))
             const queue = makeQueue({ channel: makeChannel({ put }) })
 
@@ -251,7 +249,7 @@ describe('VoiceChannelStatusService', () => {
         })
 
         it('logs API errors without throwing', async () => {
-            const put = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+            const put = jest.fn<Promise<unknown>, unknown[]>()
             put.mockRejectedValue(new Error('fail'))
             const queue = makeQueue({ channel: makeChannel({ put }) })
 

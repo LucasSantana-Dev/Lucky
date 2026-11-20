@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals'
 import { EventEmitter } from 'events'
 
 const mockSearch = jest.fn()

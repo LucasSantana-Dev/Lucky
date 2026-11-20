@@ -1,4 +1,3 @@
-import { afterEach, beforeEach, describe, expect, it } from '@jest/globals'
 import { isSpotifyConfigured } from './spotifyConfig'
 
 describe('spotifyConfig', () => {

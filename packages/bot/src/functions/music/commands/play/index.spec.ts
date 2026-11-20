@@ -1,61 +1,68 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { EventEmitter } from 'node:events'
 
 const flushPromises = () =>
     new Promise<void>((resolve) => setImmediate(resolve))
 
-const requireVoiceChannelMock =
-    jest.fn<(interaction: unknown) => Promise<boolean>>()
+const requireVoiceChannelMock = jest.fn<
+    Promise<boolean>,
+    [interaction: unknown]
+>()
 const requireDJRoleMock = jest.fn()
-const errorLogMock = jest.fn<(payload: unknown) => void>()
-const debugLogMock = jest.fn<(payload: unknown) => void>()
-const warnLogMock = jest.fn<(payload: unknown) => void>()
-const getGuildSettingsMock =
-    jest.fn<
-        (guildId: string) => Promise<{ autoPlayEnabled?: boolean } | null>
-    >()
+const errorLogMock = jest.fn<void, [payload: unknown]>()
+const debugLogMock = jest.fn<void, [payload: unknown]>()
+const warnLogMock = jest.fn<void, [payload: unknown]>()
+const getGuildSettingsMock = jest.fn<
+    Promise<{ autoPlayEnabled?: boolean } | null>,
+    [guildId: string]
+>()
 const createErrorEmbedMock = jest.fn<
-    (
-        title: string,
-        message: string,
-    ) => {
+    {
         type: 'error'
         title: string
         message: string
-    }
+    },
+    [title: string, message: string]
 >((title: string, message: string) => ({
     type: 'error',
     title,
     message,
 }))
 const createSuccessEmbedMock = jest.fn<
-    (
-        title: string,
-        message: string,
-    ) => {
+    {
         type: 'success'
         title: string
         message: string
-    }
+    },
+    [title: string, message: string]
 >((title: string, message: string) => ({
     type: 'success',
     title,
     message,
 }))
-const canAddTracksMock = jest.fn<() => { allowed: boolean; limit: number }>()
-const recordContributionMock =
-    jest.fn<(guildId: string, userId: string, amount: number) => void>()
-const resolveGuildQueueMock =
-    jest.fn<(client: unknown, guildId: string) => { queue: unknown }>()
-const moveUserTrackToPriorityMock =
-    jest.fn<(queue: unknown, track: unknown) => void>()
-const blendAutoplayTracksMock =
-    jest.fn<(queue: unknown, track: unknown) => Promise<void>>()
-const interactionReplyMock = jest.fn<(payload: unknown) => Promise<void>>()
-const buildPlayResponseEmbedMock = jest.fn<(payload: unknown) => unknown>()
-const createMusicControlButtonsMock = jest.fn<(queue: unknown) => unknown>()
-const registerNowPlayingMessageMock =
-    jest.fn<(guildId: string, messageId: string, channelId: string) => void>()
+const canAddTracksMock = jest.fn<{ allowed: boolean; limit: number }, []>()
+const recordContributionMock = jest.fn<
+    void,
+    [guildId: string, userId: string, amount: number]
+>()
+const resolveGuildQueueMock = jest.fn<
+    { queue: unknown },
+    [client: unknown, guildId: string]
+>()
+const moveUserTrackToPriorityMock = jest.fn<
+    void,
+    [queue: unknown, track: unknown]
+>()
+const blendAutoplayTracksMock = jest.fn<
+    Promise<void>,
+    [queue: unknown, track: unknown]
+>()
+const interactionReplyMock = jest.fn<Promise<void>, [payload: unknown]>()
+const buildPlayResponseEmbedMock = jest.fn<unknown, [payload: unknown]>()
+const createMusicControlButtonsMock = jest.fn<unknown, [queue: unknown]>()
+const registerNowPlayingMessageMock = jest.fn<
+    void,
+    [guildId: string, messageId: string, channelId: string]
+>()
 
 jest.mock('../../../../handlers/player/nowPlayingDisplay', () => ({
     registerNowPlayingMessage: (

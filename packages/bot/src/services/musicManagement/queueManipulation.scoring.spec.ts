@@ -1,5 +1,3 @@
-import { jest } from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: jest.fn(),

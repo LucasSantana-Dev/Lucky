@@ -1,8 +1,8 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import autoplayCommand from './autoplay'
 
 const interactionReplyMock = jest.fn()
-const createEmbedMock = jest.fn((payload: unknown) => payload)
+type EmbedPayload = { title?: string; description?: string }
+const createEmbedMock = jest.fn((payload: EmbedPayload) => payload)
 const createErrorEmbedMock = jest.fn((title: string, desc: string) => ({
     title,
     description: desc,
@@ -21,7 +21,7 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    createEmbed: (payload: unknown) => createEmbedMock(payload),
+    createEmbed: (payload: EmbedPayload) => createEmbedMock(payload),
     createErrorEmbed: (title: string, desc: string) =>
         createErrorEmbedMock(title, desc),
     EMBED_COLORS: {

@@ -1,5 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
-
 const mockInc = jest.fn()
 const mockSetExtractorDegraded = jest.fn()
 const mockIsExtractorDegraded = jest.fn(() => false)
@@ -11,8 +9,9 @@ jest.mock('../../utils/monitoring/prometheus', () => ({
 jest.mock('./extractorHealth', () => ({
     setExtractorDegraded: (...args: unknown[]) =>
         mockSetExtractorDegraded(...args),
-    isExtractorDegraded: (...args: unknown[]) =>
-        mockIsExtractorDegraded(...args),
+    isExtractorDegraded: (
+        ...args: Parameters<typeof mockIsExtractorDegraded>
+    ) => mockIsExtractorDegraded(...args),
 }))
 
 import {

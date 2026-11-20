@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => {
     const findMany = jest.fn()
     const settingsFindUnique = jest.fn()
@@ -477,7 +475,10 @@ describe('BirthdayScheduler.tick', () => {
         scheduler['client'] = client
         await scheduler.tick()
         expect(dbMocks.settingsFindMany).toHaveBeenCalledTimes(2)
-        const call1 = dbMocks.settingsFindMany.mock.calls[0][0]
+        const call1 = dbMocks.settingsFindMany.mock.calls[0][0] as {
+            take: number
+            orderBy: unknown
+        }
         expect(call1.take).toBe(500)
         expect(call1.orderBy).toEqual({ guildId: 'asc' })
     })

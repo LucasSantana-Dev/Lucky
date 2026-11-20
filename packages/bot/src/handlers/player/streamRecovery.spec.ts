@@ -1,4 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import {
     handleYouTubeParserError,
     recoverFromStreamExtractionError,
@@ -75,7 +74,11 @@ describe('streamRecovery', () => {
                 isTypeMismatchError: true,
             }
 
-            handleYouTubeParserError(queue as any, error, youtubeErrorInfo)
+            handleYouTubeParserError(
+                queue as any,
+                error,
+                youtubeErrorInfo as never,
+            )
 
             expect(logYouTubeErrorMock).toHaveBeenCalledWith(
                 error,

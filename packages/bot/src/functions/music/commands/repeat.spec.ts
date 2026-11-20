@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import repeatCommand, { guildRepeatCounts } from './repeat'
 
 const QueueRepeatMode = {
@@ -25,7 +24,8 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createSuccessEmbed: (...args: Parameters<typeof createSuccessEmbedMock>) =>
+        createSuccessEmbedMock(...args),
 }))
 
 jest.mock('discord-player', () => ({

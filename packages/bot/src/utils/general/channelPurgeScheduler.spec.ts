@@ -1,4 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import { Collection } from 'discord.js'
 
 const channelCleanupServiceMock = {

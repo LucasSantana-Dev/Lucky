@@ -33,7 +33,6 @@ jest.mock('../services/musicRecommendation/recommendationTelemetry', () => ({
 }))
 
 // NOW import types and the module under test after mocks are set up
-import { describe, expect, it, beforeEach } from '@jest/globals'
 import type {
     MessageReaction,
     PartialMessageReaction,
@@ -65,32 +64,32 @@ describe('reactionHandler', () => {
         // Set up default mock guild
         mockGuild = {
             id: 'guild-123',
-        }
+        } as never
 
         // Set up default mock message
         mockMessage = {
             id: 'message-456',
             guild: mockGuild as Guild,
             partial: false,
-        }
+        } as never
 
         // Set up default mock user
         mockUser = {
             id: 'user-789',
             bot: false,
             partial: false,
-        }
+        } as never
 
         // Set up default mock reaction
         mockReaction = {
             emoji: {
                 name: '👎',
-            },
+            } as never,
             message: mockMessage as Message,
             partial: false,
             count: 1,
             fetch: jest.fn().mockResolvedValue(undefined),
-        }
+        } as never
 
         // Set up default mock client
         mockClient = {
@@ -114,7 +113,7 @@ describe('reactionHandler', () => {
         })
 
         it('ignores non-skip-reason emojis', async () => {
-            mockReaction.emoji = { name: '❤️' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '❤️' }
 
             handleReactionEvents(mockClient)
             await mockClient._messageReactionAddHandler(mockReaction, mockUser)
@@ -144,7 +143,7 @@ describe('reactionHandler', () => {
         })
 
         it('records generic_dislike skip reason for 👎 emoji', async () => {
-            mockReaction.emoji = { name: '👎' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '👎' }
             mockGetSongInfoMessage.mockReturnValue({
                 messageId: 'message-456',
                 channelId: 'channel-123',
@@ -170,7 +169,7 @@ describe('reactionHandler', () => {
         })
 
         it('records too_chill skip reason for 😴 emoji', async () => {
-            mockReaction.emoji = { name: '😴' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '😴' }
             mockGetSongInfoMessage.mockReturnValue({
                 messageId: 'message-456',
                 channelId: 'channel-123',
@@ -196,7 +195,7 @@ describe('reactionHandler', () => {
         })
 
         it('records mood_mismatch skip reason for 🎸 emoji', async () => {
-            mockReaction.emoji = { name: '🎸' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '🎸' }
             mockGetSongInfoMessage.mockReturnValue({
                 messageId: 'message-456',
                 channelId: 'channel-123',
@@ -222,7 +221,7 @@ describe('reactionHandler', () => {
         })
 
         it('records repeat skip reason for 🔁 emoji', async () => {
-            mockReaction.emoji = { name: '🔁' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '🔁' }
             mockGetSongInfoMessage.mockReturnValue({
                 messageId: 'message-456',
                 channelId: 'channel-123',
@@ -248,7 +247,7 @@ describe('reactionHandler', () => {
         })
 
         it('fetches reaction if partial', async () => {
-            mockReaction.partial = true
+            ;(mockReaction as { partial: unknown }).partial = true
             mockReaction.fetch = jest.fn().mockResolvedValue(undefined)
             mockGetSongInfoMessage.mockReturnValue(null)
 
@@ -259,7 +258,7 @@ describe('reactionHandler', () => {
         })
 
         it('handles error when finding recommendation gracefully', async () => {
-            mockReaction.emoji = { name: '👎' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '👎' }
             mockGetSongInfoMessage.mockReturnValue({
                 messageId: 'message-456',
                 channelId: 'channel-123',
@@ -286,7 +285,7 @@ describe('reactionHandler', () => {
         })
 
         it('does not record if no recommendation found for guild', async () => {
-            mockReaction.emoji = { name: '👎' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '👎' }
             mockGetSongInfoMessage.mockReturnValue({
                 messageId: 'message-456',
                 channelId: 'channel-123',
@@ -306,7 +305,7 @@ describe('reactionHandler', () => {
         })
 
         it('records skip reason non-blockingly and does not break skip flow', async () => {
-            mockReaction.emoji = { name: '👎' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '👎' }
             mockGetSongInfoMessage.mockReturnValue({
                 messageId: 'message-456',
                 channelId: 'channel-123',
@@ -345,7 +344,7 @@ describe('reactionHandler', () => {
         })
 
         it('logs debug message when guild context is missing', async () => {
-            mockMessage.guild = undefined
+            ;(mockMessage as { guild: unknown }).guild = undefined
 
             handleReactionEvents(mockClient)
             await mockClient._messageReactionAddHandler(mockReaction, mockUser)
@@ -358,7 +357,7 @@ describe('reactionHandler', () => {
         })
 
         it('logs debug message for non-skip-reason emoji', async () => {
-            mockReaction.emoji = { name: '❤️' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '❤️' }
 
             handleReactionEvents(mockClient)
             await mockClient._messageReactionAddHandler(mockReaction, mockUser)
@@ -416,7 +415,7 @@ describe('reactionHandler', () => {
         })
 
         it('logs debug message after successfully recording skip reason', async () => {
-            mockReaction.emoji = { name: '👎' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '👎' }
             mockGetSongInfoMessage.mockReturnValue({
                 messageId: 'message-456',
                 channelId: 'channel-123',
@@ -461,7 +460,7 @@ describe('reactionHandler', () => {
 
         it('ignores bot reactions', async () => {
             mockUser.bot = true
-            mockReaction.emoji = { name: '🎉' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '🎉' }
 
             handleReactionEvents(mockClient)
             await mockClient._messageReactionAddHandler(mockReaction, mockUser)
@@ -472,7 +471,7 @@ describe('reactionHandler', () => {
         })
 
         it('ignores non-giveaway emojis', async () => {
-            mockReaction.emoji = { name: '❤️' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '❤️' }
             mockGiveawayService.getActiveByMessageId.mockResolvedValue(null)
 
             handleReactionEvents(mockClient)
@@ -484,7 +483,7 @@ describe('reactionHandler', () => {
         })
 
         it('ignores 🎉 reaction if no giveaway exists for message', async () => {
-            mockReaction.emoji = { name: '🎉' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '🎉' }
             mockGiveawayService.getActiveByMessageId.mockResolvedValue(null)
 
             handleReactionEvents(mockClient)
@@ -497,7 +496,7 @@ describe('reactionHandler', () => {
         })
 
         it('adds entry for active giveaway', async () => {
-            mockReaction.emoji = { name: '🎉' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '🎉' }
             mockGiveawayService.getActiveByMessageId.mockResolvedValue({
                 id: 'giveaway-123',
                 messageId: 'message-456',
@@ -518,7 +517,7 @@ describe('reactionHandler', () => {
         })
 
         it('ignores 🎉 reaction if giveaway has already ended', async () => {
-            mockReaction.emoji = { name: '🎉' }
+            ;(mockReaction as { emoji: unknown }).emoji = { name: '🎉' }
             mockGiveawayService.getActiveByMessageId.mockResolvedValue({
                 id: 'giveaway-123',
                 messageId: 'message-456',

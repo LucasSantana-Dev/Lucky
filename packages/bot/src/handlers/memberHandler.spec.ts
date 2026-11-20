@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals'
 import { Events, ChannelType } from 'discord.js'
 import type { Client, GuildMember, PartialGuildMember } from 'discord.js'
 import { handleMemberEvents } from './memberHandler'
@@ -170,7 +169,10 @@ describe('memberHandler', () => {
                 send: mockSend,
             }
 
-            const cacheMap = new Map([
+            const cacheMap = new Map<
+                string,
+                { type: ChannelType; send?: jest.Mock }
+            >([
                 ['voice-1', { type: ChannelType.GuildVoice }],
                 ['text-1', firstTextChannel],
             ])

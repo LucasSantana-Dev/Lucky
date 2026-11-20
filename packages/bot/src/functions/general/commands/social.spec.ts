@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
     debugLog: jest.fn(),
@@ -15,9 +13,17 @@ jest.mock('../../../utils/general/interactionReply.js', () => ({
 
 import socialCommand from './social.js'
 
-function makeInteraction(subcommand: string, target?: { id: string; username: string; displayName?: string }) {
+function makeInteraction(
+    subcommand: string,
+    target?: { id: string; username: string; displayName?: string },
+) {
     return {
-        user: { id: 'sender-1', username: 'alice', displayName: 'Alice', tag: 'alice#0' },
+        user: {
+            id: 'sender-1',
+            username: 'alice',
+            displayName: 'Alice',
+            tag: 'alice#0',
+        },
         options: {
             getSubcommand: () => subcommand,
             getUser: () => target ?? null,
@@ -34,6 +40,7 @@ describe('/social', () => {
         'replies with an embed for %s (self-use)',
         async (action) => {
             await socialCommand.execute({
+                client: {} as never,
                 interaction: makeInteraction(action) as never,
             })
             expect(interactionReply).toHaveBeenCalledTimes(1)
@@ -49,6 +56,7 @@ describe('/social', () => {
 
     test('uses target user in phrase when provided', async () => {
         await socialCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('hug', {
                 id: 'target-1',
                 username: 'bob',
@@ -65,6 +73,7 @@ describe('/social', () => {
 
     test('self-targeting triggers self-phrase', async () => {
         await socialCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('kiss', {
                 id: 'sender-1',
                 username: 'alice',
@@ -79,6 +88,7 @@ describe('/social', () => {
 
     test('rejects unknown subcommand', async () => {
         await socialCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('slap') as never,
         })
         const args = interactionReply.mock.calls[0][0] as {

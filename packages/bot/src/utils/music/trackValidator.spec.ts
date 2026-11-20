@@ -1,4 +1,3 @@
-import { afterEach, describe, expect, it, jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import type { TrackManagementOptions } from './types'
 
@@ -32,7 +31,7 @@ describe('validateTrack', () => {
         const track = asTrack({
             title: 'Bad Track',
             url: 'https://example.com/bad',
-            duration: 120000,
+            duration: 120000 as never,
         })
         calculateTrackQualityMock.mockImplementation(() => {
             throw new Error('scoring exploded')

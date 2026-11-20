@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 
 // Mock lru-cache to prevent LRUCache constructor errors in spotifyApi
@@ -171,7 +170,7 @@ describe('Autoplay eviction telemetry (#1585)', () => {
                     metadata: { isAutoplay: true },
                 } as Track,
             ],
-        }
+        } as never
 
         const removed = purgeDuplicatesOfCurrentTrack(
             mockQueue as GuildQueue,

@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 jest.mock('discord-player', () => ({
     QueryType: {
         AUTO: 'AUTO',
@@ -114,7 +112,9 @@ describe('artist command search fallback', () => {
             .fn()
             .mockResolvedValueOnce({ tracks: [] })
             .mockResolvedValueOnce({ tracks: queenTracks })
-        const play = jest.fn(async () => ({ track: queenTracks[0] }))
+        const play = jest.fn(async (..._a: unknown[]) => ({
+            track: queenTracks[0],
+        }))
         const interaction = createInteraction()
 
         await artistCommand.execute({
@@ -165,7 +165,9 @@ describe('artist command search fallback', () => {
                 .fn()
                 .mockResolvedValueOnce({ tracks: [] })
                 .mockResolvedValueOnce({ tracks: queenTracks })
-            const play = jest.fn(async () => ({ track: queenTracks[0] }))
+            const play = jest.fn(async (..._a: unknown[]) => ({
+                track: queenTracks[0],
+            }))
             const interaction = createInteraction()
 
             await artistCommand.execute({
@@ -204,7 +206,7 @@ describe('artist command search fallback', () => {
             createTrack('We Will Rock You', 'Queen'),
         ]
         const search = jest.fn().mockResolvedValueOnce({ tracks })
-        const play = jest.fn(async () => ({ track: tracks[0] }))
+        const play = jest.fn(async (..._a: unknown[]) => ({ track: tracks[0] }))
 
         await artistCommand.execute({
             client: { player: { search, play } },
@@ -250,7 +252,7 @@ describe('artist command search fallback', () => {
         ;(resolveGuildQueue as jest.Mock).mockReturnValue({
             queue: { addTrack },
         })
-        const play = jest.fn(async () => ({ track: null }))
+        const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
 
         await artistCommand.execute({
             client: { player: { search, play } },
@@ -282,7 +284,7 @@ describe('artist command search fallback', () => {
         ;(resolveGuildQueue as jest.Mock).mockReturnValue({
             queue: { addTrack },
         })
-        const play = jest.fn(async () => ({ track: null }))
+        const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
         const interaction = createInteraction()
         interaction.options.getString = jest.fn(() => 'Prince')
 
@@ -311,7 +313,7 @@ describe('artist command search fallback', () => {
         ;(resolveGuildQueue as jest.Mock).mockReturnValue({
             queue: { addTrack },
         })
-        const play = jest.fn(async () => ({ track: null }))
+        const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
 
         await artistCommand.execute({
             client: { player: { search, play } },
@@ -328,7 +330,7 @@ describe('artist command search fallback', () => {
         const search = jest.fn(async () => ({
             tracks: [createTrack('Bohemian Rhapsody', 'Queen')],
         }))
-        const play = jest.fn(async () => ({ track: null }))
+        const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
 
         await artistCommand.execute({
             client: { player: { search, play } },
@@ -348,7 +350,7 @@ describe('artist command search fallback', () => {
             .mockResolvedValueOnce({
                 tracks: [createTrack('We Are The Champions', 'Queen')],
             })
-        const play = jest.fn(async () => ({ track: null }))
+        const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
 
         await artistCommand.execute({
             client: { player: { search, play } },
@@ -381,7 +383,7 @@ describe('artist command search fallback', () => {
             .mockResolvedValueOnce({
                 tracks: [createTrack('Somebody To Love', 'Queen')],
             })
-        const play = jest.fn(async () => ({ track: null }))
+        const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
 
         await artistCommand.execute({
             client: { player: { search, play } },
@@ -467,7 +469,9 @@ describe('artist command search fallback', () => {
                 return { tracks: [] }
             },
         )
-        const play = jest.fn(async () => ({ track: initialTracks[0] }))
+        const play = jest.fn(async (..._a: unknown[]) => ({
+            track: initialTracks[0],
+        }))
         const addTrack = jest.fn()
         ;(resolveGuildQueue as jest.Mock).mockReturnValue({
             queue: { addTrack },
@@ -506,7 +510,7 @@ describe('artist command search fallback', () => {
                 createTrack(`Queen Song ${i + 1}`, 'Queen'),
             ),
         }))
-        const play = jest.fn(async () => ({ track: null }))
+        const play = jest.fn(async (..._a: unknown[]) => ({ track: null }))
 
         await artistCommand.execute({
             client: { player: { search, play } },

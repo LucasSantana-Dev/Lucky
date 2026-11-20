@@ -1,11 +1,9 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 type AnyFn = (...args: any[]) => any
-const requireGuildMock = jest.fn<AnyFn>()
-const interactionReplyMock = jest.fn<AnyFn>()
-const enableRecapMock = jest.fn<AnyFn>()
-const disableRecapMock = jest.fn<AnyFn>()
-const resolveRecapChannelMock = jest.fn<AnyFn>()
+const requireGuildMock = jest.fn()
+const interactionReplyMock = jest.fn()
+const enableRecapMock = jest.fn()
+const disableRecapMock = jest.fn()
+const resolveRecapChannelMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...a: unknown[]) => requireGuildMock(...a),
@@ -35,7 +33,7 @@ function interaction(sub: 'channel' | 'off', canManage = true) {
         guildId: 'g-1',
         guild: { id: 'g-1' },
         memberPermissions: { has: () => canManage },
-        deferReply: jest.fn<AnyFn>().mockResolvedValue(undefined),
+        deferReply: jest.fn().mockResolvedValue(undefined),
         options: {
             getSubcommand: () => sub,
             getChannel: () => ({ id: 'c-1' }),

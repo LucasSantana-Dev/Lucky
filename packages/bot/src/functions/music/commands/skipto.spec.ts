@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 jest.mock('../../../i18n/acknowledgeAndTranslate', () => ({
     acknowledgeAndTranslate: jest.fn(async () =>
         jest
@@ -63,7 +61,7 @@ const createInteraction = (position: number) => ({
     options: { getInteger: jest.fn(() => position) },
 })
 
-const execute = skiptoCommand.execute as (params: {
+const execute = skiptoCommand.execute as unknown as (params: {
     client: unknown
     interaction: ReturnType<typeof createInteraction>
 }) => Promise<void>

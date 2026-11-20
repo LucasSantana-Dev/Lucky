@@ -1,4 +1,3 @@
-import { describe, expect, it } from '@jest/globals'
 import { translatorFor } from '../i18n/index'
 import { buildOnboardingEmbed } from './onboardingEmbed'
 
@@ -42,18 +41,20 @@ describe('buildOnboardingEmbed', () => {
     it('embed description never contains invite or vote CTA (en)', () => {
         const t = translatorFor('en')
         const embed = buildOnboardingEmbed(t).toJSON()
-        expect(embed.description.toLowerCase()).not.toMatch(/invite|vote/)
+        expect(embed.description!.toLowerCase()).not.toMatch(/invite|vote/)
     })
 
     it('embed description never contains invite or vote CTA (pt-BR)', () => {
         const t = translatorFor('pt-BR')
         const embed = buildOnboardingEmbed(t).toJSON()
-        expect(embed.description.toLowerCase()).not.toMatch(/invite|convid|vot/)
+        expect(embed.description!.toLowerCase()).not.toMatch(
+            /invite|convid|vot/,
+        )
     })
 
     it('embed description never contains invite or vote CTA (es)', () => {
         const t = translatorFor('es')
         const embed = buildOnboardingEmbed(t).toJSON()
-        expect(embed.description.toLowerCase()).not.toMatch(/invit|vot/)
+        expect(embed.description!.toLowerCase()).not.toMatch(/invit|vot/)
     })
 })

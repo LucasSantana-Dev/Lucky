@@ -1,4 +1,3 @@
-import { describe, it, expect, jest } from '@jest/globals'
 import type { GuildQueue } from 'discord-player'
 
 jest.mock('lru-cache', () => ({

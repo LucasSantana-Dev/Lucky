@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { GuildQueue } from 'discord-player'
 import { getPrismaClient } from '@lucky/shared/utils'
 import { NamedSessionService } from './namedSessions'
@@ -27,11 +26,11 @@ jest.mock('../musicRecommendation/sessionSnapshots', () => ({
 }))
 
 const mockGetPrismaClient = jest.mocked(getPrismaClient)
-const mockCount = jest.fn<any>()
-const mockFindUnique = jest.fn<any>()
-const mockCreate = jest.fn<any>()
-const mockFindMany = jest.fn<any>()
-const mockDeleteMany = jest.fn<any>()
+const mockCount = jest.fn()
+const mockFindUnique = jest.fn()
+const mockCreate = jest.fn()
+const mockFindMany = jest.fn()
+const mockDeleteMany = jest.fn()
 
 /** Builds a `named_queues` row for mock returns. */
 function row(overrides: Record<string, unknown> = {}) {

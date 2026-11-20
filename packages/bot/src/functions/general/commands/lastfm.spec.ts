@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import lastfmCommand from './lastfm'
 
 const interactionReplyMock = jest.fn()
@@ -15,7 +14,7 @@ const createErrorEmbedMock = jest.fn((title: string, description: string) => ({
     description,
 }))
 const buildPlatformAttribEmbedMock = jest.fn(
-    (platform: string, body: unknown) => ({
+    (platform: string, body: Record<string, unknown>) => ({
         type: 'platform',
         platform,
         ...body,
@@ -29,13 +28,16 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
-    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
+    createSuccessEmbed: (...args: Parameters<typeof createSuccessEmbedMock>) =>
+        createSuccessEmbedMock(...args),
+    createErrorEmbed: (...args: Parameters<typeof createErrorEmbedMock>) =>
+        createErrorEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
-    buildPlatformAttribEmbed: (...args: unknown[]) =>
-        buildPlatformAttribEmbedMock(...args),
+    buildPlatformAttribEmbed: (
+        ...args: Parameters<typeof buildPlatformAttribEmbedMock>
+    ) => buildPlatformAttribEmbedMock(...args),
 }))
 
 jest.mock('../../../lastfm', () => ({

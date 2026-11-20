@@ -1,4 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import { PermissionFlagsBits } from 'discord.js'
 
 const batchJobServiceMock = {
@@ -110,11 +109,11 @@ describe('batchResume command', () => {
 
         test('has job_id as required string option', () => {
             const json = batchResumeCommand.data.toJSON()
-            const jobIdOption = json.options.find(
-                (opt: any) => opt.name === 'job_id',
-            )
+            const jobIdOption = (
+                json.options as Array<{ name: string; required?: boolean }>
+            ).find((opt) => opt.name === 'job_id')
             expect(jobIdOption).toBeDefined()
-            expect(jobIdOption.required).toBe(true)
+            expect(jobIdOption!.required).toBe(true)
         })
     })
 

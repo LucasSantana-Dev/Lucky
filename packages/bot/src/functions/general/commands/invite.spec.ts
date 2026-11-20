@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 const infoLog = jest.fn()
 const errorLog = jest.fn()
 jest.mock('@lucky/shared/utils', () => ({
@@ -183,7 +181,10 @@ describe('/invite', () => {
     test('ignores a backend URL that is not http(s)', async () => {
         process.env.WEBAPP_BACKEND_URL = 'javascript:alert(1)'
         await inviteCommand.execute({
-            client: { application: { id: '962198089161134131' }, user: null } as never,
+            client: {
+                application: { id: '962198089161134131' },
+                user: null,
+            } as never,
             interaction: makeInteraction() as never,
         })
 

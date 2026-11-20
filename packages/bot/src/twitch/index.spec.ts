@@ -1,23 +1,23 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { Client } from 'discord.js'
 
-const mockIsEnabled = jest.fn<() => Promise<boolean>>()
-const mockIsConfigured = jest.fn<() => boolean>()
+const mockIsEnabled = jest.fn<Promise<boolean>, []>()
+const mockIsConfigured = jest.fn<boolean, []>()
 const mockGetTwitchEnv = jest.fn<
-    () => {
+    {
         clientId: string
         clientSecret: string
         accessToken: string | undefined
         refreshToken: string | undefined
-    }
+    },
+    []
 >()
-const mockStart = jest.fn<(c: Client) => Promise<void>>()
-const mockStop = jest.fn<() => void>()
-const mockRefresh = jest.fn<() => Promise<void>>()
-const mockConnect = jest.fn<() => Promise<void>>()
-const mockDisconnect = jest.fn<() => Promise<void>>()
-const mockSubscribe = jest.fn<(h: () => Promise<void>) => Promise<void>>()
-const mockIsHealthy = jest.fn<() => boolean>()
+const mockStart = jest.fn<Promise<void>, [c: Client]>()
+const mockStop = jest.fn<void, []>()
+const mockRefresh = jest.fn<Promise<void>, []>()
+const mockConnect = jest.fn<Promise<void>, []>()
+const mockDisconnect = jest.fn<Promise<void>, []>()
+const mockSubscribe = jest.fn<Promise<void>, [h: () => Promise<void>]>()
+const mockIsHealthy = jest.fn<boolean, []>()
 const mockWarnLog = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({

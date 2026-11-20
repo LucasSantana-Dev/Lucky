@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 jest.mock('../../../i18n/acknowledgeAndTranslate', () => ({
     acknowledgeAndTranslate: jest.fn(async () =>
         jest
@@ -33,12 +31,14 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createSuccessEmbed: (...args: Parameters<typeof createSuccessEmbedMock>) =>
+        createSuccessEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
-    buildCommandTrackEmbed: (...args: unknown[]) =>
-        buildCommandTrackEmbedMock(...args),
+    buildCommandTrackEmbed: (
+        ...args: Parameters<typeof buildCommandTrackEmbedMock>
+    ) => buildCommandTrackEmbedMock(...args),
 }))
 
 jest.mock('../../../services/musicManagement/queueResolver', () => ({

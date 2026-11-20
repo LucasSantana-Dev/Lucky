@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { ChannelType, PermissionFlagsBits } from 'discord.js'
 
 const getAutoModSettingsMock = jest.fn()
@@ -14,9 +13,11 @@ jest.mock('@lucky/shared/services', () => ({
     autoModService: {
         getSettings: (...args: unknown[]) => getAutoModSettingsMock(...args),
     },
-    getModerationSettings: (...args: unknown[]) => getModerationSettingsMock(...args),
+    getModerationSettings: (...args: unknown[]) =>
+        getModerationSettingsMock(...args),
     autoMessageService: {
-        getWelcomeMessage: (...args: unknown[]) => getWelcomeMessageMock(...args),
+        getWelcomeMessage: (...args: unknown[]) =>
+            getWelcomeMessageMock(...args),
         getLeaveMessage: (...args: unknown[]) => getLeaveMessageMock(...args),
     },
     reactionRolesService: {
@@ -24,12 +25,14 @@ jest.mock('@lucky/shared/services', () => ({
             listReactionRoleMessagesMock(...args),
     },
     roleManagementService: {
-        listExclusiveRoles: (...args: unknown[]) => listExclusiveRolesMock(...args),
+        listExclusiveRoles: (...args: unknown[]) =>
+            listExclusiveRolesMock(...args),
     },
     guildRoleAccessService: {
         listRoleGrants: (...args: unknown[]) => listRoleGrantsMock(...args),
     },
-    onboardingToManifest: (...args: unknown[]) => onboardingToManifestMock(...args),
+    onboardingToManifest: (...args: unknown[]) =>
+        onboardingToManifestMock(...args),
 }))
 
 import { captureGuildAutomationState } from './captureGuildState'
@@ -42,9 +45,24 @@ function createGuild(overrides: Record<string, unknown> = {}) {
         fetchOnboarding: jest.fn(),
         members: {
             cache: new Map([
-                ['bot-self', { id: 'bot-self', user: { bot: true, username: 'Lucky' } }],
-                ['legacy-bot', { id: 'legacy-bot', user: { bot: true, username: 'LegacyBot' } }],
-                ['human-user', { id: 'human-user', user: { bot: false, username: 'User' } }],
+                [
+                    'bot-self',
+                    { id: 'bot-self', user: { bot: true, username: 'Lucky' } },
+                ],
+                [
+                    'legacy-bot',
+                    {
+                        id: 'legacy-bot',
+                        user: { bot: true, username: 'LegacyBot' },
+                    },
+                ],
+                [
+                    'human-user',
+                    {
+                        id: 'human-user',
+                        user: { bot: false, username: 'User' },
+                    },
+                ],
             ]),
         },
         roles: {
@@ -129,7 +147,10 @@ function createGuild(overrides: Record<string, unknown> = {}) {
 describe('captureGuildAutomationState', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        getAutoModSettingsMock.mockResolvedValue({ enabled: true, threshold: 5 })
+        getAutoModSettingsMock.mockResolvedValue({
+            enabled: true,
+            threshold: 5,
+        })
         getModerationSettingsMock.mockResolvedValue({ requireReason: true })
         getWelcomeMessageMock.mockResolvedValue({
             enabled: true,
@@ -147,7 +168,12 @@ describe('captureGuildAutomationState', () => {
                 messageId: 'message-1',
                 channelId: 'text-1',
                 mappings: [
-                    { roleId: 'role-admin', label: null, emoji: '🔥', style: 'PRIMARY' },
+                    {
+                        roleId: 'role-admin',
+                        label: null,
+                        emoji: '🔥',
+                        style: 'PRIMARY',
+                    },
                 ],
             },
         ])
@@ -157,24 +183,30 @@ describe('captureGuildAutomationState', () => {
         listRoleGrantsMock.mockResolvedValue([
             { roleId: 'role-admin', module: 'automation', mode: 'manage' },
         ])
-        onboardingToManifestMock.mockReturnValue({ enabled: false, prompts: [] })
+        onboardingToManifestMock.mockReturnValue({
+            enabled: false,
+            prompts: [],
+        })
     })
 
     it('captures guild automation state with channel filtering and parity data', async () => {
         const guild = createGuild()
         ;(guild.fetchOnboarding as jest.Mock).mockRejectedValue({ status: 404 })
 
-        const result = await captureGuildAutomationState(guild as any, 'bot-self')
+        const result = await captureGuildAutomationState(
+            guild as any,
+            'bot-self',
+        )
 
         expect(onboardingToManifestMock).toHaveBeenCalledWith('guild-1', null)
         expect(result.guild).toEqual({ id: 'guild-1', name: 'Lucky Guild' })
-        expect(result.roles.roles).toHaveLength(1)
-        expect(result.roles.roles[0]).toMatchObject({
+        expect(result.roles!.roles).toHaveLength(1)
+        expect(result.roles!.roles[0]).toMatchObject({
             id: 'role-admin',
             name: 'Admin',
             permissions: '8',
         })
-        expect(result.roles.channels).toEqual([
+        expect(result.roles!.channels).toEqual([
             expect.objectContaining({
                 id: 'text-1',
                 type: 'GuildText',
@@ -194,7 +226,7 @@ describe('captureGuildAutomationState', () => {
                 topic: null,
             }),
         ])
-        expect(result.reactionroles.messages).toEqual([
+        expect(result.reactionroles!.messages).toEqual([
             expect.objectContaining({
                 id: 'rr-1',
                 mappings: [
@@ -206,10 +238,10 @@ describe('captureGuildAutomationState', () => {
                 ],
             }),
         ])
-        expect(result.commandaccess.grants).toEqual([
+        expect(result.commandaccess!.grants).toEqual([
             { roleId: 'role-admin', module: 'automation', mode: 'manage' },
         ])
-        expect(result.parity.externalBots).toEqual([
+        expect(result.parity!.externalBots).toEqual([
             { id: 'legacy-bot', name: 'LegacyBot', retireOnCutover: false },
         ])
         expect(result.source).toBe('discord-capture')
@@ -227,7 +259,9 @@ describe('captureGuildAutomationState', () => {
 
     it('rethrows unexpected onboarding fetch errors', async () => {
         const guild = createGuild()
-        ;(guild.fetchOnboarding as jest.Mock).mockRejectedValue('onboarding-fail')
+        ;(guild.fetchOnboarding as jest.Mock).mockRejectedValue(
+            'onboarding-fail',
+        )
 
         await expect(
             captureGuildAutomationState(guild as any, 'bot-self'),

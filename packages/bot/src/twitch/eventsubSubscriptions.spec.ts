@@ -1,12 +1,4 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
-import type { Client, TextBasedChannel } from 'discord.js'
+import type { Client } from 'discord.js'
 
 const getTwitchUserAccessTokenMock = jest.fn()
 const clearTwitchTokenCacheMock = jest.fn()
@@ -268,19 +260,19 @@ describe('eventsubSubscriptions', () => {
 
     describe('handleStreamOnline', () => {
         let mockClient: Partial<Client>
-        let mockChannel: Partial<TextBasedChannel>
+        let mockChannel: { send: jest.Mock }
 
         beforeEach(() => {
             mockChannel = {
-                isTextBased: jest.fn().mockReturnValue(true),
-                isDMBased: jest.fn().mockReturnValue(false),
+                isTextBased: jest.fn().mockReturnValue(true) as never,
+                isDMBased: jest.fn().mockReturnValue(false) as never,
                 send: jest.fn().mockResolvedValue({}),
-            }
+            } as never
 
             mockClient = {
                 channels: {
                     fetch: jest.fn().mockResolvedValue(mockChannel),
-                },
+                } as never,
             }
         })
 
@@ -669,19 +661,19 @@ describe('eventsubSubscriptions', () => {
 
     describe('handleStreamOffline', () => {
         let mockClient: Partial<Client>
-        let mockChannel: Partial<TextBasedChannel>
+        let mockChannel: { send: jest.Mock }
 
         beforeEach(() => {
             mockChannel = {
-                isTextBased: jest.fn().mockReturnValue(true),
-                isDMBased: jest.fn().mockReturnValue(false),
+                isTextBased: jest.fn().mockReturnValue(true) as never,
+                isDMBased: jest.fn().mockReturnValue(false) as never,
                 send: jest.fn().mockResolvedValue({}),
-            }
+            } as never
 
             mockClient = {
                 channels: {
                     fetch: jest.fn().mockResolvedValue(mockChannel),
-                },
+                } as never,
             }
         })
 
@@ -747,19 +739,19 @@ describe('eventsubSubscriptions', () => {
 
     describe('handleChannelUpdate', () => {
         let mockClient: Partial<Client>
-        let mockChannel: Partial<TextBasedChannel>
+        let mockChannel: { send: jest.Mock }
 
         beforeEach(() => {
             mockChannel = {
-                isTextBased: jest.fn().mockReturnValue(true),
-                isDMBased: jest.fn().mockReturnValue(false),
+                isTextBased: jest.fn().mockReturnValue(true) as never,
+                isDMBased: jest.fn().mockReturnValue(false) as never,
                 send: jest.fn().mockResolvedValue({}),
-            }
+            } as never
 
             mockClient = {
                 channels: {
                     fetch: jest.fn().mockResolvedValue(mockChannel),
-                },
+                } as never,
             }
         })
 
@@ -912,19 +904,19 @@ describe('eventsubSubscriptions', () => {
 
     describe('handleChannelRaid', () => {
         let mockClient: Partial<Client>
-        let mockChannel: Partial<TextBasedChannel>
+        let mockChannel: { send: jest.Mock }
 
         beforeEach(() => {
             mockChannel = {
-                isTextBased: jest.fn().mockReturnValue(true),
-                isDMBased: jest.fn().mockReturnValue(false),
+                isTextBased: jest.fn().mockReturnValue(true) as never,
+                isDMBased: jest.fn().mockReturnValue(false) as never,
                 send: jest.fn().mockResolvedValue({}),
-            }
+            } as never
 
             mockClient = {
                 channels: {
                     fetch: jest.fn().mockResolvedValue(mockChannel),
-                },
+                } as never,
             }
         })
 

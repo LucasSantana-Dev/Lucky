@@ -1,10 +1,9 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { ButtonStyle, MessageFlags, PermissionFlagsBits } from 'discord.js'
 import type { ButtonInteraction } from 'discord.js'
 import type { TFunction } from 'i18next'
 
 type AnyFn = (...args: any[]) => any
-const disableRecapMock = jest.fn<AnyFn>()
+const disableRecapMock = jest.fn()
 const errorLogMock = jest.fn()
 
 jest.mock('../../services/recap/recapStore', () => ({
@@ -46,10 +45,10 @@ function makeInteraction(canManage: boolean) {
             has: (perm: bigint) =>
                 canManage && perm === PermissionFlagsBits.ManageGuild,
         },
-        reply: jest.fn<AnyFn>().mockResolvedValue(undefined),
-        deferUpdate: jest.fn<AnyFn>().mockResolvedValue(undefined),
-        editReply: jest.fn<AnyFn>().mockResolvedValue(undefined),
-        followUp: jest.fn<AnyFn>().mockResolvedValue(undefined),
+        reply: jest.fn().mockResolvedValue(undefined),
+        deferUpdate: jest.fn().mockResolvedValue(undefined),
+        editReply: jest.fn().mockResolvedValue(undefined),
+        followUp: jest.fn().mockResolvedValue(undefined),
     }
 }
 

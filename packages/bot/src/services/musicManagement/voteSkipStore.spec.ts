@@ -1,4 +1,3 @@
-import { describe, beforeEach, expect, it } from '@jest/globals'
 import { addVote, clearVotes, getVotes, hasVoted } from './voteSkipStore'
 
 describe('voteSkipStore', () => {

@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 const moderationServiceMock = {
     createCase: jest.fn(),
 }
@@ -111,7 +109,7 @@ describe('mute command', () => {
             name === 'user' ? targetUser : null,
         )
 
-        await muteCommand.execute({ interaction })
+        await muteCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -135,7 +133,7 @@ describe('mute command', () => {
             reason: 'spam',
         })
 
-        await muteCommand.execute({ interaction })
+        await muteCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -160,7 +158,7 @@ describe('mute command', () => {
             silent: true,
         })
 
-        await muteCommand.execute({ interaction })
+        await muteCommand.execute({ client: {} as never, interaction })
 
         expect(targetMember.timeout).toHaveBeenCalledWith(3600000, 'spam')
     })
@@ -180,7 +178,7 @@ describe('mute command', () => {
             reason: 'harassment',
         })
 
-        await muteCommand.execute({ interaction })
+        await muteCommand.execute({ client: {} as never, interaction })
 
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith({
             guildId: 'guild-456',
@@ -208,7 +206,7 @@ describe('mute command', () => {
             reason: null,
         })
 
-        await muteCommand.execute({ interaction })
+        await muteCommand.execute({ client: {} as never, interaction })
 
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -231,7 +229,7 @@ describe('mute command', () => {
             silent: true,
         })
 
-        await muteCommand.execute({ interaction })
+        await muteCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalled()
         expect(interactionReplyMock.mock.calls.length).toBeGreaterThan(0)
@@ -251,7 +249,7 @@ describe('mute command', () => {
             silent: false,
         })
 
-        await muteCommand.execute({ interaction })
+        await muteCommand.execute({ client: {} as never, interaction })
 
         expect(targetUser.send).toHaveBeenCalled()
         expect(targetUser.send.mock.calls.length).toBeGreaterThan(0)
@@ -271,7 +269,7 @@ describe('mute command', () => {
             silent: true,
         })
 
-        await muteCommand.execute({ interaction })
+        await muteCommand.execute({ client: {} as never, interaction })
 
         expect(targetUser.send).not.toHaveBeenCalled()
     })
@@ -289,7 +287,7 @@ describe('mute command', () => {
             reason: 'spam',
         })
 
-        await muteCommand.execute({ interaction })
+        await muteCommand.execute({ client: {} as never, interaction })
 
         expect(postToModLogMock).toHaveBeenCalledWith(guild, expect.any(Object))
     })
@@ -309,7 +307,7 @@ describe('mute command', () => {
             reason: 'spam',
         })
 
-        await muteCommand.execute({ interaction })
+        await muteCommand.execute({ client: {} as never, interaction })
 
         expect(infoLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -333,7 +331,7 @@ describe('mute command', () => {
             silent: false,
         })
 
-        await muteCommand.execute({ interaction })
+        await muteCommand.execute({ client: {} as never, interaction })
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -357,7 +355,7 @@ describe('mute command', () => {
             reason: 'spam',
         })
 
-        await muteCommand.execute({ interaction })
+        await muteCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -400,7 +398,7 @@ describe('mute command', () => {
                 silent: true,
             })
 
-            await muteCommand.execute({ interaction })
+            await muteCommand.execute({ client: {} as never, interaction })
 
             expect(targetMember.timeout).toHaveBeenCalledWith(
                 parseInt(duration) * 1000,

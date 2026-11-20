@@ -1,4 +1,3 @@
-import { describe, expect, it, jest } from '@jest/globals'
 import {
     COVER_MAX_BYTES,
     fetchCover,
@@ -21,7 +20,7 @@ function imageResponse(
         typeof bytes === 'number'
             ? Uint8Array.from({ length: bytes }, (_, i) => JPEG_MAGIC[i] ?? 1)
             : bytes
-    return new Response(body as BodyInit, { status, headers })
+    return new Response(body as never, { status, headers })
 }
 
 describe('sanitizeCardText', () => {
@@ -111,7 +110,7 @@ describe('fetchCover', () => {
 
     it('returns base64 and fetches with redirect: error and a signal', async () => {
         const fetchFn = jest
-            .fn<AnyFn>()
+            .fn()
             .mockResolvedValue(
                 imageResponse(Uint8Array.from([0xff, 0xd8, 0xff, 7])),
             )
@@ -124,7 +123,7 @@ describe('fetchCover', () => {
     })
 
     it('accepts png', async () => {
-        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(
+        const fetchFn = jest.fn().mockResolvedValue(
             imageResponse(Uint8Array.from([...PNG_MAGIC, 1]), {
                 'content-type': 'image/png; charset=x',
             }),
@@ -135,7 +134,7 @@ describe('fetchCover', () => {
     })
 
     it('does not fetch a disallowed URL', async () => {
-        const fetchFn = jest.fn<AnyFn>()
+        const fetchFn = jest.fn()
         expect(
             await fetchCover('http://i.scdn.co/x', {
                 fetch: fetchFn as typeof fetch,
@@ -150,7 +149,7 @@ describe('fetchCover', () => {
     })
 
     it('rewrites the YouTube URL it actually requests', async () => {
-        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(imageResponse(4))
+        const fetchFn = jest.fn().mockResolvedValue(imageResponse(4))
         await fetchCover('https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg', {
             fetch: fetchFn as typeof fetch,
         })
@@ -160,9 +159,7 @@ describe('fetchCover', () => {
     })
 
     it('treats a redirect (fetch rejection) as no cover', async () => {
-        const fetchFn = jest
-            .fn<AnyFn>()
-            .mockRejectedValue(new TypeError('redirect'))
+        const fetchFn = jest.fn().mockRejectedValue(new TypeError('redirect'))
         expect(
             await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch }),
         ).toBeNull()
@@ -174,9 +171,7 @@ describe('fetchCover', () => {
         ['image/webp', { 'content-type': 'image/webp' }],
         ['missing type', {}],
     ])('rejects content-type %s', async (_, headers) => {
-        const fetchFn = jest
-            .fn<AnyFn>()
-            .mockResolvedValue(imageResponse(4, headers))
+        const fetchFn = jest.fn().mockResolvedValue(imageResponse(4, headers))
         expect(
             await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch }),
         ).toBeNull()
@@ -184,7 +179,7 @@ describe('fetchCover', () => {
 
     it('rejects a non-2xx response', async () => {
         const fetchFn = jest
-            .fn<AnyFn>()
+            .fn()
             .mockResolvedValue(
                 imageResponse(4, { 'content-type': 'image/jpeg' }, 404),
             )
@@ -196,7 +191,7 @@ describe('fetchCover', () => {
     it('accepts a PNG by its magic bytes', async () => {
         const png = Uint8Array.from([...PNG_MAGIC, 1, 2])
         const fetchFn = jest
-            .fn<AnyFn>()
+            .fn()
             .mockResolvedValue(
                 imageResponse(png, { 'content-type': 'image/png' }),
             )
@@ -211,21 +206,19 @@ describe('fetchCover', () => {
         ['partial png magic', Uint8Array.from([0x89, 0x50, 0x4e, 0x47])],
         ['empty body', new Uint8Array(0)],
     ])('rejects %s despite an image content-type', async (_, bytes) => {
-        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(imageResponse(bytes))
+        const fetchFn = jest.fn().mockResolvedValue(imageResponse(bytes))
         expect(
             await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch }),
         ).toBeNull()
     })
 
     it('accepts exactly 64 KB and rejects one byte more', async () => {
-        const ok = jest
-            .fn<AnyFn>()
-            .mockResolvedValue(imageResponse(COVER_MAX_BYTES))
+        const ok = jest.fn().mockResolvedValue(imageResponse(COVER_MAX_BYTES))
         expect(
             await fetchCover(URL_OK, { fetch: ok as typeof fetch }),
         ).not.toBeNull()
         const big = jest
-            .fn<AnyFn>()
+            .fn()
             .mockResolvedValue(imageResponse(COVER_MAX_BYTES + 1))
         expect(
             await fetchCover(URL_OK, { fetch: big as typeof fetch }),
@@ -244,7 +237,7 @@ describe('fetchCover', () => {
                 cancelled = true
             },
         })
-        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(
+        const fetchFn = jest.fn().mockResolvedValue(
             new Response(stream, {
                 headers: { 'content-type': 'image/jpeg' },
             }),
@@ -271,7 +264,7 @@ describe('fetchCover', () => {
                 'content-length': String(COVER_MAX_BYTES + 1),
             },
         })
-        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(response)
+        const fetchFn = jest.fn().mockResolvedValue(response)
 
         expect(
             await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch }),
@@ -288,7 +281,7 @@ describe('fetchCover', () => {
         ['a wrong content-type', { headers: { 'content-type': 'text/html' } }],
     ])('releases the body on %s without reading it', async (_, init) => {
         const { response, getReader, cancel } = spiedResponse(init)
-        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(response)
+        const fetchFn = jest.fn().mockResolvedValue(response)
 
         expect(
             await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch }),
@@ -300,7 +293,7 @@ describe('fetchCover', () => {
     it('gives up on a hung request after the per-image timeout', async () => {
         jest.useFakeTimers()
         try {
-            const fetchFn = jest.fn<AnyFn>(
+            const fetchFn = jest.fn(
                 (_url: string, init: RequestInit) =>
                     new Promise((_, reject) => {
                         init.signal?.addEventListener('abort', () =>
@@ -323,7 +316,7 @@ describe('fetchCovers', () => {
     it('keeps order, nulls failures and caps concurrency at 5', async () => {
         let inFlight = 0
         let peak = 0
-        const fetchFn = jest.fn<AnyFn>(async (url: string) => {
+        const fetchFn = jest.fn(async (url: string) => {
             inFlight++
             peak = Math.max(peak, inFlight)
             await new Promise((r) => setTimeout(r, 5))
@@ -352,7 +345,7 @@ describe('fetchCovers', () => {
     })
 
     it('stops when the whole phase runs out of time', async () => {
-        const fetchFn = jest.fn<AnyFn>(
+        const fetchFn = jest.fn(
             (_url: string, init: RequestInit) =>
                 new Promise((_, reject) => {
                     init.signal?.addEventListener('abort', () =>

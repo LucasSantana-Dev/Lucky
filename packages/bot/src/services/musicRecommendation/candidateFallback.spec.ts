@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { ScoredTrack } from './autoplay/candidateCollector'
 import type { AutoplayContext } from './autoplay/autoplayContext'
 
@@ -6,8 +5,10 @@ const getArtistGenresMock = jest.fn()
 const getValidAccessTokenMock = jest.fn()
 const getTagTopTracksMock = jest.fn()
 const searchLastFmQueryMock = jest.fn()
-const claimSpotifySearchMock =
-    jest.fn<(budget?: { remaining: number }) => boolean>()
+const claimSpotifySearchMock = jest.fn<
+    boolean,
+    [budget?: { remaining: number }]
+>()
 const recordSpotifySearchResultMock = jest.fn()
 const shouldIncludeCandidateMock = jest.fn()
 const upsertScoredCandidateMock = jest.fn()

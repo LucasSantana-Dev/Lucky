@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals'
 import type { Track } from 'discord-player'
 import { computeHitAtK } from './autoplayEval'
 import type { EvalSample } from './autoplayEval'

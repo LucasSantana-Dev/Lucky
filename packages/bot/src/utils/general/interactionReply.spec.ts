@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type {
     ChatInputCommandInteraction,
     ButtonInteraction,
@@ -108,7 +107,10 @@ describe('interactionReply', () => {
             expect(mockInteraction.deferReply).toHaveBeenCalledWith({
                 flags: undefined,
             })
-            expect(mockInteraction.editReply).toHaveBeenCalled()
+            expect(
+                (mockInteraction as unknown as { editReply: jest.Mock })
+                    .editReply,
+            ).toHaveBeenCalled()
         })
 
         it('sets ephemeral flag when ephemeral is true', async () => {
@@ -131,7 +133,10 @@ describe('interactionReply', () => {
             })
 
             expect(mockInteraction.followUp).toHaveBeenCalled()
-            expect(mockInteraction.editReply).not.toHaveBeenCalled()
+            expect(
+                (mockInteraction as unknown as { editReply: jest.Mock })
+                    .editReply,
+            ).not.toHaveBeenCalled()
         })
 
         it('converts plain text error message to error embed', async () => {
@@ -144,7 +149,9 @@ describe('interactionReply', () => {
                 'Error',
                 'error occurred',
             )
-            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            const callArgs = (
+                mockInteraction as unknown as { editReply: jest.Mock }
+            ).editReply.mock.calls[0][0]
             expect(callArgs.embeds).toBeDefined()
             expect(callArgs.embeds?.length).toBeGreaterThan(0)
         })
@@ -156,7 +163,9 @@ describe('interactionReply', () => {
             })
 
             expect(mockInfoEmbed).toHaveBeenCalledWith('Info', 'some info')
-            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            const callArgs = (
+                mockInteraction as unknown as { editReply: jest.Mock }
+            ).editReply.mock.calls[0][0]
             expect(callArgs.embeds).toBeDefined()
         })
 
@@ -166,7 +175,9 @@ describe('interactionReply', () => {
                 content: { content: '' },
             })
 
-            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            const callArgs = (
+                mockInteraction as unknown as { editReply: jest.Mock }
+            ).editReply.mock.calls[0][0]
             expect(callArgs.embeds?.length || 0).toBe(0)
         })
 
@@ -197,7 +208,9 @@ describe('interactionReply', () => {
                 content: { embeds: [mockEmbed] },
             })
 
-            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            const callArgs = (
+                mockInteraction as unknown as { editReply: jest.Mock }
+            ).editReply.mock.calls[0][0]
             expect(callArgs.embeds?.[0]).toEqual({ title: 'Custom' })
         })
 
@@ -211,7 +224,10 @@ describe('interactionReply', () => {
             })
 
             expect(mockInteraction.deferReply).not.toHaveBeenCalled()
-            expect(mockInteraction.editReply).toHaveBeenCalled()
+            expect(
+                (mockInteraction as unknown as { editReply: jest.Mock })
+                    .editReply,
+            ).toHaveBeenCalled()
         })
 
         it('handles error during deferReply gracefully', async () => {
@@ -246,7 +262,9 @@ describe('interactionReply', () => {
                 content: { content: 'test', ephemeral: true },
             })
 
-            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            const callArgs = (
+                mockInteraction as unknown as { editReply: jest.Mock }
+            ).editReply.mock.calls[0][0]
             expect(callArgs.flags).toBeUndefined()
         })
     })
@@ -278,8 +296,13 @@ describe('interactionReply', () => {
                 content: { content: 'button clicked' },
             })
 
-            expect(mockInteraction.editReply).toHaveBeenCalled()
-            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            expect(
+                (mockInteraction as unknown as { editReply: jest.Mock })
+                    .editReply,
+            ).toHaveBeenCalled()
+            const callArgs = (
+                mockInteraction as unknown as { editReply: jest.Mock }
+            ).editReply.mock.calls[0][0]
             expect(callArgs.embeds).toBeDefined()
         })
 
@@ -292,7 +315,10 @@ describe('interactionReply', () => {
             expect(mockInteraction.deferReply).toHaveBeenCalledWith({
                 flags: 64,
             })
-            expect(mockInteraction.editReply).toHaveBeenCalled()
+            expect(
+                (mockInteraction as unknown as { editReply: jest.Mock })
+                    .editReply,
+            ).toHaveBeenCalled()
         })
 
         it('wraps deferReply failure with the real error as cause', async () => {
@@ -365,7 +391,10 @@ describe('interactionReply', () => {
             })
 
             expect(mockInteraction.followUp).toHaveBeenCalled()
-            expect(mockInteraction.editReply).not.toHaveBeenCalled()
+            expect(
+                (mockInteraction as unknown as { editReply: jest.Mock })
+                    .editReply,
+            ).not.toHaveBeenCalled()
         })
     })
 
@@ -396,8 +425,13 @@ describe('interactionReply', () => {
                 content: { content: 'modal submitted' },
             })
 
-            expect(mockInteraction.editReply).toHaveBeenCalled()
-            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            expect(
+                (mockInteraction as unknown as { editReply: jest.Mock })
+                    .editReply,
+            ).toHaveBeenCalled()
+            const callArgs = (
+                mockInteraction as unknown as { editReply: jest.Mock }
+            ).editReply.mock.calls[0][0]
             expect(callArgs.embeds).toBeDefined()
         })
     })
@@ -425,8 +459,13 @@ describe('interactionReply', () => {
                 content: { content: 'string selected' },
             })
 
-            expect(mockInteraction.editReply).toHaveBeenCalled()
-            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            expect(
+                (mockInteraction as unknown as { editReply: jest.Mock })
+                    .editReply,
+            ).toHaveBeenCalled()
+            const callArgs = (
+                mockInteraction as unknown as { editReply: jest.Mock }
+            ).editReply.mock.calls[0][0]
             expect(callArgs.embeds).toBeDefined()
         })
     })
@@ -458,8 +497,13 @@ describe('interactionReply', () => {
                 content: {},
             })
 
-            expect(mockInteraction.editReply).toHaveBeenCalled()
-            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            expect(
+                (mockInteraction as unknown as { editReply: jest.Mock })
+                    .editReply,
+            ).toHaveBeenCalled()
+            const callArgs = (
+                mockInteraction as unknown as { editReply: jest.Mock }
+            ).editReply.mock.calls[0][0]
             expect(callArgs.embeds || callArgs.content).toBeDefined()
         })
 
@@ -469,7 +513,10 @@ describe('interactionReply', () => {
                 content: { content: undefined, embeds: undefined },
             })
 
-            expect(mockInteraction.editReply).toHaveBeenCalled()
+            expect(
+                (mockInteraction as unknown as { editReply: jest.Mock })
+                    .editReply,
+            ).toHaveBeenCalled()
         })
 
         it('preserves embed array with mixed types', async () => {
@@ -483,7 +530,9 @@ describe('interactionReply', () => {
                 content: { embeds: [mockEmbed1, mockEmbed2] as never },
             })
 
-            const callArgs = mockInteraction.editReply.mock.calls[0][0]
+            const callArgs = (
+                mockInteraction as unknown as { editReply: jest.Mock }
+            ).editReply.mock.calls[0][0]
             expect(callArgs.embeds?.length).toBe(2)
         })
 
@@ -538,7 +587,10 @@ describe('interactionReply', () => {
 
             expect(mockInteraction.deferReply).not.toHaveBeenCalled()
             expect(mockInteraction.followUp).toHaveBeenCalled()
-            expect(mockInteraction.editReply).not.toHaveBeenCalled()
+            expect(
+                (mockInteraction as unknown as { editReply: jest.Mock })
+                    .editReply,
+            ).not.toHaveBeenCalled()
         })
 
         it('handles deferReply that fails silently', async () => {

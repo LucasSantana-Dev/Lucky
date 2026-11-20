@@ -1,15 +1,6 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
-
-const setFeedbackMock = jest.fn<(...args: unknown[]) => Promise<boolean>>()
-const getLikedMock = jest.fn<(...args: unknown[]) => Promise<Set<string>>>()
-const getDislikedMock = jest.fn<(...args: unknown[]) => Promise<Set<string>>>()
+const setFeedbackMock = jest.fn<Promise<boolean>, unknown[]>()
+const getLikedMock = jest.fn<Promise<Set<string>>, unknown[]>()
+const getDislikedMock = jest.fn<Promise<Set<string>>, unknown[]>()
 const errorLogMock = jest.fn()
 const warnLogMock = jest.fn()
 
@@ -55,7 +46,7 @@ function promptInteraction(userId = 'user-1', guildId: string | null = 'g-1') {
         user: { id: userId, username: `name-${userId}` },
         deferred: true,
         replied: false,
-        followUp: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+        followUp: jest.fn<Promise<unknown>, unknown[]>(),
     }
 }
 
@@ -81,8 +72,8 @@ function buttonInteraction(feedback: string, key: string, userId = 'user-1') {
         customId: `${AUTOPLAY_FEEDBACK_BUTTON_PREFIX}${feedback}:${key}`,
         guildId: 'g-1',
         user: { id: userId, username: `name-${userId}` },
-        reply: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
-        update: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+        reply: jest.fn<Promise<unknown>, unknown[]>(),
+        update: jest.fn<Promise<unknown>, unknown[]>(),
     }
 }
 

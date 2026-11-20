@@ -1,4 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import {
     createArtistTagFetcher,
     hasGenreTag,
@@ -98,7 +97,7 @@ describe('createArtistTagFetcher', () => {
             artist === 'Elis Regina' ? ['mpb', 'bossa nova'] : [],
         )
         const spotifyFallback = jest
-            .fn<(artist: string) => Promise<string[]>>()
+            .fn<Promise<string[]>, [artist: string]>()
             .mockResolvedValue([])
 
         const fetcher = createArtistTagFetcher(spotifyFallback)
@@ -154,7 +153,7 @@ describe('createArtistTagFetcher', () => {
     it('uses spotify fallback when Last.fm returns empty and fallback provided', async () => {
         getArtistTopTags.mockResolvedValue([])
         const spotifyFallback = jest
-            .fn<(artist: string) => Promise<string[]>>()
+            .fn<Promise<string[]>, [artist: string]>()
             .mockResolvedValue(['pop', 'latin'])
 
         const fetcher = createArtistTagFetcher(spotifyFallback)
@@ -168,7 +167,7 @@ describe('createArtistTagFetcher', () => {
     it('does not use spotify fallback when Last.fm has tags', async () => {
         getArtistTopTags.mockResolvedValue(['rock', 'metal'])
         const spotifyFallback = jest
-            .fn<(artist: string) => Promise<string[]>>()
+            .fn<Promise<string[]>, [artist: string]>()
             .mockResolvedValue(['pop'])
 
         const fetcher = createArtistTagFetcher(spotifyFallback)
@@ -181,7 +180,7 @@ describe('createArtistTagFetcher', () => {
     it('handles spotify fallback errors gracefully', async () => {
         getArtistTopTags.mockResolvedValue([])
         const spotifyFallback = jest
-            .fn<(artist: string) => Promise<string[]>>()
+            .fn<Promise<string[]>, [artist: string]>()
             .mockRejectedValue(new Error('Spotify API error'))
 
         const fetcher = createArtistTagFetcher(spotifyFallback)
@@ -193,7 +192,7 @@ describe('createArtistTagFetcher', () => {
     it('converts spotify fallback non-array result to empty array', async () => {
         getArtistTopTags.mockResolvedValue([])
         const spotifyFallback = jest
-            .fn<(artist: string) => Promise<string[]>>()
+            .fn<Promise<string[]>, [artist: string]>()
             .mockResolvedValue(null as unknown as string[])
 
         const fetcher = createArtistTagFetcher(spotifyFallback)
@@ -205,7 +204,7 @@ describe('createArtistTagFetcher', () => {
     it('caches fallback results same as Last.fm results', async () => {
         getArtistTopTags.mockResolvedValue([])
         const spotifyFallback = jest
-            .fn<(artist: string) => Promise<string[]>>()
+            .fn<Promise<string[]>, [artist: string]>()
             .mockResolvedValue(['genre1', 'genre2'])
 
         const fetcher = createArtistTagFetcher(spotifyFallback)

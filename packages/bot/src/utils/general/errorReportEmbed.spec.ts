@@ -1,4 +1,3 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals'
 import { EmbedBuilder } from 'discord.js'
 import {
     buildCommandErrorEmbed,

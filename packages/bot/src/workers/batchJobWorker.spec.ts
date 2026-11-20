@@ -1,5 +1,3 @@
-import { describe, expect, it, jest } from '@jest/globals'
-
 type ProcessorFn = (job: { data: { jobId: string } }) => Promise<unknown>
 
 function makeModule(opts: {
@@ -379,7 +377,7 @@ describe('batchJobWorker', () => {
             const { mod, capturedProcessor, mockCheckpoint } = makeModule({
                 dbJob,
                 executorExecute: captureExecute,
-                redis: fakeRedis as never,
+                sharedRedis: fakeRedis,
             })
             await mod.startBatchJobWorker()
             const processor = capturedProcessor()!
@@ -494,3 +492,5 @@ describe('batchJobWorker', () => {
         expect(mockMarkPaused).not.toHaveBeenCalled()
     })
 })
+
+export {}

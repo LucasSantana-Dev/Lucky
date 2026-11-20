@@ -1,11 +1,3 @@
-import {
-    describe,
-    test,
-    expect,
-    jest,
-    beforeEach,
-    afterEach,
-} from '@jest/globals'
 import { ChannelType } from 'discord.js'
 import type { Client, TextChannel, Guild, Collection } from 'discord.js'
 
@@ -63,7 +55,7 @@ function makeMockGuild(
         scheduledEvents: {
             fetch: jest.fn(async () => new Map()),
         } as unknown as Guild['scheduledEvents'],
-    }
+    } as unknown as Partial<Guild>
 }
 
 function makeMockTextChannel(
@@ -74,7 +66,7 @@ function makeMockTextChannel(
         type: ChannelType.GuildText,
         guildId: 'guild-123',
         guild: guild as Guild,
-        send: jest.fn(async () => ({})),
+        send: jest.fn(async () => ({})) as never,
         messages: {
             fetch: jest.fn(async () => new Map()),
         } as unknown as TextChannel['messages'],
@@ -84,6 +76,7 @@ function makeMockTextChannel(
 
 // Sunday 2026-06-21 at 12:15 UTC
 const SUNDAY_12_UTC = new Date('2026-06-21T12:15:00.000Z').getTime()
+const TUESDAY_12_UTC = new Date('2026-06-23T12:15:00.000Z').getTime()
 // Monday 2026-06-22 at 12:15 UTC — should NOT trigger (no longer)
 const MONDAY_12_UTC = new Date('2026-06-22T12:15:00.000Z').getTime()
 // Sunday at 13:00 UTC — wrong hour
@@ -101,7 +94,7 @@ describe('WeeklyDigestService', () => {
         ;(
             getPrismaClient as jest.MockedFunction<typeof getPrismaClient>
         ).mockReturnValue(
-            mockPrismaClient as ReturnType<typeof getPrismaClient>,
+            mockPrismaClient as unknown as ReturnType<typeof getPrismaClient>,
         )
         mockPrismaClient.weeklyDigestSnapshot.findFirst.mockResolvedValue(null)
         mockPrismaClient.weeklyDigestSnapshot.create.mockResolvedValue({})
@@ -283,7 +276,7 @@ describe('WeeklyDigestService', () => {
             const guild = makeMockGuild()
             const ch = makeMockTextChannel(guild, {
                 type: ChannelType.GuildVoice as unknown as typeof ChannelType.GuildText,
-            })
+            } as never)
             const client = {
                 channels: { fetch: jest.fn(async () => ch) },
             } as unknown as Client
@@ -374,7 +367,7 @@ describe('WeeklyDigestService', () => {
                 send: jest.fn(async () => {
                     throw new Error('Discord down')
                 }),
-            })
+            } as never)
             const client = {
                 channels: { fetch: jest.fn(async () => digestChannel) },
             } as unknown as Client
@@ -407,7 +400,7 @@ describe('WeeklyDigestService', () => {
                 messages: {
                     fetch: jest.fn(async () => msgMap),
                 } as unknown as TextChannel['messages'],
-            })
+            } as never)
             ;(
                 guild.channels!.fetch as jest.MockedFunction<
                     () => Promise<unknown>
@@ -506,7 +499,7 @@ describe('WeeklyDigestService', () => {
                         throw new Error('ratelimit')
                     }),
                 } as unknown as TextChannel['messages'],
-            })
+            } as never)
             ;(
                 guild.channels!.fetch as jest.MockedFunction<
                     () => Promise<unknown>

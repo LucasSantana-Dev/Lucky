@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 jest.mock('@lucky/shared/services', () => ({
     roleManagementService: {
         setExclusiveRole: jest.fn(),
@@ -360,7 +358,9 @@ describe('roleconfigHandlers', () => {
             await handleListExclusive(interaction)
 
             const call = interactionReplyMock.mock.calls[0][0]
-            const embed = call.content.embeds[0]
+            const embed = call.content.embeds![0] as unknown as {
+                data: { description?: string }
+            }
             expect(embed.data.description).toBeDefined()
         })
     })

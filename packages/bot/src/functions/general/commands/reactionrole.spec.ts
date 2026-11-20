@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
@@ -66,9 +64,12 @@ describe('/reactionrole', () => {
         }
         requireGuild.mockResolvedValueOnce(false)
 
-        const interaction = makeInteraction('create', {}, false) as never
+        const interaction = makeInteraction('create', {}, false)
 
-        await reactionroleCommand.execute({ interaction })
+        await reactionroleCommand.execute({
+            client: {} as never,
+            interaction: interaction as never,
+        })
 
         expect(requireGuild).toHaveBeenCalled()
     })
@@ -81,9 +82,12 @@ describe('/reactionrole', () => {
                 title: 'Role Menu',
                 description: 'Pick your roles',
                 roles: 'role1:Label 1:emoji1:primary',
-            }) as never
+            })
 
-            await reactionroleCommand.execute({ interaction })
+            await reactionroleCommand.execute({
+                client: {} as never,
+                interaction: interaction as never,
+            })
 
             expect(handleCreate).toHaveBeenCalledWith(
                 interaction,
@@ -96,9 +100,12 @@ describe('/reactionrole', () => {
         test('delegates to handleDelete with interaction and guild', async () => {
             const interaction = makeInteraction('delete', {
                 'message-id': 'msg-123',
-            }) as never
+            })
 
-            await reactionroleCommand.execute({ interaction })
+            await reactionroleCommand.execute({
+                client: {} as never,
+                interaction: interaction as never,
+            })
 
             expect(handleDelete).toHaveBeenCalledWith(
                 interaction,
@@ -109,9 +116,12 @@ describe('/reactionrole', () => {
 
     describe('list subcommand', () => {
         test('delegates to handleList with interaction and guild', async () => {
-            const interaction = makeInteraction('list') as never
+            const interaction = makeInteraction('list')
 
-            await reactionroleCommand.execute({ interaction })
+            await reactionroleCommand.execute({
+                client: {} as never,
+                interaction: interaction as never,
+            })
 
             expect(handleList).toHaveBeenCalledWith(
                 interaction,
@@ -130,9 +140,12 @@ describe('/reactionrole', () => {
                 title: 'Menu',
                 description: 'Desc',
                 roles: 'invalid',
-            }) as never
+            })
 
-            await reactionroleCommand.execute({ interaction })
+            await reactionroleCommand.execute({
+                client: {} as never,
+                interaction: interaction as never,
+            })
 
             const call = interactionReply.mock.calls[0][0] as {
                 content: { embeds?: Array<{ title: string }> }
@@ -148,9 +161,12 @@ describe('/reactionrole', () => {
             }
             requireGuild.mockResolvedValueOnce(false)
 
-            const interaction = makeInteraction('create', {}, false) as never
+            const interaction = makeInteraction('create', {}, false)
 
-            await reactionroleCommand.execute({ interaction })
+            await reactionroleCommand.execute({
+                client: {} as never,
+                interaction: interaction as never,
+            })
 
             expect(requireGuild).toHaveBeenCalled()
         })

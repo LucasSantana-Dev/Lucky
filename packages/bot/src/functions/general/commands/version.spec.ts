@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
 }))
@@ -41,9 +39,12 @@ beforeEach(() => {
 
 describe('/version', () => {
     test('defers reply with ephemeral flag', async () => {
-        const interaction = makeInteraction() as never
+        const interaction = makeInteraction()
 
-        await versionCommand.execute({ interaction })
+        await versionCommand.execute({
+            client: {} as never,
+            interaction: interaction as never,
+        })
 
         expect(interaction.deferReply).toHaveBeenCalledWith({
             flags: expect.anything(),
@@ -52,9 +53,12 @@ describe('/version', () => {
 
     test('uses npm_package_version when set', async () => {
         process.env.npm_package_version = '2.30.0'
-        const interaction = makeInteraction() as never
+        const interaction = makeInteraction()
 
-        await versionCommand.execute({ interaction })
+        await versionCommand.execute({
+            client: {} as never,
+            interaction: interaction as never,
+        })
 
         const callArg = interactionReply.mock.calls[0][0] as {
             content: { embeds: Array<{ description: string }> }
@@ -64,9 +68,12 @@ describe('/version', () => {
 
     test('falls back to COMMIT_SHA when npm_package_version missing', async () => {
         process.env.COMMIT_SHA = 'abc123def456'
-        const interaction = makeInteraction() as never
+        const interaction = makeInteraction()
 
-        await versionCommand.execute({ interaction })
+        await versionCommand.execute({
+            client: {} as never,
+            interaction: interaction as never,
+        })
 
         const callArg = interactionReply.mock.calls[0][0] as {
             content: { embeds: Array<{ description: string }> }
@@ -75,9 +82,12 @@ describe('/version', () => {
     })
 
     test('uses "unknown" when neither env var is set', async () => {
-        const interaction = makeInteraction() as never
+        const interaction = makeInteraction()
 
-        await versionCommand.execute({ interaction })
+        await versionCommand.execute({
+            client: {} as never,
+            interaction: interaction as never,
+        })
 
         const callArg = interactionReply.mock.calls[0][0] as {
             content: { embeds: Array<{ description: string }> }
@@ -87,9 +97,12 @@ describe('/version', () => {
 
     test('sends embed with title "Bot Version"', async () => {
         process.env.npm_package_version = '1.0.0'
-        const interaction = makeInteraction() as never
+        const interaction = makeInteraction()
 
-        await versionCommand.execute({ interaction })
+        await versionCommand.execute({
+            client: {} as never,
+            interaction: interaction as never,
+        })
 
         const callArg = interactionReply.mock.calls[0][0] as {
             content: { embeds: Array<{ title: string }> }

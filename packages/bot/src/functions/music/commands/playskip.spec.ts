@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 jest.mock('discord-player', () => ({
     QueryType: {
         AUTO: 'AUTO',
@@ -113,7 +111,9 @@ describe('playskip command', () => {
 
     it('should have query string option', () => {
         const options = playSkipCommand.data.options
-        const queryOption = options.find((opt: any) => opt.name === 'query')
+        const queryOption = (
+            options as unknown as Array<{ name: string; required?: boolean }>
+        ).find((opt) => opt.name === 'query')
         expect(queryOption).toBeDefined()
         expect(queryOption?.required).toBe(true)
     })

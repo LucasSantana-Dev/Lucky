@@ -1,4 +1,3 @@
-import { describe, expect, it, jest } from '@jest/globals'
 import type { Client, Message } from 'discord.js'
 import { Events } from 'discord.js'
 

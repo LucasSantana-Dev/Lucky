@@ -1,11 +1,3 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
 import type { Client, GuildScheduledEvent, TextChannel } from 'discord.js'
 import { scheduledEventNotificationService } from './ScheduledEventNotificationService'
 
@@ -32,14 +24,14 @@ describe('ScheduledEventNotificationService', () => {
         jest.clearAllMocks()
 
         mockChannel = {
-            isTextBased: jest.fn().mockReturnValue(true),
+            isTextBased: jest.fn().mockReturnValue(true) as never,
             send: jest.fn().mockResolvedValue({}),
-        }
+        } as never
 
         mockClient = {
             channels: {
                 fetch: jest.fn().mockResolvedValue(mockChannel),
-            },
+            } as never,
         }
 
         mockDb = {
@@ -56,7 +48,7 @@ describe('ScheduledEventNotificationService', () => {
             name: 'Test Event',
             description: 'This is a test event',
             scheduledStartAt: new Date('2026-07-10T15:00:00Z'),
-        }
+        } as never
     })
 
     afterEach(() => {

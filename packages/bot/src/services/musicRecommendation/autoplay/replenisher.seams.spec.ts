@@ -1,4 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import { User } from 'discord.js'
 
@@ -285,13 +284,15 @@ describe('replenisher seam functions', () => {
         it('returns null when missingTracks <= 0', async () => {
             const track = createTrack()
             const autoplayTrack = createTrack({ id: 'autoplayid' })
-            autoplayTrack.metadata = { isAutoplay: true }
+            ;(autoplayTrack as { metadata: unknown }).metadata = {
+                isAutoplay: true,
+            }
             const queue = createGuildQueue({
                 currentTrack: track,
                 tracks: createTracksMap([
                     ['auto1', autoplayTrack],
                     ['auto2', autoplayTrack],
-                ]),
+                ]) as never,
             })
             const { premiumService } = require('@lucky/shared/services')
             premiumService.isPremium.mockResolvedValue(false)
@@ -353,8 +354,8 @@ describe('replenisher seam functions', () => {
                             createTrack(),
                             createTrack(),
                         ],
-                    },
-                },
+                    } as never,
+                } as never,
             })
             await extractSeedAndSessionMood(newQueue, currentTrack)
             expect(moodDetector.detectSessionMood).toHaveBeenCalled()
@@ -611,7 +612,7 @@ describe('replenisher seam functions', () => {
                 createTrack(),
                 [],
                 [],
-                history,
+                history as never,
             )
 
             expect(result.artistFrequency.size).toBeGreaterThan(0)
@@ -629,7 +630,7 @@ describe('replenisher seam functions', () => {
                 createTrack(),
                 [],
                 [],
-                history,
+                history as never,
             )
 
             expect(result.artistFrequency.get('beyoncé')).toBe(2)
@@ -897,7 +898,7 @@ describe('replenisher seam functions', () => {
             }
 
             const result = await collectAllCandidates(
-                autoplayContext,
+                autoplayContext as never,
                 [createTrack()],
                 createUser(),
                 false,
@@ -969,7 +970,7 @@ describe('replenisher seam functions', () => {
             collectRecommendationCandidates.mockResolvedValue(new Map())
 
             const result = await collectAllCandidates(
-                autoplayContext,
+                autoplayContext as never,
                 [createTrack()],
                 null,
                 false,

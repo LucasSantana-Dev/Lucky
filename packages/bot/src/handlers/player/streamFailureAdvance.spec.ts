@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { setupErrorHandlers } from './errorEventHandlers'
 import { closePlayStartWatch, openPlayStartWatch } from './playStartWatch'
 
@@ -77,7 +76,7 @@ function createQueue(failing: Set<FakeTrack>) {
         started: [] as FakeTrack[],
         endedBySkip: [] as FakeTrack[],
         player: {
-            search: jest.fn<() => Promise<{ tracks: FakeTrack[] }>>(),
+            search: jest.fn<Promise<{ tracks: FakeTrack[] }>, []>(),
             client: { user: { id: 'bot-1' } },
         },
         insertTrack(t: FakeTrack, index: number) {

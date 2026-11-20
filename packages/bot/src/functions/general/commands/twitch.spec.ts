@@ -1,11 +1,3 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js'
 import type { ChatInputCommandInteraction, Guild, User } from 'discord.js'
 
@@ -61,13 +53,13 @@ describe('twitch command', () => {
 
         mockUser = {
             id: 'user123',
-        }
+        } as never
 
         mockGuild = {
             id: 'guild123',
             name: 'Test Guild',
             ownerId: 'owner123',
-        }
+        } as never
 
         mockGetSubcommand = jest.fn()
 
@@ -78,8 +70,8 @@ describe('twitch command', () => {
                 getSubcommand: mockGetSubcommand,
                 getString: jest.fn(),
                 getChannel: jest.fn(),
-            },
-        }
+            } as never,
+        } as never
 
         requireGuildMock.mockResolvedValue(true)
         featureToggleServiceMock.mockResolvedValue(true)
@@ -116,6 +108,7 @@ describe('twitch command', () => {
         requireGuildMock.mockResolvedValue(false)
 
         await twitchCommand.execute({
+            client: {} as never,
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -123,9 +116,10 @@ describe('twitch command', () => {
     })
 
     it('should return early if guild is missing', async () => {
-        mockInteraction.guild = null
+        ;(mockInteraction as { guild: unknown }).guild = null
 
         await twitchCommand.execute({
+            client: {} as never,
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -136,6 +130,7 @@ describe('twitch command', () => {
         featureToggleServiceMock.mockResolvedValue(false)
 
         await twitchCommand.execute({
+            client: {} as never,
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -153,6 +148,7 @@ describe('twitch command', () => {
         handleTwitchAddMock.mockResolvedValue(undefined)
 
         await twitchCommand.execute({
+            client: {} as never,
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -165,6 +161,7 @@ describe('twitch command', () => {
         handleTwitchRemoveMock.mockResolvedValue(undefined)
 
         await twitchCommand.execute({
+            client: {} as never,
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -177,6 +174,7 @@ describe('twitch command', () => {
         handleTwitchListMock.mockResolvedValue(undefined)
 
         await twitchCommand.execute({
+            client: {} as never,
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -189,6 +187,7 @@ describe('twitch command', () => {
         handleTwitchAddMock.mockRejectedValue(new Error('API error'))
 
         await twitchCommand.execute({
+            client: {} as never,
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -210,6 +209,7 @@ describe('twitch command', () => {
         handleTwitchListMock.mockResolvedValue(undefined)
 
         await twitchCommand.execute({
+            client: {} as never,
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -226,6 +226,7 @@ describe('twitch command', () => {
         mockGetSubcommand.mockReturnValue('unknown')
 
         await twitchCommand.execute({
+            client: {} as never,
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 

@@ -1,11 +1,3 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
 import fs from 'node:fs/promises'
 import Module from 'node:module'
 import os from 'node:os'
@@ -41,6 +33,7 @@ beforeEach(() => {
     mockErrorLog.mockClear()
     const originalRequire = Module.prototype.require
     jest.spyOn(Module.prototype, 'require').mockImplementation(function (
+        this: NodeJS.Module,
         id: string,
     ) {
         if (id.startsWith('file://')) {

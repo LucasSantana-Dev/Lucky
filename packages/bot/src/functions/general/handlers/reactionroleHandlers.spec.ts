@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
     infoLog: jest.fn(),
@@ -100,7 +98,7 @@ describe('reactionroleHandlers', () => {
                 id: 'msg-456',
             })
 
-            await handleCreate(interaction, guild)
+            await handleCreate(interaction, guild as never)
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -122,7 +120,7 @@ describe('reactionroleHandlers', () => {
             const guild = createGuild()
             const interaction = createInteraction({ channel })
 
-            await handleCreate(interaction, guild)
+            await handleCreate(interaction, guild as never)
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -149,7 +147,7 @@ describe('reactionroleHandlers', () => {
             })
 
             await expect(async () => {
-                await handleCreate(interaction, guild)
+                await handleCreate(interaction, guild as never)
             }).rejects.toThrow()
         })
 
@@ -162,7 +160,7 @@ describe('reactionroleHandlers', () => {
                 id: 'msg-789',
             })
 
-            await handleCreate(interaction, guild)
+            await handleCreate(interaction, guild as never)
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -189,7 +187,7 @@ describe('reactionroleHandlers', () => {
 
             createReactionRoleMessageMock.mockResolvedValueOnce({})
 
-            await handleCreate(interaction, guild)
+            await handleCreate(interaction, guild as never)
 
             const call = createReactionRoleMessageMock.mock.calls[0][0]
             expect(call.roles.length).toBe(2)
@@ -203,7 +201,7 @@ describe('reactionroleHandlers', () => {
 
             deleteReactionRoleMessageMock.mockResolvedValueOnce(true)
 
-            await handleDelete(interaction, guild)
+            await handleDelete(interaction, guild as never)
 
             expect(deleteReactionRoleMessageMock).toHaveBeenCalledWith(
                 'msg-123',
@@ -230,7 +228,7 @@ describe('reactionroleHandlers', () => {
 
             deleteReactionRoleMessageMock.mockResolvedValueOnce(false)
 
-            await handleDelete(interaction, guild)
+            await handleDelete(interaction, guild as never)
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -253,7 +251,7 @@ describe('reactionroleHandlers', () => {
 
             deleteReactionRoleMessageMock.mockResolvedValueOnce(true)
 
-            await handleDelete(interaction, guild)
+            await handleDelete(interaction, guild as never)
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -277,7 +275,7 @@ describe('reactionroleHandlers', () => {
             const dbError = new Error('Database connection lost')
             deleteReactionRoleMessageMock.mockRejectedValueOnce(dbError)
 
-            await handleDelete(interaction, guild)
+            await handleDelete(interaction, guild as never)
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -286,7 +284,8 @@ describe('reactionroleHandlers', () => {
                         expect.objectContaining({
                             data: expect.objectContaining({
                                 title: 'Error',
-                                description: expect.stringContaining('try again later'),
+                                description:
+                                    expect.stringContaining('try again later'),
                             }),
                         }),
                     ],
@@ -314,7 +313,7 @@ describe('reactionroleHandlers', () => {
                 },
             ])
 
-            await handleList(interaction, guild)
+            await handleList(interaction, guild as never)
 
             expect(listReactionRoleMessagesMock).toHaveBeenCalledWith(
                 'guild-123',
@@ -339,10 +338,12 @@ describe('reactionroleHandlers', () => {
                 },
             ])
 
-            await handleList(interaction, guild)
+            await handleList(interaction, guild as never)
 
             const call = interactionReplyMock.mock.calls[0][0]
-            const embed = call.content.embeds[0]
+            const embed = call.content.embeds![0] as unknown as {
+                data: { description?: string }
+            }
             const desc = embed.data.description
 
             expect(desc).toContain('Roles: 2')
@@ -355,7 +356,7 @@ describe('reactionroleHandlers', () => {
 
             listReactionRoleMessagesMock.mockResolvedValueOnce([])
 
-            await handleList(interaction, guild)
+            await handleList(interaction, guild as never)
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -379,7 +380,7 @@ describe('reactionroleHandlers', () => {
 
             listReactionRoleMessagesMock.mockResolvedValueOnce([])
 
-            await handleList(interaction, guild)
+            await handleList(interaction, guild as never)
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,

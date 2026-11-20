@@ -1,5 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
-
 jest.mock('@lucky/shared/constants', () => ({
     COLOR: { LUCKY_PURPLE: '#7e5bc2' },
 }))

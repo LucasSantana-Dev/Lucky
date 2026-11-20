@@ -1,8 +1,7 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { ChatInputCommandInteraction } from 'discord.js'
 
 const interactionReplyMock = jest.fn()
-const requireGuildMock = jest.fn<(interaction: unknown) => Promise<boolean>>()
+const requireGuildMock = jest.fn<Promise<boolean>, [interaction: unknown]>()
 const collaborativePlaylistServiceMock = {
     setMode: jest.fn(),
     getState: jest.fn(),

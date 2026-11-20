@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { extractTags, extractGenre } from './tagExtractor'
 import type { Track } from 'discord-player'
 
@@ -19,7 +18,7 @@ describe('tagExtractor', () => {
                 title: 'The Rock Music Live Performance',
                 author: 'Artist',
                 description: undefined,
-            } as Track
+            } as unknown as Track
 
             const tags = extractTags(track)
 
@@ -32,7 +31,7 @@ describe('tagExtractor', () => {
                 title: 'Country Song (Remix) [JAZZ remix]',
                 author: 'Artist Name',
                 description: undefined,
-            } as Track
+            } as unknown as Track
 
             const tags = extractTags(track)
 
@@ -80,7 +79,7 @@ describe('tagExtractor', () => {
                 title: 'Some Random Title Here',
                 author: 'Unknown Artist',
                 description: undefined,
-            } as Track
+            } as unknown as Track
 
             const tags = extractTags(track)
 
@@ -91,7 +90,7 @@ describe('tagExtractor', () => {
             const track = {
                 title: 'Rock Song',
                 author: undefined,
-            } as Track
+            } as unknown as Track
 
             const tags = extractTags(track)
 
@@ -128,7 +127,7 @@ describe('tagExtractor', () => {
                 title,
                 author: 'Artist',
                 description: undefined,
-            } as Track
+            } as unknown as Track
 
             const tags = extractTags(track)
 
@@ -142,7 +141,7 @@ describe('tagExtractor', () => {
                 title: 'Rock Jazz Classical',
                 author: 'Artist',
                 description: undefined,
-            } as Track
+            } as unknown as Track
 
             const genre = extractGenre(track)
 
@@ -167,7 +166,7 @@ describe('tagExtractor', () => {
                 title: 'Some Random Title Here',
                 author: 'Unknown Artist Name',
                 description: undefined,
-            } as Track
+            } as unknown as Track
 
             const genre = extractGenre(track)
 
@@ -191,7 +190,7 @@ describe('tagExtractor', () => {
                 title: 'ROCK MUSIC PIECE',
                 author: 'ARTIST NAME',
                 description: undefined,
-            } as Track
+            } as unknown as Track
 
             const genre = extractGenre(track)
 

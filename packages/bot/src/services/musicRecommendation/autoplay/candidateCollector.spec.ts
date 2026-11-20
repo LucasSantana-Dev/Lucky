@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import {
     collectRecommendationCandidates,
@@ -6,7 +5,6 @@ import {
     upsertScoredCandidate,
     type ScoredTrack,
 } from './candidateCollector'
-import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import type { SessionMood } from './sessionMood'
 import type { AutoplayContext } from './autoplayContext'
 
@@ -39,21 +37,25 @@ jest.mock('./diversitySelector', () => ({
         isDuplicateCandidateMock(...args),
 }))
 
-const calculateRecommendationScoreMock = jest.fn(() => ({
-    score: 0.5,
-    signals: [],
-}))
+const calculateRecommendationScoreMock = jest.fn(
+    (): { score: number; signals: string[]; source?: string } => ({
+        score: 0.5,
+        signals: [],
+    }),
+)
 const normalizeTrackKeyMock = jest.fn((title?: string, author?: string) =>
     `${author}|${title}`.toLowerCase(),
 )
 
 jest.mock('./candidateScorer', () => ({
-    calculateRecommendationScore: (...args: unknown[]) =>
-        calculateRecommendationScoreMock(...args),
+    calculateRecommendationScore: (
+        ...args: Parameters<typeof calculateRecommendationScoreMock>
+    ) => calculateRecommendationScoreMock(...args),
 }))
 
 jest.mock('./scoringUtils', () => ({
-    normalizeTrackKey: (...args: unknown[]) => normalizeTrackKeyMock(...args),
+    normalizeTrackKey: (...args: Parameters<typeof normalizeTrackKeyMock>) =>
+        normalizeTrackKeyMock(...args),
 }))
 
 function createTrack(overrides: Partial<Track> = {}): Track {
@@ -670,7 +672,7 @@ describe('candidateCollector', () => {
                 [createTrack()],
                 null,
                 0,
-                null,
+                null as never,
             )
 
             // fail-open: track should not be blocked when tag fetch errors

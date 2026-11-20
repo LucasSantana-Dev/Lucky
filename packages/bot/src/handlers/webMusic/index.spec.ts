@@ -1,12 +1,3 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
-
 const connect = jest.fn(async () => undefined)
 const subscribeToCommands = jest.fn(async () => undefined)
 const publishState = jest.fn(async () => undefined)
@@ -22,10 +13,12 @@ const warnLogMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     musicControlService: {
-        connect: (...a: unknown[]) => connect(...a),
-        subscribeToCommands: (...a: unknown[]) => subscribeToCommands(...a),
-        publishState: (...a: unknown[]) => publishState(...a),
-        sendResult: (...a: unknown[]) => sendResult(...a),
+        connect: (...a: Parameters<typeof connect>) => connect(...a),
+        subscribeToCommands: (...a: Parameters<typeof subscribeToCommands>) =>
+            subscribeToCommands(...a),
+        publishState: (...a: Parameters<typeof publishState>) =>
+            publishState(...a),
+        sendResult: (...a: Parameters<typeof sendResult>) => sendResult(...a),
     },
 }))
 jest.mock('@lucky/shared/utils', () => ({
@@ -35,7 +28,8 @@ jest.mock('@lucky/shared/utils', () => ({
     warnLog: (...a: unknown[]) => warnLogMock(...a),
 }))
 jest.mock('./mappers', () => ({
-    buildQueueState: (...a: unknown[]) => buildQueueStateMock(...a),
+    buildQueueState: (...a: Parameters<typeof buildQueueStateMock>) =>
+        buildQueueStateMock(...a),
 }))
 jest.mock('./commandHandlers', () => ({}))
 jest.mock('./queueHandlers', () => ({}))
@@ -107,7 +101,9 @@ describe('setupWebMusicHandler — periodic publish (#2160)', () => {
 
     it('warns (visible in prod) when the 30s periodic publish tick fails', async () => {
         const { client } = makeClient()
-        client.player.nodes.cache.set('g1', { guild: { id: 'g1' } })
+        client.player.nodes.cache.set('g1', {
+            guild: { id: 'g1' } as never,
+        } as never)
         buildQueueStateMock.mockRejectedValueOnce(new Error('boom'))
         await setupWebMusicHandler(client)
 

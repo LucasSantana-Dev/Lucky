@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals'
 import {
     Collection,
     PermissionFlagsBits,
@@ -185,7 +184,7 @@ describe('commandsHandler', () => {
             ;(command.execute as jest.Mock).mockRejectedValue(
                 new Error('Command failed'),
             )
-            const interaction = createMockInteraction({ guild: null })
+            const interaction = createMockInteraction({ guild: null } as never)
             const client = createMockClient()
             client.commands.set('test', command)
 
@@ -244,7 +243,7 @@ describe('commandsHandler', () => {
             })
             const interaction = createMockInteraction({
                 appPermissions: new PermissionsBitField(),
-            })
+            } as never)
             const client = createMockClient()
             client.commands.set('test', command)
 
@@ -268,7 +267,7 @@ describe('commandsHandler', () => {
                 appPermissions: new PermissionsBitField(
                     PermissionFlagsBits.BanMembers,
                 ),
-            })
+            } as never)
             const client = createMockClient()
             client.commands.set('test', command)
 
@@ -285,7 +284,7 @@ describe('commandsHandler', () => {
             const command = createMockCommand({ botPermissions: undefined })
             const interaction = createMockInteraction({
                 appPermissions: new PermissionsBitField(),
-            })
+            } as never)
             const client = createMockClient()
             client.commands.set('test', command)
 
@@ -302,8 +301,8 @@ describe('commandsHandler', () => {
                 botPermissions: [PermissionFlagsBits.BanMembers],
             })
             const interaction = createMockInteraction({
-                appPermissions: null,
-            })
+                appPermissions: null as never,
+            } as never)
             const client = createMockClient()
             client.commands.set('test', command)
 
@@ -330,7 +329,7 @@ describe('commandsHandler', () => {
                 appPermissions: new PermissionsBitField(
                     PermissionFlagsBits.BanMembers,
                 ),
-            })
+            } as never)
             const client = createMockClient()
             client.commands.set('test', command)
 
@@ -352,7 +351,7 @@ describe('commandsHandler', () => {
             })
             const interaction = createMockInteraction({
                 appPermissions: new PermissionsBitField(),
-            })
+            } as never)
             const client = createMockClient()
             client.commands.set('test', command)
 
@@ -397,7 +396,9 @@ describe('commandsHandler', () => {
 
         it('records an unknown command as user_error with known=false', async () => {
             await executeCommand({
-                interaction: createMockInteraction({ commandName: 'zzz' }),
+                interaction: createMockInteraction({
+                    commandName: 'zzz',
+                } as never),
                 client: createMockClient(),
             })
             expect(recorded()).toHaveLength(1)
@@ -574,9 +575,9 @@ describe('commandsHandler', () => {
     describe('setCommands', () => {
         it('should set commands in client collection', async () => {
             const commands = [
-                createMockCommand({ data: { name: 'ping' } }),
-                createMockCommand({ data: { name: 'help' } }),
-                createMockCommand({ data: { name: 'stats' } }),
+                createMockCommand({ data: { name: 'ping' } as never }),
+                createMockCommand({ data: { name: 'help' } as never }),
+                createMockCommand({ data: { name: 'stats' } as never }),
             ]
             const client = createMockClient()
 
@@ -590,9 +591,9 @@ describe('commandsHandler', () => {
 
         it('should skip commands without name', async () => {
             const commands = [
-                createMockCommand({ data: { name: 'ping' } }),
-                createMockCommand({ data: { name: '' } }),
-                createMockCommand({ data: { name: 'help' } }),
+                createMockCommand({ data: { name: 'ping' } as never }),
+                createMockCommand({ data: { name: '' } as never }),
+                createMockCommand({ data: { name: 'help' } as never }),
             ]
             const client = createMockClient()
 
@@ -607,7 +608,9 @@ describe('commandsHandler', () => {
             const client = createMockClient()
             client.commands.set('old', createMockCommand())
 
-            const commands = [createMockCommand({ data: { name: 'new' } })]
+            const commands = [
+                createMockCommand({ data: { name: 'new' } as never }),
+            ]
 
             await setCommands({ client, commands })
 
@@ -649,8 +652,8 @@ describe('commandsHandler', () => {
     describe('groupCommands', () => {
         it('should return valid commands', () => {
             const commands = [
-                createMockCommand({ data: { name: 'ping' } }),
-                createMockCommand({ data: { name: 'help' } }),
+                createMockCommand({ data: { name: 'ping' } as never }),
+                createMockCommand({ data: { name: 'help' } as never }),
             ]
 
             const result = groupCommands({ commands })
@@ -661,9 +664,9 @@ describe('commandsHandler', () => {
 
         it('should filter out commands without name', () => {
             const commands = [
-                createMockCommand({ data: { name: 'ping' } }),
-                createMockCommand({ data: { name: '' } }),
-                createMockCommand({ data: { name: 'help' } }),
+                createMockCommand({ data: { name: 'ping' } as never }),
+                createMockCommand({ data: { name: '' } as never }),
+                createMockCommand({ data: { name: 'help' } as never }),
             ]
 
             const result = groupCommands({ commands })
@@ -678,9 +681,9 @@ describe('commandsHandler', () => {
 
         it('should filter out commands without execute function', () => {
             const commands = [
-                createMockCommand({ data: { name: 'ping' } }),
+                createMockCommand({ data: { name: 'ping' } as never }),
                 { data: { name: 'invalid' }, category: 'general' },
-                createMockCommand({ data: { name: 'help' } }),
+                createMockCommand({ data: { name: 'help' } as never }),
             ] as any
 
             const result = groupCommands({ commands })
@@ -695,9 +698,9 @@ describe('commandsHandler', () => {
 
         it('should handle commands with null data', () => {
             const commands = [
-                createMockCommand({ data: { name: 'ping' } }),
+                createMockCommand({ data: { name: 'ping' } as never }),
                 { data: null, category: 'general', execute: jest.fn() },
-                createMockCommand({ data: { name: 'help' } }),
+                createMockCommand({ data: { name: 'help' } as never }),
             ] as any
 
             const result = groupCommands({ commands })
@@ -709,7 +712,9 @@ describe('commandsHandler', () => {
         })
 
         it('should handle errors during grouping', () => {
-            const commands = [createMockCommand({ data: { name: 'ping' } })]
+            const commands = [
+                createMockCommand({ data: { name: 'ping' } as never }),
+            ]
 
             Object.defineProperty(commands, 'filter', {
                 get: () => {
@@ -734,7 +739,7 @@ describe('commandsHandler', () => {
 
         it('should filter out completely invalid command objects', () => {
             const commands = [
-                createMockCommand({ data: { name: 'valid' } }),
+                createMockCommand({ data: { name: 'valid' } as never }),
                 null,
                 undefined,
                 {},

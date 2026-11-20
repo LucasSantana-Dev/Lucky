@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 const gaugeSetMock = jest.fn()
 
 jest.mock('../../utils/monitoring/prometheus', () => ({

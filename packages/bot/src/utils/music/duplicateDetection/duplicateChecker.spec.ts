@@ -1,4 +1,3 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals'
 import {
     checkForDuplicate,
     addTrackToHistory,
@@ -64,7 +63,7 @@ describe('duplicateChecker', () => {
             artistThreshold: 0.8,
             durationThreshold: 0.2,
             overallThreshold: 0.75,
-        })
+        } as never)
 
         expect(result).toEqual({ isDuplicate: false })
     })
@@ -295,7 +294,7 @@ describe('duplicateChecker', () => {
                 artistThreshold: 0.8,
                 durationThreshold: 0.2,
                 overallThreshold: 0.75,
-            })
+            } as never)
 
             expect(getTrackHistoryMock).toHaveBeenCalledWith('guild-1', 20)
             expect(result.isDuplicate).toBe(true)
@@ -329,7 +328,7 @@ describe('duplicateChecker', () => {
                 artistThreshold: 0.8,
                 durationThreshold: 0.2,
                 overallThreshold: 0.75,
-            })
+            } as never)
 
             expect(result.isDuplicate).toBe(true)
             expect(result.reason).toBe(
@@ -359,7 +358,7 @@ describe('duplicateChecker', () => {
                 artistThreshold: 0.8,
                 durationThreshold: 0.2,
                 overallThreshold: 0.75,
-            })
+            } as never)
 
             expect(result.isDuplicate).toBe(false)
         })
@@ -386,7 +385,7 @@ describe('duplicateChecker', () => {
                 artistThreshold: 0.8,
                 durationThreshold: 0.2,
                 overallThreshold: 0.75,
-            })
+            } as never)
 
             expect(warnLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({

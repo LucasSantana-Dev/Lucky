@@ -1,8 +1,6 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
-
-const mockResolveFeedbackTranslator = jest.fn<(...args: any[]) => any>()
-const mockOpenFeedbackModalAndAwaitSubmit = jest.fn<(...args: any[]) => any>()
-const mockSubmitFeedback = jest.fn<(...args: any[]) => any>()
+const mockResolveFeedbackTranslator = jest.fn()
+const mockOpenFeedbackModalAndAwaitSubmit = jest.fn()
+const mockSubmitFeedback = jest.fn()
 jest.mock('../../../services/feedbackService', () => ({
     openFeedbackModalAndAwaitSubmit: mockOpenFeedbackModalAndAwaitSubmit,
     resolveFeedbackTranslator: mockResolveFeedbackTranslator,

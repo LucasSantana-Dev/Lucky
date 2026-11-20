@@ -1,7 +1,7 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
-
-const searchSpotifyAlbums =
-    jest.fn<(q: string, limit?: number) => Promise<unknown[]>>()
+const searchSpotifyAlbums = jest.fn<
+    Promise<unknown[]>,
+    [q: string, limit?: number]
+>()
 
 jest.mock('@lucky/shared/utils', () => ({
     searchSpotifyAlbums: (q: string, limit?: number) =>

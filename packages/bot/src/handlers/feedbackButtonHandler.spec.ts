@@ -1,9 +1,7 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
-
-const mockResolveFeedbackTranslator = jest.fn<(...args: any[]) => any>()
-const mockOpenFeedbackModalAndAwaitSubmit = jest.fn<(...args: any[]) => any>()
-const mockSubmitFeedback = jest.fn<(...args: any[]) => any>()
-const mockParseFeedbackReportCustomId = jest.fn<(...args: any[]) => any>()
+const mockResolveFeedbackTranslator = jest.fn()
+const mockOpenFeedbackModalAndAwaitSubmit = jest.fn()
+const mockSubmitFeedback = jest.fn()
+const mockParseFeedbackReportCustomId = jest.fn()
 // The encode/decode round trip itself is covered by feedbackService.spec.ts;
 // here parseFeedbackReportCustomId is a plain mock so this file stays isolated
 // from feedbackService's real dependency chain (@lucky/shared/utils, which

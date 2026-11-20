@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { CustomClient } from '../../types'
 
 jest.mock('@lucky/shared/config', () => ({
@@ -11,10 +10,10 @@ jest.mock('@lucky/shared/utils', () => ({
     warnLog: jest.fn(),
 }))
 
-const listGuildIdsMock = jest.fn<any>()
-const getSnapshotMock = jest.fn<any>()
-const deleteSnapshotMock = jest.fn<any>()
-const restoreSnapshotMock = jest.fn<any>()
+const listGuildIdsMock = jest.fn()
+const getSnapshotMock = jest.fn()
+const deleteSnapshotMock = jest.fn()
+const restoreSnapshotMock = jest.fn()
 
 jest.mock('../musicRecommendation/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
@@ -36,12 +35,13 @@ jest.mock('./watchdog', () => ({
     },
 }))
 
-const applyAutoplayPreferenceMock = jest.fn<any>(async () => undefined)
+const applyAutoplayPreferenceMock = jest.fn(async () => undefined)
 jest.mock(
     '../../functions/music/commands/play/handlers/autoplayPreference',
     () => ({
-        applyStoredAutoplayPreference: (...a: unknown[]) =>
-            applyAutoplayPreferenceMock(...a),
+        applyStoredAutoplayPreference: (
+            ...a: Parameters<typeof applyAutoplayPreferenceMock>
+        ) => applyAutoplayPreferenceMock(...a),
     }),
 )
 

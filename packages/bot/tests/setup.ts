@@ -1,5 +1,3 @@
-import { jest } from '@jest/globals'
-
 // Neutralize the @snazzah/davey native addon (Discord DAVE E2E encryption).
 // It is pulled in transitively (discord-player → discord-voip → @snazzah/davey)
 // and registers a native `CustomGC` handle that keeps the jest worker alive.
@@ -17,7 +15,8 @@ jest.mock('@snazzah/davey', () => ({}))
 const originalSetTimeout = global.setTimeout
 const originalSetInterval = global.setInterval
 global.setTimeout = function (
-    callback: TimerHandler,
+    this: unknown,
+    callback: (...cbArgs: unknown[]) => void,
     delay?: number,
     ...args: unknown[]
 ) {
@@ -36,7 +35,8 @@ global.setTimeout = function (
 } as typeof setTimeout
 
 global.setInterval = function (
-    callback: TimerHandler,
+    this: unknown,
+    callback: (...cbArgs: unknown[]) => void,
     delay?: number,
     ...args: unknown[]
 ) {
@@ -104,14 +104,6 @@ export async function clearAllCaches() {
         const { clearReplenishSuppressionCache } =
             await import('../src/services/musicManagement/replenishSuppressionStore')
         clearReplenishSuppressionCache()
-    } catch {
-        // May not be loaded
-    }
-
-    try {
-        const { clearAudioFeaturesCache } =
-            await import('../src/services/musicRecommendation/autoplay/audioFeatures')
-        clearAudioFeaturesCache()
     } catch {
         // May not be loaded
     }

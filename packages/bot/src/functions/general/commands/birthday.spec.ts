@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => {
     const upsert = jest.fn()
     const deleteMany = jest.fn()
@@ -96,6 +94,7 @@ describe('daysUntilBirthday', () => {
 describe('/birthday', () => {
     test('rejects when used in DMs', async () => {
         await birthdayCommand.execute({
+            client: {} as never,
             interaction: makeInteraction(
                 'set',
                 { month: 3, day: 15 },
@@ -111,6 +110,7 @@ describe('/birthday', () => {
 
     test('rejects invalid month', async () => {
         await birthdayCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('set', { month: 13, day: 1 }) as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -122,6 +122,7 @@ describe('/birthday', () => {
 
     test('rejects Feb 30', async () => {
         await birthdayCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('set', { month: 2, day: 30 }) as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -133,6 +134,7 @@ describe('/birthday', () => {
 
     test('accepts Feb 29 (leap-day tolerant)', async () => {
         await birthdayCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('set', { month: 2, day: 29 }) as never,
         })
         expect(memberBirthdayUpsert).toHaveBeenCalledWith(
@@ -144,6 +146,7 @@ describe('/birthday', () => {
 
     test('persists a valid birthday via upsert', async () => {
         await birthdayCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('set', { month: 3, day: 15 }) as never,
         })
         expect(memberBirthdayUpsert).toHaveBeenCalledTimes(1)
@@ -171,6 +174,7 @@ describe('/birthday', () => {
 
     test('clear removes the birthday', async () => {
         await birthdayCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('clear') as never,
         })
         expect(memberBirthdayDeleteMany).toHaveBeenCalledWith({
@@ -185,6 +189,7 @@ describe('/birthday', () => {
     test('clear is idempotent when no birthday set', async () => {
         memberBirthdayDeleteMany.mockResolvedValueOnce({ count: 0 })
         await birthdayCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('clear') as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -196,6 +201,7 @@ describe('/birthday', () => {
     test('list shows empty state when no birthdays set', async () => {
         memberBirthdayFindMany.mockResolvedValueOnce([])
         await birthdayCommand.execute({
+            client: {} as never,
             interaction: {
                 ...makeInteraction('list'),
                 guild: { id: 'guild-1', name: 'TestGuild' },
@@ -218,6 +224,7 @@ describe('/birthday', () => {
             { userId: 'g', month: 2, day: 2 },
         ])
         await birthdayCommand.execute({
+            client: {} as never,
             interaction: {
                 ...makeInteraction('list'),
                 guild: { id: 'guild-1', name: 'TestGuild' },
@@ -241,6 +248,7 @@ describe('/birthday', () => {
             { userId: 'birthday-user', month: todayMonth, day: todayDay },
         ])
         await birthdayCommand.execute({
+            client: {} as never,
             interaction: {
                 ...makeInteraction('list'),
                 guild: { id: 'guild-1', name: 'TestGuild' },
@@ -257,6 +265,7 @@ describe('/birthday', () => {
             { userId: 'u1', month: 3, day: 15 },
         ])
         await birthdayCommand.execute({
+            client: {} as never,
             interaction: {
                 ...makeInteraction('list'),
                 guild: { id: 'guild-1', name: 'TestGuild' },
@@ -271,6 +280,7 @@ describe('/birthday', () => {
     test('handles upsert throwing gracefully', async () => {
         memberBirthdayUpsert.mockRejectedValueOnce(new Error('db down'))
         await birthdayCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('set', { month: 3, day: 15 }) as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -292,7 +302,7 @@ describe('/birthday', () => {
                 getChannel: () => null,
             },
         } as never
-        await birthdayCommand.execute({ interaction })
+        await birthdayCommand.execute({ client: {} as never, interaction })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
         }
@@ -314,7 +324,7 @@ describe('/birthday', () => {
                 getChannel: () => ({ id: 'chan-123' }),
             },
         } as never
-        await birthdayCommand.execute({ interaction })
+        await birthdayCommand.execute({ client: {} as never, interaction })
         expect(guildSettingsUpsert).toHaveBeenCalledWith({
             where: { guildId: 'guild-1' },
             create: { guildId: 'guild-1', birthdayChannelId: 'chan-123' },
@@ -341,7 +351,7 @@ describe('/birthday', () => {
                 getChannel: () => null,
             },
         } as never
-        await birthdayCommand.execute({ interaction })
+        await birthdayCommand.execute({ client: {} as never, interaction })
         expect(guildSettingsUpsert).toHaveBeenCalledWith({
             where: { guildId: 'guild-1' },
             create: { guildId: 'guild-1', birthdayChannelId: null },
@@ -366,7 +376,7 @@ describe('/birthday', () => {
                 getRole: () => null,
             },
         } as never
-        await birthdayCommand.execute({ interaction })
+        await birthdayCommand.execute({ client: {} as never, interaction })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
         }
@@ -388,7 +398,7 @@ describe('/birthday', () => {
                 getRole: () => ({ id: 'role-456' }),
             },
         } as never
-        await birthdayCommand.execute({ interaction })
+        await birthdayCommand.execute({ client: {} as never, interaction })
         expect(guildSettingsUpsert).toHaveBeenCalledWith({
             where: { guildId: 'guild-1' },
             create: { guildId: 'guild-1', birthdayRoleId: 'role-456' },
@@ -415,7 +425,7 @@ describe('/birthday', () => {
                 getRole: () => null,
             },
         } as never
-        await birthdayCommand.execute({ interaction })
+        await birthdayCommand.execute({ client: {} as never, interaction })
         expect(guildSettingsUpsert).toHaveBeenCalledWith({
             where: { guildId: 'guild-1' },
             create: { guildId: 'guild-1', birthdayRoleId: null },

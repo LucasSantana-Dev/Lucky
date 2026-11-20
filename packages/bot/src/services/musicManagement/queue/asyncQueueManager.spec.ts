@@ -1,4 +1,3 @@
-import { describe, test, expect, jest } from '@jest/globals'
 import { AsyncQueueManager } from './asyncQueueManager'
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -37,9 +36,10 @@ describe('AsyncQueueManager', () => {
             const queue = createMockQueue()
             const track = createMockTrack('Song A')
 
-            const result = await AsyncQueueManager.addTracksSafely(queue, [
-                track,
-            ])
+            const result = await AsyncQueueManager.addTracksSafely(
+                queue as never,
+                [track as never],
+            )
 
             expect(result.success).toBe(true)
             expect(result.tracksAdded).toBe(1)
@@ -56,8 +56,8 @@ describe('AsyncQueueManager', () => {
             ]
 
             const result = await AsyncQueueManager.addTracksSafely(
-                queue,
-                tracks,
+                queue as never,
+                tracks as never,
             )
 
             expect(result.success).toBe(true)
@@ -76,8 +76,8 @@ describe('AsyncQueueManager', () => {
             ]
 
             const result = await AsyncQueueManager.addTracksSafely(
-                queue,
-                tracks,
+                queue as never,
+                tracks as never,
                 true,
             )
 
@@ -92,7 +92,9 @@ describe('AsyncQueueManager', () => {
             const queue = createMockQueue(false)
             const track = createMockTrack('Song A')
 
-            await AsyncQueueManager.addTracksSafely(queue, [track])
+            await AsyncQueueManager.addTracksSafely(queue as never, [
+                track as never,
+            ])
 
             expect(queue.node.play).toHaveBeenCalled()
         })
@@ -101,7 +103,9 @@ describe('AsyncQueueManager', () => {
             const queue = createMockQueue(true)
             const track = createMockTrack('Song A')
 
-            await AsyncQueueManager.addTracksSafely(queue, [track])
+            await AsyncQueueManager.addTracksSafely(queue as never, [
+                track as never,
+            ])
 
             expect(queue.node.play).not.toHaveBeenCalled()
         })
@@ -109,7 +113,10 @@ describe('AsyncQueueManager', () => {
         test('returns empty array for empty input', async () => {
             const queue = createMockQueue()
 
-            const result = await AsyncQueueManager.addTracksSafely(queue, [])
+            const result = await AsyncQueueManager.addTracksSafely(
+                queue as never,
+                [],
+            )
 
             expect(result.success).toBe(true)
             expect(result.tracksAdded).toBe(0)
@@ -125,8 +132,8 @@ describe('AsyncQueueManager', () => {
 
             const tracks = [createMockTrack('Song A')]
             const result = await AsyncQueueManager.addTracksSafely(
-                queue,
-                tracks,
+                queue as never,
+                tracks as never,
             )
 
             expect(result.success).toBe(false)
@@ -143,8 +150,8 @@ describe('AsyncQueueManager', () => {
 
             const tracks = [createMockTrack('Song A')]
             const result = await AsyncQueueManager.addTracksSafely(
-                queue,
-                tracks,
+                queue as never,
+                tracks as never,
                 true,
             )
 
@@ -161,8 +168,8 @@ describe('AsyncQueueManager', () => {
 
             const tracks = [createMockTrack('Song A')]
             const result = await AsyncQueueManager.addTracksSafely(
-                queue,
-                tracks,
+                queue as never,
+                tracks as never,
             )
 
             expect(result.success).toBe(false)
@@ -176,8 +183,8 @@ describe('AsyncQueueManager', () => {
 
             const tracks = [createMockTrack('Song A')]
             const result = await AsyncQueueManager.addTracksSafely(
-                queue,
-                tracks,
+                queue as never,
+                tracks as never,
             )
 
             expect(result.success).toBe(false)
@@ -190,7 +197,10 @@ describe('AsyncQueueManager', () => {
             const queue = createMockQueue(false)
             const track = createMockTrack('Song A')
 
-            const result = await AsyncQueueManager.playTrackSafely(queue, track)
+            const result = await AsyncQueueManager.playTrackSafely(
+                queue as never,
+                track as never,
+            )
 
             expect(result.success).toBe(true)
             expect(result.error).toBeUndefined()
@@ -202,7 +212,10 @@ describe('AsyncQueueManager', () => {
             const queue = createMockQueue(true)
             const track = createMockTrack('Song A')
 
-            const result = await AsyncQueueManager.playTrackSafely(queue, track)
+            const result = await AsyncQueueManager.playTrackSafely(
+                queue as never,
+                track as never,
+            )
 
             expect(result.success).toBe(true)
             expect(queue.addTrack).toHaveBeenCalledWith(track)
@@ -217,7 +230,10 @@ describe('AsyncQueueManager', () => {
             })
 
             const track = createMockTrack('Song A')
-            const result = await AsyncQueueManager.playTrackSafely(queue, track)
+            const result = await AsyncQueueManager.playTrackSafely(
+                queue as never,
+                track as never,
+            )
 
             expect(result.success).toBe(false)
             expect(result.error).toBe('Add track error')
@@ -229,7 +245,10 @@ describe('AsyncQueueManager', () => {
             queue.node.play.mockRejectedValueOnce(error)
 
             const track = createMockTrack('Song A')
-            const result = await AsyncQueueManager.playTrackSafely(queue, track)
+            const result = await AsyncQueueManager.playTrackSafely(
+                queue as never,
+                track as never,
+            )
 
             expect(result.success).toBe(false)
             expect(result.error).toBe('Play error')
@@ -242,7 +261,10 @@ describe('AsyncQueueManager', () => {
             })
 
             const track = createMockTrack('Song A')
-            const result = await AsyncQueueManager.playTrackSafely(queue, track)
+            const result = await AsyncQueueManager.playTrackSafely(
+                queue as never,
+                track as never,
+            )
 
             expect(result.success).toBe(false)
             expect(result.error).toBe('Unknown error')
@@ -253,7 +275,9 @@ describe('AsyncQueueManager', () => {
         test('clears queue successfully', async () => {
             const queue = createMockQueue()
 
-            const result = await AsyncQueueManager.clearQueueSafely(queue)
+            const result = await AsyncQueueManager.clearQueueSafely(
+                queue as never,
+            )
 
             expect(result.success).toBe(true)
             expect(result.error).toBeUndefined()
@@ -267,7 +291,9 @@ describe('AsyncQueueManager', () => {
                 throw error
             })
 
-            const result = await AsyncQueueManager.clearQueueSafely(queue)
+            const result = await AsyncQueueManager.clearQueueSafely(
+                queue as never,
+            )
 
             expect(result.success).toBe(false)
             expect(result.error).toBe('Clear error')
@@ -279,7 +305,9 @@ describe('AsyncQueueManager', () => {
                 throw 'string error'
             })
 
-            const result = await AsyncQueueManager.clearQueueSafely(queue)
+            const result = await AsyncQueueManager.clearQueueSafely(
+                queue as never,
+            )
 
             expect(result.success).toBe(false)
             expect(result.error).toBe('Unknown error')

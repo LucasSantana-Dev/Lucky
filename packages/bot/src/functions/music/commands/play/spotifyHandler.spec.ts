@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { handleSpotifyTrack, handleSpotifyPlaylist } from './spotifyHandler'
 import type { PlayCommandOptions } from './types'
 
@@ -17,7 +16,11 @@ function createUser(): PlayCommandOptions['user'] {
     } as any
 }
 
-function createSearchResult(hasTracks: boolean, tracks: any[] = [], playlist: any = null) {
+function createSearchResult(
+    hasTracks: boolean,
+    tracks: any[] = [],
+    playlist: any = null,
+) {
     return {
         hasTracks: () => hasTracks,
         tracks,
@@ -25,7 +28,9 @@ function createSearchResult(hasTracks: boolean, tracks: any[] = [], playlist: an
     }
 }
 
-function createPlayer(searchImpl: (query: string, options: any) => any): PlayCommandOptions['player'] {
+function createPlayer(
+    searchImpl: (query: string, options: any) => any,
+): PlayCommandOptions['player'] {
     return {
         search: jest.fn(searchImpl),
     } as any
@@ -97,11 +102,21 @@ describe('spotifyHandler', () => {
     describe('handleSpotifyPlaylist', () => {
         it('returns success with multiple tracks', async () => {
             const tracks = [
-                { title: 'Track 1', author: 'Artist 1', url: 'https://spotify.com/track/1' },
-                { title: 'Track 2', author: 'Artist 2', url: 'https://spotify.com/track/2' },
+                {
+                    title: 'Track 1',
+                    author: 'Artist 1',
+                    url: 'https://spotify.com/track/1',
+                },
+                {
+                    title: 'Track 2',
+                    author: 'Artist 2',
+                    url: 'https://spotify.com/track/2',
+                },
             ]
             const playlistObj = { name: 'Test Playlist' }
-            const player = createPlayer(() => createSearchResult(true, tracks, playlistObj))
+            const player = createPlayer(() =>
+                createSearchResult(true, tracks, playlistObj),
+            )
 
             const result = await handleSpotifyPlaylist(
                 'https://spotify.com/playlist/456',
@@ -156,7 +171,9 @@ describe('spotifyHandler', () => {
                 { title: 'Track 1', url: 'https://spotify.com/track/1' },
                 { title: 'Track 2', url: 'https://spotify.com/track/2' },
             ]
-            const player = createPlayer(() => createSearchResult(true, tracks, null))
+            const player = createPlayer(() =>
+                createSearchResult(true, tracks, null),
+            )
 
             const result = await handleSpotifyPlaylist(
                 'https://spotify.com/playlist/456',

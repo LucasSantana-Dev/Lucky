@@ -1,13 +1,4 @@
-import {
-    describe,
-    test,
-    expect,
-    jest,
-    beforeEach,
-    afterEach,
-} from '@jest/globals'
-
-const mockCleanupOldData = jest.fn<() => Promise<unknown>>()
+const mockCleanupOldData = jest.fn<Promise<unknown>, []>()
 
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
@@ -52,10 +43,12 @@ afterEach(() => {
 
 describe('DataRetentionScheduler', () => {
     test('sweeps immediately on start and logs the deleted count', async () => {
-        mockCleanupOldData.mockResolvedValue(makeResult({
-            isFailure: false,
-            data: 42,
-        }))
+        mockCleanupOldData.mockResolvedValue(
+            makeResult({
+                isFailure: false,
+                data: 42,
+            }),
+        )
         scheduler = new DataRetentionScheduler(100)
 
         scheduler.start({} as any)
@@ -67,15 +60,16 @@ describe('DataRetentionScheduler', () => {
             message: 'Data retention sweep deleted 42 row(s)',
         })
         expect(errorLog).not.toHaveBeenCalled()
-
     })
 
     test('logs an error and does not throw when the sweep fails', async () => {
         const boom = new Error('boom')
-        mockCleanupOldData.mockResolvedValue(makeResult({
-            isFailure: true,
-            error: boom,
-        }))
+        mockCleanupOldData.mockResolvedValue(
+            makeResult({
+                isFailure: true,
+                error: boom,
+            }),
+        )
         scheduler = new DataRetentionScheduler(100)
 
         scheduler.start({} as any)
@@ -86,14 +80,15 @@ describe('DataRetentionScheduler', () => {
             error: boom,
         })
         expect(infoLog).not.toHaveBeenCalled()
-
     })
 
     test('ticks again on the configured interval', async () => {
-        mockCleanupOldData.mockResolvedValue(makeResult({
-            isFailure: false,
-            data: 0,
-        }))
+        mockCleanupOldData.mockResolvedValue(
+            makeResult({
+                isFailure: false,
+                data: 0,
+            }),
+        )
         scheduler = new DataRetentionScheduler(20)
 
         scheduler.start({} as any)
@@ -102,6 +97,5 @@ describe('DataRetentionScheduler', () => {
 
         await jest.advanceTimersByTimeAsync(20)
         expect(mockCleanupOldData).toHaveBeenCalledTimes(2)
-
     })
 })

@@ -1,24 +1,17 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
-
 const captureMessageMock = jest.fn()
-const flushSentryMock = jest.fn<(timeout?: number) => Promise<boolean>>()
+const flushSentryMock = jest.fn<Promise<boolean>, [timeout?: number]>()
 const initializeSentryMock = jest.fn()
-const isSentryEnabledMock = jest.fn<() => boolean>()
+const isSentryEnabledMock = jest.fn<boolean, []>()
 const consoleLogMock = jest.fn()
 const consoleErrorMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     captureMessage: (...args: unknown[]) => captureMessageMock(...args),
-    flushSentry: (...args: unknown[]) => flushSentryMock(...args),
+    flushSentry: (...args: Parameters<typeof flushSentryMock>) =>
+        flushSentryMock(...args),
     initializeSentry: (...args: unknown[]) => initializeSentryMock(...args),
-    isSentryEnabled: (...args: unknown[]) => isSentryEnabledMock(...args),
+    isSentryEnabled: (...args: Parameters<typeof isSentryEnabledMock>) =>
+        isSentryEnabledMock(...args),
 }))
 
 describe('sentry test script', () => {

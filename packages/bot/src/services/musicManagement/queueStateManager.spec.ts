@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { GuildQueue, Track } from 'discord-player'
 
 const warnLogMock = jest.fn()
@@ -31,19 +30,19 @@ describe('queueStateManager', () => {
             id: 'track-1',
             url: 'https://example.com/track1.mp3',
             author: 'Artist One',
-            duration: 180000,
+            duration: 180000 as never,
         }
         mockTrack2 = {
             id: 'track-2',
             url: 'https://example.com/track2.mp3',
             author: 'Artist Two',
-            duration: 240000,
+            duration: 240000 as never,
         }
         mockTrack3 = {
             id: 'track-3',
             url: 'https://example.com/track3.mp3',
             author: 'Artist One',
-            duration: 200000,
+            duration: 200000 as never,
         }
 
         mockQueue = {
@@ -73,7 +72,7 @@ describe('queueStateManager', () => {
 
     describe('getQueueState', () => {
         it('returns the current queue state with all properties', () => {
-            const state = getQueueState(mockQueue)
+            const state = getQueueState(mockQueue as never)
             expect(state).toEqual({
                 isPlaying: true,
                 isPaused: false,
@@ -93,15 +92,19 @@ describe('queueStateManager', () => {
             ['null currentTrack', null, undefined],
         ])('coerces %s on currentTrack', (scenario, duration, expected) => {
             if (scenario === 'null currentTrack') {
-                mockQueue.currentTrack = null
-                expect(getQueueState(mockQueue).currentTrack).toBeUndefined()
+                ;(mockQueue as { currentTrack: unknown }).currentTrack = null
+                expect(
+                    getQueueState(mockQueue as never).currentTrack,
+                ).toBeUndefined()
             } else {
-                mockQueue.currentTrack = {
+                ;(mockQueue as { currentTrack: unknown }).currentTrack = {
                     id: 'track-1',
                     author: 'Artist',
                     duration,
                 } as unknown as Track
-                expect(getQueueState(mockQueue).duration).toBe(expected)
+                expect(getQueueState(mockQueue as never).duration).toBe(
+                    expected,
+                )
             }
         })
 
@@ -118,14 +121,14 @@ describe('queueStateManager', () => {
             ;(mockQueue.node?.getTimestamp as jest.Mock).mockReturnValue(
                 factory(),
             )
-            expect(getQueueState(mockQueue).position).toBe(0)
+            expect(getQueueState(mockQueue as never).position).toBe(0)
         })
 
         it('returns the documented default state when an exception occurs and logs it', () => {
             ;(mockQueue.node?.isPlaying as jest.Mock).mockImplementation(() => {
                 throw new Error('Queue error')
             })
-            expect(getQueueState(mockQueue)).toEqual({
+            expect(getQueueState(mockQueue as never)).toEqual({
                 isPlaying: false,
                 isPaused: false,
                 queueSize: 0,
@@ -147,7 +150,7 @@ describe('queueStateManager', () => {
             ;(mockQueue.repeatMode?.toString as jest.Mock).mockReturnValue(
                 'QUEUE',
             )
-            const state = getQueueState(mockQueue)
+            const state = getQueueState(mockQueue as never)
             expect(state.isPlaying).toBe(false)
             expect(state.isPaused).toBe(true)
             expect(state.repeatMode).toBe('QUEUE')
@@ -168,31 +171,31 @@ describe('queueStateManager', () => {
 
         it('warns at most once per minute for the same guild', () => {
             throwingQueueForGuild('throttle-same-guild')
-            getQueueState(mockQueue)
-            getQueueState(mockQueue)
+            getQueueState(mockQueue as never)
+            getQueueState(mockQueue as never)
             expect(warnLogMock).toHaveBeenCalledTimes(1)
         })
 
         it('does not suppress a second guild within the same window', () => {
             throwingQueueForGuild('throttle-guild-a')
-            getQueueState(mockQueue)
+            getQueueState(mockQueue as never)
             throwingQueueForGuild('throttle-guild-b')
-            getQueueState(mockQueue)
+            getQueueState(mockQueue as never)
             expect(warnLogMock).toHaveBeenCalledTimes(2)
         })
 
         it('warns again for the same guild once the window elapses', () => {
             jest.useFakeTimers()
             throwingQueueForGuild('throttle-window-guild')
-            getQueueState(mockQueue)
+            getQueueState(mockQueue as never)
             expect(warnLogMock).toHaveBeenCalledTimes(1)
 
             jest.advanceTimersByTime(59_000)
-            getQueueState(mockQueue)
+            getQueueState(mockQueue as never)
             expect(warnLogMock).toHaveBeenCalledTimes(1)
 
             jest.advanceTimersByTime(2_000)
-            getQueueState(mockQueue)
+            getQueueState(mockQueue as never)
             expect(warnLogMock).toHaveBeenCalledTimes(2)
         })
     })
@@ -204,7 +207,7 @@ describe('queueStateManager', () => {
             [2, false],
         ])('size %s → %s', (size, expected) => {
             mockQueue.tracks = { size } as unknown as GuildQueue['tracks']
-            expect(isQueueEmpty(mockQueue)).toBe(expected)
+            expect(isQueueEmpty(mockQueue as never)).toBe(expected)
         })
     })
 
@@ -218,11 +221,11 @@ describe('queueStateManager', () => {
             [25, 20, true],
             [1, 1, true],
         ])('size %s vs max %s → %s', (size, max, expected) => {
-            mockQueue.tracks!.size = size
+            ;(mockQueue.tracks! as { size: unknown }).size = size
             const result =
                 max === undefined
-                    ? isQueueFull(mockQueue)
-                    : isQueueFull(mockQueue, max)
+                    ? isQueueFull(mockQueue as never)
+                    : isQueueFull(mockQueue as never, max)
             expect(result).toBe(expected)
         })
     })
@@ -283,7 +286,7 @@ describe('queueStateManager', () => {
             ],
         ])('%s', (_label, tracks, expected) => {
             withTracks(tracks)
-            const stats = getQueueStats(mockQueue)
+            const stats = getQueueStats(mockQueue as never)
             if (expected.averageDuration !== 0 || tracks.length > 0) {
                 expect(stats.totalTracks).toBe(expected.totalTracks)
                 expect(stats.totalDuration).toBe(expected.totalDuration)
@@ -304,18 +307,18 @@ describe('queueStateManager', () => {
                 { duration: 100000, author: 'Artist A' },
                 { duration: 100000 },
             ])
-            const stats = getQueueStats(mockQueue)
+            const stats = getQueueStats(mockQueue as never)
             expect(stats.artists.sort()).toEqual(['Artist A', 'Artist B'])
         })
 
         it('returns empty genres array (genres are not implemented yet)', () => {
             withTracks([{ duration: 200000, author: 'Artist' }])
-            expect(getQueueStats(mockQueue).genres).toEqual([])
+            expect(getQueueStats(mockQueue as never).genres).toEqual([])
         })
 
         it('returns the documented default stats on exception and logs it', () => {
             withTracksThrow()
-            expect(getQueueStats(mockQueue)).toEqual({
+            expect(getQueueStats(mockQueue as never)).toEqual({
                 totalTracks: 0,
                 totalDuration: 0,
                 averageDuration: 0,
@@ -341,7 +344,7 @@ describe('queueStateManager', () => {
             else if (Array.isArray(tracks) && tracks.length === 0)
                 withTracks([])
             else withTracks([mockTrack2, mockTrack3])
-            const next = getNextTrack(mockQueue)
+            const next = getNextTrack(mockQueue as never)
             expect(next).toBe(
                 expected ? lookup[expected as keyof typeof lookup] : null,
             )
@@ -349,7 +352,7 @@ describe('queueStateManager', () => {
 
         it('returns null on exception and logs it', () => {
             withTracksThrow()
-            expect(getNextTrack(mockQueue)).toBeNull()
+            expect(getNextTrack(mockQueue as never)).toBeNull()
             expect(warnLogMock).toHaveBeenCalledWith({
                 message: 'Error getting next track:',
                 error: expect.any(Error),
@@ -369,7 +372,7 @@ describe('queueStateManager', () => {
             ['exceeds length', 10, null],
         ] as const)('position %s → %s', (_label, position, expected) => {
             const lookup = { mockTrack, mockTrack2, mockTrack3 }
-            const track = getTrackAtPosition(mockQueue, position)
+            const track = getTrackAtPosition(mockQueue as never, position)
             expect(track).toBe(
                 expected ? lookup[expected as keyof typeof lookup] : null,
             )
@@ -377,7 +380,7 @@ describe('queueStateManager', () => {
 
         it('returns null on exception and logs it', () => {
             withTracksThrow()
-            expect(getTrackAtPosition(mockQueue, 0)).toBeNull()
+            expect(getTrackAtPosition(mockQueue as never, 0)).toBeNull()
             expect(warnLogMock).toHaveBeenCalledWith({
                 message: 'Error getting track at position:',
                 error: expect.any(Error),
@@ -399,7 +402,7 @@ describe('queueStateManager', () => {
             ['matching url', 'https://example.com/track1.mp3', true],
             ['no match', 'track-999', false],
         ])('%s → %s', (_label, needle, expected) => {
-            expect(isTrackInQueue(mockQueue, needle)).toBe(expected)
+            expect(isTrackInQueue(mockQueue as never, needle)).toBe(expected)
         })
 
         it('falls back to url when id does not match', () => {
@@ -407,13 +410,16 @@ describe('queueStateManager', () => {
                 { id: 'different-id', url: 'https://example.com/track1.mp3' },
             ])
             expect(
-                isTrackInQueue(mockQueue, 'https://example.com/track1.mp3'),
+                isTrackInQueue(
+                    mockQueue as never,
+                    'https://example.com/track1.mp3',
+                ),
             ).toBe(true)
         })
 
         it('returns false on exception and logs it', () => {
             withTracksThrow()
-            expect(isTrackInQueue(mockQueue, 'track-1')).toBe(false)
+            expect(isTrackInQueue(mockQueue as never, 'track-1')).toBe(false)
             expect(warnLogMock).toHaveBeenCalledWith({
                 message: 'Error checking if track is in queue:',
                 error: expect.any(Error),
@@ -438,12 +444,12 @@ describe('queueStateManager', () => {
             ['by url', 'https://example.com/track2.mp3', 1],
             ['not found', 'track-999', -1],
         ])('%s → %s', (_label, needle, expected) => {
-            expect(getTrackPosition(mockQueue, needle)).toBe(expected)
+            expect(getTrackPosition(mockQueue as never, needle)).toBe(expected)
         })
 
         it('returns -1 on exception and logs it', () => {
             withTracksThrow()
-            expect(getTrackPosition(mockQueue, 'track-1')).toBe(-1)
+            expect(getTrackPosition(mockQueue as never, 'track-1')).toBe(-1)
             expect(warnLogMock).toHaveBeenCalledWith({
                 message: 'Error getting track position:',
                 error: expect.any(Error),

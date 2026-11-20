@@ -1,5 +1,4 @@
 import { EventEmitter } from 'node:events'
-import { describe, expect, it, jest } from '@jest/globals'
 import { installExitDiagnostics } from './exitDiagnostics'
 
 const writeSyncMock = jest.fn()

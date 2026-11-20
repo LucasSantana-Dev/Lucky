@@ -14,7 +14,6 @@
  *   - Spotify API
  *   - @lucky/shared/services
  */
-import { describe, it, expect, jest, beforeEach } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -450,7 +449,8 @@ describe('autoplay pipeline integration', () => {
             const genreContext = {
                 currentTrackTags: ['trap'],
                 sessionGenreFamilies: new Set(['rap_hiphop']),
-                getArtistTags: async (artist: string) => tags[artist] ?? [],
+                getArtistTags: async (artist: string | undefined) =>
+                    tags[artist ?? ''] ?? [],
             }
             jest.mocked(consumeLastFmSeedSlice).mockResolvedValue([
                 { artist: 'Tom Jobim', title: 'Garota de Ipanema' },

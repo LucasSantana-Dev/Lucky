@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 const setExtractorDegradedMock = jest.fn()
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()

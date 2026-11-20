@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type {
     ChatInputCommandInteraction,
     VoiceChannel,
@@ -95,7 +94,7 @@ describe('queueHandler', () => {
         })
 
         it('should throw ValidationError when guild is missing', async () => {
-            const interaction = createMockInteraction({ guild: null })
+            const interaction = createMockInteraction({ guild: null } as never)
             const client = createMockClient()
 
             await expect(createQueue({ client, interaction })).rejects.toThrow(
@@ -104,7 +103,7 @@ describe('queueHandler', () => {
         })
 
         it('should include details in ValidationError', async () => {
-            const interaction = createMockInteraction({ guild: null })
+            const interaction = createMockInteraction({ guild: null } as never)
             const client = createMockClient()
 
             try {
@@ -121,7 +120,7 @@ describe('queueHandler', () => {
             const interaction = createMockInteraction({
                 guild: null,
                 user: undefined,
-            })
+            } as never)
             const client = createMockClient()
 
             try {
@@ -135,7 +134,7 @@ describe('queueHandler', () => {
             const interaction = createMockInteraction({
                 guild: null,
                 channel: undefined,
-            })
+            } as never)
             const client = createMockClient()
 
             try {
@@ -155,7 +154,7 @@ describe('queueHandler', () => {
                         channel: mockVoiceChannel,
                     },
                 } as GuildMember,
-            })
+            } as never)
             const queue = createMockQueue()
 
             await queueConnect({ queue, interaction })
@@ -180,7 +179,9 @@ describe('queueHandler', () => {
             const interaction = createMockInteraction()
 
             await queueConnect({ queue, interaction })
-            queue.connection = { id: 'connection-1' } as any
+            ;(queue as { connection: unknown }).connection = {
+                id: 'connection-1',
+            } as any
             await queueConnect({ queue, interaction })
 
             expect(queue.connect).toHaveBeenCalledTimes(1)
@@ -198,7 +199,7 @@ describe('queueHandler', () => {
             } as GuildMember
             const interaction = createMockInteraction({
                 member: mockMember,
-            })
+            } as never)
             const queue = createMockQueue()
 
             await queueConnect({ queue, interaction })
@@ -209,7 +210,7 @@ describe('queueHandler', () => {
 
     describe('ValidationError', () => {
         it('should create error with message and details', async () => {
-            const interaction = createMockInteraction({ guild: null })
+            const interaction = createMockInteraction({ guild: null } as never)
             const client = createMockClient()
 
             try {
@@ -227,7 +228,7 @@ describe('queueHandler', () => {
         })
 
         it('should work without details', async () => {
-            const interaction = createMockInteraction({ guild: null })
+            const interaction = createMockInteraction({ guild: null } as never)
             const client = createMockClient()
 
             try {

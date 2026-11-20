@@ -1,15 +1,8 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
-
-const mockRedisGet = jest.fn<(key: string) => Promise<string | null>>()
-const mockRedisSet =
-    jest.fn<(key: string, value: string, ttl: number) => Promise<void>>()
+const mockRedisGet = jest.fn<Promise<string | null>, [key: string]>()
+const mockRedisSet = jest.fn<
+    Promise<void>,
+    [key: string, value: string, ttl: number]
+>()
 
 jest.mock('@lucky/shared/services', () => ({
     redisClient: {
@@ -120,7 +113,10 @@ describe('spotifyTrackIdFromUrl', () => {
 
 describe('lookupSpotifyIsrc', () => {
     const realFetch = globalThis.fetch
-    const fetchMock = jest.fn<typeof fetch>()
+    const fetchMock = jest.fn<
+        ReturnType<typeof fetch>,
+        Parameters<typeof fetch>
+    >()
 
     beforeEach(() => {
         jest.clearAllMocks()

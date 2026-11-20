@@ -1,14 +1,19 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import { QueueRepeatMode } from 'discord-player'
 import type { GuildQueue, Track } from 'discord-player'
 
-const applyStoredAutoplayPreference =
-    jest.fn<(queue: unknown, guildId: string) => Promise<void>>()
-const blendAutoplayTracks =
-    jest.fn<(queue: unknown, track: unknown) => Promise<void>>()
-const clearSessionMoodCache = jest.fn<(guildId: string) => void>()
-const maybeAutoEnableRecap =
-    jest.fn<(guild: unknown, channelId: string) => Promise<void>>()
+const applyStoredAutoplayPreference = jest.fn<
+    Promise<void>,
+    [queue: unknown, guildId: string]
+>()
+const blendAutoplayTracks = jest.fn<
+    Promise<void>,
+    [queue: unknown, track: unknown]
+>()
+const clearSessionMoodCache = jest.fn<void, [guildId: string]>()
+const maybeAutoEnableRecap = jest.fn<
+    Promise<void>,
+    [guild: unknown, channelId: string]
+>()
 const addBreadcrumb = jest.fn()
 const errorLog = jest.fn()
 

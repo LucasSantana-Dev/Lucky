@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 jest.mock('../../../i18n/acknowledgeAndTranslate', () => ({
     acknowledgeAndTranslate: jest.fn(async () =>
         jest
@@ -58,7 +56,7 @@ const createInteraction = (time: string) => ({
     options: { getString: jest.fn(() => time) },
 })
 
-const execute = seekCommand.execute as (params: {
+const execute = seekCommand.execute as unknown as (params: {
     client: unknown
     interaction: ReturnType<typeof createInteraction>
 }) => Promise<void>

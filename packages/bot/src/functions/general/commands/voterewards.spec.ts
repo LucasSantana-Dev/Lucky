@@ -1,12 +1,3 @@
-import {
-    describe,
-    test,
-    expect,
-    jest,
-    beforeEach,
-    afterEach,
-} from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
     errorLog: jest.fn(),
@@ -65,7 +56,7 @@ describe('/voterewards', () => {
 
         const interaction = makeInteraction() as never
 
-        await voterewardsCommand.execute({ interaction })
+        await voterewardsCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReply).toHaveBeenCalledTimes(1)
     })
@@ -76,7 +67,7 @@ describe('/voterewards', () => {
 
         const interaction = makeInteraction() as never
 
-        await voterewardsCommand.execute({ interaction })
+        await voterewardsCommand.execute({ client: {} as never, interaction })
 
         const call = interactionReply.mock.calls[0][0] as {
             content: { embeds?: Array<unknown> }
@@ -90,7 +81,7 @@ describe('/voterewards', () => {
 
         const interaction = makeInteraction() as never
 
-        await voterewardsCommand.execute({ interaction })
+        await voterewardsCommand.execute({ client: {} as never, interaction })
 
         const call = interactionReply.mock.calls[0][0] as {
             content: { embeds?: Array<{ description?: string }> }
@@ -105,7 +96,7 @@ describe('/voterewards', () => {
 
         const interaction = makeInteraction() as never
 
-        await voterewardsCommand.execute({ interaction })
+        await voterewardsCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReply).toHaveBeenCalledTimes(1)
     })
@@ -121,7 +112,7 @@ describe('/voterewards', () => {
             .fn()
             .mockRejectedValueOnce(new Error('Network error'))
 
-        await voterewardsCommand.execute({ interaction })
+        await voterewardsCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReply).toHaveBeenCalledTimes(1)
     })
@@ -136,7 +127,7 @@ describe('/voterewards', () => {
 
         const interaction = makeInteraction() as never
 
-        await voterewardsCommand.execute({ interaction })
+        await voterewardsCommand.execute({ client: {} as never, interaction })
 
         const call = interactionReply.mock.calls[0][0] as {
             content: { embeds?: Array<{ description?: string }> }
@@ -151,7 +142,7 @@ describe('/voterewards', () => {
 
         const interaction = makeInteraction() as never
 
-        await voterewardsCommand.execute({ interaction })
+        await voterewardsCommand.execute({ client: {} as never, interaction })
 
         const call = interactionReply.mock.calls[0][0] as {
             content: { embeds?: Array<{ description?: string }> }
