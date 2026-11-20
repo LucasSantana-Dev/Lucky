@@ -261,8 +261,20 @@ describe('ReactionRoles', () => {
             expect(api.reactionRoles.list).toHaveBeenCalled()
         })
 
-        const dateElements = screen.getAllByText(/Jan|Feb/)
-        expect(dateElements.length).toBeGreaterThan(0)
+        // The component formats with the runtime locale and timezone, so
+        // build the expectation with the same call instead of English months.
+        const format = (iso: string) =>
+            new Date(iso).toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+            })
+        for (const iso of [
+            new Date('2024-01-15').toISOString(),
+            new Date('2024-02-20').toISOString(),
+        ]) {
+            expect(screen.getAllByText(format(iso)).length).toBeGreaterThan(0)
+        }
     })
 
     test('displays message with no mappings', async () => {
