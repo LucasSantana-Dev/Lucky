@@ -715,4 +715,77 @@ describe('errorEventHandlers', () => {
             )
         })
     })
+
+    describe('queue error: nothing left to play (#3081)', () => {
+        function setupQueueErrorHandler(): QueueErrorHandler {
+            const handlers: Record<string, unknown> = {}
+            setupErrorHandlers({
+                events: {
+                    on: (event: string, handler: Function) => {
+                        handlers[event] = handler
+                    },
+                },
+            } as any)
+            return handlers.error as QueueErrorHandler
+        }
+
+        function nothingToPlayError(): Error {
+            const error = new Error(
+                'Play request received but track was not provided',
+            )
+            error.name = 'NoResultError'
+            return error
+        }
+
+        function makeQueue(overrides: Record<string, unknown> = {}) {
+            return {
+                guild: { id: 'guild-1', name: 'Guild 1' },
+                currentTrack: null,
+                tracks: { size: 0 },
+                emit: jest.fn(),
+                ...overrides,
+            }
+        }
+
+        it('ends the queue through emptyQueue instead of reporting an error when a failed stream left nothing to play', () => {
+            const onError = setupQueueErrorHandler()
+            const queue = makeQueue()
+
+            onError(queue, nothingToPlayError())
+
+            expect(queue.emit).toHaveBeenCalledWith('emptyQueue', queue)
+            expect(captureExceptionMock).not.toHaveBeenCalled()
+            expect(errorLogMock).not.toHaveBeenCalled()
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({ guildId: 'guild-1' }),
+                }),
+            )
+        })
+
+        it('does not end the queue when a track is still current or queued', () => {
+            const onError = setupQueueErrorHandler()
+            const playing = makeQueue({ currentTrack: { title: 'song' } })
+            const queued = makeQueue({ tracks: { size: 2 } })
+
+            onError(playing, nothingToPlayError())
+            onError(queued, nothingToPlayError())
+
+            expect(playing.emit).not.toHaveBeenCalled()
+            expect(queued.emit).not.toHaveBeenCalled()
+            expect(captureExceptionMock).not.toHaveBeenCalled()
+        })
+
+        it('still reports other NoResultErrors to Sentry', () => {
+            const onError = setupQueueErrorHandler()
+            const queue = makeQueue()
+            const error = new Error('Could not extract stream for this track')
+            error.name = 'NoResultError'
+
+            onError(queue, error)
+
+            expect(queue.emit).not.toHaveBeenCalled()
+            expect(captureExceptionMock).toHaveBeenCalled()
+        })
+    })
 })
