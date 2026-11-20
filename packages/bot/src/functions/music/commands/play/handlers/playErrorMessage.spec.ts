@@ -2,6 +2,14 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 
 const isExtractorDegradedMock = jest.fn(() => false)
 
+const errorLogMock = jest.fn()
+const warnLogMock = jest.fn()
+
+jest.mock('@lucky/shared/utils', () => ({
+    errorLog: (...args: unknown[]) => errorLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
+}))
+
 jest.mock('../../../../../handlers/player/extractorHealth', () => ({
     isExtractorDegraded: (...args: unknown[]) =>
         isExtractorDegradedMock(...args),
@@ -9,6 +17,7 @@ jest.mock('../../../../../handlers/player/extractorHealth', () => ({
 
 import {
     classifyPlayFailure,
+    logPlayFailure,
     resolvePlayErrorMessage,
 } from './playErrorMessage'
 import {
@@ -162,5 +171,84 @@ describe('resolvePlayErrorMessage for YouTube links', () => {
         expect(
             resolvePlayErrorMessage(new YoutubeVideoUnavailableError()),
         ).toMatch(/couldn't play this youtube link/i)
+    })
+})
+
+describe('logPlayFailure', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        isExtractorDegradedMock.mockReturnValue(false)
+    })
+
+    it('logs a no-results failure as a warning without the query text', () => {
+        const error = new Error(
+            'No results found for "secret query" (Extractor: x)',
+        )
+        error.name = 'NoResultError'
+
+        logPlayFailure('Play command error:', error, {
+            query: 'secret query',
+            guildId: 'g1',
+        })
+
+        expect(errorLogMock).not.toHaveBeenCalled()
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+        const arg = JSON.stringify(warnLogMock.mock.calls[0][0])
+        expect(arg).not.toContain('secret query')
+        expect(arg).toContain('g1')
+    })
+
+    it('keeps reporting an error when youtube is degraded for a youtube query', () => {
+        isExtractorDegradedMock.mockReturnValue(true)
+        const error = new Error('No results found for "x" (Extractor: y)')
+
+        logPlayFailure('Play command error:', error, {
+            query: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            guildId: 'g1',
+        })
+
+        expect(warnLogMock).not.toHaveBeenCalled()
+        expect(errorLogMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('stays a warning when youtube is degraded but the query is a text search', () => {
+        isExtractorDegradedMock.mockReturnValue(true)
+        const error = new Error('No results found for "x" (Extractor: y)')
+
+        logPlayFailure('Play command error:', error, {
+            query: 'some song',
+            guildId: 'g1',
+        })
+
+        expect(errorLogMock).not.toHaveBeenCalled()
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('labels a blocked asmr failure as asmr, not no results', () => {
+        logPlayFailure('Play command error:', new AsmrBlockedError(), {
+            query: 'asmr',
+            guildId: 'g1',
+        })
+
+        expect(errorLogMock).not.toHaveBeenCalled()
+        const msg = warnLogMock.mock.calls[0][0].message as string
+        expect(msg).toContain('ASMR blocked (expected)')
+        expect(msg).not.toContain('no results')
+    })
+
+    it('still reports other failures as errors', () => {
+        const error = new Error('extractor exploded')
+
+        logPlayFailure('Play command error:', error, {
+            query: 'q',
+            guildId: 'g1',
+        })
+
+        expect(warnLogMock).not.toHaveBeenCalled()
+        expect(errorLogMock).toHaveBeenCalledWith({
+            message: 'Play command error:',
+            error,
+            data: { query: 'q', guildId: 'g1' },
+        })
     })
 })
