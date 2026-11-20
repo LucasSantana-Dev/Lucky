@@ -306,6 +306,30 @@ describe('Embed Management Routes Integration', () => {
         })
     })
 
+    describe('POST rejects embedData fields that are never persisted (#2444)', () => {
+        test.each([
+            ['author', { author: { name: 'a' } }],
+            ['url', { url: 'https://example.com' }],
+        ])('returns 400 for embedData.%s', async (_field, extra) => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+            const mockEmbedService = embedBuilderService as jest.Mocked<
+                typeof embedBuilderService
+            >
+
+            const response = await request(app)
+                .post('/api/guilds/111111111111111111/embeds')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ name: 'x', embedData: { title: 't', ...extra } })
+                .expect(400)
+
+            expect(response.body.error).toBe('Validation failed')
+            expect(mockEmbedService.createTemplate).not.toHaveBeenCalled()
+        })
+    })
+
     describe('PATCH /api/guilds/:guildId/embeds/:name', () => {
         test('should update template and log change', async () => {
             const mockSessionService = sessionService as jest.Mocked<
