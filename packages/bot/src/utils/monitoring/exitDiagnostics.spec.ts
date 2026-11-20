@@ -2,6 +2,11 @@ import { EventEmitter } from 'node:events'
 import { describe, expect, it, jest } from '@jest/globals'
 import { installExitDiagnostics } from './exitDiagnostics'
 
+const writeSyncMock = jest.fn()
+jest.mock('node:fs', () => ({
+    writeSync: (...args: unknown[]) => writeSyncMock(...args),
+}))
+
 function fakeProcess() {
     const emitter = new EventEmitter() as EventEmitter & {
         pid: number
@@ -70,5 +75,42 @@ describe('installExitDiagnostics (#3036)', () => {
         installExitDiagnostics({ proc, write })
 
         expect(() => proc.emit('exit', 1)).not.toThrow()
+    })
+
+    it('writes to stderr synchronously by default', () => {
+        const proc = fakeProcess()
+        installExitDiagnostics({ proc })
+
+        proc.emit('exit', 0)
+
+        expect(writeSyncMock).toHaveBeenCalledWith(
+            2,
+            expect.stringContaining('Process exiting'),
+        )
+    })
+
+    it('listens on the real process by default', () => {
+        const before = {
+            exit: process.listeners('exit'),
+            beforeExit: process.listeners('beforeExit'),
+        }
+
+        installExitDiagnostics()
+
+        const added = (event: 'exit' | 'beforeExit') =>
+            process
+                .listeners(event)
+                .filter((listener) => !before[event].includes(listener))
+        try {
+            expect(added('exit')).toHaveLength(1)
+            expect(added('beforeExit')).toHaveLength(1)
+        } finally {
+            for (const listener of added('exit')) {
+                process.off('exit', listener)
+            }
+            for (const listener of added('beforeExit')) {
+                process.off('beforeExit', listener)
+            }
+        }
     })
 })
