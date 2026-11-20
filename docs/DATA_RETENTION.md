@@ -2,7 +2,8 @@
 
 What the hosted Lucky instance keeps, for how long, and how someone asks for
 their data to be deleted. The public privacy policy
-(`packages/frontend/src/pages/PrivacyPolicy.tsx`) links here.
+(`packages/frontend/src/pages/PrivacyPolicy.tsx`) links here once #3214
+lands.
 
 ## Automatic retention windows
 
@@ -23,7 +24,7 @@ Other guild data (settings, moderation cases, XP, birthdays, reminders,
 
 ## Departed-guild purge (#2377)
 
-When the bot leaves a server, `guilds.leftAt` is set. If the operator enables
+When the bot leaves a server (a Discord guild), `guilds.leftAt` is set. If the operator enables
 the purge, the same daily sweep then deletes every guild-scoped table listed in
 `GUILD_PURGE_TARGETS` for servers whose `leftAt` is older than the grace
 period. Re-inviting the bot clears `leftAt`, so a server that comes back within
@@ -38,6 +39,9 @@ Kept on purpose (`GUILD_PURGE_KEPT_TABLES`): `guilds` and
 `guild_membership_events` (join/leave analytics), `guild_join_sources`,
 `activation_events`, `command_events`, `user_feedback` (analytics with their
 own windows), `guild_subscriptions` (billing record) and `support_reports`.
+Apart from the tables with their own window above, these are kept with no
+deletion date today. `support_reports` (free text and screenshots) has no
+window yet; that gap is tracked in #3211.
 
 The sweep logs only row counts per table, never row content. Running it again
 over the same servers deletes nothing.

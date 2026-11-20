@@ -7,6 +7,8 @@ import { IntervalScheduler } from './IntervalScheduler'
 const DEFAULT_TICK_INTERVAL_MS = 24 * 60 * 60 * 1000
 
 const DEFAULT_GUILD_PURGE_GRACE_DAYS = 30
+// Upper bound so a huge value cannot overflow the cutoff date.
+const MAX_GUILD_PURGE_GRACE_DAYS = 3650
 
 const databaseService = new DatabaseService()
 
@@ -21,7 +23,9 @@ function guildPurgeGraceDays(): number {
         return DEFAULT_GUILD_PURGE_GRACE_DAYS
     }
     const days = Number(raw.trim())
-    return days >= 1 ? days : DEFAULT_GUILD_PURGE_GRACE_DAYS
+    return days >= 1 && days <= MAX_GUILD_PURGE_GRACE_DAYS
+        ? days
+        : DEFAULT_GUILD_PURGE_GRACE_DAYS
 }
 
 /**
@@ -79,7 +83,9 @@ export class DataRetentionScheduler extends IntervalScheduler {
             .map(([table, count]) => `${table}=${count}`)
             .join(', ')
         infoLog({
-            message: `Departed-guild purge removed data for ${summary.guilds} guild(s): ${perTable || 'nothing left to delete'}`,
+            message: perTable
+                ? `Departed-guild purge over ${summary.guilds} guild(s) deleted: ${perTable}`
+                : `Departed-guild purge over ${summary.guilds} guild(s): nothing left to delete`,
         })
     }
 }

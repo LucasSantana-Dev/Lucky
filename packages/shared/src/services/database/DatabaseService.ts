@@ -84,9 +84,15 @@ export const GUILD_PURGE_KEPT_TABLES = [
 export type GuildPurgeSummary = {
     /** Departed guilds past the grace period that were swept. */
     guilds: number
-    /** Rows deleted per table; tables with zero deletions are omitted. */
+    /**
+     * Rows deleted per table; tables with zero deletions are omitted. Rows
+     * removed by FK cascade (reaction_role_mappings, batch_job_items,
+     * giveaway_entries) are not counted.
+     */
     deleted: Record<string, number>
 }
+
+const GUILD_PURGE_TX_TIMEOUT_MS = 60_000
 
 type DeleteManyDelegate = {
     deleteMany(args: {
@@ -220,28 +226,29 @@ export class DatabaseService {
             const cutoff = new Date(
                 Date.now() - graceDays * 24 * 60 * 60 * 1000,
             )
-            const departed = await this.prisma.guild.findMany({
-                where: { leftAt: { lt: cutoff } },
-                select: { discordId: true },
-            })
-            const ids = departed.map((g) => g.discordId)
-            if (ids.length === 0) return { guilds: 0, deleted: {} }
+            // Lock the eligible guild rows for the whole purge: a concurrent
+            // rejoin (recordGuildJoin clears leftAt) waits for this commit
+            // instead of having its data deleted after it came back.
+            return this.prisma.$transaction(
+                async (tx) => {
+                    const departed = await tx.$queryRaw<
+                        { discordId: string }[]
+                    >`SELECT "discordId" FROM "guilds" WHERE "leftAt" < ${cutoff} FOR UPDATE`
+                    const ids = departed.map((g) => g.discordId)
+                    if (ids.length === 0) return { guilds: 0, deleted: {} }
 
-            const where = { guildId: { in: ids } }
-            const results = await this.prisma.$transaction(
-                GUILD_PURGE_TARGETS.map(({ model }) =>
-                    (
-                        this.prisma[model] as unknown as DeleteManyDelegate
-                    ).deleteMany({ where }),
-                ),
+                    const where = { guildId: { in: ids } }
+                    const deleted: Record<string, number> = {}
+                    for (const { table, model } of GUILD_PURGE_TARGETS) {
+                        const { count } = await (
+                            tx[model] as unknown as DeleteManyDelegate
+                        ).deleteMany({ where })
+                        if (count > 0) deleted[table] = count
+                    }
+                    return { guilds: ids.length, deleted }
+                },
+                { timeout: GUILD_PURGE_TX_TIMEOUT_MS },
             )
-
-            const deleted: Record<string, number> = {}
-            GUILD_PURGE_TARGETS.forEach(({ table }, i) => {
-                const count = results[i]?.count ?? 0
-                if (count > 0) deleted[table] = count
-            })
-            return { guilds: ids.length, deleted }
         }, 'purge_departed_guild_data')
     }
 }

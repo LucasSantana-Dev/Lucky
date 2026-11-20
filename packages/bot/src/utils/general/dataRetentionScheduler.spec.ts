@@ -149,7 +149,7 @@ describe('DataRetentionScheduler', () => {
             expect(mockPurgeDepartedGuildData).toHaveBeenCalledWith(30)
             expect(infoLog).toHaveBeenCalledWith({
                 message:
-                    'Departed-guild purge removed data for 2 guild(s): server_logs=5, member_xp=2',
+                    'Departed-guild purge over 2 guild(s) deleted: server_logs=5, member_xp=2',
             })
         })
 
@@ -172,7 +172,7 @@ describe('DataRetentionScheduler', () => {
             })
         })
 
-        test.each(['0', '-3', 'abc', '1.5'])(
+        test.each(['0', '-3', 'abc', '1.5', '3651', '9'.repeat(400)])(
             'falls back to 30 days for invalid grace value %s',
             async (value) => {
                 process.env.GUILD_DATA_PURGE_ENABLED = 'true'
@@ -203,7 +203,7 @@ describe('DataRetentionScheduler', () => {
 
             expect(infoLog).toHaveBeenCalledWith({
                 message:
-                    'Departed-guild purge removed data for 3 guild(s): nothing left to delete',
+                    'Departed-guild purge over 3 guild(s): nothing left to delete',
             })
         })
 
