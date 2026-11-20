@@ -290,6 +290,52 @@ describe('handleOnboardingStationButton', () => {
         ).toHaveBeenCalledTimes(1)
     })
 
+    it('keeps a newer click locked when an expired start finishes (#2922)', async () => {
+        const nowSpy = jest.spyOn(Date, 'now')
+        try {
+            let finishFirst!: (v: unknown) => void
+            let finishSecond!: (v: unknown) => void
+            const first = createInteraction()
+            const firstPlay = (first.client as { player: { play: jest.Mock } })
+                .player.play
+            firstPlay.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishFirst = resolve
+                }),
+            )
+            const second = createInteraction()
+            const secondPlay = (
+                second.client as { player: { play: jest.Mock } }
+            ).player.play
+            secondPlay.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishSecond = resolve
+                }),
+            )
+            const third = createInteraction()
+            const thirdPlay = (third.client as { player: { play: jest.Mock } })
+                .player.play
+
+            nowSpy.mockReturnValue(1_000)
+            const p1 = handleOnboardingStationButton(first as never)
+            await new Promise((resolve) => setImmediate(resolve))
+            // The first start outlives the lock, so a second click takes over.
+            nowSpy.mockReturnValue(1_000 + 31_000)
+            const p2 = handleOnboardingStationButton(second as never)
+            await new Promise((resolve) => setImmediate(resolve))
+            finishFirst({ track: { title: 'Fake Track' } })
+            await p1
+
+            await handleOnboardingStationButton(third as never)
+            expect(thirdPlay).not.toHaveBeenCalled()
+
+            finishSecond({ track: { title: 'Fake Track' } })
+            await p2
+        } finally {
+            nowSpy.mockRestore()
+        }
+    })
+
     it('starts playback from SoundCloud (never YouTube) when in voice with permissions', async () => {
         const fakeQueue = { id: 'queue-1' }
         resolveGuildQueueMock

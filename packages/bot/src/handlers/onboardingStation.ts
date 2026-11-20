@@ -40,12 +40,12 @@ export const ONBOARDING_STATION_BUTTON_PREFIX = 'station_'
 // starts (~10s), and users click again meanwhile, which queued the station
 // twice (#2922). Entries expire so a hung play cannot block the guild forever.
 const STATION_START_LOCK_MS = 30_000
-const stationStartsInFlight = new Map<string, number>()
+const stationStartsInFlight = new Map<string, { startedAt: number }>()
 
 function isStationStarting(guildId: string): boolean {
-    const startedAt = stationStartsInFlight.get(guildId)
-    if (startedAt === undefined) return false
-    if (Date.now() - startedAt < STATION_START_LOCK_MS) return true
+    const entry = stationStartsInFlight.get(guildId)
+    if (entry === undefined) return false
+    if (Date.now() - entry.startedAt < STATION_START_LOCK_MS) return true
     stationStartsInFlight.delete(guildId)
     return false
 }
@@ -203,12 +203,18 @@ export async function handleOnboardingStationButton(
         })
         return
     }
-    stationStartsInFlight.set(guildId, Date.now())
+    const startToken = { startedAt: Date.now() }
+    stationStartsInFlight.set(guildId, startToken)
+    // An expired start must not release a newer click's lock.
+    const releaseStart = (): void => {
+        if (stationStartsInFlight.get(guildId) === startToken)
+            stationStartsInFlight.delete(guildId)
+    }
 
     try {
         await interaction.deferReply({ ephemeral: true })
     } catch (error) {
-        stationStartsInFlight.delete(guildId)
+        releaseStart()
         if (isUnknownInteractionError(error)) {
             logStationClick({
                 guildId,
@@ -313,6 +319,6 @@ export async function handleOnboardingStationButton(
             },
         })
     } finally {
-        stationStartsInFlight.delete(guildId)
+        releaseStart()
     }
 }
