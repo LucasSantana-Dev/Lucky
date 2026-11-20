@@ -108,6 +108,11 @@ services:
                 SERVICE: bot
                 NODE_ENV: production
         container_name: lucky-bot
+        # PID 1 reaps the yt-dlp/ffmpeg children (#2983); the pid cap bounds a
+        # runaway spawn loop; 30s lets the SIGTERM handler drain before SIGKILL.
+        init: true
+        pids_limit: 256
+        stop_grace_period: 30s
         env_file:
             - .env
         depends_on:

@@ -205,6 +205,42 @@ describe('handleArtistDiscography', () => {
         expect(reply.content.embeds[0].description).toContain('**2**')
     })
 
+    it('leaves ASMR tracks out of the queue and the count (#3001)', async () => {
+        searchSpotifyArtistsMock.mockResolvedValue([
+            { id: 'artist-1', name: 'Queen' },
+        ])
+        getSpotifyArtistTopTracksMock.mockResolvedValue([
+            { name: 'Bohemian Rhapsody', artist: 'Queen', url: 'spotify:t:1' },
+        ])
+        getSpotifyArtistAlbumsMock.mockResolvedValue([
+            { id: 'album-1', name: 'Opera', url: 'spotify:album:1' },
+        ])
+        search
+            .mockResolvedValueOnce({
+                tracks: [createTrack('Bohemian Rhapsody', 'Queen')],
+            })
+            .mockResolvedValueOnce({
+                tracks: [
+                    createTrack('Queen ASMR whispers', 'Queen'),
+                    createTrack('Death on Two Legs', 'Queen'),
+                ],
+            })
+
+        await handleArtistDiscography({
+            client: client as never,
+            interaction: interaction as never,
+            voiceChannel: {} as never,
+            artistName: 'Queen',
+        })
+
+        expect(addTrack).toHaveBeenCalledTimes(1)
+        expect((addTrack.mock.calls[0][0] as { title: string }).title).toBe(
+            'Death on Two Legs',
+        )
+        const reply = (interactionReply as jest.Mock).mock.calls.at(-1)?.[0]
+        expect(reply.content.embeds[0].description).toContain('**2**')
+    })
+
     it('reports no results when nothing resolves to a playable track', async () => {
         searchSpotifyArtistsMock.mockResolvedValue([
             { id: 'artist-1', name: 'Queen' },
@@ -229,6 +265,30 @@ describe('handleArtistDiscography', () => {
         expect(play).not.toHaveBeenCalled()
         const reply = (interactionReply as jest.Mock).mock.calls.at(-1)?.[0]
         expect(reply.content.embeds[0].title).toBe('No results')
+    })
+
+    it('says ASMR is blocked when the filter removed every track', async () => {
+        searchSpotifyArtistsMock.mockResolvedValue([
+            { id: 'artist-1', name: 'Whisper' },
+        ])
+        getSpotifyArtistTopTracksMock.mockResolvedValue([
+            { name: 'ASMR rain', artist: 'Whisper', url: 'spotify:t:1' },
+        ])
+        getSpotifyArtistAlbumsMock.mockResolvedValue([])
+        search.mockResolvedValue({
+            tracks: [createTrack('ASMR rain', 'Whisper')],
+        })
+
+        await handleArtistDiscography({
+            client: client as never,
+            interaction: interaction as never,
+            voiceChannel: {} as never,
+            artistName: 'Whisper',
+        })
+
+        expect(play).not.toHaveBeenCalled()
+        const reply = (interactionReply as jest.Mock).mock.calls.at(-1)?.[0]
+        expect(reply.content.embeds[0].description).toContain('ASMR')
     })
 
     it('continues past a rejecting album resolve instead of failing the whole command', async () => {

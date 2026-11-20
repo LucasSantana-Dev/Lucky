@@ -352,8 +352,15 @@ export class MusicWatchdogService {
     startOrphanSessionMonitor(player: Player, intervalMs = 60_000): void {
         if (this.orphanMonitorInterval) return
 
+        // Skip a tick while the previous scan is still running, so a slow
+        // snapshot store cannot stack scans every interval (#2986).
+        let inFlight = false
         this.orphanMonitorInterval = setInterval(() => {
-            void this.scanOrphanSessions(player)
+            if (inFlight) return
+            inFlight = true
+            void this.scanOrphanSessions(player).finally(() => {
+                inFlight = false
+            })
         }, intervalMs)
 
         debugLog({ message: 'Music watchdog orphan session monitor started' })
@@ -569,8 +576,13 @@ export class MusicWatchdogService {
             message: `Music watchdog periodic scan started (interval: ${this.scanIntervalMs}ms)`,
         })
 
+        let inFlight = false
         this.scanTimer = setInterval(() => {
-            void this.scanOrphanedSessions(getQueue)
+            if (inFlight) return
+            inFlight = true
+            void this.scanOrphanedSessions(getQueue).finally(() => {
+                inFlight = false
+            })
         }, this.scanIntervalMs)
     }
 
