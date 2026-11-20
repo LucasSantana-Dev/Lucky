@@ -144,6 +144,7 @@ jest.mock('./ytdlpBlockBreaker', () => ({
 }))
 
 import { isReportedBridgeExhausted } from './bridgeExhaustedError'
+import { runAsPlayProbe } from './probeContext'
 import {
     createResilientStream,
     streamSpotifyTrackViaBridge,
@@ -1982,5 +1983,46 @@ describe('youtubei native stage', () => {
         await createResilientStream(track)
 
         expect(mockClearBridgeStamps).toHaveBeenCalledWith(track)
+    })
+})
+
+describe('createResilientStream inside a synthetic play probe (#2920)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockCleanTitle.mockReturnValue('Test Track')
+        mockCleanAuthor.mockReturnValue('Test Artist')
+        mockCleanSearchQuery.mockReturnValue('test track test artist')
+        mockExtractSongCore.mockReturnValue(null)
+        mockIsAvailable.mockReturnValue(true)
+    })
+
+    it('still returns the stream but observes no play stage', async () => {
+        mockStreamViaYtDlp.mockResolvedValue(fakeStream)
+
+        const result = await runAsPlayProbe(() =>
+            createResilientStream(makeTrack({ url: 'https://y/ok' })),
+        )
+
+        expect(result).toBe(fakeStream)
+        expect(mockObserve).not.toHaveBeenCalled()
+    })
+
+    it('throws on exhaustion without a Sentry event or the exhausted log line', async () => {
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('no results'))
+
+        await expect(
+            runAsPlayProbe(() =>
+                createResilientStream(makeTrack({ title: 'Some Song' })),
+            ),
+        ).rejects.toThrow('Bridge exhausted')
+
+        expect(mockCaptureMessage).not.toHaveBeenCalled()
+        expect(mockWarnLog).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Bridge: all stages exhausted',
+            }),
+        )
+        expect(mockObserve).not.toHaveBeenCalled()
     })
 })

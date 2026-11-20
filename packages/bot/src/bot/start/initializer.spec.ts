@@ -31,6 +31,7 @@ const setupWebMusicHandlerMock = jest.fn().mockResolvedValue(undefined)
 const stopWebMusicHandlerMock = jest.fn()
 const birthdaySchedulerStopMock = jest.fn()
 const recapSchedulerStopMock = jest.fn()
+const playProbeStopMock = jest.fn()
 const modDigestSchedulerStopMock = jest.fn()
 const aiDevToolkitStopMock = jest.fn()
 const dependencyCheckStopMock = jest.fn()
@@ -126,6 +127,12 @@ jest.mock('../../handlers/webMusic', () => ({
 jest.mock('../../utils/general/birthdayScheduler', () => ({
     birthdayScheduler: {
         stop: (...args: unknown[]) => birthdaySchedulerStopMock(...args),
+    },
+}))
+
+jest.mock('../../services/playProbe/playProbe', () => ({
+    playProbeScheduler: {
+        stop: (...args: unknown[]) => playProbeStopMock(...args),
     },
 }))
 
@@ -591,6 +598,7 @@ describe('BotInitializer', () => {
             expect(stopWebMusicHandlerMock).toHaveBeenCalled()
             expect(birthdaySchedulerStopMock).toHaveBeenCalled()
             expect(recapSchedulerStopMock).toHaveBeenCalled()
+            expect(playProbeStopMock).toHaveBeenCalled()
             expect(modDigestSchedulerStopMock).toHaveBeenCalled()
             expect(aiDevToolkitStopMock).toHaveBeenCalled()
             expect(dependencyCheckStopMock).toHaveBeenCalled()
