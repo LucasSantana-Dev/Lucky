@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.73.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.72.0...v2.73.0) (2026-11-20)
+
+
+### Features
+
+* **observability:** add loki and alloy log pipeline to compose profile ([#3221](https://github.com/LucasSantana-Dev/Lucky/issues/3221)) ([c8edcc3](https://github.com/LucasSantana-Dev/Lucky/commit/c8edcc30c1e19cd32ff510787ba162e75c3ef295))
+
+
+### Bug Fixes
+
+* **prisma:** align afk_statuses guild fk with shipped migration ([#3227](https://github.com/LucasSantana-Dev/Lucky/issues/3227)) ([5049ad2](https://github.com/LucasSantana-Dev/Lucky/commit/5049ad253173e5cf1522635dd1881f784cdbf9ba))
+
 ## [2.72.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.71.1...v2.72.0) (2026-11-20)
 
 
