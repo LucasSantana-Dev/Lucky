@@ -9,6 +9,7 @@ import {
 import type { Client, TextBasedChannel } from 'discord.js'
 
 const getTwitchUserAccessTokenMock = jest.fn()
+const clearTwitchTokenCacheMock = jest.fn()
 const getDistinctTwitchUserIdsMock = jest.fn()
 const getNotificationsByTwitchUserIdMock = jest.fn()
 const debugLogMock = jest.fn()
@@ -17,6 +18,7 @@ const errorLogMock = jest.fn()
 
 jest.mock('./token', () => ({
     getTwitchUserAccessToken: getTwitchUserAccessTokenMock,
+    clearTwitchTokenCache: clearTwitchTokenCacheMock,
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -42,6 +44,7 @@ import {
     handleChannelUpdate,
     handleChannelRaid,
 } from './eventsubSubscriptions'
+import { TwitchAuthError } from './twitchAuthError'
 
 describe('eventsubSubscriptions', () => {
     let fetchSpy: jest.SpyInstance
@@ -178,6 +181,88 @@ describe('eventsubSubscriptions', () => {
 
             expect(errorLogMock).toHaveBeenCalled()
             expect(subscribedUserIds.size).toBe(0)
+        })
+
+        describe('401 from Twitch (#2654)', () => {
+            const bearer = (t: string) => `Bearer ${t}`
+            const authOf = (call: unknown[]) =>
+                (call[1] as { headers: Record<string, string> }).headers
+                    .Authorization
+            const unauthorized = () =>
+                ({
+                    ok: false,
+                    status: 401,
+                    text: jest.fn().mockResolvedValue('Unauthorized'),
+                }) as never
+
+            it('refreshes the token once, then stops without posting for the other broadcasters', async () => {
+                getTwitchUserAccessTokenMock
+                    .mockResolvedValueOnce('stale-token')
+                    .mockResolvedValue('fresh-token')
+                getDistinctTwitchUserIdsMock.mockResolvedValue([
+                    'b1',
+                    'b2',
+                    'b3',
+                ])
+                fetchSpy.mockResolvedValue(unauthorized())
+
+                await expect(
+                    subscribeToStreamOnline('s', 'client-id', new Set()),
+                ).rejects.toBeInstanceOf(TwitchAuthError)
+
+                // first attempt + one retry with a fresh token, nothing more
+                expect(fetchSpy).toHaveBeenCalledTimes(2)
+                expect(clearTwitchTokenCacheMock).toHaveBeenCalledTimes(1)
+                expect(errorLogMock).not.toHaveBeenCalled()
+                expect(authOf(fetchSpy.mock.calls[0])).toBe(
+                    bearer('stale-token'),
+                )
+                expect(authOf(fetchSpy.mock.calls[1])).toBe(
+                    bearer('fresh-token'),
+                )
+            })
+
+            it('shares one refresh across topics hitting the same stale token', async () => {
+                getTwitchUserAccessTokenMock.mockImplementation(async () =>
+                    clearTwitchTokenCacheMock.mock.calls.length > 0
+                        ? 'shared-fresh'
+                        : 'shared-stale',
+                )
+                getDistinctTwitchUserIdsMock.mockResolvedValue(['b1'])
+                fetchSpy.mockImplementation((async (...args: unknown[]) =>
+                    authOf(args) === bearer('shared-fresh')
+                        ? { ok: true, status: 202 }
+                        : {
+                              ok: false,
+                              status: 401,
+                              text: async () => 'Unauthorized',
+                          }) as never)
+
+                await Promise.all([
+                    subscribeToStreamOnline('s', 'c', new Set()),
+                    subscribeToStreamOffline('s', 'c', new Set()),
+                    subscribeToChannelUpdate('s', 'c', new Set()),
+                    subscribeToChannelRaid('s', 'c', new Set()),
+                ])
+
+                expect(clearTwitchTokenCacheMock).toHaveBeenCalledTimes(1)
+            })
+
+            it('recovers when the refreshed token is accepted', async () => {
+                getTwitchUserAccessTokenMock
+                    .mockResolvedValueOnce('stale-token')
+                    .mockResolvedValue('fresh-token')
+                getDistinctTwitchUserIdsMock.mockResolvedValue(['b1'])
+                fetchSpy
+                    .mockResolvedValueOnce(unauthorized())
+                    .mockResolvedValueOnce({ ok: true, status: 202 } as never)
+
+                const ids = new Set<string>()
+                await subscribeToStreamOnline('s', 'client-id', ids)
+
+                expect(ids.has('b1')).toBe(true)
+                expect(fetchSpy).toHaveBeenCalledTimes(2)
+            })
         })
     })
 

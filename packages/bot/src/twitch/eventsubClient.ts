@@ -16,6 +16,7 @@ import {
     subscribeToChannelRaid,
     handleChannelRaid,
 } from './eventsubSubscriptions'
+import { isTwitchAuthError } from './twitchAuthError'
 
 const EVENTSUB_HOST = 'eventsub.wss.twitch.tv'
 const EVENTSUB_WS_URL = `wss://${EVENTSUB_HOST}/ws`
@@ -203,14 +204,7 @@ export class TwitchEventSubClient {
                             this.subscribedRaidIds,
                         ),
                     ])
-                    results.forEach((result, index) => {
-                        if (result.status === 'rejected') {
-                            errorLog({
-                                message: `Twitch EventSub: ${EVENT_LABELS[index]} subscription failed`,
-                                error: result.reason as unknown,
-                            })
-                        }
-                    })
+                    this.reportSubscriptionResults(results)
                 })()
                 break
             }
@@ -368,15 +362,35 @@ export class TwitchEventSubClient {
                     this.subscribedRaidIds,
                 ),
             ])
-            results.forEach((result, index) => {
-                if (result.status === 'rejected') {
-                    errorLog({
-                        message: `Twitch EventSub: ${EVENT_LABELS[index]} subscription failed`,
-                        error: result.reason,
-                    })
-                }
-            })
+            this.reportSubscriptionResults(results)
         }
+    }
+
+    // A rejected token (401) cannot recover by retrying: Twitch then closes
+    // the unused session and the reconnect loop re-posts every topic for every
+    // broadcaster (#2654). Log one actionable error and stop until restart.
+    private reportSubscriptionResults(
+        results: PromiseSettledResult<void>[],
+    ): void {
+        const authFailure = results.find(
+            (r) => r.status === 'rejected' && isTwitchAuthError(r.reason),
+        )
+        if (authFailure) {
+            errorLog({
+                message:
+                    'Twitch EventSub: Twitch rejected the access token (401). Stopping EventSub until the bot restarts; check TWITCH_ACCESS_TOKEN / TWITCH_REFRESH_TOKEN',
+            })
+            this.stop()
+            return
+        }
+        results.forEach((result, index) => {
+            if (result.status === 'rejected') {
+                errorLog({
+                    message: `Twitch EventSub: ${EVENT_LABELS[index]} subscription failed`,
+                    error: result.reason as unknown,
+                })
+            }
+        })
     }
 
     stop(): void {
