@@ -1,9 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { request as httpRequest } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
-const renderMetricsMock = jest.fn<() => Promise<string>>(async () =>
-    '# fake metrics\nfoo 1\n',
+const renderMetricsMock = jest.fn<Promise<string>, []>(
+    async () => '# fake metrics\nfoo 1\n',
 )
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -61,8 +60,8 @@ describe('metricsServer', () => {
         process.env.METRICS_PORT = '0'
         delete process.env.METRICS_DISABLED
         renderMetricsMock.mockReset()
-        renderMetricsMock.mockImplementation(async () =>
-            '# fake metrics\nfoo 1\n',
+        renderMetricsMock.mockImplementation(
+            async () => '# fake metrics\nfoo 1\n',
         )
     })
 

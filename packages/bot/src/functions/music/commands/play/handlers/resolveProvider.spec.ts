@@ -1,13 +1,12 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { QueryType } from 'discord-player'
 import type { VoiceChannel } from 'discord.js'
 
 const warnLogMock = jest.fn()
 const infoLogMock = jest.fn()
 const addBreadcrumbMock = jest.fn()
-const isSpotifyBlockedMock = jest.fn<() => boolean>()
-const awaitHydrationMock = jest.fn<() => Promise<void>>()
-const spotifyBlockRemainingSecondsMock = jest.fn<() => number>()
+const isSpotifyBlockedMock = jest.fn<boolean, []>()
+const awaitHydrationMock = jest.fn<Promise<void>, []>()
+const spotifyBlockRemainingSecondsMock = jest.fn<number, []>()
 
 jest.mock('@lucky/shared/utils', () => ({
     warnLog: warnLogMock,
@@ -846,7 +845,7 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
     it('stops at an ASMR result from the YouTube fallback, never reaching SoundCloud', async () => {
         const player: any = {
             play: jest
-                .fn<any>()
+                .fn()
                 .mockRejectedValueOnce(new Error('Primary failed'))
                 .mockImplementationOnce(
                     async (_c: unknown, _q: unknown, opts: any) => {
@@ -950,7 +949,7 @@ describe('preferExactMatch', () => {
         const result = {
             hasPlaylist: () => false,
             tracks,
-            setTracks: jest.fn(() => result),
+            setTracks: jest.fn((): unknown => result),
         }
 
         await preferExactMatch('Prince')(result as any)
@@ -972,7 +971,7 @@ describe('preferExactMatch', () => {
         const result = {
             hasPlaylist: () => false,
             tracks,
-            setTracks: jest.fn(() => result),
+            setTracks: jest.fn((): unknown => result),
         }
 
         await preferExactMatch(query)(result as any)
@@ -988,7 +987,7 @@ describe('preferExactMatch', () => {
         const result = {
             hasPlaylist: () => false,
             tracks,
-            setTracks: jest.fn(() => result),
+            setTracks: jest.fn((): unknown => result),
         }
 
         await preferExactMatch('Prince')(result as any)
@@ -1004,7 +1003,7 @@ describe('preferExactMatch', () => {
         const result = {
             hasPlaylist: () => false,
             tracks,
-            setTracks: jest.fn(() => result),
+            setTracks: jest.fn((): unknown => result),
         }
 
         const returned = await preferExactMatch('bohemian rhapsody queen')(
@@ -1023,7 +1022,7 @@ describe('preferExactMatch', () => {
         const result = {
             hasPlaylist: () => false,
             tracks,
-            setTracks: jest.fn(() => result),
+            setTracks: jest.fn((): unknown => result),
         }
 
         await preferExactMatch('Prince')(result as any)
@@ -1039,7 +1038,7 @@ describe('preferExactMatch', () => {
         const result = {
             hasPlaylist: () => true,
             tracks,
-            setTracks: jest.fn(() => result),
+            setTracks: jest.fn((): unknown => result),
         }
 
         await preferExactMatch('Prince')(result as any)
@@ -1063,7 +1062,7 @@ describe('preferExactMatch', () => {
             const result = {
                 hasPlaylist: () => false,
                 tracks,
-                setTracks: jest.fn(() => result),
+                setTracks: jest.fn((): unknown => result),
             }
 
             await preferExactMatch('Song Title')(result as any)
@@ -1082,7 +1081,7 @@ describe('preferExactMatch', () => {
             const result = {
                 hasPlaylist: () => false,
                 tracks,
-                setTracks: jest.fn(() => result),
+                setTracks: jest.fn((): unknown => result),
             }
 
             await preferExactMatch('Song Title')(result as any)
@@ -1098,7 +1097,7 @@ describe('preferExactMatch', () => {
             const result = {
                 hasPlaylist: () => false,
                 tracks,
-                setTracks: jest.fn(() => result),
+                setTracks: jest.fn((): unknown => result),
             }
 
             await preferExactMatch('Song Title Remix')(result as any)
@@ -1114,7 +1113,7 @@ describe('preferExactMatch', () => {
             const result = {
                 hasPlaylist: () => false,
                 tracks,
-                setTracks: jest.fn(() => result),
+                setTracks: jest.fn((): unknown => result),
             }
 
             await preferExactMatch('Song Title')(result as any)
@@ -1131,7 +1130,7 @@ describe('preferExactMatch', () => {
             const result = {
                 hasPlaylist: () => false,
                 tracks,
-                setTracks: jest.fn(() => result),
+                setTracks: jest.fn((): unknown => result),
             }
 
             await preferExactMatch('Song Title')(result as any)
@@ -1162,7 +1161,7 @@ describe('preferExactMatch', () => {
             const result = {
                 hasPlaylist: () => false,
                 tracks,
-                setTracks: jest.fn(() => result),
+                setTracks: jest.fn((): unknown => result),
             }
 
             const ranked = await preferExactMatch('ai ja era jorge e mateus')(
@@ -1181,7 +1180,7 @@ describe('preferExactMatch', () => {
             const result = {
                 hasPlaylist: () => false,
                 tracks,
-                setTracks: jest.fn(() => result),
+                setTracks: jest.fn((): unknown => result),
             }
 
             await preferExactMatch('ai ja era')(result as any)
@@ -1195,7 +1194,7 @@ describe('preferExactMatch', () => {
             const result = {
                 hasPlaylist: () => false,
                 tracks,
-                setTracks: jest.fn(() => result),
+                setTracks: jest.fn((): unknown => result),
             }
             return result
         }

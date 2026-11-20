@@ -1,6 +1,4 @@
-import { jest } from '@jest/globals'
 import type { Track } from 'discord-player'
-import type { SpotifyAudioFeatures } from '../../../spotify/spotifyApi'
 import {
     calculateRecommendationScore,
     calculateGenreFamilyPenalty,
@@ -70,7 +68,7 @@ describe('candidateScorer', () => {
                 candidate: createTrack(overrides),
                 currentTrack: createTrack(),
                 recentArtists: new Set(),
-                blockedArtistKeys: blockedKeys,
+                blockedArtistKeys: blockedKeys as never,
             })
             expect(result.score).toBe(-Infinity)
             expect(result.signals).toEqual([])
@@ -378,7 +376,14 @@ describe('candidateScorer', () => {
             })
         })
 
-        it.each([
+        it.each<
+            [
+                string,
+                Parameters<typeof createTrack>[0],
+                { preferLong?: boolean; preferShort?: boolean },
+                string,
+            ]
+        >([
             [
                 'long tracks',
                 { author: 'Test Artist', durationMS: 7 * 60 * 1000 },
@@ -631,7 +636,7 @@ describe('candidateScorer', () => {
         ])('identifies family in genres', (genres, family, shouldExist) => {
             const result = getGenreFamilies(genres)
             if (shouldExist) {
-                expect(result.has(family)).toBe(true)
+                expect(result.has(family as never)).toBe(true)
             } else {
                 expect(result.size).toBe(0)
             }

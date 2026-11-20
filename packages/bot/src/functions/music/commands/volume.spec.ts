@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import volumeCommand from './volume'
 
 const requireGuildMock = jest.fn()
@@ -31,8 +30,10 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
-    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
+    createSuccessEmbed: (...args: Parameters<typeof createSuccessEmbedMock>) =>
+        createSuccessEmbedMock(...args),
+    createErrorEmbed: (...args: Parameters<typeof createErrorEmbedMock>) =>
+        createErrorEmbedMock(...args),
 }))
 
 jest.mock('../../../services/musicManagement/queueResolver', () => ({

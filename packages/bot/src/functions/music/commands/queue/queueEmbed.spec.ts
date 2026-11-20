@@ -1,8 +1,6 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 const controlRow = { kind: 'controls' }
 const actionRow = { kind: 'actions' }
-const paginationRowMock = jest.fn<(...args: unknown[]) => unknown>()
+const paginationRowMock = jest.fn()
 const createMusicActionButtonsMock = jest.fn(() => actionRow)
 
 jest.mock('../../../../utils/music/buttonComponents', () => ({
@@ -36,7 +34,8 @@ const calculateQueueStatsMock = jest.fn()
 const createTrackListDisplayMock = jest.fn()
 
 jest.mock('../../../../utils/general/embeds', () => ({
-    createEmbed: (...args: unknown[]) => createEmbedMock(...args),
+    createEmbed: (...args: Parameters<typeof createEmbedMock>) =>
+        createEmbedMock(...args),
     EMBED_COLORS: { QUEUE: '#00b0f4', ERROR: '#ed4245' },
     EMOJIS: { QUEUE: '📄', ERROR: '❌' },
 }))
@@ -130,7 +129,9 @@ describe('queueEmbed', () => {
 
             expect(addFieldsMock).not.toHaveBeenCalled()
             expect(setThumbnailMock).not.toHaveBeenCalled()
-            const [options] = createEmbedMock.mock.calls[0] as [object]
+            const [options] = createEmbedMock.mock.calls[0] as unknown as [
+                object,
+            ]
             expect(options).not.toHaveProperty('timestamp')
         })
 

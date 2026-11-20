@@ -1,6 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
-const calculateSimilarityMock = jest.fn<(a: string, b: string) => number>()
+const calculateSimilarityMock = jest.fn<number, [a: string, b: string]>()
 
 jest.mock('../../../utils/misc/stringUtils', () => ({
     calculateSimilarity: (a: string, b: string) =>

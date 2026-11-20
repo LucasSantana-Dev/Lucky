@@ -1,12 +1,3 @@
-import {
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-    afterEach,
-} from '@jest/globals'
-
 jest.mock('../../../i18n/acknowledgeAndTranslate', () => ({
     acknowledgeAndTranslate: jest.fn(async () =>
         jest
@@ -77,6 +68,15 @@ function makeInteraction(overrides: Record<string, unknown> = {}) {
     } as unknown as Parameters<typeof previousCommand.execute>[0]['interaction']
 }
 
+type MockQueue = {
+    history: Record<string, jest.Mock>
+    node: Record<string, jest.Mock>
+    isPlaying: jest.Mock
+    currentTrack: { title: string; author: string } | null
+    tracks: { size: number }
+    [key: string]: unknown
+}
+
 function makeQueue(overrides: Record<string, unknown> = {}) {
     return {
         isPlaying: jest.fn().mockReturnValue(true),
@@ -91,7 +91,7 @@ function makeQueue(overrides: Record<string, unknown> = {}) {
             play: jest.fn().mockResolvedValue(undefined),
         },
         ...overrides,
-    } as unknown as Parameters<typeof previousCommand.execute>[0]['client']
+    } as unknown as MockQueue
 }
 
 describe('previous command', () => {

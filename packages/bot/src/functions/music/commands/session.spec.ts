@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: jest.fn(),
 }))
@@ -68,7 +66,7 @@ const createInteraction = (
     },
 })
 
-const execute = sessionCommand.execute as (params: {
+const execute = sessionCommand.execute as unknown as (params: {
     client: unknown
     interaction: ReturnType<typeof createInteraction>
 }) => Promise<void>

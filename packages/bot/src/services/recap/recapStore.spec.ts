@@ -1,13 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 type AnyFn = (...args: any[]) => any
 const prisma = {
     guildSettings: {
-        upsert: jest.fn<AnyFn>(),
-        updateMany: jest.fn<AnyFn>(),
-        createMany: jest.fn<AnyFn>(),
-        findMany: jest.fn<AnyFn>(),
-        update: jest.fn<AnyFn>(),
+        upsert: jest.fn(),
+        updateMany: jest.fn(),
+        createMany: jest.fn(),
+        findMany: jest.fn(),
+        update: jest.fn(),
     },
 }
 

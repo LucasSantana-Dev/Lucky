@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
-const getGuildSettings =
-    jest.fn<(id: string) => Promise<{ language: string } | null>>()
+const getGuildSettings = jest.fn<
+    Promise<{ language: string } | null>,
+    [id: string]
+>()
 
 jest.mock('@lucky/shared/services', () => ({
     guildSettingsService: { getGuildSettings },

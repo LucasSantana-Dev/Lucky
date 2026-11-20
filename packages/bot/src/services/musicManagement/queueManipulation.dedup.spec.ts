@@ -1,5 +1,3 @@
-import { jest } from '@jest/globals'
-
 import { replenishQueue, moveUserTrackToPriority } from './queueManipulation'
 
 jest.mock('lru-cache', () => ({
@@ -199,10 +197,7 @@ describe('queueManipulation — title-only deduplication', () => {
             addTrack: jest.fn((t) => addedTracks.push(t as Track)),
         })
 
-        await replenishQueue(queue as any, {
-            targetQueueSize: 2,
-            guildId: 'guild-1',
-        })
+        await replenishQueue(queue as any)
 
         expect(addedTracks.length).toBe(0)
     })
@@ -239,10 +234,7 @@ describe('queueManipulation — collaborator author deduplication', () => {
             addTrack: jest.fn((t: unknown) => addedTracks.push(t)),
         })
 
-        await replenishQueue(queue as any, {
-            targetQueueSize: 1,
-            guildId: 'guild-collab-1',
-        })
+        await replenishQueue(queue as any)
 
         expect(
             addedTracks.filter((t: any) => t.title === 'Puta Mexicana').length,

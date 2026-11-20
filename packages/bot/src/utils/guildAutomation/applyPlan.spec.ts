@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { ChannelType } from 'discord.js'
 
 const getWelcomeMessageMock = jest.fn()
@@ -247,7 +246,7 @@ describe('applyAutomationModules', () => {
         const deleteChannelMock = jest.fn().mockRejectedValue({ status: 403 })
         const guild = createGuild({
             roles: {
-                cache: new Map([
+                cache: new Map<string, Record<string, unknown>>([
                     ['guild-1', { id: 'guild-1', editable: false }],
                     [
                         'legacy-role',
@@ -498,7 +497,7 @@ describe('applyAutomationModules', () => {
 
         const guild = createGuild({
             roles: {
-                cache: new Map([
+                cache: new Map<string, Record<string, unknown>>([
                     ['guild-1', { id: 'guild-1', editable: false }],
                     [
                         'existing-role',

@@ -1,4 +1,3 @@
-import { describe, expect, it } from '@jest/globals'
 import { detectQueryType, parseYoutubeLink } from './queryDetector'
 
 describe('detectQueryType', () => {

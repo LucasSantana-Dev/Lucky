@@ -1,11 +1,3 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
 import type { SearchResult, Track } from 'discord-player'
 
 const warnLogMock = jest.fn()
@@ -46,11 +38,14 @@ function oEmbedResponse(body: unknown, ok = true): Response {
 }
 
 describe('ensureTrackMetadata', () => {
-    let fetchMock: jest.Mock<typeof fetch>
+    let fetchMock: jest.Mock<ReturnType<typeof fetch>, Parameters<typeof fetch>>
 
     beforeEach(() => {
         jest.clearAllMocks()
-        fetchMock = jest.fn<typeof fetch>()
+        fetchMock = jest.fn<
+            ReturnType<typeof fetch>,
+            Parameters<typeof fetch>
+        >()
         global.fetch = fetchMock
     })
 
@@ -79,7 +74,7 @@ describe('ensureTrackMetadata', () => {
                 author_name: 'shimgu',
                 thumbnail_url:
                     'https://i.ytimg.com/vi/XxnUy3MKHoM/hqdefault.jpg',
-            }),
+            }) as never,
         )
         const track = trackOf()
 
@@ -98,7 +93,7 @@ describe('ensureTrackMetadata', () => {
     })
 
     it('rejects when oEmbed fails, so nothing plays with a blank title', async () => {
-        fetchMock.mockResolvedValue(oEmbedResponse({}, false))
+        fetchMock.mockResolvedValue(oEmbedResponse({}, false) as never)
 
         await expect(
             ensureTrackMetadata(resultOf([trackOf()])),
@@ -106,7 +101,9 @@ describe('ensureTrackMetadata', () => {
     })
 
     it('rejects when oEmbed throws (timeout, network)', async () => {
-        fetchMock.mockRejectedValue(new Error('The operation was aborted'))
+        fetchMock.mockRejectedValue(
+            new Error('The operation was aborted') as never,
+        )
 
         await expect(
             ensureTrackMetadata(resultOf([trackOf()])),
@@ -114,7 +111,7 @@ describe('ensureTrackMetadata', () => {
     })
 
     it('rejects when oEmbed answers without a title', async () => {
-        fetchMock.mockResolvedValue(oEmbedResponse({ title: '  ' }))
+        fetchMock.mockResolvedValue(oEmbedResponse({ title: '  ' }) as never)
 
         await expect(
             ensureTrackMetadata(resultOf([trackOf()])),

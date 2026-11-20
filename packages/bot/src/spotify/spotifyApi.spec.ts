@@ -1,12 +1,4 @@
 import {
-    describe,
-    it,
-    expect,
-    beforeEach,
-    jest,
-    afterEach,
-} from '@jest/globals'
-import {
     searchSpotifyTrack,
     getArtistPopularity,
     getArtistGenres,
@@ -20,13 +12,10 @@ type MockFetchResponse = {
     json?: () => Promise<unknown>
 }
 
-const fetchMock =
-    jest.fn<
-        (
-            input: RequestInfo | URL,
-            init?: RequestInit,
-        ) => Promise<MockFetchResponse>
-    >()
+const fetchMock = jest.fn<
+    Promise<MockFetchResponse>,
+    [input: Parameters<typeof fetch>[0], init?: RequestInit]
+>()
 
 describe('spotifyApi', () => {
     let originalFetch: typeof global.fetch

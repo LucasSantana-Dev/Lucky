@@ -1,11 +1,9 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
-const requireGuildMock = jest.fn<() => Promise<boolean>>()
-const clearFeedbackMock = jest.fn<() => Promise<void>>()
-const getFeedbackCountsMock = jest.fn<() => Promise<unknown>>()
+const requireGuildMock = jest.fn<Promise<boolean>, []>()
+const clearFeedbackMock = jest.fn<Promise<void>, []>()
+const getFeedbackCountsMock = jest.fn<Promise<unknown>, []>()
 const resolveGuildQueueMock = jest.fn()
 const getGuildStateMock = jest.fn()
-const getSnapshotMock = jest.fn<() => Promise<unknown>>()
+const getSnapshotMock = jest.fn<Promise<unknown>, []>()
 const getAllStatusesMock = jest.fn()
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -114,7 +112,7 @@ describe('music command', () => {
         expect(musicCommand.data.name).toBe('music')
         expect(musicCommand.category).toBe('music')
         const names = musicCommand.data.options.map(
-            (o: { name: string }) => o.name,
+            ((o: { name: string }) => o.name) as never,
         )
         expect(names).toEqual(
             expect.arrayContaining(['health', 'clearfeedback']),

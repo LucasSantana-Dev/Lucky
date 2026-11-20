@@ -1,4 +1,3 @@
-import { describe, expect, it, jest } from '@jest/globals'
 import type { EmbedBuilder } from 'discord.js'
 import {
     STREAM_FAILURE_COOLDOWN_MS,

@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { ChatInputCommandInteraction } from 'discord.js'
 
 const requireGuildMock = jest.fn()
@@ -53,19 +52,27 @@ describe('settings command', () => {
     })
 
     it('should defer reply with ephemeral', async () => {
-        await settingsCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+        await settingsCommand.execute({
+            interaction: mockInteraction as ChatInputCommandInteraction,
+        })
         expect(mockInteraction.deferReply).toHaveBeenCalledWith({ flags: 64 })
     })
 
     it('should save idle-timeout setting', async () => {
-        await settingsCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
-        expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-123', { idleTimeoutMinutes: 5 })
+        await settingsCommand.execute({
+            interaction: mockInteraction as ChatInputCommandInteraction,
+        })
+        expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-123', {
+            idleTimeoutMinutes: 5,
+        })
     })
 
     it('should return early if requireGuild fails', async () => {
         requireGuildMock.mockResolvedValue(false)
 
-        await settingsCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+        await settingsCommand.execute({
+            interaction: mockInteraction as ChatInputCommandInteraction,
+        })
 
         expect(mockInteraction.deferReply).not.toHaveBeenCalled()
     })
@@ -73,7 +80,9 @@ describe('settings command', () => {
     it('should handle persist failure', async () => {
         setGuildSettingsMock.mockResolvedValue(false)
 
-        await settingsCommand.execute({ interaction: mockInteraction as ChatInputCommandInteraction })
+        await settingsCommand.execute({
+            interaction: mockInteraction as ChatInputCommandInteraction,
+        })
 
         expect(mockInteraction.deferReply).toHaveBeenCalled()
     })

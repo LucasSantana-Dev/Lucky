@@ -1,10 +1,14 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 const requireGuildMock = jest.fn()
 const getTrackHistoryMock = jest.fn()
 const musicEmbedMock = jest.fn()
-const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
-const createWarningEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
+const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
+    title,
+    description: desc,
+}))
+const createWarningEmbedMock = jest.fn((title: string, desc?: string) => ({
+    title,
+    description: desc,
+}))
 const interactionReplyMock = jest.fn()
 
 jest.mock('../../../utils/general/interactionReply', () => ({
@@ -20,8 +24,10 @@ jest.mock('../../../utils/general/embeds', () => ({
         musicEmbedMock(...args) ?? {
             setFooter: jest.fn().mockReturnThis(),
         },
-    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
-    createWarningEmbed: (...args: unknown[]) => createWarningEmbedMock(...args),
+    createErrorEmbed: (...args: Parameters<typeof createErrorEmbedMock>) =>
+        createErrorEmbedMock(...args),
+    createWarningEmbed: (...args: Parameters<typeof createWarningEmbedMock>) =>
+        createWarningEmbedMock(...args),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -66,8 +72,12 @@ describe('history command', () => {
         requireGuildMock.mockResolvedValue(true)
         musicEmbedMock.mockReturnValue(fakeEmbed)
         fakeEmbed.setFooter.mockReturnValue(fakeEmbed)
-        createErrorEmbedMock.mockImplementation((title: string, desc?: string) => ({ title, description: desc }))
-        createWarningEmbedMock.mockImplementation((title: string, desc?: string) => ({ title, description: desc }))
+        createErrorEmbedMock.mockImplementation(
+            (title: string, desc?: string) => ({ title, description: desc }),
+        )
+        createWarningEmbedMock.mockImplementation(
+            (title: string, desc?: string) => ({ title, description: desc }),
+        )
     })
 
     it('has correct name and category', () => {
@@ -86,7 +96,10 @@ describe('history command', () => {
         getTrackHistoryMock.mockResolvedValue([])
         const interaction = makeInteraction()
         await historyCommand.execute({ interaction } as never)
-        expect(createWarningEmbedMock).toHaveBeenCalledWith('No history', expect.stringContaining('No tracks'))
+        expect(createWarningEmbedMock).toHaveBeenCalledWith(
+            'No history',
+            expect.stringContaining('No tracks'),
+        )
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: expect.objectContaining({
@@ -101,7 +114,10 @@ describe('history command', () => {
         getTrackHistoryMock.mockResolvedValue(entries)
         const interaction = makeInteraction()
         await historyCommand.execute({ interaction } as never)
-        expect(musicEmbedMock).toHaveBeenCalledWith('Recently Played', expect.stringContaining('Track 1'))
+        expect(musicEmbedMock).toHaveBeenCalledWith(
+            'Recently Played',
+            expect.stringContaining('Track 1'),
+        )
         expect(fakeEmbed.setFooter).toHaveBeenCalled()
     })
 
@@ -115,16 +131,23 @@ describe('history command', () => {
     })
 
     it('shows error embed when requested page exceeds available history', async () => {
-        getTrackHistoryMock.mockResolvedValue(Array.from({ length: 3 }, (_, i) => makeEntry(i + 1)))
+        getTrackHistoryMock.mockResolvedValue(
+            Array.from({ length: 3 }, (_, i) => makeEntry(i + 1)),
+        )
         const interaction = makeInteraction({
             options: { getInteger: jest.fn().mockReturnValue(2) },
         })
         await historyCommand.execute({ interaction } as never)
-        expect(createErrorEmbedMock).toHaveBeenCalledWith('Page not found', expect.any(String))
+        expect(createErrorEmbedMock).toHaveBeenCalledWith(
+            'Page not found',
+            expect.any(String),
+        )
     })
 
     it('passes guildId and correct limit to getTrackHistory', async () => {
-        getTrackHistoryMock.mockResolvedValue(Array.from({ length: 10 }, (_, i) => makeEntry(i + 1)))
+        getTrackHistoryMock.mockResolvedValue(
+            Array.from({ length: 10 }, (_, i) => makeEntry(i + 1)),
+        )
         const interaction = makeInteraction()
         await historyCommand.execute({ interaction } as never)
         expect(getTrackHistoryMock).toHaveBeenCalledWith('guild-1', 10)

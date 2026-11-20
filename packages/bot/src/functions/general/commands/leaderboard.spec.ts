@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
     debugLog: jest.fn(),
@@ -28,11 +26,7 @@ jest.mock('../../../utils/general/interactionReply.js', () => ({
 
 import leaderboardCommand from './leaderboard.js'
 
-function makeInteraction(
-    subcommand: string,
-    limit?: number,
-    withGuild = true,
-) {
+function makeInteraction(subcommand: string, limit?: number, withGuild = true) {
     return {
         guild: withGuild ? { id: 'guild-1', name: 'TestGuild' } : null,
         user: { id: 'u1', tag: 'alice#0' },
@@ -52,6 +46,7 @@ beforeEach(() => {
 describe('/leaderboard', () => {
     test('rejects when not in a guild', async () => {
         await leaderboardCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('tracks', undefined, false) as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -63,6 +58,7 @@ describe('/leaderboard', () => {
     test('shows empty-state message when tracks list is empty', async () => {
         getTopTracks.mockResolvedValue([])
         await leaderboardCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('tracks') as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -79,6 +75,7 @@ describe('/leaderboard', () => {
             { trackId: 't3', title: 'Song Three', plays: 3 },
         ])
         await leaderboardCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('tracks') as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -95,10 +92,9 @@ describe('/leaderboard', () => {
     })
 
     test('shows top artists embed', async () => {
-        getTopArtists.mockResolvedValue([
-            { artist: 'Artist One', plays: 20 },
-        ])
+        getTopArtists.mockResolvedValue([{ artist: 'Artist One', plays: 20 }])
         await leaderboardCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('artists') as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -112,6 +108,7 @@ describe('/leaderboard', () => {
     test('clamps limit to MAX_LIMIT=10', async () => {
         getTopTracks.mockResolvedValue([])
         await leaderboardCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('tracks', 999) as never,
         })
         expect(getTopTracks).toHaveBeenCalledWith('guild-1', 10)
@@ -120,6 +117,7 @@ describe('/leaderboard', () => {
     test('handles getTopTracks throwing gracefully', async () => {
         getTopTracks.mockRejectedValueOnce(new Error('db down'))
         await leaderboardCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('tracks') as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -133,6 +131,7 @@ describe('/leaderboard', () => {
             { trackId: 't1', title: 'Single', plays: 1 },
         ])
         await leaderboardCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('tracks') as never,
         })
         const args = interactionReply.mock.calls[0][0] as {

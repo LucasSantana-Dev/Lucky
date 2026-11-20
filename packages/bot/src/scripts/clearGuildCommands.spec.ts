@@ -1,12 +1,3 @@
-import {
-    describe,
-    it,
-    expect,
-    beforeEach,
-    afterEach,
-    jest,
-} from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
     errorLog: jest.fn(),
@@ -25,8 +16,8 @@ jest.mock('discord.js', () => {
         ...actual,
         REST: jest.fn().mockImplementation(() => ({
             setToken: jest.fn().mockReturnThis(),
-            get: jest.fn<any>().mockResolvedValue([]),
-            put: jest.fn<any>().mockResolvedValue(undefined),
+            get: jest.fn().mockResolvedValue([]),
+            put: jest.fn().mockResolvedValue(undefined),
         })),
     }
 })
@@ -56,7 +47,7 @@ const guilds = [
 
 describe('clearGuildCommands', () => {
     it('clears every guild with an empty command body', async () => {
-        const put = jest.fn<any>().mockResolvedValue(undefined)
+        const put = jest.fn().mockResolvedValue(undefined)
 
         const result = await clearGuildCommands(guilds, {
             rest: { put } as any,
@@ -77,7 +68,7 @@ describe('clearGuildCommands', () => {
     // guild after it silently keeps its stale commands, which then shadow the
     // global set. Raised by CodeRabbit and cubic on #1887.
     it('does nothing for an empty guild list', async () => {
-        const put = jest.fn<any>().mockResolvedValue(undefined)
+        const put = jest.fn().mockResolvedValue(undefined)
 
         const result = await clearGuildCommands([], {
             rest: { put } as any,
@@ -89,7 +80,7 @@ describe('clearGuildCommands', () => {
     })
 
     it('reports every guild when they all fail', async () => {
-        const put = jest.fn<any>().mockRejectedValue(new Error('429'))
+        const put = jest.fn().mockRejectedValue(new Error('429'))
 
         const result = await clearGuildCommands(guilds, {
             rest: { put } as any,
@@ -102,7 +93,7 @@ describe('clearGuildCommands', () => {
 
     it('keeps going when one guild fails, and reports it', async () => {
         const put = jest
-            .fn<any>()
+            .fn()
             .mockResolvedValueOnce(undefined)
             .mockRejectedValueOnce(new Error('Missing Access'))
             .mockResolvedValueOnce(undefined)
@@ -131,7 +122,7 @@ describe('fetchAllGuilds', () => {
         }))
 
     it('returns a single short page without asking for more', async () => {
-        const get = jest.fn<any>().mockResolvedValue(page(0, 11))
+        const get = jest.fn().mockResolvedValue(page(0, 11))
 
         const guilds = await fetchAllGuilds({ get } as any)
 
@@ -144,7 +135,7 @@ describe('fetchAllGuilds', () => {
     // global commands with no error at all.
     it('follows pagination until a short page arrives', async () => {
         const get = jest
-            .fn<any>()
+            .fn()
             .mockResolvedValueOnce(page(0, 200))
             .mockResolvedValueOnce(page(200, 200))
             .mockResolvedValueOnce(page(400, 7))
@@ -164,7 +155,7 @@ describe('fetchAllGuilds', () => {
 
     it('stops on an exactly-full final page followed by an empty one', async () => {
         const get = jest
-            .fn<any>()
+            .fn()
             .mockResolvedValueOnce(page(0, 200))
             .mockResolvedValueOnce([])
 
@@ -202,8 +193,8 @@ describe('runClearGuildCommands', () => {
         ]
         ;(REST as unknown as jest.Mock).mockImplementationOnce(() => ({
             setToken: jest.fn().mockReturnThis(),
-            get: jest.fn<any>().mockResolvedValue(guildList),
-            put: jest.fn<any>().mockResolvedValue(undefined),
+            get: jest.fn().mockResolvedValue(guildList),
+            put: jest.fn().mockResolvedValue(undefined),
         }))
 
         const result = await runClearGuildCommands()
@@ -230,9 +221,9 @@ describe('runClearGuildCommands', () => {
         ]
         ;(REST as unknown as jest.Mock).mockImplementationOnce(() => ({
             setToken: jest.fn().mockReturnThis(),
-            get: jest.fn<any>().mockResolvedValue(guildList),
+            get: jest.fn().mockResolvedValue(guildList),
             put: jest
-                .fn<any>()
+                .fn()
                 .mockResolvedValueOnce(undefined)
                 .mockRejectedValueOnce(new Error('Missing Access')),
         }))
@@ -261,8 +252,8 @@ describe('runClearGuildCommands', () => {
             process.env.FULL_COMMANDS_GUILD_IDS = '111111111111111111'
             ;(REST as unknown as jest.Mock).mockImplementationOnce(() => ({
                 setToken: jest.fn().mockReturnThis(),
-                get: jest.fn<any>().mockResolvedValue(guildList),
-                put: jest.fn<any>().mockResolvedValue(undefined),
+                get: jest.fn().mockResolvedValue(guildList),
+                put: jest.fn().mockResolvedValue(undefined),
             }))
         })
 

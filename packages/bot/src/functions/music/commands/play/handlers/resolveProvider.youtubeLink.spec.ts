@@ -1,15 +1,7 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
 import { QueryType } from 'discord-player'
 
 const warnLogMock = jest.fn()
-const fetchYoutubeOEmbedMock = jest.fn<(url: string) => Promise<unknown>>()
+const fetchYoutubeOEmbedMock = jest.fn<Promise<unknown>, [url: string]>()
 
 jest.mock('@lucky/shared/utils', () => ({
     warnLog: warnLogMock,
@@ -79,8 +71,10 @@ describe('resolveQueryWithFallbacks with a YouTube link', () => {
     it('searches the oEmbed title on Spotify when the video link has no result', async () => {
         const track = { title: 'Song Title' }
         player.play
-            .mockRejectedValueOnce(new NoResultError('No results found'))
-            .mockResolvedValueOnce(track)
+            .mockRejectedValueOnce(
+                new NoResultError('No results found') as never,
+            )
+            .mockResolvedValueOnce(track as never)
 
         const { result, telemetry } = await resolve(VIDEO_URL)
 
@@ -100,9 +94,9 @@ describe('resolveQueryWithFallbacks with a YouTube link', () => {
         const track = { title: 'Song Title' }
         player.play
             .mockRejectedValueOnce(
-                new Error('Bridge exhausted: every stage failed'),
+                new Error('Bridge exhausted: every stage failed') as never,
             )
-            .mockResolvedValueOnce(track)
+            .mockResolvedValueOnce(track as never)
 
         const { telemetry } = await resolve('https://youtu.be/abcDEF12345')
 
@@ -112,10 +106,12 @@ describe('resolveQueryWithFallbacks with a YouTube link', () => {
     it('goes Spotify then SoundCloud for the title, never back to YouTube', async () => {
         const track = { title: 'Song Title' }
         player.play
-            .mockRejectedValueOnce(new NoResultError('No results found'))
-            .mockRejectedValueOnce(new NoResultError('spotify'))
-            .mockRejectedValueOnce(new NoResultError('spotify retry'))
-            .mockResolvedValueOnce(track)
+            .mockRejectedValueOnce(
+                new NoResultError('No results found') as never,
+            )
+            .mockRejectedValueOnce(new NoResultError('spotify') as never)
+            .mockRejectedValueOnce(new NoResultError('spotify retry') as never)
+            .mockResolvedValueOnce(track as never)
 
         const { result, telemetry } = await resolve(
             'https://music.youtube.com/watch?v=abcDEF12345',
@@ -134,8 +130,8 @@ describe('resolveQueryWithFallbacks with a YouTube link', () => {
     it('rethrows the link error when the title search finds nothing', async () => {
         const linkError = new NoResultError('No results found for link')
         player.play
-            .mockRejectedValueOnce(linkError)
-            .mockRejectedValue(new NoResultError('nothing'))
+            .mockRejectedValueOnce(linkError as never)
+            .mockRejectedValue(new NoResultError('nothing') as never)
 
         await expect(resolve(VIDEO_URL)).rejects.toBe(linkError)
     })
@@ -143,15 +139,17 @@ describe('resolveQueryWithFallbacks with a YouTube link', () => {
     it('reports a non-search failure of the title search as is', async () => {
         const voiceError = new Error('Cannot connect to voice')
         player.play
-            .mockRejectedValueOnce(new NoResultError('No results found'))
-            .mockRejectedValue(voiceError)
+            .mockRejectedValueOnce(
+                new NoResultError('No results found') as never,
+            )
+            .mockRejectedValue(voiceError as never)
 
         await expect(resolve(VIDEO_URL)).rejects.toBe(voiceError)
     })
 
     it('rethrows the link error when oEmbed has no title', async () => {
         const linkError = new NoResultError('No results found for link')
-        player.play.mockRejectedValueOnce(linkError)
+        player.play.mockRejectedValueOnce(linkError as never)
         fetchYoutubeOEmbedMock.mockResolvedValue(null)
 
         await expect(resolve(VIDEO_URL)).rejects.toBe(linkError)
@@ -160,14 +158,16 @@ describe('resolveQueryWithFallbacks with a YouTube link', () => {
 
     it('does not fall back on errors other than a missing result', async () => {
         const voiceError = new Error('Cannot connect to voice')
-        player.play.mockRejectedValueOnce(voiceError)
+        player.play.mockRejectedValueOnce(voiceError as never)
 
         await expect(resolve(VIDEO_URL)).rejects.toBe(voiceError)
         expect(fetchYoutubeOEmbedMock).not.toHaveBeenCalled()
     })
 
     it('answers a failed playlist-only link with YoutubePlaylistUnavailableError', async () => {
-        player.play.mockRejectedValueOnce(new NoResultError('No results'))
+        player.play.mockRejectedValueOnce(
+            new NoResultError('No results') as never,
+        )
 
         await expect(resolve(PLAYLIST_URL)).rejects.toBeInstanceOf(
             YoutubePlaylistUnavailableError,
@@ -177,7 +177,7 @@ describe('resolveQueryWithFallbacks with a YouTube link', () => {
 
     it('leaves a playlist link that resolves alone', async () => {
         const track = { title: 'First' }
-        player.play.mockResolvedValueOnce(track)
+        player.play.mockResolvedValueOnce(track as never)
 
         const { telemetry } = await resolve(PLAYLIST_URL)
 
@@ -191,7 +191,7 @@ describe('resolveQueryWithFallbacks with a YouTube link', () => {
 
         it('skips the link and searches the title directly', async () => {
             const track = { title: 'Song Title' }
-            player.play.mockResolvedValueOnce(track)
+            player.play.mockResolvedValueOnce(track as never)
 
             const { result, telemetry } = await resolve(VIDEO_URL)
 
@@ -212,7 +212,7 @@ describe('resolveQueryWithFallbacks with a YouTube link', () => {
 
         it('rethrows the text search error when no provider has the title', async () => {
             const textError = new NoResultError('No results found')
-            player.play.mockRejectedValue(textError)
+            player.play.mockRejectedValue(textError as never)
 
             await expect(resolve(VIDEO_URL)).rejects.toBe(textError)
             expect(engines()).not.toContain(QueryType.YOUTUBE_SEARCH)

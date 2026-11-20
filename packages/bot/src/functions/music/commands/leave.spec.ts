@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import leaveCommand from './leave'
 
 const requireGuildMock = jest.fn()

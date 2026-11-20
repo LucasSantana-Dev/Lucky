@@ -1,6 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
-const countMock = jest.fn<(args?: unknown) => Promise<number>>()
+const countMock = jest.fn<Promise<number>, [args?: unknown]>()
 const errorLogMock = jest.fn()
 const getStoredClientMock = jest.fn()
 

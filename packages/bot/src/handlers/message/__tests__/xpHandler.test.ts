@@ -1,4 +1,3 @@
-import { describe, expect, it, jest } from '@jest/globals'
 import type { Message, TextChannel } from 'discord.js'
 import { xpHandler } from '../xpHandler'
 import type { MessageContext } from '../types'

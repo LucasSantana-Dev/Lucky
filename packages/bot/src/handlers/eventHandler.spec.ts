@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import {
     Events,
     ChannelType,
@@ -70,8 +69,9 @@ jest.mock('./musicButtonHandler', () => ({
 }))
 
 jest.mock('./onboardingStation', () => ({
-    createOnboardingStationRow: (...args: unknown[]) =>
-        createOnboardingStationRowMock(...args),
+    createOnboardingStationRow: (
+        ...args: Parameters<typeof createOnboardingStationRowMock>
+    ) => createOnboardingStationRowMock(...args),
     handleOnboardingStationButton: (...args: unknown[]) =>
         handleOnboardingStationButtonMock(...args),
     ONBOARDING_STATION_BUTTON_PREFIX: 'station_',
@@ -81,8 +81,9 @@ const buildOnboardingEmbedMock = jest.fn(() => ({
     toJSON: () => ({ title: 'mocked embed', description: 'mocked desc' }),
 }))
 jest.mock('./onboardingEmbed', () => ({
-    buildOnboardingEmbed: (...args: unknown[]) =>
-        buildOnboardingEmbedMock(...args),
+    buildOnboardingEmbed: (
+        ...args: Parameters<typeof buildOnboardingEmbedMock>
+    ) => buildOnboardingEmbedMock(...args),
 }))
 
 jest.mock('./commandsHandler', () => ({
@@ -132,8 +133,9 @@ jest.mock('@lucky/shared/services', () => ({
 
 const translatorForInteractionMock = jest.fn(async () => (key: string) => key)
 jest.mock('../i18n/translatorForInteraction', () => ({
-    translatorForInteraction: (...args: unknown[]) =>
-        translatorForInteractionMock(...args),
+    translatorForInteraction: (
+        ...args: Parameters<typeof translatorForInteractionMock>
+    ) => translatorForInteractionMock(...args),
 }))
 
 jest.mock('../services/musicManagement/namedSessions', () => ({
@@ -172,11 +174,14 @@ jest.mock('../services/AiDevToolkitService', () => ({
 }))
 
 jest.mock('../services/guildMembershipService', () => ({
-    recordGuildJoin: async (...args: unknown[]) => recordGuildJoinMock(...args),
-    recordGuildLeave: async (...args: unknown[]) =>
-        recordGuildLeaveMock(...args),
-    syncGuildsOnReady: async (...args: unknown[]) =>
-        syncGuildsOnReadyMock(...args),
+    recordGuildJoin: async (...args: Parameters<typeof recordGuildJoinMock>) =>
+        recordGuildJoinMock(...args),
+    recordGuildLeave: async (
+        ...args: Parameters<typeof recordGuildLeaveMock>
+    ) => recordGuildLeaveMock(...args),
+    syncGuildsOnReady: async (
+        ...args: Parameters<typeof syncGuildsOnReadyMock>
+    ) => syncGuildsOnReadyMock(...args),
 }))
 
 jest.mock('../utils/monitoring/prometheus', () => ({
@@ -1328,7 +1333,7 @@ describe('eventHandler', () => {
                 const { client, onMock } = createMockClient()
                 client.guilds = { cache: { size: 5 } } as any
                 const sendMock = jest
-                    .fn<() => Promise<void>>()
+                    .fn<Promise<void>, unknown[]>()
                     .mockResolvedValue(undefined)
                 const systemChannel = {
                     type: ChannelType.GuildText,
@@ -1349,7 +1354,7 @@ describe('eventHandler', () => {
                 await new Promise<void>((resolve) => setImmediate(resolve))
 
                 expect(sendMock).toHaveBeenCalledTimes(1)
-                const sentPayload = sendMock.mock.calls[0][0] as {
+                const sentPayload = sendMock.mock.calls[0][0] as unknown as {
                     embeds: { toJSON(): any }[]
                     components: unknown[]
                 }
@@ -1414,7 +1419,7 @@ describe('eventHandler', () => {
                 const { client, onMock } = createMockClient()
                 client.guilds = { cache: { size: 5 } } as any
                 const sendMock = jest
-                    .fn<() => Promise<void>>()
+                    .fn<Promise<void>, unknown[]>()
                     .mockResolvedValue(undefined)
                 const systemChannel = {
                     type: ChannelType.GuildText,
@@ -1445,13 +1450,11 @@ describe('eventHandler', () => {
             it('records onboarding_failed with missing_permissions on a Discord 50013', async () => {
                 const { client, onMock } = createMockClient()
                 client.guilds = { cache: { size: 5 } } as any
-                const sendMock = jest
-                    .fn<() => Promise<void>>()
-                    .mockRejectedValue(
-                        Object.assign(new Error('Missing Permissions'), {
-                            code: 50013,
-                        }),
-                    )
+                const sendMock = jest.fn<Promise<void>, []>().mockRejectedValue(
+                    Object.assign(new Error('Missing Permissions'), {
+                        code: 50013,
+                    }),
+                )
                 const systemChannel = {
                     type: ChannelType.GuildText,
                     send: sendMock,
@@ -1485,7 +1488,7 @@ describe('eventHandler', () => {
                 const { client, onMock } = createMockClient()
                 client.guilds = { cache: { size: 5 } } as any
                 const sendMock = jest
-                    .fn<() => Promise<void>>()
+                    .fn<Promise<void>, []>()
                     .mockRejectedValue(new Error('Missing Access'))
                 const systemChannel = {
                     type: ChannelType.GuildText,

@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import { QueryType } from 'discord-player'
 import { searchSeedCandidates } from './spotifyRecommender'

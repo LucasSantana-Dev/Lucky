@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: jest.fn(),
 }))
@@ -61,7 +59,7 @@ const createInteraction = (
     followUp: jest.fn(async () => undefined),
 })
 
-const execute = lyricsCommand.execute as (params: {
+const execute = lyricsCommand.execute as unknown as (params: {
     client: unknown
     interaction: ReturnType<typeof createInteraction>
 }) => Promise<void>

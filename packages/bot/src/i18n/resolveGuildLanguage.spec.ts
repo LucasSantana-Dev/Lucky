@@ -1,12 +1,4 @@
 import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
-import {
     pickLanguage,
     resolveGuildLanguage,
     invalidateGuildLanguage,
@@ -67,7 +59,7 @@ describe('pickLanguage (spec D3 ordering)', () => {
 describe('resolveGuildLanguage', () => {
     it('returns the default without loading when there is no Guild', async () => {
         // The four non-Guild guards in the music commands hit this path.
-        const load = jest.fn<() => Promise<never>>()
+        const load = jest.fn<Promise<never>, []>()
         await expect(resolveGuildLanguage(null, load)).resolves.toBe('en')
         await expect(resolveGuildLanguage(undefined, load)).resolves.toBe('en')
         expect(load).not.toHaveBeenCalled()
@@ -75,7 +67,7 @@ describe('resolveGuildLanguage', () => {
 
     it('loads once, then serves from cache', async () => {
         const load = jest
-            .fn<() => Promise<{ settingsLanguage: string }>>()
+            .fn<Promise<{ settingsLanguage: string }>, []>()
             .mockResolvedValue({ settingsLanguage: 'es' })
 
         await expect(resolveGuildLanguage('g1', load)).resolves.toBe('es')
@@ -86,10 +78,10 @@ describe('resolveGuildLanguage', () => {
     it('keeps Guilds independent, which is the whole point', async () => {
         // Two Guilds on different languages in one process (acceptance 6).
         const g1 = jest
-            .fn<() => Promise<{ settingsLanguage: string }>>()
+            .fn<Promise<{ settingsLanguage: string }>, []>()
             .mockResolvedValue({ settingsLanguage: 'pt-BR' })
         const g2 = jest
-            .fn<() => Promise<{ settingsLanguage: string }>>()
+            .fn<Promise<{ settingsLanguage: string }>, []>()
             .mockResolvedValue({ settingsLanguage: 'es' })
 
         expect(await resolveGuildLanguage('g1', g1)).toBe('pt-BR')
@@ -100,7 +92,7 @@ describe('resolveGuildLanguage', () => {
     it('reloads after invalidation, so an admin change takes effect at once', async () => {
         let stored = 'en'
         const load = jest
-            .fn<() => Promise<{ settingsLanguage: string }>>()
+            .fn<Promise<{ settingsLanguage: string }>, []>()
             .mockImplementation(() =>
                 Promise.resolve({ settingsLanguage: stored }),
             )
@@ -116,7 +108,7 @@ describe('resolveGuildLanguage', () => {
         let clock = 1_000_000
         __setClockForTests(() => clock)
         const load = jest
-            .fn<() => Promise<{ settingsLanguage: string }>>()
+            .fn<Promise<{ settingsLanguage: string }>, []>()
             .mockResolvedValue({ settingsLanguage: 'es' })
 
         await resolveGuildLanguage('g1', load)
@@ -132,7 +124,7 @@ describe('resolveGuildLanguage', () => {
     it('falls back without caching when the load throws', async () => {
         // A failed settings lookup must not pin English for the whole TTL.
         const load = jest
-            .fn<() => Promise<{ settingsLanguage: string }>>()
+            .fn<Promise<{ settingsLanguage: string }>, []>()
             .mockRejectedValueOnce(new Error('db down'))
             .mockResolvedValue({ settingsLanguage: 'pt-BR' })
 
@@ -167,7 +159,7 @@ describe('resolveGuildLanguage concurrency and eviction', () => {
 
     it('does not share a load across different guilds', async () => {
         const load = jest
-            .fn<() => Promise<{ settingsLanguage: string }>>()
+            .fn<Promise<{ settingsLanguage: string }>, []>()
             .mockResolvedValue({ settingsLanguage: 'es' })
 
         await Promise.all([
@@ -180,7 +172,7 @@ describe('resolveGuildLanguage concurrency and eviction', () => {
 
     it('retries after a shared failed load instead of caching it', async () => {
         const load = jest
-            .fn<() => Promise<{ settingsLanguage: string }>>()
+            .fn<Promise<{ settingsLanguage: string }>, []>()
             .mockRejectedValueOnce(new Error('db down'))
             .mockResolvedValue({ settingsLanguage: 'es' })
 
@@ -253,7 +245,7 @@ describe('resolveGuildLanguage concurrency and eviction', () => {
         let clock = 1_000_000
         __setClockForTests(() => clock)
         const load = jest
-            .fn<() => Promise<{ settingsLanguage: string }>>()
+            .fn<Promise<{ settingsLanguage: string }>, []>()
             .mockResolvedValueOnce({ settingsLanguage: 'pt-BR' })
             .mockRejectedValue(new Error('db down'))
 

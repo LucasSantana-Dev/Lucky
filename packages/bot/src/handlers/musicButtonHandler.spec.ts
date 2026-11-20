@@ -1,11 +1,10 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { MUSIC_BUTTON_IDS } from '../types/musicButtons'
 
 const resolveGuildQueueMock = jest.fn()
 const refreshMusicComponentsMock = jest.fn((..._args: unknown[]) => [
     'refreshed-row',
 ])
-const setFeedbackMock = jest.fn<(...args: unknown[]) => Promise<boolean>>()
+const setFeedbackMock = jest.fn<Promise<boolean>, unknown[]>()
 
 const errorLogMock = jest.fn()
 const expiredMock = jest.fn()
@@ -79,12 +78,10 @@ jest.mock('../services/musicRecommendation/autoplayFeedbackPrompt', () => ({
         maybePromptMock(...args),
 }))
 
-const getSongInfoMessageMock =
-    jest.fn<
-        (
-            guildId: string,
-        ) => { messageId: string; channelId: string } | undefined
-    >()
+const getSongInfoMessageMock = jest.fn<
+    { messageId: string; channelId: string } | undefined,
+    [guildId: string]
+>()
 jest.mock('./player/nowPlayingDisplay', () => ({
     getSongInfoMessage: (guildId: string) => getSongInfoMessageMock(guildId),
 }))
@@ -105,9 +102,9 @@ function createInteraction(customId: string) {
         member: { voice: { channel: {} } },
         deferred: true,
         replied: false,
-        deferUpdate: jest.fn<() => Promise<void>>().mockResolvedValue(),
-        followUp: jest.fn<() => Promise<void>>().mockResolvedValue(),
-        editReply: jest.fn<() => Promise<void>>().mockResolvedValue(),
+        deferUpdate: jest.fn<Promise<void>, []>().mockResolvedValue(),
+        followUp: jest.fn<Promise<void>, []>().mockResolvedValue(),
+        editReply: jest.fn<Promise<void>, []>().mockResolvedValue(),
     }
 }
 
@@ -115,9 +112,13 @@ function createQueue(overrides: Record<string, unknown> = {}) {
     return {
         history: {
             previousTrack: null,
-            back: jest.fn<() => Promise<void>>().mockResolvedValue(),
+            back: jest.fn<Promise<void>, []>().mockResolvedValue(),
         },
         ...overrides,
+    } as {
+        history: { previousTrack: null; back: jest.Mock }
+        setRepeatMode: jest.Mock
+        [key: string]: unknown
     }
 }
 
@@ -378,12 +379,12 @@ describe('handleMusicButtonInteraction - autoplay feedback prompt', () => {
         const queue = playingQueue()
         resolveGuildQueueMock.mockReturnValue({ queue })
         const nowPlaying = {
-            edit: jest.fn<() => Promise<void>>().mockResolvedValue(),
+            edit: jest.fn<Promise<void>, []>().mockResolvedValue(),
         }
         const fetchMessage = jest
-            .fn<(id: string) => Promise<typeof nowPlaying>>()
+            .fn<Promise<typeof nowPlaying>, [id: string]>()
             .mockResolvedValue(nowPlaying)
-        const fetchChannel = jest.fn<(id: string) => Promise<unknown>>()
+        const fetchChannel = jest.fn<Promise<unknown>, [id: string]>()
         fetchChannel.mockResolvedValue({
             isTextBased: () => true,
             messages: { fetch: fetchMessage },

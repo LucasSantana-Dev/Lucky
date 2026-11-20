@@ -1,5 +1,3 @@
-import { describe, it, expect, jest } from '@jest/globals'
-
 jest.mock('discord-player', () => ({
     QueueRepeatMode: {
         OFF: 0,

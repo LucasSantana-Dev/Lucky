@@ -1,11 +1,3 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
 import type { Client, Guild, GuildMember, Role } from 'discord.js'
 
 const debugLogMock = jest.fn()
@@ -61,14 +53,14 @@ describe('followerRoleSync', () => {
         jest.clearAllMocks()
         fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
             ok: true,
-            json: jest.fn<() => Promise<unknown>>().mockResolvedValue({
+            json: jest.fn<Promise<unknown>, []>().mockResolvedValue({
                 total: 1,
             }),
         } as unknown as Response)
 
         mockRole = {
             id: 'role-123',
-        }
+        } as never
 
         mockMember = {
             id: 'user-123',
@@ -77,7 +69,7 @@ describe('followerRoleSync', () => {
                 add: jest.fn(),
                 remove: jest.fn(),
             } as any,
-        }
+        } as never
 
         mockGuild = {
             id: 'guild-123',
@@ -87,7 +79,7 @@ describe('followerRoleSync', () => {
             roles: {
                 cache: new Map([['role-123', mockRole]]),
             } as any,
-        }
+        } as never
 
         mockClient = {
             guilds: {
@@ -195,7 +187,7 @@ describe('followerRoleSync', () => {
                 },
             ])
 
-            mockMember!.roles!.cache = new Map()
+            ;(mockMember!.roles! as { cache: unknown }).cache = new Map()
 
             fetchSpy.mockResolvedValueOnce({
                 ok: true,
@@ -233,7 +225,9 @@ describe('followerRoleSync', () => {
                 },
             ])
 
-            mockMember!.roles!.cache = new Map([['role-123', mockRole]])
+            ;(mockMember!.roles! as { cache: unknown }).cache = new Map([
+                ['role-123', mockRole],
+            ])
 
             fetchSpy.mockResolvedValueOnce({
                 ok: true,
@@ -264,7 +258,9 @@ describe('followerRoleSync', () => {
                 },
             ])
 
-            mockMember!.roles!.cache = new Map([['role-123', mockRole]])
+            ;(mockMember!.roles! as { cache: unknown }).cache = new Map([
+                ['role-123', mockRole],
+            ])
 
             fetchSpy.mockResolvedValueOnce({
                 ok: true,
@@ -335,7 +331,7 @@ describe('followerRoleSync', () => {
                 },
             ])
 
-            mockGuild!.roles!.cache = new Map()
+            ;(mockGuild!.roles! as { cache: unknown }).cache = new Map()
 
             fetchSpy.mockResolvedValueOnce({
                 ok: true,
@@ -371,7 +367,7 @@ describe('followerRoleSync', () => {
                 },
             ])
 
-            mockMember!.roles!.cache = new Map()
+            ;(mockMember!.roles! as { cache: unknown }).cache = new Map()
 
             const user2Member = {
                 id: 'user-2',
@@ -499,8 +495,8 @@ describe('followerRoleSync', () => {
             ])
 
             const subRole = { id: 'sub-role-123' }
-            mockMember!.roles!.cache = new Map()
-            mockGuild!.roles!.cache = new Map([
+            ;(mockMember!.roles! as { cache: unknown }).cache = new Map()
+            ;(mockGuild!.roles! as { cache: unknown }).cache = new Map([
                 ['sub-role-123', subRole as any],
             ])
 
@@ -535,10 +531,10 @@ describe('followerRoleSync', () => {
             ])
 
             const subRole = { id: 'sub-role-123' }
-            mockMember!.roles!.cache = new Map([
+            ;(mockMember!.roles! as { cache: unknown }).cache = new Map([
                 ['sub-role-123', subRole as any],
             ])
-            mockGuild!.roles!.cache = new Map([
+            ;(mockGuild!.roles! as { cache: unknown }).cache = new Map([
                 ['sub-role-123', subRole as any],
             ])
 
@@ -680,7 +676,7 @@ describe('followerRoleSync', () => {
                 discordRoleId: 'role-missing',
             })
 
-            mockGuild!.roles!.cache = new Map()
+            ;(mockGuild!.roles! as { cache: unknown }).cache = new Map()
 
             const result = await assignFollowerRole(
                 'user-123',
@@ -697,7 +693,7 @@ describe('followerRoleSync', () => {
                 discordRoleId: 'role-123',
             })
 
-            mockMember!.roles!.cache = new Map()
+            ;(mockMember!.roles! as { cache: unknown }).cache = new Map()
 
             const result = await assignFollowerRole(
                 'user-123',
@@ -715,7 +711,9 @@ describe('followerRoleSync', () => {
                 discordRoleId: 'role-123',
             })
 
-            mockMember!.roles!.cache = new Map([['role-123', mockRole]])
+            ;(mockMember!.roles! as { cache: unknown }).cache = new Map([
+                ['role-123', mockRole],
+            ])
 
             const result = await assignFollowerRole(
                 'user-123',
@@ -733,7 +731,7 @@ describe('followerRoleSync', () => {
                 discordRoleId: 'role-123',
             })
 
-            mockMember!.roles!.cache = new Map()
+            ;(mockMember!.roles! as { cache: unknown }).cache = new Map()
             ;(mockMember.roles!.add as jest.Mock).mockRejectedValueOnce(
                 new Error('Permission denied'),
             )

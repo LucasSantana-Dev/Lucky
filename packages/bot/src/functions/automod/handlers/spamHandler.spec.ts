@@ -1,4 +1,3 @@
-import { describe, expect, it, jest } from '@jest/globals'
 import type { Message } from 'discord.js'
 import { spamHandler } from './spamHandler'
 import type { MessageContext } from '../../../handlers/message/types'

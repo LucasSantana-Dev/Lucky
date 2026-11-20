@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import serversetupCommand from './serversetup'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { infoLog } from '@lucky/shared/utils'
@@ -71,7 +70,12 @@ describe('serversetup command', () => {
     })
 
     it('exposes template and mode options with expected choices', () => {
-        const json = serversetupCommand.data.toJSON()
+        const json = serversetupCommand.data.toJSON() as {
+            options?: Array<{
+                name: string
+                choices?: Array<{ value: unknown }>
+            }>
+        }
         const templateOption = json.options?.find(
             (option) => option.name === 'template',
         )

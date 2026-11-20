@@ -1,11 +1,3 @@
-import {
-    describe,
-    it,
-    expect,
-    beforeEach,
-    afterEach,
-    jest,
-} from '@jest/globals'
 import { Client, Collection, REST, Routes } from 'discord.js'
 import { createClient, startClient, stopPresenceRotation } from './service'
 

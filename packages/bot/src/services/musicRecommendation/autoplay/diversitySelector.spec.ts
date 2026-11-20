@@ -1,4 +1,3 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 
 jest.mock('@lucky/shared/utils', () => ({
@@ -45,12 +44,12 @@ describe('diversitySelector', () => {
         mockQueue = {
             tracks: {
                 toArray: jest.fn(() => []),
-            },
+            } as never,
             history: {
                 tracks: {
                     toArray: jest.fn(() => []),
-                },
-            },
+                } as never,
+            } as never,
         }
     })
 
@@ -1113,7 +1112,9 @@ describe('diversitySelector', () => {
             const queueRemove = jest.fn()
             let mockQueueWithTracks: Partial<GuildQueue> = {
                 ...mockQueue,
-                tracks: { toArray: jest.fn(() => [dupTrack as Track]) },
+                tracks: {
+                    toArray: jest.fn(() => [dupTrack as Track]),
+                } as never,
                 node: { remove: queueRemove } as any,
             }
             purgeDuplicatesOfCurrentTrack(
@@ -1130,7 +1131,9 @@ describe('diversitySelector', () => {
             }
             mockQueueWithTracks = {
                 ...mockQueue,
-                tracks: { toArray: jest.fn(() => [otherTrack as Track]) },
+                tracks: {
+                    toArray: jest.fn(() => [otherTrack as Track]),
+                } as never,
                 node: { remove: jest.fn() } as any,
             }
             purgeDuplicatesOfCurrentTrack(
@@ -1143,7 +1146,7 @@ describe('diversitySelector', () => {
 
             mockQueueWithTracks = {
                 ...mockQueue,
-                tracks: { toArray: jest.fn(() => []) },
+                tracks: { toArray: jest.fn(() => []) } as never,
                 node: { remove: jest.fn() } as any,
             }
             expect(() => {
@@ -1168,8 +1171,8 @@ describe('diversitySelector', () => {
         test('marks and records each selected track with user ID or undefined', async () => {
             const mockQueueWithAdd: Partial<GuildQueue> = {
                 ...mockQueue,
-                guild: { id: 'guild-id-123' },
-                tracks: { toArray: jest.fn(() => []) },
+                guild: { id: 'guild-id-123' } as never,
+                tracks: { toArray: jest.fn(() => []) } as never,
                 addTrack: jest.fn(),
             }
 
@@ -1207,7 +1210,7 @@ describe('diversitySelector', () => {
 
             await addSelectedTracks(
                 mockQueueWithAdd as GuildQueue,
-                selected,
+                selected as never,
                 new Set(),
                 new Set(),
                 'requesting-user-id',
@@ -1225,7 +1228,7 @@ describe('diversitySelector', () => {
             jest.clearAllMocks()
             await addSelectedTracks(
                 mockQueueWithAdd as GuildQueue,
-                [selected[0]],
+                [selected[0] as never],
                 new Set(),
                 new Set(),
             )
@@ -1241,8 +1244,8 @@ describe('diversitySelector', () => {
         test('passes autoplay mode when provided', async () => {
             const mockQueueWithAdd: Partial<GuildQueue> = {
                 ...mockQueue,
-                guild: { id: 'guild-id-123' },
-                tracks: { toArray: jest.fn(() => []) },
+                guild: { id: 'guild-id-123' } as never,
+                tracks: { toArray: jest.fn(() => []) } as never,
                 addTrack: jest.fn(),
             }
 
@@ -1266,7 +1269,7 @@ describe('diversitySelector', () => {
 
             await addSelectedTracks(
                 mockQueueWithAdd as GuildQueue,
-                selected,
+                selected as never,
                 new Set(),
                 new Set(),
                 'user-id',
@@ -1283,7 +1286,7 @@ describe('diversitySelector', () => {
             jest.clearAllMocks()
             await addSelectedTracks(
                 mockQueueWithAdd as GuildQueue,
-                selected,
+                selected as never,
                 new Set(),
                 new Set(),
                 'user-id',
@@ -1300,7 +1303,7 @@ describe('diversitySelector', () => {
             jest.clearAllMocks()
             await addSelectedTracks(
                 mockQueueWithAdd as GuildQueue,
-                selected,
+                selected as never,
                 new Set(),
                 new Set(),
                 'user-id',

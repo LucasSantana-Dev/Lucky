@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 const cleanTitleMock = jest.fn()
 const cleanAuthorMock = jest.fn()
 

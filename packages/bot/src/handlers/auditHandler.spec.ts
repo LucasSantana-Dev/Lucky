@@ -24,7 +24,6 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
 }))
 
-import { describe, expect, it, beforeEach } from '@jest/globals'
 import { Collection, Events } from 'discord.js'
 import { handleAuditEvents } from './auditHandler'
 

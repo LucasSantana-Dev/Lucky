@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 jest.mock('../../../utils/general/interactionReply', () => ({
     interactionReply: jest.fn(),
 }))
@@ -64,7 +62,7 @@ const createInteraction = (subcommand: string | null) => ({
     options: { getSubcommand: jest.fn(() => subcommand) },
 })
 
-const execute = shuffleCommand.execute as (params: {
+const execute = shuffleCommand.execute as unknown as (params: {
     client: unknown
     interaction: ReturnType<typeof createInteraction>
 }) => Promise<void>

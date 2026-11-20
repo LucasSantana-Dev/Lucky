@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import {
     handlePause,
     handleStop,
@@ -330,7 +329,7 @@ describe('handlePlay', () => {
     const found = { tracks: [track], playlist: null }
 
     function setup(searchResults: unknown[]) {
-        const search = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+        const search = jest.fn<Promise<unknown>, unknown[]>()
         for (const r of searchResults) search.mockResolvedValueOnce(r)
         const addTrack = jest.fn()
         resolveGuildQueueMock.mockReturnValue({

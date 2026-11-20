@@ -1,11 +1,10 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { GuildQueue, Track } from 'discord-player'
 import type { AutoplayContext } from './autoplayContext'
 
-const getSimilarTracksMock = jest.fn<() => Promise<unknown[]>>()
-const getArtistTopTracksMock = jest.fn<() => Promise<unknown[]>>()
-const getSimilarArtistsMock = jest.fn<() => Promise<unknown[]>>()
-const getTagTopTracksMock = jest.fn<() => Promise<unknown[]>>()
+const getSimilarTracksMock = jest.fn<Promise<unknown[]>, []>()
+const getArtistTopTracksMock = jest.fn<Promise<unknown[]>, []>()
+const getSimilarArtistsMock = jest.fn<Promise<unknown[]>, []>()
+const getTagTopTracksMock = jest.fn<Promise<unknown[]>, []>()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),

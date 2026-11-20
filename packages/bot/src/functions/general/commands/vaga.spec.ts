@@ -1,4 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import { ChannelType } from 'discord.js'
 
 const findMany = jest.fn() as jest.Mock
@@ -81,7 +80,9 @@ function makeInteraction(
     // descricao is now collected via a modal (paragraph text input), not a
     // plain string option — the modal submission is its own interaction
     // that owns the reply/editReply for the preview + button flow.
-    const modalReply = jest.fn(() => Promise.resolve(message))
+    const modalReply = jest.fn<Promise<unknown>, unknown[]>(() =>
+        Promise.resolve(message),
+    )
     const modalSubmit = {
         user: { id: 'u1' },
         fields: {
@@ -112,7 +113,7 @@ function makeInteraction(
         },
         showModal: jest.fn(),
         awaitModalSubmit: jest.fn(() => Promise.resolve(modalSubmit)),
-        reply: jest.fn(),
+        reply: jest.fn<unknown, unknown[]>(),
         editReply: jest.fn(),
     }
     return {
@@ -143,7 +144,7 @@ describe('/vaga command', () => {
     }
 
     it('rejects outside a guild', async () => {
-        const reply = jest.fn()
+        const reply = jest.fn<unknown, unknown[]>()
         await vaga.execute({
             interaction: {
                 guild: null,
@@ -165,7 +166,7 @@ describe('/vaga command', () => {
             interaction: interaction as never,
             client: {} as never,
         })
-        const call = reply.mock.calls[0][0] as {
+        const call = reply.mock.calls[0][0] as unknown as {
             content: string
             ephemeral: boolean
         }
@@ -257,7 +258,8 @@ describe('/vaga command', () => {
             interaction: interaction as never,
             client: {} as never,
         })
-        const [{ filter }] = interaction.awaitModalSubmit.mock.calls[0] as [
+        const [{ filter }] = interaction.awaitModalSubmit.mock
+            .calls[0] as unknown as [
             {
                 filter: (i: {
                     user: { id: string }

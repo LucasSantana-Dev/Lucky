@@ -1,4 +1,3 @@
-import { describe, expect, it } from '@jest/globals'
 import {
     detectSessionMood as detectFromTracks,
     type SessionMood,

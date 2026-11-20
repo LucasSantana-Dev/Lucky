@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 const infoLogMock = jest.fn()
 const warnLogMock = jest.fn()
 const interactionReplyMock = jest.fn()
@@ -9,7 +7,7 @@ const createWarningEmbedMock = jest.fn((title: string) => ({ title }))
 const createSuccessEmbedMock = jest.fn((title: string) => ({ title }))
 const isUnknownInteractionErrorMock = jest.fn(() => false)
 const resolveGuildQueueMock = jest.fn()
-const runPostPlayBackgroundOpsMock = jest.fn<() => Promise<void>>()
+const runPostPlayBackgroundOpsMock = jest.fn<Promise<void>, []>()
 
 // A fixed, distinguishable blocklist so tests can assert it flows through
 // unmodified to player.play — the real list lives in resolveProvider.ts and
@@ -67,9 +65,12 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 jest.mock('../utils/general/embeds', () => ({
-    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
-    createWarningEmbed: (...args: unknown[]) => createWarningEmbedMock(...args),
-    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
+    createErrorEmbed: (...args: Parameters<typeof createErrorEmbedMock>) =>
+        createErrorEmbedMock(...args),
+    createWarningEmbed: (...args: Parameters<typeof createWarningEmbedMock>) =>
+        createWarningEmbedMock(...args),
+    createSuccessEmbed: (...args: Parameters<typeof createSuccessEmbedMock>) =>
+        createSuccessEmbedMock(...args),
 }))
 
 jest.mock('../utils/general/interactionReply', () => ({
@@ -77,8 +78,9 @@ jest.mock('../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../functions/music/commands/play/queryUtils', () => ({
-    isUnknownInteractionError: (...args: unknown[]) =>
-        isUnknownInteractionErrorMock(...args),
+    isUnknownInteractionError: (
+        ...args: Parameters<typeof isUnknownInteractionErrorMock>
+    ) => isUnknownInteractionErrorMock(...args),
 }))
 
 jest.mock('../functions/music/commands/play/handlers/resolveProvider', () => ({
@@ -89,8 +91,9 @@ jest.mock('../functions/music/commands/play/handlers/resolveProvider', () => ({
 jest.mock(
     '../functions/music/commands/play/handlers/postPlayBackgroundOps',
     () => ({
-        runPostPlayBackgroundOps: (...args: unknown[]) =>
-            runPostPlayBackgroundOpsMock(...args),
+        runPostPlayBackgroundOps: (
+            ...args: Parameters<typeof runPostPlayBackgroundOpsMock>
+        ) => runPostPlayBackgroundOpsMock(...args),
     }),
 )
 

@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals'
 import { spotifyLinkService } from '@lucky/shared/services'
 import { getUserSpotifySeeds, clearUserSeedsCache } from './spotifyUserSeeds'
 import * as spotifyApi from './spotifyApi'
@@ -46,9 +45,9 @@ describe('spotifyUserSeeds', () => {
         ;(spotifyLinkService.getByDiscordId as jest.Mock).mockResolvedValue(
             mockLink,
         )
-        ;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue(
-            'token',
-        )
+        ;(
+            spotifyLinkService.getValidAccessToken as jest.Mock
+        ).mockResolvedValue('token')
         ;(spotifyApi.getUserTopArtistsAndTracks as jest.Mock).mockResolvedValue(
             mockSeeds,
         )
@@ -57,7 +56,9 @@ describe('spotifyUserSeeds', () => {
 
         expect(result).not.toBeNull()
         expect(result?.artistIds).toEqual(['artist-1', 'artist-2'])
-        expect(result?.artistNames).toEqual(new Set(['artist one', 'artist two']))
+        expect(result?.artistNames).toEqual(
+            new Set(['artist one', 'artist two']),
+        )
         expect(result?.trackIds).toEqual(['track-1', 'track-2'])
         expect(result?.likedTrackIds).toEqual([])
     })
@@ -74,10 +75,19 @@ describe('spotifyUserSeeds', () => {
             artists: [{ id: 'artist-1', name: 'Artist One', genres: ['rock'] }],
             tracks: [],
         }
-        ;(spotifyLinkService.getByDiscordId as jest.Mock).mockResolvedValue(mockLink)
-        ;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue('token')
-        ;(spotifyApi.getUserTopArtistsAndTracks as jest.Mock).mockResolvedValue(mockSeeds)
-        ;(spotifyApi.getUserSavedTracks as jest.Mock).mockResolvedValue(['liked-1', 'liked-2'])
+        ;(spotifyLinkService.getByDiscordId as jest.Mock).mockResolvedValue(
+            mockLink,
+        )
+        ;(
+            spotifyLinkService.getValidAccessToken as jest.Mock
+        ).mockResolvedValue('token')
+        ;(spotifyApi.getUserTopArtistsAndTracks as jest.Mock).mockResolvedValue(
+            mockSeeds,
+        )
+        ;(spotifyApi.getUserSavedTracks as jest.Mock).mockResolvedValue([
+            'liked-1',
+            'liked-2',
+        ])
 
         clearUserSeedsCache('test-user-id')
         const result = await getUserSpotifySeeds('test-user-id')
@@ -97,10 +107,18 @@ describe('spotifyUserSeeds', () => {
             artists: [{ id: 'artist-1', name: 'Artist One', genres: ['rock'] }],
             tracks: [{ id: 'track-1', name: 'Song One', artist: 'Artist One' }],
         }
-        ;(spotifyLinkService.getByDiscordId as jest.Mock).mockResolvedValue(mockLink)
-        ;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue('token')
-        ;(spotifyApi.getUserTopArtistsAndTracks as jest.Mock).mockResolvedValue(mockSeeds)
-        ;(spotifyApi.getUserSavedTracks as jest.Mock).mockRejectedValue(new Error('network failure'))
+        ;(spotifyLinkService.getByDiscordId as jest.Mock).mockResolvedValue(
+            mockLink,
+        )
+        ;(
+            spotifyLinkService.getValidAccessToken as jest.Mock
+        ).mockResolvedValue('token')
+        ;(spotifyApi.getUserTopArtistsAndTracks as jest.Mock).mockResolvedValue(
+            mockSeeds,
+        )
+        ;(spotifyApi.getUserSavedTracks as jest.Mock).mockRejectedValue(
+            new Error('network failure'),
+        )
 
         clearUserSeedsCache('test-user-id')
         const result = await getUserSpotifySeeds('test-user-id')
@@ -133,9 +151,9 @@ describe('spotifyUserSeeds', () => {
         ;(spotifyLinkService.getByDiscordId as jest.Mock).mockResolvedValue(
             mockLink,
         )
-        ;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue(
-            null,
-        )
+        ;(
+            spotifyLinkService.getValidAccessToken as jest.Mock
+        ).mockResolvedValue(null)
 
         const result = await getUserSpotifySeeds('test-user-id')
 
@@ -154,9 +172,9 @@ describe('spotifyUserSeeds', () => {
         ;(spotifyLinkService.getByDiscordId as jest.Mock).mockResolvedValue(
             mockLink,
         )
-        ;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue(
-            'token',
-        )
+        ;(
+            spotifyLinkService.getValidAccessToken as jest.Mock
+        ).mockResolvedValue('token')
         ;(spotifyApi.getUserTopArtistsAndTracks as jest.Mock).mockResolvedValue(
             null,
         )
@@ -176,9 +194,7 @@ describe('spotifyUserSeeds', () => {
         }
 
         const mockSeeds = {
-            artists: [
-                { id: 'artist-1', name: 'Artist One', genres: ['rock'] },
-            ],
+            artists: [{ id: 'artist-1', name: 'Artist One', genres: ['rock'] }],
             tracks: [
                 { id: 'track-1', name: 'Track One', artist: 'Artist One' },
             ],
@@ -187,9 +203,9 @@ describe('spotifyUserSeeds', () => {
         ;(spotifyLinkService.getByDiscordId as jest.Mock).mockResolvedValue(
             mockLink,
         )
-        ;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue(
-            'token',
-        )
+        ;(
+            spotifyLinkService.getValidAccessToken as jest.Mock
+        ).mockResolvedValue('token')
         ;(spotifyApi.getUserTopArtistsAndTracks as jest.Mock).mockResolvedValue(
             mockSeeds,
         )
@@ -199,8 +215,8 @@ describe('spotifyUserSeeds', () => {
 
         expect(result1).toEqual(result2)
         expect(
-            (spotifyApi.getUserTopArtistsAndTracks as jest.Mock)
-                .mock.calls.length,
+            (spotifyApi.getUserTopArtistsAndTracks as jest.Mock).mock.calls
+                .length,
         ).toBe(1)
     })
 
@@ -223,9 +239,9 @@ describe('spotifyUserSeeds', () => {
         ;(spotifyLinkService.getByDiscordId as jest.Mock).mockResolvedValue(
             mockLink,
         )
-        ;(spotifyLinkService.getValidAccessToken as jest.Mock).mockResolvedValue(
-            'token',
-        )
+        ;(
+            spotifyLinkService.getValidAccessToken as jest.Mock
+        ).mockResolvedValue('token')
         ;(spotifyApi.getUserTopArtistsAndTracks as jest.Mock).mockResolvedValue(
             mockSeeds,
         )

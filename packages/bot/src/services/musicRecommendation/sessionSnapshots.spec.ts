@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { GuildQueue } from 'discord-player'
 import { getPrismaClient } from '@lucky/shared/utils'
 import { MusicSessionSnapshotService } from './sessionSnapshots'
@@ -23,11 +22,11 @@ jest.mock('discord-player', () => ({
 }))
 
 const mockGetPrismaClient = jest.mocked(getPrismaClient)
-const mockFindUnique = jest.fn<any>()
-const mockFindMany = jest.fn<any>()
-const mockDeleteMany = jest.fn<any>()
-const mockCreate = jest.fn<any>()
-const mockUpsert = jest.fn<any>()
+const mockFindUnique = jest.fn()
+const mockFindMany = jest.fn()
+const mockDeleteMany = jest.fn()
+const mockCreate = jest.fn()
+const mockUpsert = jest.fn()
 
 /** Builds a `music_session_snapshots` row for mock returns. */
 function snapshotRow(overrides: Record<string, unknown> = {}) {
@@ -1024,7 +1023,7 @@ describe('MusicSessionSnapshotService', () => {
             )
             const clear = jest.fn()
             const search = jest
-                .fn<any>()
+                .fn()
                 .mockResolvedValueOnce({ tracks: [{ title: 'Current Song' }] })
                 .mockRejectedValueOnce(new Error('search unavailable'))
             const queue = {

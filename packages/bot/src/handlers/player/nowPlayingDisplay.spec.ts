@@ -59,7 +59,6 @@ jest.mock('./lastfmScrobbler', () => ({
     clearLastFmTrackTiming: jest.fn(),
 }))
 
-import { describe, expect, it, beforeEach } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import type { TextChannel, Guild, Message, EmbedBuilder } from 'discord.js'
 import { sendNowPlayingEmbed, cleanupGuildState } from './nowPlayingDisplay'
@@ -87,18 +86,18 @@ describe('nowPlayingDisplay', () => {
 
         mockGuild = {
             id: 'guild-123',
-        }
+        } as never
 
         mockChannel = {
             id: 'channel-456',
             send: jest.fn(),
-        }
+        } as never
 
         mockMessage = {
             id: 'message-789',
             react: jest.fn().mockResolvedValue(undefined),
             edit: jest.fn().mockResolvedValue(undefined),
-        }
+        } as never
 
         mockTrack = {
             title: 'Test Track',
@@ -214,7 +213,7 @@ describe('nowPlayingDisplay', () => {
         })
 
         it('puts the autoplay line, reason and count in the footer of an autoplay pick', async () => {
-            mockTrack.metadata = {
+            ;(mockTrack as { metadata: unknown }).metadata = {
                 recommendationReason: 'similar to Test Artist',
             }
 
@@ -230,7 +229,7 @@ describe('nowPlayingDisplay', () => {
         })
 
         it('appends the acceptance rate to the reason when known', async () => {
-            mockTrack.metadata = {
+            ;(mockTrack as { metadata: unknown }).metadata = {
                 recommendationReason: 'similar to Test Artist',
                 recommendationSource: 'lastfm',
             }

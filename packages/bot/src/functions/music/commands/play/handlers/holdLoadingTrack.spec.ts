@@ -1,4 +1,3 @@
-import { describe, expect, it, jest } from '@jest/globals'
 import type { GuildQueue } from 'discord-player'
 import { holdLoadingTrack } from './holdLoadingTrack'
 
@@ -24,7 +23,7 @@ function createQueue(
         playing,
         isPlaying: () => queue.playing,
         tracks: { size: queued },
-        node: { play: jest.fn(async () => undefined) },
+        node: { play: jest.fn(async () => undefined) as never },
     }
     return queue
 }

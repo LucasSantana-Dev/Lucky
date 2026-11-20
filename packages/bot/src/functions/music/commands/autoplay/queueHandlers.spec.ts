@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals'
 import type { ChatInputCommandInteraction } from 'discord.js'
 import type { GuildQueue } from 'discord-player'
 
@@ -83,11 +82,13 @@ function makeInteraction(overrides: object = {}): ChatInputCommandInteraction {
 
 describe('isAutoplayTrack', () => {
     it('returns true when metadata.isAutoplay is true', () => {
-        expect(isAutoplayTrack({ metadata: { isAutoplay: true } })).toBe(true)
+        expect(
+            isAutoplayTrack({ metadata: { isAutoplay: true } } as never),
+        ).toBe(true)
     })
 
     it('returns false when metadata.isAutoplay is absent', () => {
-        expect(isAutoplayTrack({ metadata: {} })).toBe(false)
+        expect(isAutoplayTrack({ metadata: {} } as never)).toBe(false)
     })
 
     it('returns false for null track', () => {
@@ -219,7 +220,7 @@ describe('handleAutoplayStatus', () => {
     })
 
     it('handles null metadata without throwing', async () => {
-        const queue = makeQueue([makeTrack(true)], null, 2)
+        const queue = makeQueue([makeTrack(true)], null as never, 2)
 
         await expect(
             handleAutoplayStatus(interaction, queue),

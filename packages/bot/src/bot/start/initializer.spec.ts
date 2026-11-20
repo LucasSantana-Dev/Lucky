@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { BotInitializer } from './initializer'
 import type { CustomClient } from '../../types'
 import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'

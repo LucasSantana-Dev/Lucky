@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 const moderationServiceMock = {
     getStats: jest.fn(),
     getCasesSince: jest.fn(),
@@ -49,8 +47,9 @@ function createClientMock(channels: Map<string, any> = new Map()) {
                         ? {
                               id: guildId,
                               channels: {
-                                  fetch: jest.fn(async (cid: string) =>
-                                      channels.get(cid) ?? null,
+                                  fetch: jest.fn(
+                                      async (cid: string) =>
+                                          channels.get(cid) ?? null,
                                   ),
                               },
                           }
@@ -268,13 +267,15 @@ describe('ModDigestSchedulerService.tick', () => {
             'guild-bad',
             'guild-good',
         ])
-        modDigestConfigServiceMock.get.mockImplementation(async (id: string) => ({
-            guildId: id,
-            channelId: id === 'guild-good' ? 'channel-good' : 'channel-bad',
-            enabled: true,
-            lastSentAt: null,
-            createdAt: 0,
-        }))
+        modDigestConfigServiceMock.get.mockImplementation(
+            async (id: string) => ({
+                guildId: id,
+                channelId: id === 'guild-good' ? 'channel-good' : 'channel-bad',
+                enabled: true,
+                lastSentAt: null,
+                createdAt: 0,
+            }),
+        )
         modDigestConfigServiceMock.markSent.mockResolvedValue(undefined)
 
         const service = new ModDigestSchedulerService({
@@ -316,16 +317,18 @@ describe('ModDigestSchedulerService.tick', () => {
             'guild-throw',
             'guild-ok',
         ])
-        modDigestConfigServiceMock.get.mockImplementation(async (id: string) => {
-            if (id === 'guild-throw') throw new Error('lookup boom')
-            return {
-                guildId: id,
-                channelId: 'channel-good',
-                enabled: true,
-                lastSentAt: null,
-                createdAt: 0,
-            }
-        })
+        modDigestConfigServiceMock.get.mockImplementation(
+            async (id: string) => {
+                if (id === 'guild-throw') throw new Error('lookup boom')
+                return {
+                    guildId: id,
+                    channelId: 'channel-good',
+                    enabled: true,
+                    lastSentAt: null,
+                    createdAt: 0,
+                }
+            },
+        )
         modDigestConfigServiceMock.markSent.mockResolvedValue(undefined)
 
         const service = new ModDigestSchedulerService({
@@ -440,7 +443,10 @@ describe('ModDigestSchedulerService.sendDigestForGuild', () => {
         const service = new ModDigestSchedulerService()
         service.start(createClientMock(channels) as any)
         try {
-            const result = await service.sendDigestForGuild('guild-1', 'channel-1')
+            const result = await service.sendDigestForGuild(
+                'guild-1',
+                'channel-1',
+            )
             expect(result).toBe(false)
         } finally {
             service.stop()

@@ -1,5 +1,3 @@
-import { jest } from '@jest/globals'
-
 import { replenishQueue, buildVcContributionWeights } from './queueManipulation'
 
 jest.mock('lru-cache', () => ({

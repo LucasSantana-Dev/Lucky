@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { QueryType } from 'discord-player'
 import type { Track, GuildQueue } from 'discord-player'
 import type { AutoplayContext } from './autoplayContext'
@@ -17,7 +16,7 @@ const shouldIncludeCandidateMock = jest.fn()
 const upsertScoredCandidateMock = jest.fn()
 const normalizeTrackKeyMock = jest.fn()
 const warnLogMock = jest.fn()
-const isSpotifyBlockedMock = jest.fn<() => boolean>()
+const isSpotifyBlockedMock = jest.fn<boolean, []>()
 
 jest.mock('@lucky/shared/utils', () => ({
     warnLog: (...args: unknown[]) => warnLogMock(...args),

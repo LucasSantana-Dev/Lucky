@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { GuildQueue } from 'discord-player'
 
 const debugLogMock = jest.fn()
@@ -50,10 +49,11 @@ jest.mock('../../services/musicManagement/watchdog', () => ({
 
 jest.mock('../../services/musicManagement/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
-    waitForReplenish: (...args: unknown[]) => waitForReplenishMock(...args),
+    waitForReplenish: (...args: Parameters<typeof waitForReplenishMock>) =>
+        waitForReplenishMock(...args),
 }))
 
-const ensureStageSpeakerMock = jest.fn<() => Promise<string>>()
+const ensureStageSpeakerMock = jest.fn<Promise<string>, []>()
 
 jest.mock('../../services/musicManagement/stageSpeaker', () => ({
     ensureStageSpeaker: (...args: unknown[]) => ensureStageSpeakerMock(),
@@ -115,7 +115,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const queue = {
             guild: { id: 'guild-1', name: 'Guild 1' },
@@ -152,7 +152,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const queue = {
             guild: { id: 'guild-shared', name: 'Guild Shared' },
@@ -191,7 +191,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const queue = {
             guild: { id: 'guild-1', name: 'Guild 1' },
@@ -223,7 +223,7 @@ describe('setupLifecycleHandlers', () => {
                 }),
             },
         }
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const queue = {
             guild: { id: 'guild-1', name: 'Guild 1' },
@@ -271,7 +271,7 @@ describe('setupLifecycleHandlers', () => {
                 }),
             },
         }
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
         const queue = {
             guild: { id: 'guild-1', name: 'Guild 1' },
             metadata: { requestedBy: { id: 'user-1' } },
@@ -314,7 +314,7 @@ describe('setupLifecycleHandlers', () => {
                 }),
             },
         }
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
         const queue = {
             guild: { id: 'guild-1', name: 'Guild 1' },
             metadata: { requestedBy: { id: 'user-1' } },
@@ -349,7 +349,7 @@ describe('setupLifecycleHandlers', () => {
                 }),
             },
         }
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
         const queue = {
             guild: { id: 'guild-1', name: 'Guild 1' },
             metadata: { requestedBy: { id: 'user-1' } },
@@ -385,7 +385,7 @@ describe('setupLifecycleHandlers', () => {
                     ),
                 },
             }
-            setupLifecycleHandlers(player)
+            setupLifecycleHandlers(player as never)
             const queue = {
                 guild: { id: 'guild-1', name: 'Guild 1' },
                 metadata: { requestedBy: { id: 'user-1' } },
@@ -411,7 +411,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const queue = {
             guild: { id: 'guild-kicked', name: 'Guild Kicked' },
@@ -436,7 +436,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const queue = {
             guild: { id: 'guild-2', name: 'Guild 2' },
@@ -458,7 +458,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const queue = {
             guild: { id: 'guild-3', name: 'Guild 3' },
@@ -482,7 +482,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const queue = {
             guild: { id: 'guild-4', name: 'Guild 4' },
@@ -509,7 +509,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const queue = {
             guild: { id: 'guild-3b', name: 'Guild 3b' },
@@ -532,7 +532,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const queue = {
             guild: { id: 'guild-empty', name: 'Guild Empty' },
@@ -554,7 +554,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const track = { id: 'track-1', title: 'Test' }
         const queue = {
@@ -578,7 +578,7 @@ describe('setupLifecycleHandlers', () => {
                         (event: string, handler: PlayerEventHandler) => {
                             handlers[event] = handler
                         },
-                    ),
+                    ) as never,
                 },
             })
             return handlers.emptyQueue
@@ -586,9 +586,9 @@ describe('setupLifecycleHandlers', () => {
 
         it('waits for the in-flight refill and does not stop when it added tracks', async () => {
             const tracks = { size: 0 }
-            waitForReplenishMock.mockImplementationOnce(async () => {
+            waitForReplenishMock.mockImplementationOnce((async () => {
                 tracks.size = 2
-            })
+            }) as never)
             const play = jest.fn()
             const queue = {
                 guild: { id: 'guild-7', name: 'Guild 7' },
@@ -607,9 +607,9 @@ describe('setupLifecycleHandlers', () => {
 
         it('logs instead of rejecting when restarting playback throws', async () => {
             const tracks = { size: 0 }
-            waitForReplenishMock.mockImplementationOnce(async () => {
+            waitForReplenishMock.mockImplementationOnce((async () => {
                 tracks.size = 1
-            })
+            }) as never)
             const queue = {
                 guild: { id: 'guild-9', name: 'Guild 9' },
                 repeatMode: 3,
@@ -665,7 +665,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const queue = {
             guild: { id: 'guild-5', name: 'Guild 5' },
@@ -689,7 +689,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const track = { id: 'track-1', title: 'Test' }
         const queue = {
@@ -722,7 +722,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player)
+        setupLifecycleHandlers(player as never)
 
         const track = { id: 'track-1', title: 'Test' }
         const queue = {
@@ -762,7 +762,7 @@ describe('setupVoiceKickDetection', () => {
             ),
         }
 
-        setupVoiceKickDetection(client)
+        setupVoiceKickDetection(client as never)
 
         expect(voiceStateUpdateListeners.length).toBe(1)
 
@@ -842,7 +842,7 @@ describe('setupVoiceKickDetection', () => {
             ),
         }
 
-        setupVoiceKickDetection(client)
+        setupVoiceKickDetection(client as never)
 
         const oldState = {
             member: { id: 'other-user-id' },
@@ -877,7 +877,7 @@ describe('setupVoiceKickDetection', () => {
             ),
         }
 
-        setupVoiceKickDetection(client)
+        setupVoiceKickDetection(client as never)
 
         const oldState = {
             member: { id: 'bot-user-id' },
@@ -921,7 +921,7 @@ describe('setupStageSpeaker', () => {
     const buildQueue = ({
         paused = false,
         playing = false,
-        send = jest.fn<() => Promise<void>>(),
+        send = jest.fn<Promise<void>, []>(),
     } = {}) => ({
         guild: { id: 'guild-1' },
         metadata: { channel: { send } },
@@ -992,7 +992,7 @@ describe('setupStageSpeaker', () => {
     })
 
     it('requests to speak on joining a stage and warns the channel', async () => {
-        const send = jest.fn<() => Promise<void>>()
+        const send = jest.fn<Promise<void>, []>()
         const queue = buildQueue({ send })
         const { client, listeners } = buildClient(queue)
         setupStageSpeaker(client as any)
@@ -1012,7 +1012,7 @@ describe('setupStageSpeaker', () => {
 
     it('reports an error embed when it cannot speak at all', async () => {
         ensureStageSpeakerMock.mockResolvedValue('blocked')
-        const send = jest.fn<() => Promise<void>>()
+        const send = jest.fn<Promise<void>, []>()
         const queue = buildQueue({ send })
         const { client, listeners } = buildClient(queue)
         setupStageSpeaker(client as any)
@@ -1029,7 +1029,7 @@ describe('setupStageSpeaker', () => {
         // the explanation there is the exact silent failure this handler ends.
         ensureStageSpeakerMock.mockResolvedValue('blocked')
         const queue = buildQueue()
-        queue.metadata = { channel: null }
+        queue.metadata = { channel: null as never }
         const { client, listeners } = buildClient(queue)
         setupStageSpeaker(client as any)
 
@@ -1044,7 +1044,7 @@ describe('setupStageSpeaker', () => {
 
     it('stays quiet when it takes the mic on its own', async () => {
         ensureStageSpeakerMock.mockResolvedValue('unsuppressed')
-        const send = jest.fn<() => Promise<void>>()
+        const send = jest.fn<Promise<void>, []>()
         const queue = buildQueue({ send })
         const { client, listeners } = buildClient(queue)
         setupStageSpeaker(client as any)

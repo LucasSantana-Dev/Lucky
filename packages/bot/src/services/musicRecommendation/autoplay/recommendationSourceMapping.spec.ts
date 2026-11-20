@@ -1,4 +1,3 @@
-import { describe, expect, it } from '@jest/globals'
 import { recommendationSourceToPrisma } from './recommendationSourceMapping'
 import { RecommendationSource as PrismaRecommendationSource } from '@lucky/shared/types'
 

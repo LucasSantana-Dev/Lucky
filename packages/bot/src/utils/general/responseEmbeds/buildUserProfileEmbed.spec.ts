@@ -1,4 +1,3 @@
-import { describe, it, expect } from '@jest/globals'
 import { buildUserProfileEmbed } from './buildUserProfileEmbed'
 
 const fakeUser = {
@@ -80,7 +79,8 @@ describe('buildUserProfileEmbed', () => {
     it('uses username as fallback when tag is not provided', () => {
         const userWithoutTag = {
             username: 'JustUsername',
-            displayAvatarURL: () => 'https://cdn.discordapp.com/avatars/1/test.png',
+            displayAvatarURL: () =>
+                'https://cdn.discordapp.com/avatars/1/test.png',
         }
         const embed = buildUserProfileEmbed(userWithoutTag, { level: 1 })
         expect(embed.data.author?.name).toBe('JustUsername')

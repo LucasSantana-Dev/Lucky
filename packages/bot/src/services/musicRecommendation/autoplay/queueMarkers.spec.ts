@@ -1,4 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import type { Track } from 'discord-player'
 import { markAsAutoplayTrack, markAndRecordAutoplayTrack } from './queueMarkers'
 import type { RecommendationBasis } from './recommendationBasis'
@@ -12,7 +11,9 @@ jest.mock(
 
 import { recordRecommendationPick } from '../recommendationTelemetry'
 
-function createTrack(overrides: Partial<Track> = {}): Track {
+type TestTrack = Track & { metadata?: Record<string, unknown> }
+
+function createTrack(overrides: Partial<TestTrack> = {}): TestTrack {
     return {
         title: 'Test Song',
         author: 'Test Artist',
@@ -20,7 +21,7 @@ function createTrack(overrides: Partial<Track> = {}): Track {
         id: 'test-id',
         metadata: {},
         ...overrides,
-    } as unknown as Track
+    } as unknown as TestTrack
 }
 
 describe('markAsAutoplayTrack', () => {

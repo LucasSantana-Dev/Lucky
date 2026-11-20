@@ -1,4 +1,3 @@
-import { describe, expect, it } from '@jest/globals'
 import type { TFunction } from 'i18next'
 import type { RecapPayload } from '@lucky/shared/services'
 import { buildRecapEmbed } from './recapEmbed'

@@ -1,4 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import type { CommandInteraction } from 'discord.js'
 import afkCommand from '../afk'
 
@@ -42,7 +41,7 @@ describe('afk command', () => {
 
         await afkCommand.execute({
             client: {} as any,
-            interaction: mockInteraction,
+            interaction: mockInteraction as never,
         })
 
         expect(afkService.clear).toHaveBeenCalledWith('guild1', 'user1')
@@ -74,7 +73,7 @@ describe('afk command', () => {
 
         await afkCommand.execute({
             client: {} as any,
-            interaction: mockInteraction,
+            interaction: mockInteraction as never,
         })
 
         expect(afkService.set).toHaveBeenCalledWith(
@@ -100,7 +99,7 @@ describe('afk command', () => {
 
         await afkCommand.execute({
             client: {} as any,
-            interaction: mockInteraction,
+            interaction: mockInteraction as never,
         })
 
         expect(interactionReply).toHaveBeenCalledWith({
@@ -124,7 +123,7 @@ describe('afk command', () => {
 
         await afkCommand.execute({
             client: {} as any,
-            interaction: mockInteraction,
+            interaction: mockInteraction as never,
         })
 
         const calls = (interactionReply as jest.Mock).mock.calls

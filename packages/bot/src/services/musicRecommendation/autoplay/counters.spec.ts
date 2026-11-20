@@ -1,12 +1,4 @@
 import {
-    describe,
-    test,
-    expect,
-    beforeEach,
-    jest,
-    afterEach,
-} from '@jest/globals'
-import {
     autoplayCounters,
     getAutoplayCount,
     incrementAutoplayCount,

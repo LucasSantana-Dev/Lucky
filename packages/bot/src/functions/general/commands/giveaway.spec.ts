@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 const interactionReplyMock = jest.fn()
 const giveawayServiceMock = {
     create: jest.fn(),
@@ -241,7 +239,11 @@ describe('giveaway command', () => {
         })
 
         it('uses default winner count of 1', async () => {
-            const interaction = makeStartInteraction('Prize', '1h', null)
+            const interaction = makeStartInteraction(
+                'Prize',
+                '1h',
+                null as never,
+            )
             interaction.client.channels.cache.get.mockReturnValue(
                 makeTextChannel(),
             )

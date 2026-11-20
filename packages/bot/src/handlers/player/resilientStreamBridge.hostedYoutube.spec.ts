@@ -1,6 +1,5 @@
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
-import { jest } from '@jest/globals'
 
 // #2475 follow-up: unlike resilientStreamBridge.spec.ts, this file does NOT
 // mock ./ytdlpProcess. It lets the real streamViaYtDlp/streamViaYtDlpSearch

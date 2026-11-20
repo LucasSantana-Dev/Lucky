@@ -1,12 +1,4 @@
 import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
-import {
     getSessionKeyForUser,
     isLastFmInvalidSessionError,
     updateNowPlaying,
@@ -27,8 +19,7 @@ import {
     LastFmSessionExpiredError,
 } from './lastFmApi'
 
-const getSessionKeyMock =
-    jest.fn<(discordId: string) => Promise<string | null>>()
+const getSessionKeyMock = jest.fn<Promise<string | null>, [discordId: string]>()
 
 type MockFetchResponse = {
     ok: boolean
@@ -36,13 +27,10 @@ type MockFetchResponse = {
     text?: () => Promise<string>
 }
 
-const fetchMock =
-    jest.fn<
-        (
-            input: RequestInfo | URL,
-            init?: RequestInit,
-        ) => Promise<MockFetchResponse>
-    >()
+const fetchMock = jest.fn<
+    Promise<MockFetchResponse>,
+    [input: Parameters<typeof fetch>[0], init?: RequestInit]
+>()
 
 const warnLogMock = jest.fn()
 
@@ -116,7 +104,7 @@ describe('lastFmApi', () => {
                         album: 'Test Album',
                         albumArtist: 'Album Artist',
                         mbid: 'test-mbid-123',
-                    },
+                    } as never,
                 )
 
                 let lastCall =
@@ -1101,7 +1089,7 @@ describe('lastFmApi', () => {
                     album: 'Test Album',
                     albumArtist: 'Album Artist',
                     mbid: 'test-mbid-456',
-                },
+                } as never,
             )
 
             const lastCall =

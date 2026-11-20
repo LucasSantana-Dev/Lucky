@@ -1,4 +1,3 @@
-import { describe, expect, it } from '@jest/globals'
 import { normalizeText, normalizeTrackKey } from './scoringUtils'
 
 describe('scoringUtils normalization keeps combining marks (#2951)', () => {

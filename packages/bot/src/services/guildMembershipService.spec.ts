@@ -1,11 +1,10 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
-const upsertMock = jest.fn(async () => ({}))
-const updateManyMock = jest.fn(async () => ({ count: 1 }))
-const createMock = jest.fn(async () => ({}))
-const findUniqueMock = jest.fn<() => Promise<{ joinedAt: Date | null } | null>>(
-    async () => null,
-)
+const upsertMock = jest.fn(async (..._a: unknown[]) => ({}))
+const updateManyMock = jest.fn(async (..._a: unknown[]) => ({ count: 1 }))
+const createMock = jest.fn(async (..._a: unknown[]) => ({}))
+const findUniqueMock = jest.fn<
+    Promise<{ joinedAt: Date | null } | null>,
+    unknown[]
+>(async () => null)
 const transactionMock = jest.fn(async (ops: unknown) => {
     if (Array.isArray(ops)) {
         return Promise.all(ops)
@@ -18,14 +17,19 @@ const infoLogMock = jest.fn()
 jest.mock('@lucky/shared/utils', () => ({
     getPrismaClient: () => ({
         guild: {
-            upsert: (...args: unknown[]) => upsertMock(...args),
-            updateMany: (...args: unknown[]) => updateManyMock(...args),
-            findUnique: (...args: unknown[]) => findUniqueMock(...args),
+            upsert: (...args: Parameters<typeof upsertMock>) =>
+                upsertMock(...args),
+            updateMany: (...args: Parameters<typeof updateManyMock>) =>
+                updateManyMock(...args),
+            findUnique: (...args: Parameters<typeof findUniqueMock>) =>
+                findUniqueMock(...args),
         },
         guildMembershipEvent: {
-            create: (...args: unknown[]) => createMock(...args),
+            create: (...args: Parameters<typeof createMock>) =>
+                createMock(...args),
         },
-        $transaction: (...args: unknown[]) => transactionMock(...args),
+        $transaction: (...args: Parameters<typeof transactionMock>) =>
+            transactionMock(...args),
     }),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
@@ -68,7 +72,7 @@ describe('guildMembershipService', () => {
 
             expect(transactionMock).toHaveBeenCalledTimes(1)
             expect(upsertMock).toHaveBeenCalledTimes(1)
-            const call = upsertMock.mock.calls[0]?.[0] as Record<
+            const call = upsertMock.mock.calls[0]?.[0] as unknown as Record<
                 string,
                 unknown
             >
@@ -79,7 +83,7 @@ describe('guildMembershipService', () => {
             expect(create.leftAt).toBeNull()
 
             expect(createMock).toHaveBeenCalledTimes(1)
-            const eventArgs = createMock.mock.calls[0]?.[0] as {
+            const eventArgs = createMock.mock.calls[0]?.[0] as unknown as {
                 data: Record<string, unknown>
             }
             expect(eventArgs.data.kind).toBe('JOIN')
@@ -91,7 +95,7 @@ describe('guildMembershipService', () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             await recordGuildJoin(fakeGuild({ joinedTimestamp: null }) as any)
 
-            const call = upsertMock.mock.calls[0]?.[0] as Record<
+            const call = upsertMock.mock.calls[0]?.[0] as unknown as Record<
                 string,
                 unknown
             >
@@ -116,15 +120,13 @@ describe('guildMembershipService', () => {
 
             expect(transactionMock).toHaveBeenCalledTimes(1)
             expect(updateManyMock).toHaveBeenCalledTimes(1)
-            const updateCall = updateManyMock.mock.calls[0]?.[0] as Record<
-                string,
-                unknown
-            >
+            const updateCall = updateManyMock.mock
+                .calls[0]?.[0] as unknown as Record<string, unknown>
             expect(updateCall.where).toEqual({ discordId: '222' })
             const data = updateCall.data as Record<string, unknown>
             expect(data.leftAt).toBeInstanceOf(Date)
 
-            const eventArgs = createMock.mock.calls[0]?.[0] as {
+            const eventArgs = createMock.mock.calls[0]?.[0] as unknown as {
                 data: Record<string, unknown>
             }
             expect(eventArgs.data.kind).toBe('LEAVE')
@@ -140,7 +142,7 @@ describe('guildMembershipService', () => {
             await recordGuildLeave('222', undefined)
 
             expect(updateManyMock).toHaveBeenCalledTimes(1)
-            const eventArgs = createMock.mock.calls[0]?.[0] as {
+            const eventArgs = createMock.mock.calls[0]?.[0] as unknown as {
                 data: Record<string, unknown>
             }
             expect(eventArgs.data.kind).toBe('LEAVE')
@@ -153,7 +155,7 @@ describe('guildMembershipService', () => {
 
             await recordGuildLeave('333', null)
 
-            const eventArgs = createMock.mock.calls[0]?.[0] as {
+            const eventArgs = createMock.mock.calls[0]?.[0] as unknown as {
                 data: Record<string, unknown>
             }
             expect(eventArgs.data.guildName).toBe('Unknown guild')
@@ -166,7 +168,7 @@ describe('guildMembershipService', () => {
             await recordGuildLeave('444', undefined)
 
             expect(updateManyMock).toHaveBeenCalledTimes(1)
-            const eventArgs = createMock.mock.calls[0]?.[0] as {
+            const eventArgs = createMock.mock.calls[0]?.[0] as unknown as {
                 data: Record<string, unknown>
             }
             expect(eventArgs.data.kind).toBe('LEAVE')
@@ -197,7 +199,7 @@ describe('guildMembershipService', () => {
 
             expect(findUniqueMock).toHaveBeenCalledTimes(2)
             expect(upsertMock).toHaveBeenCalledTimes(1)
-            const call = upsertMock.mock.calls[0]?.[0] as Record<
+            const call = upsertMock.mock.calls[0]?.[0] as unknown as Record<
                 string,
                 unknown
             >

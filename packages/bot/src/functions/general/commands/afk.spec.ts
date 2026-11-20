@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 const afkServiceMock = {
     set: jest.fn(),
     clear: jest.fn(),
@@ -45,6 +43,7 @@ beforeEach(() => {
 describe('/afk', () => {
     test('rejects when used in DMs (no guild)', async () => {
         await afkCommand.execute({
+            client: {} as never,
             interaction: makeInteraction(undefined, false) as never,
         })
 
@@ -59,6 +58,7 @@ describe('/afk', () => {
 
     test('clears AFK when no reason provided', async () => {
         await afkCommand.execute({
+            client: {} as never,
             interaction: makeInteraction(null) as never,
         })
 
@@ -72,6 +72,7 @@ describe('/afk', () => {
 
     test('sets AFK with reason when provided', async () => {
         await afkCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('In a meeting') as never,
         })
 
@@ -89,6 +90,7 @@ describe('/afk', () => {
 
     test('marks response as ephemeral', async () => {
         await afkCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('Working') as never,
         })
 
@@ -102,6 +104,7 @@ describe('/afk', () => {
         afkServiceMock.set.mockRejectedValueOnce(new Error('db error'))
 
         await afkCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('Sleeping') as never,
         })
 
@@ -115,6 +118,7 @@ describe('/afk', () => {
         afkServiceMock.clear.mockRejectedValueOnce(new Error('db error'))
 
         await afkCommand.execute({
+            client: {} as never,
             interaction: makeInteraction(null) as never,
         })
 
@@ -127,6 +131,7 @@ describe('/afk', () => {
     test('respects max reason length constraint', async () => {
         const longReason = 'x'.repeat(250)
         await afkCommand.execute({
+            client: {} as never,
             interaction: makeInteraction(longReason) as never,
         })
 
@@ -144,6 +149,7 @@ describe('/afk', () => {
         infoLog.mockClear()
 
         await afkCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('Lunch break') as never,
         })
 

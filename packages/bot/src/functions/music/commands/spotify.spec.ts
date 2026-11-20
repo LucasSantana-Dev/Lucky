@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import spotifyCommand from './spotify'
 
 const interactionReplyMock = jest.fn()
@@ -8,7 +7,7 @@ const createErrorEmbedMock = jest.fn((title: string, description: string) => ({
     description,
 }))
 const buildPlatformAttribEmbedMock = jest.fn(
-    (platform: string, body: unknown) => ({
+    (platform: string, body: Record<string, unknown>) => ({
         type: 'platform',
         platform,
         ...body,
@@ -23,12 +22,14 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
+    createErrorEmbed: (...args: Parameters<typeof createErrorEmbedMock>) =>
+        createErrorEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
-    buildPlatformAttribEmbed: (...args: unknown[]) =>
-        buildPlatformAttribEmbedMock(...args),
+    buildPlatformAttribEmbed: (
+        ...args: Parameters<typeof buildPlatformAttribEmbedMock>
+    ) => buildPlatformAttribEmbedMock(...args),
 }))
 
 jest.mock('../../../spotify', () => ({

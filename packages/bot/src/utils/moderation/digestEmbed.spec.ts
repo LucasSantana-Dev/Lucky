@@ -1,4 +1,3 @@
-import { describe, expect, it } from '@jest/globals'
 import {
     buildDigestEmbed,
     filterCasesSince,
@@ -6,7 +5,11 @@ import {
     type DigestCase,
 } from './digestEmbed'
 
-function caseDaysAgo(type: string, moderatorName: string, daysAgo: number): DigestCase {
+function caseDaysAgo(
+    type: string,
+    moderatorName: string,
+    daysAgo: number,
+): DigestCase {
     return {
         type,
         moderatorName,

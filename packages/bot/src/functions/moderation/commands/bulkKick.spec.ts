@@ -1,4 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import { Collection } from 'discord.js'
 
 const batchJobServiceMock = {
@@ -127,7 +126,7 @@ describe('bulkKick command', () => {
 
     test('returns early if not in a guild', async () => {
         const interaction = createInteraction({ guild: null })
-        await bulkKickCommand.execute({ interaction })
+        await bulkKickCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -147,7 +146,7 @@ describe('bulkKick command', () => {
             role: createMockRole(),
         })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkKickCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -163,7 +162,7 @@ describe('bulkKick command', () => {
             role: createMockRole('role-123', 'empty-role'),
         })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkKickCommand.execute({ client: {} as never, interaction })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -181,7 +180,7 @@ describe('bulkKick command', () => {
             dryRun: true,
         })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkKickCommand.execute({ client: {} as never, interaction })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -197,7 +196,7 @@ describe('bulkKick command', () => {
         role.members.set('u1', { user: { bot: false } } as any)
         const interaction = createInteraction({ role })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkKickCommand.execute({ client: {} as never, interaction })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -213,7 +212,7 @@ describe('bulkKick command', () => {
         role.members.set('u1', { user: { bot: false } } as any)
         const interaction = createInteraction({ role })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkKickCommand.execute({ client: {} as never, interaction })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -243,7 +242,7 @@ describe('bulkKick command', () => {
             reason: 'raid cleanup',
         })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkKickCommand.execute({ client: {} as never, interaction })
 
         expect(batchJobServiceMock.create).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -277,7 +276,7 @@ describe('bulkKick command', () => {
         role.members.set('u1', { user: { bot: false } } as any)
         const interaction = createInteraction({ role })
 
-        await bulkKickCommand.execute({ interaction })
+        await bulkKickCommand.execute({ client: {} as never, interaction })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({

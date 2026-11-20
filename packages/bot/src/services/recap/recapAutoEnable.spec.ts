@@ -1,9 +1,8 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import type { Guild } from 'discord.js'
 
 type AnyFn = (...args: any[]) => any
-const resolveRecapChannelMock = jest.fn<AnyFn>()
-const autoEnableRecapMock = jest.fn<AnyFn>()
+const resolveRecapChannelMock = jest.fn()
+const autoEnableRecapMock = jest.fn()
 const infoLogMock = jest.fn()
 
 jest.mock('./recapScheduler', () => ({

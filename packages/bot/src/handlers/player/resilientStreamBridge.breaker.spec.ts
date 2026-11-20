@@ -1,5 +1,3 @@
-import { jest } from '@jest/globals'
-
 // Runs the real bridge against the real block breaker: one play that reaches
 // yt-dlp several times must add one failure to the streak, not one per
 // attempt, or a single bad upload switches YouTube off for every guild.

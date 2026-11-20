@@ -1,18 +1,11 @@
-import {
-    afterEach,
-    beforeEach,
-    describe,
-    expect,
-    it,
-    jest,
-} from '@jest/globals'
-
 const warnLogMock = jest.fn()
 
-const redisGetMock = jest.fn<(key: string) => Promise<string | null>>()
-const redisSetMock =
-    jest.fn<(key: string, value: string, ttl: number) => Promise<boolean>>()
-const redisHealthyMock = jest.fn<() => boolean>()
+const redisGetMock = jest.fn<Promise<string | null>, [key: string]>()
+const redisSetMock = jest.fn<
+    Promise<boolean>,
+    [key: string, value: string, ttl: number]
+>()
+const redisHealthyMock = jest.fn<boolean, []>()
 
 jest.mock('@lucky/shared/utils', () => ({
     warnLog: (...a: unknown[]) => warnLogMock(...a),
@@ -165,7 +158,10 @@ describe('reportSpotifyApiFailure', () => {
 
 describe('Spotify API block after a 429', () => {
     const realFetch = globalThis.fetch
-    const fetchMock = jest.fn<typeof fetch>()
+    const fetchMock = jest.fn<
+        ReturnType<typeof fetch>,
+        Parameters<typeof fetch>
+    >()
     let now = 0
 
     // Same flow as discord-player-spotify 1.1.9: fetchData() calls the global

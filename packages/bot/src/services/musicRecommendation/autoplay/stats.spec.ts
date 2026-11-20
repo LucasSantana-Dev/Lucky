@@ -1,4 +1,3 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import { getAutoplayStats, shouldEnableAutoplay } from './stats'
 
 jest.mock('@lucky/shared/utils', () => ({

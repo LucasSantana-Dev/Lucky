@@ -1,4 +1,3 @@
-import { describe, it, expect } from '@jest/globals'
 import { Collection } from 'discord.js'
 import {
     manifestOnboardingToDiscordEdit,
@@ -29,7 +28,10 @@ describe('onboarding mapper', () => {
 
         expect(payload?.enabled).toBe(true)
         expect(payload?.defaultChannels).toEqual(['123456789012345678'])
-        expect(payload?.prompts?.[0].title).toBe('Choose interests')
+        expect(
+            (payload?.prompts as unknown as Array<{ title: string }>)?.[0]
+                .title,
+        ).toBe('Choose interests')
     })
 
     it('maps discord onboarding to manifest shape', () => {

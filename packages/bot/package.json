@@ -12,6 +12,7 @@
         "sentry:test:dist": "node dist/scripts/sentryTestCli.js",
         "start": "node dist/index.js",
         "type:check": "npm run preflight && tsc --noEmit",
+        "type:check:tests": "npm run preflight && tsc -p tsconfig.spec.json",
         "test": "jest",
         "test:coverage": "jest --coverage",
         "test:mutation": "stryker run",

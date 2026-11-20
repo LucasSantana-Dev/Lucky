@@ -1,4 +1,3 @@
-import { describe, expect, it, jest } from '@jest/globals'
 import type { Message } from 'discord.js'
 import { MessagePipeline } from '../pipeline'
 import type { MessageContext, MessageHandler } from '../types'

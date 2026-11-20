@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
@@ -67,7 +65,7 @@ describe('/roleconfig', () => {
 
         const interaction = makeInteraction('set-exclusive', {}, false) as never
 
-        await roleConfigCommand.execute({ interaction })
+        await roleConfigCommand.execute({ client: {} as never, interaction })
 
         expect(requireGuild).toHaveBeenCalled()
     })
@@ -81,7 +79,10 @@ describe('/roleconfig', () => {
                 excluded_role: excludedRole,
             }) as never
 
-            await roleConfigCommand.execute({ interaction })
+            await roleConfigCommand.execute({
+                client: {} as never,
+                interaction,
+            })
 
             expect(handleSetExclusive).toHaveBeenCalledWith(interaction)
         })
@@ -96,7 +97,10 @@ describe('/roleconfig', () => {
                 excluded_role: excludedRole,
             }) as never
 
-            await roleConfigCommand.execute({ interaction })
+            await roleConfigCommand.execute({
+                client: {} as never,
+                interaction,
+            })
 
             expect(handleRemoveExclusive).toHaveBeenCalledWith(interaction)
         })
@@ -106,7 +110,10 @@ describe('/roleconfig', () => {
         test('delegates to handleListExclusive', async () => {
             const interaction = makeInteraction('list') as never
 
-            await roleConfigCommand.execute({ interaction })
+            await roleConfigCommand.execute({
+                client: {} as never,
+                interaction,
+            })
 
             expect(handleListExclusive).toHaveBeenCalledWith(interaction)
         })
@@ -123,7 +130,10 @@ describe('/roleconfig', () => {
                 excluded_role: excludedRole,
             }) as never
 
-            await roleConfigCommand.execute({ interaction })
+            await roleConfigCommand.execute({
+                client: {} as never,
+                interaction,
+            })
 
             const call = interactionReply.mock.calls[0][0] as {
                 content: { embeds?: Array<{ title: string }> }

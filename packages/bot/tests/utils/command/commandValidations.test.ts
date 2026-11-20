@@ -66,17 +66,18 @@ describe('commandValidations', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         getGuildSettingsMock.mockResolvedValue({})
-        errorEmbedMock.mockImplementation(
-            (_title: string, description: string) => ({
-                title: _title,
-                description,
-            }),
-        )
+        errorEmbedMock.mockImplementation(((
+            _title: string,
+            description: string,
+        ) => ({
+            title: _title,
+            description,
+        })) as never)
         interactionReplyMock.mockResolvedValue(undefined)
-        handleErrorMock.mockImplementation((err: Error) => ({
+        handleErrorMock.mockImplementation(((err: Error) => ({
             message: err.message,
             code: 'TEST_ERROR',
-        }))
+        })) as never)
     })
 
     describe('requireGuild', () => {
@@ -315,12 +316,16 @@ describe('commandValidations', () => {
 
         it('returns false and replies when member lacks DJ role', async () => {
             getGuildSettingsMock.mockResolvedValue({ djRoleId: 'role-dj' })
-            const member = createMockMember({ roles: { cache: { has: jest.fn().mockReturnValue(false) } } })
+            const member = createMockMember({
+                roles: { cache: { has: jest.fn().mockReturnValue(false) } },
+            } as never)
             const interaction = createInteraction({ member })
             const result = await requireDJRole(interaction, 'guild-1')
             expect(result).toBe(false)
             expect(interactionReplyMock).toHaveBeenCalledWith(
-                expect.objectContaining({ content: expect.objectContaining({ ephemeral: true }) }),
+                expect.objectContaining({
+                    content: expect.objectContaining({ ephemeral: true }),
+                }),
             )
         })
     })

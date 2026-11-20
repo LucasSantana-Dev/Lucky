@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import nowplayingCommand from './nowplaying'
 
 const requireQueueMock = jest.fn()
@@ -25,8 +24,10 @@ jest.mock('../../../services/musicManagement/queueResolver', () => ({
 }))
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
-    playerTrackToData: (...args: unknown[]) => playerTrackToDataMock(...args),
-    buildTrackEmbed: (...args: unknown[]) => buildTrackEmbedMock(...args),
+    playerTrackToData: (...args: Parameters<typeof playerTrackToDataMock>) =>
+        playerTrackToDataMock(...args),
+    buildTrackEmbed: (...args: Parameters<typeof buildTrackEmbedMock>) =>
+        buildTrackEmbedMock(...args),
 }))
 
 function makeInteraction() {
@@ -94,7 +95,8 @@ describe('nowplaying command', () => {
             length: 18,
             timecodes: true,
         })
-        const [, status, user, options] = buildTrackEmbedMock.mock.calls[0] as [
+        const [, status, user, options] = buildTrackEmbedMock.mock
+            .calls[0] as unknown as [
             unknown,
             string,
             unknown,
@@ -119,7 +121,8 @@ describe('nowplaying command', () => {
             interaction: makeInteraction(),
         } as any)
 
-        const [, , , options] = buildTrackEmbedMock.mock.calls[0] as [
+        const [, , , options] = buildTrackEmbedMock.mock
+            .calls[0] as unknown as [
             unknown,
             string,
             unknown,

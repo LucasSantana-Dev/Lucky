@@ -1,17 +1,16 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import { ButtonStyle, MessageFlags } from 'discord.js'
 import type { TFunction } from 'i18next'
 import type { ButtonInteraction } from 'discord.js'
 
 type AnyFn = (...args: any[]) => any
 
-const getWeeklyRecapMock = jest.fn<AnyFn>()
-const searchMock = jest.fn<AnyFn>()
-const playMock = jest.fn<AnyFn>()
-const addTrackMock = jest.fn<AnyFn>()
+const getWeeklyRecapMock = jest.fn()
+const searchMock = jest.fn()
+const playMock = jest.fn()
+const addTrackMock = jest.fn()
 const recapMixPlayedTotalIncMock = jest.fn()
 const errorLogMock = jest.fn()
-const resolveGuildQueueMock = jest.fn<AnyFn>()
+const resolveGuildQueueMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     getWeeklyRecap: (...a: unknown[]) => getWeeklyRecapMock(...a),
@@ -80,8 +79,8 @@ function makeInteraction(inVoice = true) {
                     : null,
             },
         },
-        deferUpdate: jest.fn<AnyFn>().mockResolvedValue(undefined),
-        followUp: jest.fn<AnyFn>().mockResolvedValue(undefined),
+        deferUpdate: jest.fn().mockResolvedValue(undefined),
+        followUp: jest.fn().mockResolvedValue(undefined),
     }
 }
 

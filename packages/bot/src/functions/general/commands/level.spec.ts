@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 const levelServiceMock = {
     addReward: jest.fn(),
     removeReward: jest.fn(),
@@ -105,7 +103,7 @@ describe('/level', () => {
                 role: { id: 'role-123' },
             }) as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             expect(levelServiceMock.addReward).toHaveBeenCalledWith(
                 'guild-1',
@@ -124,7 +122,7 @@ describe('/level', () => {
                 role: { id: 'role-999' },
             }) as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             const call = interactionReply.mock.calls[0][0] as {
                 content: { embeds: Array<{ description: string }> }
@@ -139,7 +137,7 @@ describe('/level', () => {
                 level: 10,
             }) as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             expect(levelServiceMock.removeReward).toHaveBeenCalledWith(
                 'guild-1',
@@ -162,7 +160,7 @@ describe('/level', () => {
 
             const interaction = makeInteraction('null', 'rank') as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             expect(levelServiceMock.getMemberXP).toHaveBeenCalledWith(
                 'guild-1',
@@ -183,7 +181,7 @@ describe('/level', () => {
                 user: targetUser,
             }) as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             expect(levelServiceMock.getMemberXP).toHaveBeenCalledWith(
                 'guild-1',
@@ -197,7 +195,7 @@ describe('/level', () => {
 
             const interaction = makeInteraction('null', 'rank') as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             expect(interactionReply).toHaveBeenCalledTimes(1)
         })
@@ -209,7 +207,7 @@ describe('/level', () => {
 
             const interaction = makeInteraction('null', 'leaderboard') as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             const call = interactionReply.mock.calls[0][0] as {
                 content: { embeds: Array<{ title: string }> }
@@ -225,7 +223,7 @@ describe('/level', () => {
 
             const interaction = makeInteraction('null', 'leaderboard') as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             expect(interactionReply).toHaveBeenCalledTimes(1)
             const call = interactionReply.mock.calls[0][0] as {
@@ -244,7 +242,7 @@ describe('/level', () => {
 
             const interaction = makeInteraction('null', 'leaderboard') as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             const call = interactionReply.mock.calls[0][0] as {
                 content: { components?: Array<{ type: string }> }
@@ -264,7 +262,7 @@ describe('/level', () => {
                 'cooldown-seconds': 120,
             }) as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             expect(levelServiceMock.upsertConfig).toHaveBeenCalledWith(
                 'guild-1',
@@ -284,7 +282,7 @@ describe('/level', () => {
                 'announce-channel': channel,
             }) as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             expect(levelServiceMock.upsertConfig).toHaveBeenCalledWith(
                 'guild-1',
@@ -300,7 +298,7 @@ describe('/level', () => {
                 'cooldown-seconds': 30,
             }) as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             const call = interactionReply.mock.calls[0][0] as {
                 content: { embeds: Array<{ description: string }> }
@@ -318,10 +316,13 @@ describe('/level', () => {
 
             const interaction = makeInteraction('null', 'rank') as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             const call = interactionReply.mock.calls[0][0] as {
-                content: { embeds: Array<{ title: string }> }
+                content: {
+                    embeds: Array<{ title: string }>
+                    ephemeral?: boolean
+                }
             }
             expect(call.content.embeds[0].title).toContain('Error')
             expect(call.content.ephemeral).toBe(true)
@@ -342,7 +343,7 @@ describe('/level', () => {
                 false,
             ) as never
 
-            await levelCommand.execute({ interaction })
+            await levelCommand.execute({ client: {} as never, interaction })
 
             expect(requireGuild).toHaveBeenCalled()
         })

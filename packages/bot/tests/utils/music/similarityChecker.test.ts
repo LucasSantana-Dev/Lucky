@@ -71,12 +71,11 @@ describe('similarityChecker', () => {
                 title: 'Bohemian Rhapsody Official',
                 author: 'Queen',
             })
-            const track2: TrackHistoryEntry = {
+            const track2 = {
                 title: 'Bohemian Rhapsody',
                 author: 'Queen',
                 url: 'https://youtube.com/watch?v=xyz',
-                playedAt: Date.now(),
-            }
+            } as TrackHistoryEntry
             const similarity = calculateStringSimilarity(
                 track1.title.toLowerCase(),
                 track2.title.toLowerCase(),
@@ -113,14 +112,13 @@ describe('similarityChecker', () => {
                 title: 'Unique Song',
                 author: 'Unknown',
             })
-            const history: TrackHistoryEntry[] = [
+            const history = [
                 {
                     title: 'Different Song',
                     author: 'Other Artist',
                     url: 'https://example.com',
-                    playedAt: Date.now(),
                 },
-            ]
+            ] as TrackHistoryEntry[]
             expect(
                 findSimilarTracks(track, history, defaultSimilarityConfig),
             ).toHaveLength(0)
@@ -131,20 +129,18 @@ describe('similarityChecker', () => {
                 title: 'Bohemian Rhapsody',
                 author: 'Queen',
             })
-            const history: TrackHistoryEntry[] = [
+            const history = [
                 {
                     title: 'Bohemian Rhapsody',
                     author: 'Queen',
                     url: 'https://youtube.com/1',
-                    playedAt: Date.now() - 60000,
                 },
                 {
                     title: 'Another Song',
                     author: 'Other',
                     url: 'https://youtube.com/2',
-                    playedAt: Date.now() - 120000,
                 },
-            ]
+            ] as TrackHistoryEntry[]
             const similar = findSimilarTracks(
                 track,
                 history,

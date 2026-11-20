@@ -1,11 +1,31 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import autoroleCommand from './autorole'
 
 const interactionReplyMock = jest.fn()
-const createSuccessEmbedMock = jest.fn((title: string, description: string) => ({ type: 'success', title, description }))
-const createErrorEmbedMock = jest.fn((title: string, description: string) => ({ type: 'error', title, description }))
-const createInfoEmbedMock = jest.fn((title: string, description: string) => ({ type: 'info', title, description }))
-const buildListPageEmbedMock = jest.fn((items: unknown, page: unknown, config: unknown) => ({ type: 'listpage', items, page, config }))
+const createSuccessEmbedMock = jest.fn(
+    (title: string, description: string) => ({
+        type: 'success',
+        title,
+        description,
+    }),
+)
+const createErrorEmbedMock = jest.fn((title: string, description: string) => ({
+    type: 'error',
+    title,
+    description,
+}))
+const createInfoEmbedMock = jest.fn((title: string, description: string) => ({
+    type: 'info',
+    title,
+    description,
+}))
+const buildListPageEmbedMock = jest.fn(
+    (items: unknown, page: unknown, config: unknown) => ({
+        type: 'listpage',
+        items,
+        page,
+        config,
+    }),
+)
 const requireGuildMock = jest.fn()
 const addMock = jest.fn()
 const removeMock = jest.fn()
@@ -16,13 +36,17 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
-    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
-    createInfoEmbed: (...args: unknown[]) => createInfoEmbedMock(...args),
+    createSuccessEmbed: (...args: Parameters<typeof createSuccessEmbedMock>) =>
+        createSuccessEmbedMock(...args),
+    createErrorEmbed: (...args: Parameters<typeof createErrorEmbedMock>) =>
+        createErrorEmbedMock(...args),
+    createInfoEmbed: (...args: Parameters<typeof createInfoEmbedMock>) =>
+        createInfoEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/general/responseEmbeds', () => ({
-    buildListPageEmbed: (...args: unknown[]) => buildListPageEmbedMock(...args),
+    buildListPageEmbed: (...args: Parameters<typeof buildListPageEmbedMock>) =>
+        buildListPageEmbedMock(...args),
 }))
 
 jest.mock('../../../utils/command/commandValidations', () => ({
@@ -41,7 +65,10 @@ jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
 }))
 
-function createInteraction(subcommand: string, opts: Record<string, unknown> = {}) {
+function createInteraction(
+    subcommand: string,
+    opts: Record<string, unknown> = {},
+) {
     return {
         guild: { id: 'guild-1' },
         options: {
@@ -73,6 +100,7 @@ describe('autorole command', () => {
         })
 
         await autoroleCommand.execute({
+            client: {} as never,
             interaction: createInteraction('add') as any,
         })
 
@@ -93,6 +121,7 @@ describe('autorole command', () => {
         interaction.options.getInteger = () => 30
 
         await autoroleCommand.execute({
+            client: {} as never,
             interaction: interaction as any,
         })
 
@@ -103,6 +132,7 @@ describe('autorole command', () => {
         removeMock.mockResolvedValue(undefined)
 
         await autoroleCommand.execute({
+            client: {} as never,
             interaction: createInteraction('remove') as any,
         })
 
@@ -122,6 +152,7 @@ describe('autorole command', () => {
         ])
 
         await autoroleCommand.execute({
+            client: {} as never,
             interaction: createInteraction('list') as any,
         })
 

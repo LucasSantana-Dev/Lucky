@@ -1,4 +1,3 @@
-import { describe, expect, it, beforeEach, jest } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import type { Guild, Client } from 'discord.js'
 
@@ -45,10 +44,10 @@ describe('lastfmScrobbler', () => {
 
         mockGuild = {
             id: 'guild-123',
-        }
+        } as never
 
         mockClient = {
-            user: { id: 'bot-id', username: 'Lucky' },
+            user: { id: 'bot-id', username: 'Lucky' } as never,
         }
 
         mockTrack = {
@@ -59,12 +58,12 @@ describe('lastfmScrobbler', () => {
             requestedBy: {
                 id: 'user-123',
                 username: 'TestUser',
-            },
+            } as never,
         }
 
         mockQueue = {
             guild: mockGuild as Guild,
-            player: { client: mockClient as Client },
+            player: { client: mockClient as Client } as never,
             metadata: { requestedBy: { id: 'user-123' } },
             currentTrack: mockTrack as Track,
         }
@@ -76,7 +75,7 @@ describe('lastfmScrobbler', () => {
             artist: 'Test Artist',
             title: 'Test Track',
             duration: 180,
-        })
+        } as never)
         mockLastFm.isLastFmInvalidSessionError.mockReturnValue(false)
         mockLastFm.updateNowPlaying.mockResolvedValue(undefined)
         mockLastFm.scrobble.mockResolvedValue(undefined)
@@ -136,7 +135,10 @@ describe('lastfmScrobbler', () => {
         })
 
         it('disallows env fallback for identified requesters', async () => {
-            mockTrack.requestedBy = { id: 'user-123', username: 'User' }
+            mockTrack.requestedBy = {
+                id: 'user-123',
+                username: 'User',
+            } as never
 
             await updateLastFmNowPlaying(
                 mockQueue as GuildQueue,
@@ -206,7 +208,7 @@ describe('lastfmScrobbler', () => {
         })
 
         it('handles tracks with zero duration', async () => {
-            mockTrack.durationMS = 0
+            ;(mockTrack as { durationMS: unknown }).durationMS = 0
 
             await updateLastFmNowPlaying(
                 mockQueue as GuildQueue,
@@ -228,18 +230,19 @@ describe('lastfmScrobbler', () => {
                 author: 'Artist A',
                 url: 'https://spotify.com/track/A',
                 durationMS: 180000,
-                requestedBy: { id: 'user-123', username: 'User' },
+                requestedBy: { id: 'user-123', username: 'User' } as never,
             }
             const trackB: Partial<Track> = {
                 title: 'Track B',
                 author: 'Artist B',
                 url: 'https://spotify.com/track/B',
                 durationMS: 180000,
-                requestedBy: { id: 'user-123', username: 'User' },
+                requestedBy: { id: 'user-123', username: 'User' } as never,
             }
 
             // Track A is current and its now-playing request completes normally.
-            mockQueue.currentTrack = trackA as Track
+            ;(mockQueue as { currentTrack: unknown }).currentTrack =
+                trackA as Track
             await updateLastFmNowPlaying(
                 mockQueue as GuildQueue,
                 trackA as Track,
@@ -251,7 +254,8 @@ describe('lastfmScrobbler', () => {
             mockLastFm.updateNowPlaying.mockResolvedValue(undefined)
 
             // Track B is now current
-            mockQueue.currentTrack = trackB as Track
+            ;(mockQueue as { currentTrack: unknown }).currentTrack =
+                trackB as Track
             // If updateLastFmNowPlaying for Track B is called after A but completed before A,
             // it should store B's timing. But we're simulating a late completion where
             // updateNowPlaying for Track A completes AFTER Track B's completes.
@@ -262,7 +266,8 @@ describe('lastfmScrobbler', () => {
             __setLastFmTrackStartTime('guild-123', trackBTimestamp)
 
             // Now simulate Track A's late completion by calling with A but queue.currentTrack is B
-            mockQueue.currentTrack = trackB as Track
+            ;(mockQueue as { currentTrack: unknown }).currentTrack =
+                trackB as Track
             await updateLastFmNowPlaying(
                 mockQueue as GuildQueue,
                 trackA as Track, // Track A's request completes now
@@ -300,7 +305,7 @@ describe('lastfmScrobbler', () => {
         })
 
         it('returns early when no track is available', async () => {
-            mockQueue.currentTrack = undefined
+            ;(mockQueue as { currentTrack: unknown }).currentTrack = undefined
 
             await scrobbleCurrentTrackIfLastFm(mockQueue as GuildQueue)
 
@@ -312,7 +317,7 @@ describe('lastfmScrobbler', () => {
                 title: 'Other Track',
                 author: 'Other Artist',
                 durationMS: 240000,
-                requestedBy: { id: 'user-456', username: 'Other' },
+                requestedBy: { id: 'user-456', username: 'Other' } as never,
             }
 
             await scrobbleCurrentTrackIfLastFm(
@@ -378,7 +383,10 @@ describe('lastfmScrobbler', () => {
         })
 
         it('disallows env fallback for identified requesters', async () => {
-            mockTrack.requestedBy = { id: 'user-123', username: 'User' }
+            mockTrack.requestedBy = {
+                id: 'user-123',
+                username: 'User',
+            } as never
 
             await scrobbleCurrentTrackIfLastFm(mockQueue as GuildQueue)
 
@@ -436,7 +444,7 @@ describe('lastfmScrobbler', () => {
         })
 
         it('handles tracks with zero duration', async () => {
-            mockTrack.durationMS = 0
+            ;(mockTrack as { durationMS: unknown }).durationMS = 0
 
             await scrobbleCurrentTrackIfLastFm(mockQueue as GuildQueue)
 
@@ -478,7 +486,7 @@ describe('lastfmScrobbler', () => {
         })
 
         it('caps the requirement at 4 minutes for a long track', async () => {
-            mockTrack.durationMS = 20 * 60 * 1000
+            ;(mockTrack as { durationMS: unknown }).durationMS = 20 * 60 * 1000
 
             await scrobbleAfter(239)
             expect(mockLastFm.scrobble).not.toHaveBeenCalled()
@@ -488,17 +496,17 @@ describe('lastfmScrobbler', () => {
         })
 
         it('never scrobbles a track of 30 seconds or less', async () => {
-            mockTrack.durationMS = 30_000
+            ;(mockTrack as { durationMS: unknown }).durationMS = 30_000
 
             await scrobbleAfter(30)
-            mockTrack.durationMS = 20_000
+            ;(mockTrack as { durationMS: unknown }).durationMS = 20_000
             await scrobbleAfter(20)
 
             expect(mockLastFm.scrobble).not.toHaveBeenCalled()
         })
 
         it('does not scrobble a 30 second track even when played longer than 30 seconds', async () => {
-            mockTrack.durationMS = 30_000
+            ;(mockTrack as { durationMS: unknown }).durationMS = 30_000
 
             await scrobbleAfter(31)
             await scrobbleAfter(60)
@@ -507,7 +515,7 @@ describe('lastfmScrobbler', () => {
         })
 
         it('scrobbles a 31 second track once half of it has played', async () => {
-            mockTrack.durationMS = 31_000
+            ;(mockTrack as { durationMS: unknown }).durationMS = 31_000
 
             await scrobbleAfter(15)
             expect(mockLastFm.scrobble).not.toHaveBeenCalled()
@@ -517,7 +525,7 @@ describe('lastfmScrobbler', () => {
         })
 
         it('with unknown duration requires the 4 minute bound', async () => {
-            mockTrack.durationMS = 0
+            ;(mockTrack as { durationMS: unknown }).durationMS = 0
 
             await scrobbleAfter(120)
             expect(mockLastFm.scrobble).not.toHaveBeenCalled()
@@ -527,7 +535,7 @@ describe('lastfmScrobbler', () => {
         })
 
         it('scrobbles without any check when the play time is unknown (playedSeconds omitted)', async () => {
-            mockTrack.durationMS = 20_000
+            ;(mockTrack as { durationMS: unknown }).durationMS = 20_000
 
             await scrobbleAfter(undefined)
 

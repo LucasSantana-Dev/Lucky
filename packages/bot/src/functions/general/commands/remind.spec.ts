@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
     errorLog: jest.fn(),
@@ -161,6 +159,7 @@ describe('/remind command', () => {
 
     test('rejects when not in a guild', async () => {
         await remindCommand.execute({
+            client: {} as never,
             interaction: makeInteraction(
                 'set',
                 '10m',
@@ -177,6 +176,7 @@ describe('/remind command', () => {
 
     test('set: rejects invalid tempo format', async () => {
         await remindCommand.execute({
+            client: {} as never,
             interaction: makeInteraction(
                 'set',
                 'invalid',
@@ -191,6 +191,7 @@ describe('/remind command', () => {
 
     test('set: rejects tempo > 30 days', async () => {
         await remindCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('set', '31d', 'Test message') as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -201,6 +202,7 @@ describe('/remind command', () => {
 
     test('set: creates reminder and confirms ephemeral', async () => {
         await remindCommand.execute({
+            client: {} as never,
             interaction: makeInteraction(
                 'set',
                 '10m',
@@ -224,6 +226,7 @@ describe('/remind command', () => {
     test('list: shows empty message when no reminders', async () => {
         reminderServiceMock.listPending.mockResolvedValue([])
         await remindCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('list') as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -248,6 +251,7 @@ describe('/remind command', () => {
             },
         ])
         await remindCommand.execute({
+            client: {} as never,
             interaction: makeInteraction('list') as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -264,6 +268,7 @@ describe('/remind command', () => {
     test('delete: rejects when reminder not found', async () => {
         reminderServiceMock.listPending.mockResolvedValue([])
         await remindCommand.execute({
+            client: {} as never,
             interaction: makeInteraction(
                 'delete',
                 undefined,
@@ -280,6 +285,7 @@ describe('/remind command', () => {
 
     test('channel: rejects without Manage Server permission', async () => {
         await remindCommand.execute({
+            client: {} as never,
             interaction: makeBroadcastInteraction('channel', {
                 canManage: false,
             }) as never,
@@ -293,6 +299,7 @@ describe('/remind command', () => {
 
     test('channel: creates a channel-scoped reminder for a manager', async () => {
         await remindCommand.execute({
+            client: {} as never,
             interaction: makeBroadcastInteraction('channel') as never,
         })
         expect(reminderServiceMock.create).toHaveBeenCalledWith(
@@ -307,6 +314,7 @@ describe('/remind command', () => {
 
     test('role: creates a role-scoped reminder carrying the roleId', async () => {
         await remindCommand.execute({
+            client: {} as never,
             interaction: makeBroadcastInteraction('role') as never,
         })
         expect(reminderServiceMock.create).toHaveBeenCalledWith(
@@ -334,6 +342,7 @@ describe('/remind command', () => {
             reminder,
         ])
         await remindCommand.execute({
+            client: {} as never,
             interaction: makeInteraction(
                 'delete',
                 undefined,
@@ -405,6 +414,7 @@ describe('remind in DMs (#2619)', () => {
             row({ id: 'bbbbbbbb2', guildId: 'gone' }),
         ] as never)
         await remindCommand.execute({
+            client: {} as never,
             interaction: dmInteraction(
                 'list',
                 undefined,
@@ -427,6 +437,7 @@ describe('remind in DMs (#2619)', () => {
 
     test('list empty state in DM', async () => {
         await remindCommand.execute({
+            client: {} as never,
             interaction: dmInteraction('list') as never,
         })
         const args = interactionReply.mock.calls[0][0] as {
@@ -442,6 +453,7 @@ describe('remind in DMs (#2619)', () => {
             row({}),
         ] as never)
         await remindCommand.execute({
+            client: {} as never,
             interaction: dmInteraction('delete', 'abc12345') as never,
         })
         expect(reminderServiceMock.findPendingByIdPrefix).toHaveBeenCalledWith(
@@ -464,6 +476,7 @@ describe('remind in DMs (#2619)', () => {
         '%s is rejected in DM',
         async (sub) => {
             await remindCommand.execute({
+                client: {} as never,
                 interaction: dmInteraction(sub) as never,
             })
             const args = interactionReply.mock.calls[0][0] as {

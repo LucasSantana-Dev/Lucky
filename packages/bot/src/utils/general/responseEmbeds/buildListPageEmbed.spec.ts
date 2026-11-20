@@ -1,4 +1,3 @@
-import { describe, it, expect } from '@jest/globals'
 import { buildListPageEmbed } from './buildListPageEmbed'
 
 describe('buildListPageEmbed', () => {

@@ -1,4 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
 import {
     ChannelType,
     PermissionFlagsBits,
@@ -6,17 +5,17 @@ import {
 } from 'discord.js'
 
 type AnyFn = (...args: any[]) => any
-const listDueRecapsMock = jest.fn<AnyFn>()
-const claimRecapWeekMock = jest.fn<AnyFn>()
-const releaseRecapWeekMock = jest.fn<AnyFn>()
-const disableRecapMock = jest.fn<AnyFn>()
-const getWeeklyRecapMock = jest.fn<AnyFn>()
-const renderRecapCardMock = jest.fn<AnyFn>()
-const fallbackIncMock = jest.fn<AnyFn>()
-const fallbackLabelsMock = jest.fn<AnyFn>(() => ({ inc: fallbackIncMock }))
-const cardPostedIncMock = jest.fn<AnyFn>()
-const warnLogMock = jest.fn<AnyFn>()
-const infoLogMock = jest.fn<AnyFn>()
+const listDueRecapsMock = jest.fn()
+const claimRecapWeekMock = jest.fn()
+const releaseRecapWeekMock = jest.fn()
+const disableRecapMock = jest.fn()
+const getWeeklyRecapMock = jest.fn()
+const renderRecapCardMock = jest.fn()
+const fallbackIncMock = jest.fn()
+const fallbackLabelsMock = jest.fn(() => ({ inc: fallbackIncMock }))
+const cardPostedIncMock = jest.fn()
+const warnLogMock = jest.fn()
+const infoLogMock = jest.fn()
 
 jest.mock('./recapStore', () => ({
     listDueRecaps: (...a: unknown[]) => listDueRecapsMock(...a),
@@ -43,7 +42,8 @@ jest.mock('./recapCard', () => ({
 jest.mock('../../utils/monitoring/prometheus', () => ({
     recapCardPostedTotal: { inc: () => cardPostedIncMock() },
     renderFallbackTotal: {
-        labels: (...a: unknown[]) => fallbackLabelsMock(...a),
+        labels: (...a: Parameters<typeof fallbackLabelsMock>) =>
+            fallbackLabelsMock(...a),
     },
 }))
 
@@ -95,7 +95,7 @@ function makeClient(
         perms = ALL_RECAP_PERMS,
         fetchError,
         me = {},
-        fetchMe = jest.fn<AnyFn>().mockRejectedValue(new Error('gateway')),
+        fetchMe = jest.fn().mockRejectedValue(new Error('gateway')),
     }: {
         perms?: bigint[]
         fetchError?: unknown
@@ -103,7 +103,7 @@ function makeClient(
         fetchMe?: AnyFn
     } = {},
 ) {
-    const send = jest.fn<AnyFn>().mockResolvedValue(undefined)
+    const send = jest.fn().mockResolvedValue(undefined)
     const ch =
         channel === 'text'
             ? {
@@ -114,8 +114,8 @@ function makeClient(
               }
             : channel
     const fetch = fetchError
-        ? jest.fn<AnyFn>().mockRejectedValue(fetchError)
-        : jest.fn<AnyFn>().mockResolvedValue(ch)
+        ? jest.fn().mockRejectedValue(fetchError)
+        : jest.fn().mockResolvedValue(ch)
     const guild = {
         id: 'g-1',
         members: { me, fetchMe },
@@ -273,7 +273,7 @@ describe('RecapScheduler (#2678)', () => {
         getWeeklyRecapMock.mockResolvedValue(recap(12))
         const { client, send } = makeClient('text', {
             me: null,
-            fetchMe: jest.fn<AnyFn>().mockResolvedValue({}),
+            fetchMe: jest.fn().mockResolvedValue({}),
         })
 
         await runTick(client)

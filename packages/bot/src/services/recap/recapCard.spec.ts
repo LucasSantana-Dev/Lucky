@@ -1,11 +1,9 @@
-import { describe, expect, it, jest } from '@jest/globals'
-
 type AnyFn = (...args: any[]) => any
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const debugLogMock = jest.fn<AnyFn>()
-const warnLogMock = jest.fn<AnyFn>()
+const debugLogMock = jest.fn()
+const warnLogMock = jest.fn()
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...a: unknown[]) => debugLogMock(...a),
     errorLog: jest.fn(),
@@ -50,10 +48,10 @@ const cardTracks = [
 ]
 
 function coverFetch() {
-    return jest.fn<AnyFn>(async (url: string) => {
+    return jest.fn(async (url: string, _init?: unknown) => {
         if (String(url).startsWith('https://i.scdn.co/')) {
             return new Response(
-                Uint8Array.from([0xff, 0xd8, 0xff, 9]) as BodyInit,
+                Uint8Array.from([0xff, 0xd8, 0xff, 9]) as never,
                 {
                     headers: { 'content-type': 'image/jpeg' },
                 },
@@ -67,7 +65,7 @@ describe('buildRecapCardPayload', () => {
     it('adds covers only where a safe thumbnail exists and sanitizes text', async () => {
         const payload = await buildRecapCardPayload(recap, {
             fetch: asFetch(coverFetch()),
-            getCardTracks: jest.fn<AnyFn>().mockResolvedValue(cardTracks),
+            getCardTracks: jest.fn().mockResolvedValue(cardTracks),
         })
 
         expect(payload.topTracks[0]).toEqual({
@@ -87,7 +85,7 @@ describe('buildRecapCardPayload', () => {
         debugLogMock.mockClear()
         await buildRecapCardPayload(recap, {
             fetch: asFetch(coverFetch()),
-            getCardTracks: jest.fn<AnyFn>().mockResolvedValue(cardTracks),
+            getCardTracks: jest.fn().mockResolvedValue(cardTracks),
         })
 
         // 2 thumbnails wanted (one is off-allowlist), 1 cover obtained.
@@ -102,7 +100,7 @@ describe('buildRecapCardPayload', () => {
         const shared = 'https://i.scdn.co/image/album'
         const payload = await buildRecapCardPayload(recap, {
             fetch: asFetch(fetchFn),
-            getCardTracks: jest.fn<AnyFn>().mockResolvedValue([
+            getCardTracks: jest.fn().mockResolvedValue([
                 { title: 'A', author: 'X', plays: 3, thumbnail: shared },
                 { title: 'B', author: 'X', plays: 2, thumbnail: null },
                 { title: 'C', author: 'X', plays: 2, thumbnail: shared },
@@ -124,9 +122,9 @@ describe('buildRecapCardPayload', () => {
         const big = Uint8Array.from({ length: 64 * 1024 }, (_, i) =>
             i < 3 ? [0xff, 0xd8, 0xff][i] : 7,
         )
-        const fetchFn = jest.fn<AnyFn>(
+        const fetchFn = jest.fn(
             async () =>
-                new Response(big as BodyInit, {
+                new Response(big as never, {
                     headers: { 'content-type': 'image/jpeg' },
                 }),
         )
@@ -146,7 +144,7 @@ describe('buildRecapCardPayload', () => {
             },
             {
                 fetch: asFetch(fetchFn),
-                getCardTracks: jest.fn<AnyFn>().mockResolvedValue(tracks),
+                getCardTracks: jest.fn().mockResolvedValue(tracks),
             },
         )
 
@@ -160,7 +158,7 @@ describe('buildRecapCardPayload', () => {
         const fetchFn = coverFetch()
         const payload = await buildRecapCardPayload(recap, {
             fetch: asFetch(fetchFn),
-            getCardTracks: jest.fn<AnyFn>().mockRejectedValue(new Error('db')),
+            getCardTracks: jest.fn().mockRejectedValue(new Error('db')),
         })
 
         expect(payload.topTracks).toEqual([
@@ -173,9 +171,9 @@ describe('buildRecapCardPayload', () => {
 describe('renderRecapCard', () => {
     it('posts the payload and returns the sidecar JPEG', async () => {
         const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 1])
-        const fetchFn = jest.fn<AnyFn>(async (url: string) =>
+        const fetchFn = jest.fn(async (url: string) =>
             String(url).endsWith('/render/recap')
-                ? new Response(jpeg as BodyInit, {
+                ? new Response(jpeg as never, {
                       status: 200,
                       headers: { 'content-type': 'image/jpeg' },
                   })
@@ -184,7 +182,7 @@ describe('renderRecapCard', () => {
 
         const out = await renderRecapCard(recap, {
             fetch: asFetch(fetchFn),
-            getCardTracks: jest.fn<AnyFn>().mockResolvedValue(cardTracks),
+            getCardTracks: jest.fn().mockResolvedValue(cardTracks),
             renderBaseUrl: 'http://render:8080',
         })
 
@@ -192,13 +190,19 @@ describe('renderRecapCard', () => {
         const render = fetchFn.mock.calls.find((c) =>
             String(c[0]).endsWith('/render/recap'),
         )
-        expect(JSON.parse(render?.[1].body).guildId).toBe('g-1')
+        expect(
+            JSON.parse(
+                String(
+                    (render as unknown as [string, { body: string }])[1].body,
+                ),
+            ).guildId,
+        ).toBe('g-1')
     })
 
     it('never throws: an unexpected error is logged and becomes bad_response', async () => {
         warnLogMock.mockClear()
         const out = await renderRecapCard(recap, {
-            getCardTracks: jest.fn<AnyFn>().mockResolvedValue(null),
+            getCardTracks: jest.fn().mockResolvedValue(null),
         })
         expect(out).toEqual({ ok: false, reason: 'bad_response' })
         expect(warnLogMock).toHaveBeenCalledWith({
@@ -315,7 +319,7 @@ describe('lucky-render contract (recap.schema.json)', () => {
         ) as JsonSchema
         const payload = await buildRecapCardPayload(recap, {
             fetch: asFetch(coverFetch()),
-            getCardTracks: jest.fn<AnyFn>().mockResolvedValue(cardTracks),
+            getCardTracks: jest.fn().mockResolvedValue(cardTracks),
         })
 
         assertMatches(payload as unknown as Record<string, unknown>, schema)

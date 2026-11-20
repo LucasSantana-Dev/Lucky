@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
-const getByDiscordIdMock = jest.fn<(discordId: string) => Promise<unknown>>()
-const unlinkMock =
-    jest.fn<(discordId: string, sessionKey: string) => Promise<string>>()
-const infoLogMock = jest.fn<(payload: unknown) => void>()
-const warnLogMock = jest.fn<(payload: unknown) => void>()
-const errorLogMock = jest.fn<(payload: unknown) => void>()
+const getByDiscordIdMock = jest.fn<Promise<unknown>, [discordId: string]>()
+const unlinkMock = jest.fn<
+    Promise<string>,
+    [discordId: string, sessionKey: string]
+>()
+const infoLogMock = jest.fn<void, [payload: unknown]>()
+const warnLogMock = jest.fn<void, [payload: unknown]>()
+const errorLogMock = jest.fn<void, [payload: unknown]>()
 
 jest.mock('@lucky/shared/services', () => ({
     lastFmLinkService: {

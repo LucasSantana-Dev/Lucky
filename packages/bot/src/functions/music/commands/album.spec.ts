@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 jest.mock('discord-player', () => ({
     QueryType: {
         AUTO: 'AUTO',
@@ -121,7 +119,7 @@ describe('album command album resolution', () => {
                 url: ALBUM_URL,
             },
         ])
-        const search = jest.fn(async () => ({
+        const search = jest.fn(async (..._a: unknown[]) => ({
             tracks: [createTrack('Come Together'), createTrack('Something')],
             playlist: { title: 'Abbey Road' },
         }))
@@ -150,7 +148,7 @@ describe('album command album resolution', () => {
                 url: ALBUM_URL,
             },
         ])
-        const search = jest.fn(async () => ({
+        const search = jest.fn(async (..._a: unknown[]) => ({
             tracks: [createTrack('Come Together')],
             playlist: { title: 'Abbey Road' },
         }))
@@ -182,7 +180,7 @@ describe('album command album resolution', () => {
             },
             { id: 'av', name: 'Esquinas', artist: 'ANAVITÓRIA', url: wanted },
         ])
-        const search = jest.fn(async () => ({
+        const search = jest.fn(async (..._a: unknown[]) => ({
             tracks: [createTrack('Lisboa')],
             playlist: { title: 'Esquinas' },
         }))
@@ -209,7 +207,7 @@ describe('album command album resolution', () => {
                 url: ALBUM_URL,
             },
         ])
-        const search = jest.fn(async () => ({
+        const search = jest.fn(async (..._a: unknown[]) => ({
             tracks: [createTrack('Come Together')],
             playlist: { title: 'Abbey Road' },
         }))
@@ -228,7 +226,7 @@ describe('album command album resolution', () => {
     })
 
     it('passes a Spotify album URL straight through without a lookup', async () => {
-        const search = jest.fn(async () => ({
+        const search = jest.fn(async (..._a: unknown[]) => ({
             tracks: [createTrack('Come Together')],
             playlist: { title: 'Abbey Road' },
         }))
@@ -286,7 +284,7 @@ describe('album command album resolution', () => {
 
     it('shuffles the album when the shuffle option is on', async () => {
         const titles = ['One', 'Two', 'Three', 'Four']
-        const search = jest.fn(async () => ({
+        const search = jest.fn(async (..._a: unknown[]) => ({
             tracks: titles.map(createTrack),
             playlist: { title: 'Abbey Road' },
         }))
@@ -320,7 +318,7 @@ describe('album command album resolution', () => {
     it('puts the album at the front of the queue with the next option', async () => {
         const first = createTrack('One')
         const rest = [createTrack('Two'), createTrack('Three')]
-        const search = jest.fn(async () => ({
+        const search = jest.fn(async (..._a: unknown[]) => ({
             tracks: [first, ...rest],
             playlist: { title: 'Abbey Road' },
         }))
@@ -386,7 +384,7 @@ describe('album command album resolution', () => {
         ;(resolveGuildQueue as jest.Mock).mockReturnValue({
             queue: { addTrack },
         })
-        const search = jest.fn(async () => ({
+        const search = jest.fn(async (..._a: unknown[]) => ({
             tracks: [
                 createTrack('Come Together'),
                 asmr,
@@ -412,7 +410,7 @@ describe('album command album resolution', () => {
 
     it('says ASMR is blocked when the whole album is ASMR (#3001)', async () => {
         const play = jest.fn()
-        const search = jest.fn(async () => ({
+        const search = jest.fn(async (..._a: unknown[]) => ({
             tracks: [{ ...createTrack('Rain ASMR'), author: 'Sleepy' }],
             playlist: { title: 'Sleep' },
         }))

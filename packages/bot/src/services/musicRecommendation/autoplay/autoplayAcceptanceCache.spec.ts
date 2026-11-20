@@ -1,5 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
-
 const getPerSourceAcceptanceMock = jest.fn()
 
 jest.mock('@lucky/shared/services/recommendationTelemetryReadService', () => ({

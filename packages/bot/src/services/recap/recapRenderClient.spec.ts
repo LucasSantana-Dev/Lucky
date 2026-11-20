@@ -1,4 +1,3 @@
-import { describe, expect, it, jest } from '@jest/globals'
 import {
     RENDER_MAX_RESPONSE_BYTES,
     requestRecapCard,
@@ -12,7 +11,7 @@ function jpegResponse(
     body: Uint8Array = JPEG,
     headers: Record<string, string> = {},
 ) {
-    return new Response(body as BodyInit, {
+    return new Response(body as never, {
         status: 200,
         headers: { 'content-type': 'image/jpeg', ...headers },
     })
@@ -22,7 +21,7 @@ const asFetch = (fn: AnyFn) => fn as unknown as typeof fetch
 
 describe('requestRecapCard', () => {
     it('POSTs JSON to /render/recap and returns the JPEG', async () => {
-        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(jpegResponse())
+        const fetchFn = jest.fn().mockResolvedValue(jpegResponse())
 
         const out = await requestRecapCard(
             { schemaVersion: 1 },
@@ -39,9 +38,7 @@ describe('requestRecapCard', () => {
     })
 
     it('uses RENDER_URL, defaulting to the compose service name', async () => {
-        const fetchFn = jest
-            .fn<AnyFn>()
-            .mockImplementation(async () => jpegResponse())
+        const fetchFn = jest.fn().mockImplementation(async () => jpegResponse())
         const prev = process.env.RENDER_URL
         try {
             delete process.env.RENDER_URL
@@ -63,7 +60,7 @@ describe('requestRecapCard', () => {
 
     it('maps a timeout to timeout', async () => {
         const err = Object.assign(new Error('t'), { name: 'TimeoutError' })
-        const fetchFn = jest.fn<AnyFn>().mockRejectedValue(err)
+        const fetchFn = jest.fn().mockRejectedValue(err)
         expect(await requestRecapCard({}, { fetch: asFetch(fetchFn) })).toEqual(
             {
                 ok: false,
@@ -73,7 +70,7 @@ describe('requestRecapCard', () => {
     })
 
     it('really times out a hung sidecar', async () => {
-        const fetchFn = jest.fn<AnyFn>(
+        const fetchFn = jest.fn(
             (_u: string, init: RequestInit) =>
                 new Promise((_, reject) => {
                     init.signal?.addEventListener('abort', () =>
@@ -91,7 +88,7 @@ describe('requestRecapCard', () => {
 
     it('maps a connection failure to network', async () => {
         const fetchFn = jest
-            .fn<AnyFn>()
+            .fn()
             .mockRejectedValue(new TypeError('fetch failed'))
         expect(await requestRecapCard({}, { fetch: asFetch(fetchFn) })).toEqual(
             {
@@ -105,7 +102,7 @@ describe('requestRecapCard', () => {
         'maps status %i to http_error',
         async (status) => {
             const fetchFn = jest
-                .fn<AnyFn>()
+                .fn()
                 .mockResolvedValue(
                     new Response(status === 204 ? null : 'x', { status }),
                 )
@@ -124,9 +121,9 @@ describe('requestRecapCard', () => {
         ['no type', {}],
     ])('rejects a 200 with %s content-type', async (_, headers) => {
         const fetchFn = jest
-            .fn<AnyFn>()
+            .fn()
             .mockResolvedValue(
-                new Response(JPEG as BodyInit, { status: 200, headers }),
+                new Response(JPEG as never, { status: 200, headers }),
             )
         expect(await requestRecapCard({}, { fetch: asFetch(fetchFn) })).toEqual(
             {
@@ -138,7 +135,7 @@ describe('requestRecapCard', () => {
 
     it('rejects image/jpeg bytes that are not a JPEG', async () => {
         const fetchFn = jest
-            .fn<AnyFn>()
+            .fn()
             .mockResolvedValue(jpegResponse(Uint8Array.from([1, 2, 3, 4])))
         expect(await requestRecapCard({}, { fetch: asFetch(fetchFn) })).toEqual(
             {
@@ -150,7 +147,7 @@ describe('requestRecapCard', () => {
 
     it('rejects bytes with only a partial SOI marker', async () => {
         const fetchFn = jest
-            .fn<AnyFn>()
+            .fn()
             .mockResolvedValue(
                 jpegResponse(Uint8Array.from([0xff, 0xd8, 0x00, 1])),
             )
@@ -164,7 +161,7 @@ describe('requestRecapCard', () => {
 
     it('rejects an empty body', async () => {
         const fetchFn = jest
-            .fn<AnyFn>()
+            .fn()
             .mockResolvedValue(jpegResponse(new Uint8Array(0)))
         expect(await requestRecapCard({}, { fetch: asFetch(fetchFn) })).toEqual(
             {
@@ -177,7 +174,7 @@ describe('requestRecapCard', () => {
     it('rejects a body over 3 MB, streamed or declared', async () => {
         const big = new Uint8Array(RENDER_MAX_RESPONSE_BYTES + 1)
         big.set([0xff, 0xd8, 0xff])
-        const streamed = jest.fn<AnyFn>().mockResolvedValue(jpegResponse(big))
+        const streamed = jest.fn().mockResolvedValue(jpegResponse(big))
         expect(
             await requestRecapCard({}, { fetch: asFetch(streamed) }),
         ).toEqual({
@@ -185,7 +182,7 @@ describe('requestRecapCard', () => {
             reason: 'bad_response',
         })
 
-        const declared = jest.fn<AnyFn>().mockResolvedValue(
+        const declared = jest.fn().mockResolvedValue(
             jpegResponse(JPEG, {
                 'content-length': String(RENDER_MAX_RESPONSE_BYTES + 1),
             }),
@@ -201,7 +198,7 @@ describe('requestRecapCard', () => {
     it('accepts exactly 3 MB', async () => {
         const body = new Uint8Array(RENDER_MAX_RESPONSE_BYTES)
         body.set([0xff, 0xd8, 0xff])
-        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(jpegResponse(body))
+        const fetchFn = jest.fn().mockResolvedValue(jpegResponse(body))
         const out = await requestRecapCard({}, { fetch: asFetch(fetchFn) })
         expect(out.ok).toBe(true)
     })
@@ -216,7 +213,7 @@ describe('requestRecapCard', () => {
         const response = new Response(new Uint8Array(8), init)
         const getReader = jest.spyOn(response.body!, 'getReader')
         const cancel = jest.spyOn(response.body!, 'cancel')
-        const fetchFn = jest.fn<AnyFn>().mockResolvedValue(response)
+        const fetchFn = jest.fn().mockResolvedValue(response)
 
         await requestRecapCard({}, { fetch: asFetch(fetchFn) })
 

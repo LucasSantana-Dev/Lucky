@@ -1,5 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
-
 const moderationServiceMock = {
     createCase: jest.fn(),
 }
@@ -93,7 +91,7 @@ describe('ban command', () => {
             name === 'user' ? targetUser : null,
         )
 
-        await banCommand.execute({ interaction })
+        await banCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -116,7 +114,7 @@ describe('ban command', () => {
             silent: false,
         })
 
-        await banCommand.execute({ interaction })
+        await banCommand.execute({ client: {} as never, interaction })
 
         expect(targetUser.send).toHaveBeenCalled()
         expect(targetUser.send.mock.calls.length).toBeGreaterThan(0)
@@ -132,7 +130,7 @@ describe('ban command', () => {
             silent: true,
         })
 
-        await banCommand.execute({ interaction })
+        await banCommand.execute({ client: {} as never, interaction })
 
         expect(targetUser.send).not.toHaveBeenCalled()
     })
@@ -148,7 +146,7 @@ describe('ban command', () => {
             silent: true,
         })
 
-        await banCommand.execute({ interaction })
+        await banCommand.execute({ client: {} as never, interaction })
 
         expect(guild.members.ban).toHaveBeenCalledWith('target-123', {
             reason: 'flooding',
@@ -168,7 +166,7 @@ describe('ban command', () => {
             deleteMessages: '0',
         })
 
-        await banCommand.execute({ interaction })
+        await banCommand.execute({ client: {} as never, interaction })
 
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith({
             guildId: 'guild-456',
@@ -191,7 +189,7 @@ describe('ban command', () => {
             reason: null,
         })
 
-        await banCommand.execute({ interaction })
+        await banCommand.execute({ client: {} as never, interaction })
 
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -211,7 +209,7 @@ describe('ban command', () => {
             silent: true,
         })
 
-        await banCommand.execute({ interaction })
+        await banCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalled()
         expect(guild.members.ban).toHaveBeenCalledWith('target-123', {
@@ -229,7 +227,7 @@ describe('ban command', () => {
             reason: 'spam',
         })
 
-        await banCommand.execute({ interaction })
+        await banCommand.execute({ client: {} as never, interaction })
 
         expect(postToModLogMock).toHaveBeenCalledWith(guild, expect.any(Object))
     })
@@ -245,7 +243,7 @@ describe('ban command', () => {
             reason: 'spam',
         })
 
-        await banCommand.execute({ interaction })
+        await banCommand.execute({ client: {} as never, interaction })
 
         expect(infoLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -265,7 +263,7 @@ describe('ban command', () => {
             silent: false,
         })
 
-        await banCommand.execute({ interaction })
+        await banCommand.execute({ client: {} as never, interaction })
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -285,7 +283,7 @@ describe('ban command', () => {
             reason: 'spam',
         })
 
-        await banCommand.execute({ interaction })
+        await banCommand.execute({ client: {} as never, interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({

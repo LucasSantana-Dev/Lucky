@@ -1,5 +1,3 @@
-import { describe, expect, it, jest } from '@jest/globals'
-
 function makeModule(redis: Record<string, unknown> | null) {
     const warnLog = jest.fn()
     const errorLog = jest.fn()
@@ -100,3 +98,5 @@ describe('batchQueue', () => {
         })
     })
 })
+
+export {}

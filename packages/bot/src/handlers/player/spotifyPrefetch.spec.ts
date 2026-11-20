@@ -1,5 +1,3 @@
-import { jest } from '@jest/globals'
-
 const mockIsYtDlpBlocked = jest.fn(() => false)
 const mockSearchYtDlpCandidates = jest.fn()
 const mockPickYouTubeCandidate = jest.fn()

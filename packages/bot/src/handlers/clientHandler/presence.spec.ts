@@ -1,4 +1,3 @@
-import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { ActivityType } from 'discord.js'
 import type { CustomClient } from '../../types'
 

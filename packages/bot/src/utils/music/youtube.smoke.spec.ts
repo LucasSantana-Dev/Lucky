@@ -1,5 +1,3 @@
-import { describe, it, expect } from '@jest/globals'
-
 /**
  * YouTube Integration Smoke Test
  *
@@ -12,9 +10,11 @@ import { describe, it, expect } from '@jest/globals'
 
 const IS_YOUTUBE_SMOKE_TEST_ENABLED = process.env.YOUTUBE_SMOKE_TEST === 'true'
 
-const describeIfEnabled = IS_YOUTUBE_SMOKE_TEST_ENABLED
-    ? describe
-    : describe.skip
+const describeIfEnabled: (
+    name: string,
+    fn: () => void,
+    timeout?: number,
+) => void = IS_YOUTUBE_SMOKE_TEST_ENABLED ? describe : describe.skip
 
 describeIfEnabled(
     'YouTube Integration Smoke Test',
@@ -45,12 +45,10 @@ describeIfEnabled(
 
             // At least one YouTube package should be available in CI.
             // In non-CI environments, skip this assertion.
-            if (
-                !(
-                    process.env.CI === 'true' ||
-                    process.env.GITHUB_ACTIONS === 'true'
-                )
-            ) {
+            if (!(
+                process.env.CI === 'true' ||
+                process.env.GITHUB_ACTIONS === 'true'
+            )) {
                 return
             }
 

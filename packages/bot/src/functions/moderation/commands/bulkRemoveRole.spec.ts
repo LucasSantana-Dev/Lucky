@@ -1,4 +1,3 @@
-import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import { Collection } from 'discord.js'
 
 const batchJobServiceMock = {
@@ -128,7 +127,10 @@ describe('bulkRemoveRole command', () => {
 
     test('returns early if not in a guild', async () => {
         const interaction = createInteraction({ guild: null })
-        await bulkRemoveRoleCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({
+            client: {} as never,
+            interaction,
+        })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -148,7 +150,10 @@ describe('bulkRemoveRole command', () => {
             role: createMockRole(),
         })
 
-        await bulkRemoveRoleCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({
+            client: {} as never,
+            interaction,
+        })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -164,7 +169,10 @@ describe('bulkRemoveRole command', () => {
             role: createMockRole('role-123', 'empty-role'),
         })
 
-        await bulkRemoveRoleCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({
+            client: {} as never,
+            interaction,
+        })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -182,7 +190,10 @@ describe('bulkRemoveRole command', () => {
             dryRun: true,
         })
 
-        await bulkRemoveRoleCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({
+            client: {} as never,
+            interaction,
+        })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -198,7 +209,10 @@ describe('bulkRemoveRole command', () => {
         role.members.set('u1', { user: { bot: false } } as any)
         const interaction = createInteraction({ role })
 
-        await bulkRemoveRoleCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({
+            client: {} as never,
+            interaction,
+        })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -214,7 +228,10 @@ describe('bulkRemoveRole command', () => {
         role.members.set('u1', { user: { bot: false } } as any)
         const interaction = createInteraction({ role })
 
-        await bulkRemoveRoleCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({
+            client: {} as never,
+            interaction,
+        })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -242,7 +259,10 @@ describe('bulkRemoveRole command', () => {
             reason: 'cleanup',
         })
 
-        await bulkRemoveRoleCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({
+            client: {} as never,
+            interaction,
+        })
 
         expect(batchJobServiceMock.create).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -278,7 +298,10 @@ describe('bulkRemoveRole command', () => {
         role.members.set('u1', { user: { bot: false } } as any)
         const interaction = createInteraction({ role })
 
-        await bulkRemoveRoleCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({
+            client: {} as never,
+            interaction,
+        })
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -298,7 +321,10 @@ describe('bulkRemoveRole command', () => {
             reason: 'cleanup',
         })
 
-        await bulkRemoveRoleCommand.execute({ interaction })
+        await bulkRemoveRoleCommand.execute({
+            client: {} as never,
+            interaction,
+        })
 
         expect(batchJobServiceMock.create).toHaveBeenCalledWith(
             expect.objectContaining({

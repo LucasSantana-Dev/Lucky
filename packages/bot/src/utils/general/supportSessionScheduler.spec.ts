@@ -1,5 +1,3 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals'
-
 const supportSessionServiceMock = {
     getExpired: jest.fn() as jest.MockedFunction<any>,
     close: jest.fn() as jest.MockedFunction<any>,

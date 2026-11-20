@@ -1,4 +1,3 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
 import {
     handleYouTubeParserError,
     recoverFromStreamExtractionError,
@@ -73,6 +72,10 @@ describe('streamRecovery', () => {
                 isCompositeVideoError: false,
                 isHypePointsError: false,
                 isTypeMismatchError: true,
+                isGridShelfViewError: false,
+                isSectionHeaderViewError: false,
+                shouldRetry: false,
+                retryWithFallback: false,
             }
 
             handleYouTubeParserError(queue as any, error, youtubeErrorInfo)

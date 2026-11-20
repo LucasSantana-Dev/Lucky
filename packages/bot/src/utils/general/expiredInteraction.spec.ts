@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 const warnLogMock = jest.fn()
 const incMock = jest.fn()
 const labelsMock = jest.fn(() => ({ inc: incMock }))
@@ -8,7 +6,9 @@ jest.mock('@lucky/shared/utils', () => ({
     warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 jest.mock('../monitoring/prometheus', () => ({
-    interactionExpiredTotal: { labels: (...a: unknown[]) => labelsMock(...a) },
+    interactionExpiredTotal: {
+        labels: (...a: Parameters<typeof labelsMock>) => labelsMock(...a),
+    },
 }))
 
 import {

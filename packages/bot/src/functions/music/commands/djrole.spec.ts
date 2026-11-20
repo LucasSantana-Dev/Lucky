@@ -1,9 +1,13 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-
 const requireGuildMock = jest.fn()
 const interactionReplyMock = jest.fn()
-const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
-const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({ title, description: desc }))
+const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
+    title,
+    description: desc,
+}))
+const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
+    title,
+    description: desc,
+}))
 const createEmbedMock = jest.fn((opts: Record<string, unknown>) => opts)
 const setGuildSettingsMock = jest.fn()
 const getGuildSettingsMock = jest.fn()
@@ -17,9 +21,12 @@ jest.mock('../../../utils/general/interactionReply', () => ({
 }))
 
 jest.mock('../../../utils/general/embeds', () => ({
-    createSuccessEmbed: (...args: unknown[]) => createSuccessEmbedMock(...args),
-    createErrorEmbed: (...args: unknown[]) => createErrorEmbedMock(...args),
-    createEmbed: (...args: unknown[]) => createEmbedMock(...args),
+    createSuccessEmbed: (...args: Parameters<typeof createSuccessEmbedMock>) =>
+        createSuccessEmbedMock(...args),
+    createErrorEmbed: (...args: Parameters<typeof createErrorEmbedMock>) =>
+        createErrorEmbedMock(...args),
+    createEmbed: (...args: Parameters<typeof createEmbedMock>) =>
+        createEmbedMock(...args),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -31,7 +38,10 @@ jest.mock('@lucky/shared/services', () => ({
 
 import djroleCommand from './djrole'
 
-function createInteraction(sub: string, overrides: Record<string, unknown> = {}) {
+function createInteraction(
+    sub: string,
+    overrides: Record<string, unknown> = {},
+) {
     return {
         guildId: 'guild-1',
         user: { id: 'user-1' },
@@ -68,15 +78,23 @@ describe('djrole command', () => {
         it('saves djRoleId and replies with success embed', async () => {
             const interaction = createInteraction('set')
             await djroleCommand.execute({ client: {}, interaction } as any)
-            expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', { djRoleId: 'role-1' })
-            expect(createSuccessEmbedMock).toHaveBeenCalledWith('🎧 DJ Role Set', expect.stringContaining('role-1'))
+            expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+                djRoleId: 'role-1',
+            })
+            expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+                '🎧 DJ Role Set',
+                expect.stringContaining('role-1'),
+            )
         })
 
         it('replies with error when persist fails', async () => {
             setGuildSettingsMock.mockResolvedValue(false)
             const interaction = createInteraction('set')
             await djroleCommand.execute({ client: {}, interaction } as any)
-            expect(createErrorEmbedMock).toHaveBeenCalledWith('Error', expect.any(String))
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Error',
+                expect.any(String),
+            )
         })
     })
 
@@ -84,15 +102,23 @@ describe('djrole command', () => {
         it('clears djRoleId and replies with success embed', async () => {
             const interaction = createInteraction('clear')
             await djroleCommand.execute({ client: {}, interaction } as any)
-            expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', { djRoleId: null })
-            expect(createSuccessEmbedMock).toHaveBeenCalledWith('🎧 DJ Role Cleared', expect.any(String))
+            expect(setGuildSettingsMock).toHaveBeenCalledWith('guild-1', {
+                djRoleId: null,
+            })
+            expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+                '🎧 DJ Role Cleared',
+                expect.any(String),
+            )
         })
 
         it('replies with error when persist fails', async () => {
             setGuildSettingsMock.mockResolvedValue(false)
             const interaction = createInteraction('clear')
             await djroleCommand.execute({ client: {}, interaction } as any)
-            expect(createErrorEmbedMock).toHaveBeenCalledWith('Error', expect.any(String))
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Error',
+                expect.any(String),
+            )
         })
     })
 
@@ -102,7 +128,9 @@ describe('djrole command', () => {
             const interaction = createInteraction('show')
             await djroleCommand.execute({ client: {}, interaction } as any)
             expect(createEmbedMock).toHaveBeenCalledWith(
-                expect.objectContaining({ description: expect.stringContaining('role-99') }),
+                expect.objectContaining({
+                    description: expect.stringContaining('role-99'),
+                }),
             )
         })
 
@@ -111,7 +139,9 @@ describe('djrole command', () => {
             const interaction = createInteraction('show')
             await djroleCommand.execute({ client: {}, interaction } as any)
             expect(createEmbedMock).toHaveBeenCalledWith(
-                expect.objectContaining({ description: expect.stringContaining('open to everyone') }),
+                expect.objectContaining({
+                    description: expect.stringContaining('open to everyone'),
+                }),
             )
         })
     })
