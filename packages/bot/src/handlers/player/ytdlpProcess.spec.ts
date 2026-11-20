@@ -706,18 +706,38 @@ describe('streamViaYtDlp: po_token provider', () => {
 
     // Prod 2026-11-12: the default clients wait out a pre-roll ad before
     // googlevideo serves the stream (~5 s), so 60% of starts hit the 8 s
-    // budget. visionos starts in ~2.5 s; default stays as the fallback.
-    it('asks YouTube for the visionos client first', async () => {
+    // budget. visionos starts in ~2.5 s.
+    //
+    // #3170: listing default next to visionos is not a fallback. yt-dlp also
+    // queries tv_samsung when visionos answers and then solves its JS
+    // challenge in a fresh node process on every spawn. Measured in the prod
+    // container: first byte 5.3 to 5.9 s with visionos,default against 2.0 to
+    // 2.4 s with visionos alone.
+    it('asks YouTube for the visionos client only on the plain attempt', async () => {
         delete process.env.YTDLP_POT_PROVIDER_URL
         script('ok')
 
         await streamViaYtDlp(youtubeUrl)
 
         const args = spawnArgs(0)
-        const at = args.indexOf('youtube:player_client=visionos,default')
+        const at = args.indexOf('youtube:player_client=visionos')
         expect(at).toBeGreaterThan(0)
         expect(args[at - 1]).toBe('--extractor-args')
+        expect(args.join(' ')).not.toContain('visionos,default')
         expect(args[args.length - 1]).toBe(youtubeUrl)
+    })
+
+    it('keeps the 403 retry on the visionos client only', async () => {
+        delete process.env.YTDLP_POT_PROVIDER_URL
+        script(
+            'ERROR: unable to download video data: HTTP Error 403: Forbidden\n',
+            'ok',
+        )
+
+        await streamViaYtDlp(youtubeUrl)
+
+        expect(spawnArgs(1)).toContain('youtube:player_client=visionos')
+        expect(spawnArgs(1).join(' ')).not.toContain('visionos,default')
     })
 
     it('keeps the visionos client on the cookies retry', async () => {

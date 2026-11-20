@@ -998,7 +998,9 @@
         "inviteOpened": "Invite URL opened in new tab",
         "inviteFailed": "Failed to generate invite URL",
         "noServersTitle": "No servers yet",
-        "noServersDescription": "Join a Discord server and Lucky will appear here."
+        "noServersDescription": "Join a Discord server and Lucky will appear here.",
+        "loadErrorTitle": "Unable to load your servers",
+        "retry": "Retry"
     },
     "spotify": {
         "eyebrow": "Music personalization",
