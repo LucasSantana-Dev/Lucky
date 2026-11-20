@@ -169,6 +169,31 @@ describe('POST /api/security/csp-report (#1283)', () => {
             expect(captureMock).not.toHaveBeenCalled()
         })
 
+        test('a third-party image block is not sent to Sentry', async () => {
+            await post({
+                'document-uri': 'https://lucky.example/',
+                'violated-directive': 'img-src',
+                'blocked-uri': 'https://cdn.other.example/p.png',
+            }).expect(204)
+
+            expect(captureMock).not.toHaveBeenCalled()
+        })
+
+        test('same host on another scheme or a foreign blob is third-party', async () => {
+            await post({
+                'document-uri': 'https://lucky.example/',
+                'violated-directive': 'img-src',
+                'blocked-uri': 'http://lucky.example/p.png',
+            }).expect(204)
+            await post({
+                'document-uri': 'https://lucky.example/',
+                'violated-directive': 'img-src',
+                'blocked-uri': 'blob:https://other.example/1234',
+            }).expect(204)
+
+            expect(captureMock).not.toHaveBeenCalled()
+        })
+
         test('an own-origin violation still reports', async () => {
             await post({
                 'document-uri': 'https://lucky.example/',

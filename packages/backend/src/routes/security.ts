@@ -135,21 +135,30 @@ const ALWAYS_REPORT_DIRECTIVES = new Set([
     'frame-ancestors',
 ])
 
-const hostOf = (value: string | undefined): string | undefined => {
+// Normalised origin (scheme + host + port) of a URL; ws/wss count as http/https
+// and blob: URLs resolve to the origin they embed. Opaque CSP tokens (inline,
+// eval, data, self...) have no origin.
+const originOf = (value: string | undefined): string | undefined => {
     if (!value) return undefined
     try {
-        return new URL(value).host
+        let url = new URL(value)
+        if (url.protocol === 'blob:') url = new URL(url.pathname)
+        const protocol = { 'ws:': 'http:', 'wss:': 'https:' }[url.protocol]
+        if (protocol) url.protocol = protocol
+        return url.protocol === 'http:' || url.protocol === 'https:'
+            ? url.origin
+            : undefined
     } catch {
         return undefined
     }
 }
 
-// Own origin = same host as the page, or a non-URL token (inline, eval, data,
-// blob, self) which can only come from the page itself.
+// Own origin = same origin as the page, or an opaque token (inline, eval,
+// data, self) which can only come from the page itself.
 const isOwnOrigin = (fields: ReturnType<typeof pickReportFields>): boolean => {
-    const blockedHost = hostOf(fields.blockedUri)
-    if (!blockedHost) return true
-    return blockedHost === hostOf(fields.documentUri)
+    const blockedOrigin = originOf(fields.blockedUri)
+    if (!blockedOrigin) return true
+    return blockedOrigin === originOf(fields.documentUri)
 }
 
 export function setupSecurityRoutes(app: Express): void {
