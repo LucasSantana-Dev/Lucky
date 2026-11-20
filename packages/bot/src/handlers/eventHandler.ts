@@ -20,6 +20,7 @@ import {
     captureException,
     runWithLogContext,
     withSentryRequestScope,
+    searchSpotifyAlbums,
 } from '@lucky/shared/utils'
 import { interactionReply } from '../utils/general/interactionReply'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
@@ -339,6 +340,28 @@ async function handleAutocomplete(interaction: Interaction): Promise<void> {
                 .slice(0, 25)
 
             await interaction.respond(choices)
+            return
+        }
+
+        if (command === 'album' && focusedOption.name === 'query') {
+            const typed = focusedOption.value.trim()
+            // A pasted URL already names the album; one letter is too vague.
+            if (typed.length < 2 || /^https?:\/\//i.test(typed)) {
+                await interaction.respond([])
+                return
+            }
+            const artist = interaction.options.getString('artist')
+            const albums = await searchSpotifyAlbums(
+                artist ? `${typed} ${artist}` : typed,
+                10,
+            )
+            // The value is the album URL, which /album plays as is.
+            await interaction.respond(
+                albums.map((album) => ({
+                    name: `${album.name}, ${album.artist}`.slice(0, 100),
+                    value: album.url,
+                })),
+            )
             return
         }
 
