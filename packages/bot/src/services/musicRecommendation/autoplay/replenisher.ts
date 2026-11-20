@@ -2,6 +2,7 @@ import { randomInt } from 'node:crypto'
 import type { Track, GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
+import { withTimeout } from '../../../handlers/player/withTimeout'
 import type { AutoplayContext } from './autoplayContext'
 import { AutoplayAuditCollector } from './autoplayAudit'
 import type { SourceCount } from './autoplayAudit'
@@ -108,6 +109,7 @@ export function popularityBoost(
 // Concurrency lock: prevents duplicate queue insertions when playerStart and
 // playerFinish events fire within milliseconds (playerStart + playerFinish) cannot both read
 // the same exclusion sets and independently select the same track.
+export const REPLENISH_DEADLINE_MS = 30_000
 const replenishLocks = new Map<string, Promise<boolean>>()
 
 // Per-guild counter for query diversity across multiple replenish calls.
@@ -170,8 +172,22 @@ export function replenishQueue(
 ): Promise<boolean> {
     const guildId = queue.guild.id
     const prev = replenishLocks.get(guildId) ?? Promise.resolve()
+    // Bounded so one hung DB or Redis call cannot hold the guild's chain, and
+    // with it waitForReplenish, forever (#2981). The orphaned run may still
+    // finish later; the next refill re-derives its state from the queue.
     const next = prev.then(() =>
-        _replenishQueue(queue, finishedTrack, skipStateProvider),
+        withTimeout(
+            _replenishQueue(queue, finishedTrack, skipStateProvider),
+            REPLENISH_DEADLINE_MS,
+            'replenishQueue',
+        ).catch((error) => {
+            errorLog({
+                message: 'Autoplay refill exceeded its deadline',
+                error,
+                data: { guildId },
+            })
+            return false
+        }),
     )
     replenishLocks.set(
         guildId,
