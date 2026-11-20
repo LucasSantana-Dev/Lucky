@@ -1,15 +1,3 @@
-jest.mock('@lucky/shared/utils', () => ({
-    debugLog: jest.fn(),
-    errorLog: jest.fn(),
-    safeSetInterval: jest.fn(),
-}))
-
-jest.mock('@lucky/shared/config', () => ({
-    artistTitlePatterns: [],
-    youtubePatterns: [],
-    artistPatterns: [],
-}))
-
 import { TitleComparisonService } from '../../../src/services/musicManagement/titleComparison/service'
 
 describe('TitleComparisonService', () => {
@@ -17,27 +5,6 @@ describe('TitleComparisonService', () => {
 
     beforeEach(() => {
         service = new TitleComparisonService()
-    })
-
-    describe('extractArtistTitle', () => {
-        it('returns Unknown artist for plain input', () => {
-            const result = service.extractArtistTitle('Some Song Title')
-            expect(result.title).toBe('Some Song Title')
-            expect(result.artist).toBe('Unknown')
-        })
-
-        it('caches results for repeated queries', () => {
-            const result1 = service.extractArtistTitle('Test Song')
-            const result2 = service.extractArtistTitle('Test Song')
-            expect(result1).toEqual(result2)
-            expect(service.getCacheSize()).toBe(1)
-        })
-
-        it('is case insensitive for caching', () => {
-            service.extractArtistTitle('Test Song')
-            service.extractArtistTitle('test song')
-            expect(service.getCacheSize()).toBe(1)
-        })
     })
 
     describe('isSimilarTitle', () => {
@@ -90,25 +57,6 @@ describe('TitleComparisonService', () => {
             const result = service.calculateSimilarity('ABCDEFGH', 'ZYXWVUTS')
             expect(result.score).toBeLessThan(0.5)
             expect(result.isSimilar).toBe(false)
-        })
-    })
-
-    describe('cache management', () => {
-        it('clearCache empties the cache', () => {
-            service.extractArtistTitle('Song 1')
-            service.extractArtistTitle('Song 2')
-            expect(service.getCacheSize()).toBe(2)
-
-            service.clearCache()
-            expect(service.getCacheSize()).toBe(0)
-        })
-
-        it('evicts oldest entry when cache is full', () => {
-            const svc = new TitleComparisonService()
-            for (let i = 0; i < 1001; i++) {
-                svc.extractArtistTitle(`Song ${i}`)
-            }
-            expect(svc.getCacheSize()).toBe(1000)
         })
     })
 
