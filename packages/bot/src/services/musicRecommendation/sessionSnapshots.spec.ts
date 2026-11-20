@@ -1272,8 +1272,13 @@ describe('MusicSessionSnapshotService', () => {
             const pause = jest.fn()
             ;(queue.node as unknown as { pause: jest.Mock }).pause = pause
 
-            await service.restoreSnapshot(queue)
+            const result = await service.restoreSnapshot(queue)
 
+            // The current track really was restored and resumed, then left playing.
+            expect(result.restoredCount).toBe(2)
+            expect(queue.node.play).toHaveBeenCalledWith(undefined, {
+                seek: 95_000,
+            })
             expect(pause).not.toHaveBeenCalled()
         })
 
