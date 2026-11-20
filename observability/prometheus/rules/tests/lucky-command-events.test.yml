@@ -1,0 +1,49 @@
+# promtool unit tests for the lucky-command-events group (#2394).
+# Run: promtool test rules observability/prometheus/rules/tests/lucky-command-events.test.yml
+# Kept in tests/ so the /etc/prometheus/rules/*.yml glob never loads it.
+rule_files:
+  - ../command-events.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # Flushes fail for 40 minutes: one drop per minute.
+  - name: sustained flush failures fire after 15 minutes
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_command_events_dropped_total{reason="flush_failure",job="lucky-bot"}'
+        values: '0+0x5 1+1x40'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: LuckyCommandEventsDropping
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: LuckyCommandEventsDropping
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              service: lucky-bot
+              reason: flush_failure
+            exp_annotations:
+              summary: "Command events are being dropped (flush_failure)"
+              description: >-
+                The bot has been losing command events before they reach
+                command_events for 15 minutes (reason flush_failure).
+                Commands still work; usage and error panels undercount. flush_failure
+                usually means Postgres is down or slow: check lucky-postgres and the
+                bot log for "Command event flush failed". overflow means flushes
+                cannot keep up with the command rate.
+
+  # One lost batch (a deploy restart) stays silent.
+  - name: a single drop stays silent
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_command_events_dropped_total{reason="stopped",job="lucky-bot"}'
+        values: '0+0x5 1+0x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: LuckyCommandEventsDropping
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: LuckyCommandEventsDropping
+        exp_alerts: []

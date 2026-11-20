@@ -124,10 +124,10 @@ so no rule expression changes were needed.
 
 ## Dashboards (for a non-technical operator)
 
-Four dashboards, all tagged `lucky` and cross-linked at the top nav, generated
+Five dashboards, all tagged `lucky` and cross-linked at the top nav, generated
 by `observability/grafana/build_dashboards.py` (edit the script, rerun it,
 commit both): `lucky-inicio` ("Lucky: comece aqui", the org home dashboard via
-`GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH`), `lucky-negocio`, `lucky-erros`
+`GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH`), `lucky-negocio`, `lucky-produto`, `lucky-erros`
 and `lucky-sistema`. They reference datasources through hidden datasource
 variables, so the same JSON loads here and in the homelab Grafana (which
 mounts this directory from the host checkout). The Postgres panels need the

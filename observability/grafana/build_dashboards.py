@@ -86,6 +86,7 @@ class Board:
         self.uid, self.title, self.description, self.time_from = uid, title, description, time_from
         self.tags = ["lucky", *tags]
         self.panels, self.x, self.y, self.row_h = [], 0, 0, 0
+        self.variables = []  # visible filters, after the hidden datasource variables
 
     def _place(self, w, h):
         if self.x + w > 24:
@@ -156,6 +157,7 @@ class Board:
         if uses_excl:
             templating.append({"name": "excluidas", "type": "constant", "query": EXCLUDED, "hide": 2,
                                "description": "Guildas do operador, de listagem e de teste: nunca contam como uso."})
+        templating += self.variables
         for i, p in enumerate(self.panels, start=1):
             p["id"] = i
         return {
@@ -203,9 +205,10 @@ def inicio():
     b.text("Como usar", (
         "**Tudo verde = nada a fazer.** Cada número abre o dashboard que explica.\n\n"
         "- **[Lucky: negócio](/d/lucky-negocio)**: quem usa, quanto usa, metas do music-first (WAG, 1ª hora, dia 8), autoplay, votos.\n"
+        "- **[Lucky: produto](/d/lucky-produto)**: guildas ativas por dia, semana e mês, retenção D1/D7/D30, comandos por guilda.\n"
         "- **[Lucky: erros](/d/lucky-erros)**: erros nos logs, comandos que falharam, 5xx, Sentry, alertas.\n"
         "- **[Lucky: sistema](/d/lucky-sistema)**: serviços no ar, memória, CPU, latência, disco.\n\n"
-        "Guildas do operador, de listagem e de teste ficam fora das contas de uso."), h=5)
+        "Guildas do operador, de listagem e de teste ficam fora das contas de uso."), h=6)
     b.stat("Bot", prom('max(up{job="lucky-bot"})', instant=True), mappings=UP_MAP, th=thresholds((RED, 0), (GREEN, 1)), w=3)
     b.stat("Discord conectado", prom("max(lucky_bot_gateway_connected)", instant=True), mappings=UP_MAP, th=thresholds((RED, 0), (GREEN, 1)), w=3)
     b.stat("Backend", prom('max(up{job="lucky-backend"})', instant=True), mappings=UP_MAP, th=thresholds((RED, 0), (GREEN, 1)), w=3)
@@ -436,6 +439,114 @@ def negocio():
     return b
 
 
+# --------------------------------------------------------------------------- produto
+def pg_var(name, label, query, desc):
+    """Visible dropdown fed by Postgres, with an "All" entry whose raw value is 'todas'.
+
+    Values are Discord ids or command names (no quotes possible), so panels use
+    ${name:raw} inside quotes; allowCustomValue is off so only listed values exist.
+    """
+    return {"name": name, "label": label, "description": desc, "type": "query", "datasource": PG,
+            "query": query, "definition": query, "refresh": 2, "sort": 1, "hide": 0,
+            "includeAll": True, "allValue": "todas", "multi": False, "allowCustomValue": False,
+            "current": {"selected": True, "text": "All", "value": "$__all"}, "options": []}
+
+
+def produto():
+    b = Board("lucky-produto", "Lucky: produto",
+              "Quantas guildas usam o Lucky, quantas voltam e quais comandos usam. Fonte: Postgres (somente leitura).",
+              "now-30d", ("produto",))
+    b.variables = [
+        pg_var("guilda", "Guilda",
+               "SELECT \"discordId\" AS __value, coalesce(name, \"discordId\") AS __text FROM guilds ORDER BY 2",
+               "Filtra os painéis de comandos por uma guilda."),
+        pg_var("comando", "Comando",
+               "SELECT DISTINCT command FROM command_events WHERE \"occurredAt\" > now() - interval '90 days' ORDER BY 1",
+               "Filtra os painéis de comandos por um comando."),
+    ]
+    flt = ("('${guilda:raw}' = 'todas' OR ce.\"guildId\" = '${guilda:raw}') "
+           "AND ('${comando:raw}' = 'todas' OR ce.command = '${comando:raw}')")
+    b.text("Leia antes", (
+        "**Guilda ativa** = tocou uma faixa ou usou um comando. Guildas do operador, de listagem e de teste não contam. "
+        "Não há contagem de pessoas: o Grafana não lê ids de usuário (privacidade). `track_history` guarda só 30 dias e "
+        "`command_events` 180 dias, então janelas antigas contam só comandos. Funil de ativação e metas do music-first: "
+        "[Lucky: negócio](/d/lucky-negocio). Os filtros **Guilda** e **Comando** no topo valem para a seção Comandos."), h=3)
+
+    b.row("Guildas ativas")
+    for title, days, desc in [
+        ("Ativas nas últimas 24 h", 1, "Normal: acompanha o WAG. Zero com o bot no ar é preocupante (ninguém conseguiu usar)."),
+        ("Ativas em 7 dias", 7, "Mesmo número do WAG (7 dias) do dashboard negócio."),
+        ("Ativas em 30 dias", 30, "Base de guildas que usaram o Lucky no último mês."),
+    ]:
+        b.stat(title, sql(
+            f"SELECT count(DISTINCT g) AS \"Guildas\" FROM {ACTIVITY} a WHERE t >= now() - interval '{days} days' AND g NOT IN {EXCL}"),
+            w=6, desc=desc)
+    b.stat("Fidelidade (diárias / mensais)", sql(
+        f"SELECT round(100.0 * count(DISTINCT g) FILTER (WHERE t >= now() - interval '1 day') "
+        f"/ nullif(count(DISTINCT g), 0), 1) AS \"DAU/MAU (%)\" FROM {ACTIVITY} a "
+        f"WHERE t >= now() - interval '30 days' AND g NOT IN {EXCL}"),
+        unit="percent", th=thresholds((RED, 0), (ORANGE, 10), (GREEN, 20)), w=6,
+        desc="Parte das guildas ativas no mês que usaram o Lucky nas últimas 24 h. Acima de 20% é bom; abaixo de 10% quer dizer "
+             "que a maioria usa uma vez e some.")
+    b.add("timeseries", "Guildas ativas por dia, semana e mês", [sql(
+        f"WITH a AS (SELECT g, t FROM {ACTIVITY} x WHERE t >= $__timeFrom()::timestamp - interval '30 days' AND g NOT IN {EXCL}), "
+        "d AS (SELECT generate_series(date_trunc('day', $__timeFrom()::timestamp), date_trunc('day', $__timeTo()::timestamp), "
+        "interval '1 day') AS day) "
+        "SELECT d.day AS time, "
+        "(SELECT count(DISTINCT g) FROM a WHERE t >= d.day AND t < d.day + interval '1 day') AS \"Diárias\", "
+        "(SELECT count(DISTINCT g) FROM a WHERE t >= d.day - interval '6 days' AND t < d.day + interval '1 day') AS \"Semanais (7 dias)\", "
+        "(SELECT count(DISTINCT g) FROM a WHERE t >= d.day - interval '29 days' AND t < d.day + interval '1 day') AS \"Mensais (30 dias)\" "
+        "FROM d ORDER BY 1", "time_series")],
+        w=24, h=8, custom=LINES, options=TS_OPTS,
+        desc="Para cada dia: guildas ativas naquele dia, nos 7 e nos 30 dias até ele. Normal: as três linhas sobem juntas. "
+             "Mensais subindo e diárias paradas = guildas novas que não voltam. Antes de 30 dias atrás só os comandos contam.")
+
+    b.row("Retenção")
+    b.add("table", "Retenção por semana de entrada (D1, D7, D30)", [sql(
+        f"WITH {COUNTED_JOINS}, j AS (SELECT g, t FROM counted_joins WHERE t > now() - interval '120 days' AND g NOT IN {EXCL}), "
+        f"r AS (SELECT j.t, "
+        + ", ".join(
+            f"j.t <= now() - interval '{n} days' AS e{n}, "
+            f"EXISTS (SELECT 1 FROM {ACTIVITY} a WHERE a.g = j.g AND a.t >= j.t + interval '{n} days') AS d{n}"
+            for n in (1, 7, 30))
+        + " FROM j) "
+        "SELECT date_trunc('week', t)::date AS \"Semana de entrada\", count(*) AS \"Entraram\", "
+        + ", ".join(
+            f"round(100.0 * count(*) FILTER (WHERE e{n} AND d{n}) / nullif(count(*) FILTER (WHERE e{n}), 0), 1) AS \"D{n} (%)\""
+            for n in (1, 7, 30))
+        + " FROM r GROUP BY 1 ORDER BY 1 DESC")], w=24, h=9, no_value="sem guildas novas nos últimos 120 dias",
+        overrides=[{"matcher": {"id": "byRegexp", "options": "D[0-9]+ \\(%\\)"},
+                    "properties": [{"id": "unit", "value": "percent"},
+                                   {"id": "custom.cellOptions", "value": {"type": "color-text"}},
+                                   {"id": "thresholds", "value": thresholds((RED, 0), (ORANGE, 10), (GREEN, 20))}]}],
+        desc="Guildas que entraram em cada semana (entrada contada: reentrada em até 30 dias conta uma vez) e a parte que voltou a "
+             "tocar ou usar comando a partir do dia 1, 7 e 30 depois da entrada. Vazio = a semana ainda não chegou naquele dia. "
+             "Normal: D1 > D7 > D30. D7 abaixo de 10% em várias semanas seguidas é preocupante (a meta do music-first é 15% no dia 8).")
+
+    b.row("Comandos (filtros Guilda e Comando)")
+    b.add("timeseries", "Comandos por dia", [sql(
+        "SELECT date_trunc('day', ce.\"occurredAt\") AS time, count(*) FILTER (WHERE ce.outcome = 'ok') AS \"Deram certo\", "
+        "count(*) FILTER (WHERE ce.outcome <> 'ok') AS \"Não deram certo\" FROM command_events ce "
+        f"WHERE $__timeFilter(ce.\"occurredAt\") AND coalesce(ce.\"guildId\", '') NOT IN {EXCL} AND {flt} GROUP BY 1 ORDER BY 1",
+        "time_series")], w=12, h=8, custom=BARS, options=TS_OPTS, no_value="nenhum comando no período",
+        overrides=[{"matcher": {"id": "byName", "options": "Não deram certo"},
+                    "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": ORANGE}}]}],
+        desc="Barras laranja = uso errado, sem permissão ou falha (detalhe em Lucky: erros). Normal: laranja pequeno perto do verde.")
+    b.add("table", "Comandos mais usados", [sql(
+        "SELECT ce.command AS \"Comando\", count(*) AS \"Usos\", count(DISTINCT ce.\"guildId\") AS \"Guildas\", "
+        "round(100.0 * count(*) FILTER (WHERE ce.outcome <> 'ok') / count(*), 1) AS \"Não deram certo (%)\" "
+        f"FROM command_events ce WHERE $__timeFilter(ce.\"occurredAt\") AND coalesce(ce.\"guildId\", '') NOT IN {EXCL} AND {flt} "
+        "GROUP BY 1 ORDER BY 2 DESC LIMIT 20")], w=12, h=8, no_value="nenhum comando no período",
+        desc="Mais de 10% que não deram certo num comando costuma ser texto de ajuda confuso ou um bug.")
+    b.add("table", "Guildas que mais usam comandos", [sql(
+        "SELECT coalesce(gu.name, ce.\"guildId\") AS \"Guilda\", count(*) AS \"Comandos\", count(DISTINCT ce.command) AS \"Comandos diferentes\", "
+        "max(ce.\"occurredAt\") AS \"Último uso\" FROM command_events ce LEFT JOIN guilds gu ON gu.\"discordId\" = ce.\"guildId\" "
+        f"WHERE $__timeFilter(ce.\"occurredAt\") AND ce.\"guildId\" IS NOT NULL AND ce.\"guildId\" NOT IN {EXCL} AND {flt} "
+        "GROUP BY 1 ORDER BY 2 DESC LIMIT 20")], w=24, h=9, no_value="nenhum comando no período",
+        desc="Uma guilda com muito mais comandos que as outras pode ser um teste ou uso automatizado.")
+    return b
+
+
 # --------------------------------------------------------------------------- erros
 def erros():
     b = Board("lucky-erros", "Lucky: erros",
@@ -605,7 +716,7 @@ def sistema():
 
 if __name__ == "__main__":
     OUT.mkdir(exist_ok=True)
-    for build in (inicio, negocio, erros, sistema):
+    for build in (inicio, negocio, produto, erros, sistema):
         board = build()
         path = OUT / f"{board.uid}.json"
         path.write_text(json.dumps(board.json(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
