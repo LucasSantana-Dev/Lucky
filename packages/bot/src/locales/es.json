@@ -140,6 +140,8 @@
             "unknownTrack": "Pista desconocida",
             "unknownArtist": "Artista desconocido",
             "moreControls": "Más",
+
+            "nowPlayingNoAccess": "No puedo enviar el mensaje de reproduciendo ahora en ese canal: me faltan los permisos Ver Canal y Enviar Mensajes. La música sigue sonando, pero sin el mensaje de controles.",
             "controlsTitle": "🎛️ Controles de música",
             "streamFailed": "No encontré la versión original de **{{title}}** ahora, así que no voy a poner un cover. Inténtalo de nuevo en un momento o pega un enlace.",
             "streamFailedMany_one": "No se pudo reproducir {{count}} canción. Inténtalo de nuevo en un momento o pega un enlace.",

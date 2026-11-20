@@ -134,6 +134,7 @@ export function deleteSongInfoMessage(guildId: string): void {
 }
 
 export function cleanupGuildState(guildId: string): void {
+    unwritableChannels.delete(guildId)
     trackNowPlayingState.cleanupGuild(guildId)
 }
 
@@ -405,6 +406,22 @@ async function buildNowPlayingEmbed(
     return embed
 }
 
+// Channel the bot cannot post in, per guild: tried once, then skipped until
+// the session ends (cleanupGuildState) or the channel changes.
+const unwritableChannels = new Map<string, string>()
+const MISSING_ACCESS_CODES = new Set<number>([50001, 50013])
+
+async function notifyRequesterOfMissingAccess(
+    metadata: QueueMetadata,
+    t: TFunction,
+): Promise<void> {
+    try {
+        await metadata.requestedBy?.send(t('music.messages.nowPlayingNoAccess'))
+    } catch {
+        // DMs may be closed; the warning log already records it
+    }
+}
+
 // One send at a time per guild: two track starts at once would both see the
 // same cached message as buried and each post a copy of the controls.
 const sendChains = new Map<string, Promise<void>>()
@@ -433,6 +450,7 @@ async function sendNowPlayingEmbedNow(
 ): Promise<void> {
     const metadata = queue.metadata as QueueMetadata | undefined
     if (!metadata?.channel) return
+    if (unwritableChannels.get(queue.guild.id) === metadata.channel.id) return
 
     const t = await translatorForInteraction({
         guildId: queue.guild.id,
@@ -468,10 +486,30 @@ async function sendNowPlayingEmbedNow(
         if (updated) return
     }
 
-    const message = await metadata.channel.send({
-        embeds: [embed],
-        components: [createNowPlayingButtons(queue, moreLabel)],
-    })
+    let message: Message
+    try {
+        message = await metadata.channel.send({
+            embeds: [embed],
+            components: [createNowPlayingButtons(queue, moreLabel)],
+        })
+    } catch (error) {
+        const code = extractErrorCode(error)
+        if (code === undefined || !MISSING_ACCESS_CODES.has(Number(code))) {
+            throw error
+        }
+        unwritableChannels.set(queue.guild.id, metadata.channel.id)
+        warnLog({
+            message:
+                'Now playing message skipped: bot cannot write to the music channel',
+            data: {
+                guildId: queue.guild.id,
+                channelId: metadata.channel.id,
+                errorCode: code,
+            },
+        })
+        await notifyRequesterOfMissingAccess(metadata, t)
+        return
+    }
 
     const { successCount, attemptedCount } = await prefillSkipReasonReactions(
         message,

@@ -141,6 +141,8 @@
             "unknownTrack": "Unknown track",
             "unknownArtist": "Unknown artist",
             "moreControls": "More",
+
+            "nowPlayingNoAccess": "I can't post the now playing message in that channel: I'm missing the View Channel and Send Messages permissions there. Music keeps playing, but without the controls message.",
             "controlsTitle": "🎛️ Music controls",
             "streamFailed": "Couldn't find the original of **{{title}}** right now, so I'm not playing a cover. Try again shortly or paste a link.",
             "streamFailedMany_one": "{{count}} track couldn't be played. Try again shortly or paste a link.",
