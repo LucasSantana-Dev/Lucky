@@ -349,8 +349,10 @@ wait_for_postgres_ready() {
         # pg_isready exits 0 only when postgres is accepting connections.
         # Run inside the postgres container since the database host is only
         # resolvable from within the compose network.
-        if docker_compose exec -T postgres pg_isready \
-            -U postgres >/dev/null 2>&1; then
+        # The role comes from the container env: prod has no "postgres" role,
+        # and probing as one logs FATAL on every deploy (#3068).
+        if docker_compose exec -T postgres sh -c \
+            'pg_isready -U "$POSTGRES_USER"' >/dev/null 2>&1; then
             log "$label ready"
             return 0
         fi

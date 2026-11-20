@@ -21,7 +21,9 @@ import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
+import { pickAlbum } from './play/handlers/albumIntent'
 import { QUEUE_LEAVE_OPTIONS } from '../../../services/musicManagement/queueLeaveOptions'
+import { AsmrBlockedError, isAsmrTrack } from '../../../utils/music/asmrFilter'
 
 function isSpotifyAlbumUrl(query: string): boolean {
     try {
@@ -137,7 +139,9 @@ export default new Command({
                 const albumQuery = artistFilter
                     ? `${query} ${artistFilter}`
                     : query
-                const [match] = await searchSpotifyAlbums(albumQuery, 1)
+                const albums = await searchSpotifyAlbums(albumQuery, 20)
+                // An explicit album request falls back to Spotify's top hit.
+                const match = pickAlbum(albums, albumQuery) ?? albums[0]
                 if (!match) {
                     warnLog({
                         message:
@@ -199,7 +203,10 @@ export default new Command({
                 return
             }
 
-            const tracks = [...searchResult.tracks]
+            // The queue drops ASMR as it is added, so count what stays (#3001).
+            const tracks = searchResult.tracks.filter(
+                (track) => !isAsmrTrack(track),
+            )
             if (shuffle) {
                 for (let i = tracks.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1))
@@ -207,6 +214,20 @@ export default new Command({
                 }
             }
             const firstTrack = tracks[0]
+            if (!firstTrack) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        embeds: [
+                            createErrorEmbed(
+                                'No results',
+                                new AsmrBlockedError().message,
+                            ),
+                        ],
+                    },
+                })
+                return
+            }
 
             const playResult = await client.player.play(
                 voiceChannel,
