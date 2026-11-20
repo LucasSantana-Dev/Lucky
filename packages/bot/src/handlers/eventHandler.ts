@@ -317,6 +317,16 @@ async function handleInteractionError(
     })
 }
 
+// Autocomplete fires on every keystroke; a short memory keeps the same text
+// from being sent to Spotify again.
+type AlbumSuggestions = Awaited<ReturnType<typeof searchSpotifyAlbums>>
+const ALBUM_SUGGESTION_CACHE_TTL_MS = 60_000
+const ALBUM_SUGGESTION_CACHE_MAX = 200
+const albumSuggestionCache = new Map<
+    string,
+    { albums: AlbumSuggestions; expiresAt: number }
+>()
+
 async function handleAutocomplete(interaction: Interaction): Promise<void> {
     try {
         if (!interaction.isAutocomplete()) return
@@ -353,13 +363,38 @@ async function handleAutocomplete(interaction: Interaction): Promise<void> {
             const artist = interaction.options.getString('artist')
             // Discord drops an autocomplete answer after 3 seconds, so a slow
             // lookup answers with nothing instead of failing the interaction.
-            let timer: NodeJS.Timeout | undefined
-            const albums = await Promise.race([
-                searchSpotifyAlbums(artist ? `${typed} ${artist}` : typed, 10),
-                new Promise<[]>((resolve) => {
-                    timer = setTimeout(() => resolve([]), 2500)
-                }),
-            ]).finally(() => clearTimeout(timer))
+            const search = artist ? `${typed} ${artist}` : typed
+            const cacheKey = search.toLowerCase().replace(/\s+/g, ' ')
+            const cached = albumSuggestionCache.get(cacheKey)
+            let albums: AlbumSuggestions
+            if (cached && cached.expiresAt > Date.now()) {
+                albums = cached.albums
+            } else {
+                let timer: NodeJS.Timeout | undefined
+                albums = await Promise.race([
+                    searchSpotifyAlbums(search, 10),
+                    new Promise<[]>((resolve) => {
+                        timer = setTimeout(() => resolve([]), 2500)
+                    }),
+                ]).finally(() => clearTimeout(timer))
+                // An empty answer may be a timeout or a failed lookup, so it
+                // is asked again next time.
+                if (albums.length > 0) {
+                    albumSuggestionCache.delete(cacheKey)
+                    if (
+                        albumSuggestionCache.size >= ALBUM_SUGGESTION_CACHE_MAX
+                    ) {
+                        const oldest = albumSuggestionCache.keys().next().value
+                        if (oldest !== undefined) {
+                            albumSuggestionCache.delete(oldest)
+                        }
+                    }
+                    albumSuggestionCache.set(cacheKey, {
+                        albums,
+                        expiresAt: Date.now() + ALBUM_SUGGESTION_CACHE_TTL_MS,
+                    })
+                }
+            }
             // The value is the album URL, which /album plays as is.
             await interaction.respond(
                 albums.map((album) => ({

@@ -745,6 +745,62 @@ describe('eventHandler', () => {
             }
         })
 
+        it('asks Spotify once for the same album text typed twice', async () => {
+            searchSpotifyAlbumsMock.mockResolvedValue([
+                {
+                    name: 'Revolver',
+                    artist: 'The Beatles',
+                    url: 'https://open.spotify.com/album/rev',
+                },
+            ])
+            const respondMock = jest.fn()
+            const ask = (focusedValue: string) =>
+                dispatchAutocomplete(
+                    createAutocompleteInteraction({
+                        commandName: 'album',
+                        subcommand: null,
+                        focusedName: 'query',
+                        focusedValue,
+                        respondMock,
+                    }),
+                )
+
+            await ask('revolver')
+            await ask('  Revolver ')
+
+            expect(searchSpotifyAlbumsMock).toHaveBeenCalledTimes(1)
+            expect(respondMock).toHaveBeenCalledTimes(2)
+            expect(respondMock.mock.calls[1]).toEqual(respondMock.mock.calls[0])
+        })
+
+        it('does not remember an album lookup that timed out', async () => {
+            jest.useFakeTimers()
+            try {
+                searchSpotifyAlbumsMock.mockReturnValue(new Promise(() => {}))
+                const ask = () =>
+                    dispatchAutocomplete(
+                        createAutocompleteInteraction({
+                            commandName: 'album',
+                            subcommand: null,
+                            focusedName: 'query',
+                            focusedValue: 'let it be',
+                            respondMock: jest.fn(),
+                        }),
+                    )
+
+                const first = ask()
+                await jest.advanceTimersByTimeAsync(2500)
+                await first
+                const second = ask()
+                await jest.advanceTimersByTimeAsync(2500)
+                await second
+
+                expect(searchSpotifyAlbumsMock).toHaveBeenCalledTimes(2)
+            } finally {
+                jest.useRealTimers()
+            }
+        })
+
         it('logs and swallows errors raised by the session service', async () => {
             namedSessionListMock.mockRejectedValue(new Error('redis down'))
             const respondMock = jest.fn()
