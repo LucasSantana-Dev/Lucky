@@ -30,7 +30,8 @@ const setupWebhookPublicRoutes = jest.fn()
 const setupAdminRoutes = jest.fn()
 const setupBatchJobRoutes = jest.fn()
 
-const requireGuildModuleAccess = jest.fn()
+const requireGuildModuleAccess =
+    jest.fn<(module: string, mode?: string) => unknown>()
 const apiLimiter = jest.fn()
 const writeLimiter = jest.fn()
 const requireAuth = jest.fn()
@@ -187,7 +188,7 @@ describe('setupRoutes', () => {
 
     test('registers route guards, route modules, and error handler', () => {
         setupRoutes(app as Express)
-        const useCalls = app.use.mock.calls as unknown[][]
+        const useCalls = jest.mocked(app.use).mock.calls as unknown[][]
 
         expect(setupHealthRoutes).toHaveBeenCalledWith(app)
         expect(setupStatsRoutes).toHaveBeenCalledWith(app)
@@ -302,7 +303,7 @@ describe('setupRoutes', () => {
         expect(useCalls[0]).toEqual(['/api/', apiLimiter])
         expect(useCalls[useCalls.length - 1]).toEqual([errorHandler])
 
-        const apiLimiterOrder = app.use.mock.invocationCallOrder[0]
+        const apiLimiterOrder = jest.mocked(app.use).mock.invocationCallOrder[0]
         expect(
             setupWebhookPublicRoutes.mock.invocationCallOrder[0],
         ).toBeLessThan(apiLimiterOrder)
@@ -319,8 +320,8 @@ describe('setupRoutes', () => {
             'settings:manage',
         ])
 
-        const rbacGuardCallOrder =
-            app.use.mock.invocationCallOrder[rbacGuardIndex]
+        const rbacGuardCallOrder = jest.mocked(app.use).mock
+            .invocationCallOrder[rbacGuardIndex]
         const firstRouteSetupOrder = setupAuthRoutes.mock.invocationCallOrder[0]
         expect(rbacGuardCallOrder).toBeLessThan(firstRouteSetupOrder)
     })

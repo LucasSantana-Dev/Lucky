@@ -1,9 +1,10 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import express from 'express'
 import request from 'supertest'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockFindUnique = jest.fn<any>()
+const mockFindUnique = jest.fn<AsyncMockFn>()
 
 jest.mock('@lucky/shared/utils', () => {
     const actual = jest.requireActual('@lucky/shared/utils') as object

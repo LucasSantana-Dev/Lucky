@@ -110,7 +110,7 @@ describe('GET /api/twitch/users', () => {
             ok: true,
             status: 200,
             json: async () => ({ data: [] }),
-        } as Response)
+        } as unknown as globalThis.Response)
         const app = createApp()
         const res = await request(app).get('/api/twitch/users?login=nobody')
         expect(res.status).toBe(404)
@@ -124,7 +124,7 @@ describe('GET /api/twitch/users', () => {
             ok: true,
             status: 200,
             json: async () => ({ data: [MOCK_USER] }),
-        } as Response)
+        } as unknown as globalThis.Response)
         const app = createApp()
         const res = await request(app).get('/api/twitch/users?login=testuser')
         expect(res.status).toBe(200)
@@ -141,7 +141,10 @@ describe('GET /api/twitch/users', () => {
         process.env.TWITCH_ACCESS_TOKEN = 'expired-token'
         const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
         mockFetch
-            .mockResolvedValueOnce({ ok: false, status: 401 } as Response)
+            .mockResolvedValueOnce({
+                ok: false,
+                status: 401,
+            } as unknown as globalThis.Response)
             .mockResolvedValueOnce({
                 ok: true,
                 status: 200,
@@ -149,12 +152,12 @@ describe('GET /api/twitch/users', () => {
                     access_token: 'new-token',
                     expires_in: 3600,
                 }),
-            } as Response)
+            } as unknown as globalThis.Response)
             .mockResolvedValueOnce({
                 ok: true,
                 status: 200,
                 json: async () => ({ data: [MOCK_USER] }),
-            } as Response)
+            } as unknown as globalThis.Response)
         const app = createApp()
         const res = await request(app).get('/api/twitch/users?login=testuser')
         expect(res.status).toBe(200)
@@ -168,7 +171,7 @@ describe('GET /api/twitch/users', () => {
         ;(global.fetch as jest.MockedFunction<typeof fetch>).mockResolvedValue({
             ok: false,
             status: 401,
-        } as Response)
+        } as unknown as globalThis.Response)
         const app = createApp()
         const res = await request(app).get('/api/twitch/users?login=testuser')
         expect(res.status).toBe(404)

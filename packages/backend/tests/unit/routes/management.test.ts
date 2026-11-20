@@ -1,7 +1,9 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import type { Request, Response, NextFunction } from 'express'
+import { type AsyncMockFn } from '../../fixtures/mock-types'
 
-const requireGuildModuleAccess = jest.fn()
+const requireGuildModuleAccess =
+    jest.fn<(module: string, mode?: string) => unknown>()
 
 jest.mock('../../../src/middleware/guildAccess', () => ({
     requireGuildModuleAccess,
@@ -17,46 +19,56 @@ jest.mock('../../../src/middleware/auth', () => ({
 
 jest.mock('@lucky/shared/services', () => ({
     autoModService: {
-        getSettings: jest.fn().mockResolvedValue({ enabled: true }),
-        updateSettings: jest.fn().mockResolvedValue({ enabled: true }),
-        listTemplates: jest.fn().mockResolvedValue([]),
-        applyTemplate: jest.fn().mockResolvedValue({
+        getSettings: jest
+            .fn<AsyncMockFn>()
+            .mockResolvedValue({ enabled: true }),
+        updateSettings: jest
+            .fn<AsyncMockFn>()
+            .mockResolvedValue({ enabled: true }),
+        listTemplates: jest.fn<AsyncMockFn>().mockResolvedValue([]),
+        applyTemplate: jest.fn<AsyncMockFn>().mockResolvedValue({
             template: { id: 'tpl-1' },
             settings: { enabled: true },
         }),
     },
     embedBuilderService: {
-        listTemplates: jest.fn().mockResolvedValue([]),
-        createTemplate: jest.fn().mockResolvedValue({ name: 'test' }),
+        listTemplates: jest.fn<AsyncMockFn>().mockResolvedValue([]),
+        createTemplate: jest
+            .fn<AsyncMockFn>()
+            .mockResolvedValue({ name: 'test' }),
         validateEmbedData: jest.fn().mockReturnValue({ valid: true }),
-        updateTemplate: jest.fn().mockResolvedValue({ name: 'test' }),
-        deleteTemplate: jest.fn().mockResolvedValue({}),
+        updateTemplate: jest
+            .fn<AsyncMockFn>()
+            .mockResolvedValue({ name: 'test' }),
+        deleteTemplate: jest.fn<AsyncMockFn>().mockResolvedValue({}),
     },
     autoMessageService: {
-        getMessagesByType: jest.fn().mockResolvedValue([]),
-        getWelcomeMessage: jest.fn().mockResolvedValue(null),
-        getLeaveMessage: jest.fn().mockResolvedValue(null),
-        createMessage: jest.fn().mockResolvedValue({ id: 'msg-1' }),
+        getMessagesByType: jest.fn<AsyncMockFn>().mockResolvedValue([]),
+        getWelcomeMessage: jest.fn<AsyncMockFn>().mockResolvedValue(null),
+        getLeaveMessage: jest.fn<AsyncMockFn>().mockResolvedValue(null),
+        createMessage: jest
+            .fn<AsyncMockFn>()
+            .mockResolvedValue({ id: 'msg-1' }),
         updateMessage: jest
-            .fn()
+            .fn<AsyncMockFn>()
             .mockResolvedValue({ id: 'msg-1', type: 'welcome' }),
         toggleMessage: jest
-            .fn()
+            .fn<AsyncMockFn>()
             .mockResolvedValue({ id: 'msg-1', type: 'welcome' }),
-        deleteMessage: jest.fn().mockResolvedValue({}),
+        deleteMessage: jest.fn<AsyncMockFn>().mockResolvedValue({}),
     },
     serverLogService: {
-        logAutoModSettingsChange: jest.fn().mockResolvedValue({}),
-        logEmbedTemplateChange: jest.fn().mockResolvedValue({}),
-        logAutoMessageChange: jest.fn().mockResolvedValue({}),
-        getLogsByType: jest.fn().mockResolvedValue([]),
-        getRecentLogs: jest.fn().mockResolvedValue([]),
-        countLogsByType: jest.fn().mockResolvedValue(0),
-        countRecentLogs: jest.fn().mockResolvedValue(0),
-        searchLogs: jest.fn().mockResolvedValue([]),
-        countSearchLogs: jest.fn().mockResolvedValue(0),
-        getUserLogs: jest.fn().mockResolvedValue([]),
-        getStats: jest.fn().mockResolvedValue({}),
+        logAutoModSettingsChange: jest.fn<AsyncMockFn>().mockResolvedValue({}),
+        logEmbedTemplateChange: jest.fn<AsyncMockFn>().mockResolvedValue({}),
+        logAutoMessageChange: jest.fn<AsyncMockFn>().mockResolvedValue({}),
+        getLogsByType: jest.fn<AsyncMockFn>().mockResolvedValue([]),
+        getRecentLogs: jest.fn<AsyncMockFn>().mockResolvedValue([]),
+        countLogsByType: jest.fn<AsyncMockFn>().mockResolvedValue(0),
+        countRecentLogs: jest.fn<AsyncMockFn>().mockResolvedValue(0),
+        searchLogs: jest.fn<AsyncMockFn>().mockResolvedValue([]),
+        countSearchLogs: jest.fn<AsyncMockFn>().mockResolvedValue(0),
+        getUserLogs: jest.fn<AsyncMockFn>().mockResolvedValue([]),
+        getStats: jest.fn<AsyncMockFn>().mockResolvedValue({}),
     },
 }))
 

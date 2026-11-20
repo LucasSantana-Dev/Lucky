@@ -1,9 +1,10 @@
+import { partial } from '../../fixtures/mock-types'
 import { describe, expect, jest, test } from '@jest/globals'
 import session from 'express-session'
 import { ResilientSessionStore } from '../../../src/middleware/session'
 
 type MethodCallback = (error?: unknown, data?: unknown) => void
-type StoreMethod = (...args: unknown[]) => void
+type StoreMethod = (...args: never[]) => void
 
 type PartialStore = Partial<
     Record<'get' | 'set' | 'destroy' | 'touch', StoreMethod>
@@ -21,7 +22,7 @@ const getSession = (
 
 const setSession = (
     store: ResilientSessionStore,
-    sessionData: session.SessionData = {},
+    sessionData: session.SessionData = partial({}),
 ): Promise<{ error?: unknown }> =>
     new Promise((resolve) => {
         store.set('sid', sessionData, (error) => resolve({ error }))
@@ -36,10 +37,10 @@ const destroySession = (
 
 const touchSession = (
     store: ResilientSessionStore,
-    sessionData: session.SessionData = {},
+    sessionData: session.SessionData = partial({}),
 ): Promise<{ error?: unknown }> =>
     new Promise((resolve) => {
-        store.touch('sid', sessionData, (error) => resolve({ error }))
+        store.touch('sid', sessionData, (error?: unknown) => resolve({ error }))
     })
 
 describe('ResilientSessionStore', () => {
@@ -48,9 +49,11 @@ describe('ResilientSessionStore', () => {
             expect(sid).toBe('sid')
             callback(undefined, { source: 'primary' })
         })
-        const fallbackGet = jest.fn((_sid: string, callback: MethodCallback) => {
-            callback(undefined, { source: 'fallback' })
-        })
+        const fallbackGet = jest.fn(
+            (_sid: string, callback: MethodCallback) => {
+                callback(undefined, { source: 'fallback' })
+            },
+        )
 
         const store = new ResilientSessionStore(
             createStore({ get: primaryGet }),
@@ -69,9 +72,11 @@ describe('ResilientSessionStore', () => {
         const primaryGet = jest.fn((_sid: string, callback: MethodCallback) => {
             callback(new Error('primary failed'))
         })
-        const fallbackGet = jest.fn((_sid: string, callback: MethodCallback) => {
-            callback(undefined, { source: 'fallback' })
-        })
+        const fallbackGet = jest.fn(
+            (_sid: string, callback: MethodCallback) => {
+                callback(undefined, { source: 'fallback' })
+            },
+        )
 
         const store = new ResilientSessionStore(
             createStore({ get: primaryGet }),
@@ -133,7 +138,9 @@ describe('ResilientSessionStore', () => {
         )
 
         await expect(setSession(store)).resolves.toEqual({ error: undefined })
-        await expect(destroySession(store)).resolves.toEqual({ error: undefined })
+        await expect(destroySession(store)).resolves.toEqual({
+            error: undefined,
+        })
         await expect(touchSession(store)).resolves.toEqual({ error: undefined })
 
         expect(primarySet).toHaveBeenCalledTimes(1)
@@ -145,7 +152,10 @@ describe('ResilientSessionStore', () => {
     })
 
     test('returns without error when store method does not exist', async () => {
-        const store = new ResilientSessionStore(createStore({}), createStore({}))
+        const store = new ResilientSessionStore(
+            createStore({}),
+            createStore({}),
+        )
 
         await expect(getSession(store)).resolves.toEqual({
             error: undefined,
@@ -157,9 +167,11 @@ describe('ResilientSessionStore', () => {
         const primaryGet = jest.fn(() => {
             throw new Error('boom')
         })
-        const fallbackGet = jest.fn((_sid: string, callback: MethodCallback) => {
-            callback(undefined, { source: 'fallback' })
-        })
+        const fallbackGet = jest.fn(
+            (_sid: string, callback: MethodCallback) => {
+                callback(undefined, { source: 'fallback' })
+            },
+        )
 
         const store = new ResilientSessionStore(
             createStore({ get: primaryGet }),
@@ -175,7 +187,10 @@ describe('ResilientSessionStore', () => {
     })
 
     test('activateFallback is idempotent once fallback is active', () => {
-        const store = new ResilientSessionStore(createStore({}), createStore({}))
+        const store = new ResilientSessionStore(
+            createStore({}),
+            createStore({}),
+        )
         const privateStore = store as unknown as {
             activateFallback: (error: unknown) => void
             fallbackActive: boolean

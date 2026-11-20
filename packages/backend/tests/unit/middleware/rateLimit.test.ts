@@ -49,8 +49,8 @@ describe('maskIp', () => {
 describe('authRateLimitHandler', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        ;(recordWithCooldown as jest.Mock).mockReturnValue(false)
-        ;(emitAlert as jest.Mock).mockImplementation(async () => {})
+        jest.mocked(recordWithCooldown).mockReturnValue(false)
+        jest.mocked(emitAlert).mockImplementation(async () => {})
     })
 
     test('responds 429 without emitting alert when threshold not crossed', () => {
@@ -67,7 +67,7 @@ describe('authRateLimitHandler', () => {
     })
 
     test('emits alert with masked IP when threshold crossed', () => {
-        ;(recordWithCooldown as jest.Mock).mockReturnValue(true)
+        jest.mocked(recordWithCooldown).mockReturnValue(true)
         const req = { ip: '1.2.3.4' } as unknown as Request
         const { res } = makeRes()
 
@@ -82,7 +82,7 @@ describe('authRateLimitHandler', () => {
     })
 
     test('masks IPv4-mapped IPv6 in alert', () => {
-        ;(recordWithCooldown as jest.Mock).mockReturnValue(true)
+        jest.mocked(recordWithCooldown).mockReturnValue(true)
         const req = { ip: '::ffff:203.0.113.8' } as unknown as Request
         const { res } = makeRes()
 

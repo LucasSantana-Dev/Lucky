@@ -79,11 +79,13 @@ describe('POST /api/internal/notify', () => {
     })
 
     it('forwards to Discord and returns 204 on success', async () => {
-        const fetchMock = jest.fn(async () => ({
-            ok: true,
-            status: 200,
-            text: async () => '',
-        }))
+        const fetchMock = jest.fn(
+            async (_url: string, _init?: RequestInit) => ({
+                ok: true,
+                status: 200,
+                text: async () => '',
+            }),
+        )
         global.fetch = fetchMock as unknown as typeof fetch
 
         const res = await request(buildApp())

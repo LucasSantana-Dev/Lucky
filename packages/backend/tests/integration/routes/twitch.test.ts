@@ -6,6 +6,7 @@ import { setupTwitchRoutes } from '../../../src/routes/twitch'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -13,12 +14,12 @@ jest.mock('../../../src/services/SessionService', () => ({
     },
 }))
 
-const mockListByGuild = jest.fn<any>()
-const mockAdd = jest.fn<any>()
-const mockRemove = jest.fn<any>()
-const mockPublishRefresh = jest.fn<any>()
-const mockControlConnect = jest.fn<any>()
-const mockLinkUser = jest.fn<any>()
+const mockListByGuild = jest.fn<AsyncMockFn>()
+const mockAdd = jest.fn<AsyncMockFn>()
+const mockRemove = jest.fn<AsyncMockFn>()
+const mockPublishRefresh = jest.fn()
+const mockControlConnect = jest.fn()
+const mockLinkUser = jest.fn<AsyncMockFn>()
 
 jest.mock('@lucky/shared/services', () => ({
     twitchNotificationService: {

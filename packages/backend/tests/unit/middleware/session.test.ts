@@ -205,11 +205,9 @@ describe('Session Middleware', () => {
             const { setupSessionMiddleware } =
                 await import('../../../src/middleware/session')
 
-            ;(sessionFileStoreFactory as jest.Mock).mockImplementationOnce(
-                () => {
-                    throw new Error('file store unavailable')
-                },
-            )
+            jest.mocked(sessionFileStoreFactory).mockImplementationOnce(() => {
+                throw new Error('file store unavailable')
+            })
 
             const MemoryStoreClass = session.MemoryStore
             const originalMemoryStoreName = MemoryStoreClass.name
