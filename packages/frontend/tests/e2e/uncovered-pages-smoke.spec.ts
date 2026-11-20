@@ -289,7 +289,26 @@ test.describe('Pages without other e2e coverage', () => {
 
     test('/admin/support lists reports for a developer', async ({ page }) => {
         const errors = collectPageErrors(page)
-        const unmocked = await mockSession(page, true)
+        await mockSession(page, true)
+        await page.route('**/api/admin/support**', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([
+                    {
+                        id: 'report-1',
+                        createdAt: '2026-11-01T12:00:00.000Z',
+                        context: 'Queue stops after the third track',
+                        imageMimeType: null,
+                        correlationId: null,
+                        guildId: null,
+                        surface: 'web',
+                        errorCategory: null,
+                        status: 'open',
+                    },
+                ]),
+            })
+        })
 
         await page.goto('/admin/support')
 
@@ -297,12 +316,13 @@ test.describe('Pages without other e2e coverage', () => {
             page.getByRole('heading', { level: 1, name: 'Support reports' }),
         ).toBeVisible({ timeout: 10000 })
         await expect(
+            page.getByText('Queue stops after the third track'),
+        ).toBeVisible()
+        await expect(page.getByRole('alert')).toHaveCount(0)
+        await expect(
             page.getByRole('heading', { level: 1, name: 'Access Denied' }),
         ).toHaveCount(0)
         await page.waitForLoadState('networkidle')
-        expect(
-            unmocked.filter((path) => path.includes('/support')),
-        ).not.toEqual([])
         expect(errors).toEqual([])
     })
 
