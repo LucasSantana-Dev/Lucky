@@ -1,4 +1,8 @@
 const mockCleanupOldData = jest.fn<Promise<unknown>, []>()
+const mockPurgeDepartedGuildData = jest.fn<
+    Promise<unknown>,
+    [number, string[]]
+>()
 
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
@@ -8,6 +12,7 @@ jest.mock('@lucky/shared/utils', () => ({
 jest.mock('@lucky/shared/services', () => ({
     DatabaseService: jest.fn().mockImplementation(() => ({
         cleanupOldData: mockCleanupOldData,
+        purgeDepartedGuildData: mockPurgeDepartedGuildData,
     })),
 }))
 
@@ -16,7 +21,7 @@ import { infoLog, errorLog } from '@lucky/shared/utils'
 
 function makeResult(overrides: {
     isFailure: boolean
-    data?: number
+    data?: unknown
     error?: Error
 }) {
     return {
@@ -29,12 +34,19 @@ function makeResult(overrides: {
 
 let scheduler: DataRetentionScheduler | undefined
 
+const ENV_KEYS = [
+    'GUILD_DATA_PURGE_ENABLED',
+    'GUILD_DATA_PURGE_GRACE_DAYS',
+] as const
+
 beforeEach(() => {
     jest.clearAllMocks()
     jest.useFakeTimers()
+    for (const key of ENV_KEYS) delete process.env[key]
 })
 
 afterEach(() => {
+    for (const key of ENV_KEYS) delete process.env[key]
     // Always clear the interval, even when an assertion above failed.
     scheduler?.stop()
     scheduler = undefined
@@ -97,5 +109,128 @@ describe('DataRetentionScheduler', () => {
 
         await jest.advanceTimersByTimeAsync(20)
         expect(mockCleanupOldData).toHaveBeenCalledTimes(2)
+    })
+
+    describe('departed-guild purge (#2377)', () => {
+        async function runOnce(): Promise<void> {
+            mockCleanupOldData.mockResolvedValue(
+                makeResult({ isFailure: false, data: 0 }),
+            )
+            scheduler = new DataRetentionScheduler(100)
+            scheduler.start({
+                guilds: { cache: new Map([['live-guild', {}]]) },
+            } as any)
+            await jest.advanceTimersByTimeAsync(0)
+        }
+
+        test('does not purge when the flag is unset (default off)', async () => {
+            await runOnce()
+
+            expect(mockPurgeDepartedGuildData).not.toHaveBeenCalled()
+        })
+
+        test('does not purge when the flag is anything other than "true"', async () => {
+            process.env.GUILD_DATA_PURGE_ENABLED = 'yes'
+
+            await runOnce()
+
+            expect(mockPurgeDepartedGuildData).not.toHaveBeenCalled()
+        })
+
+        test('purges with the 30-day default grace period when enabled', async () => {
+            process.env.GUILD_DATA_PURGE_ENABLED = 'true'
+            mockPurgeDepartedGuildData.mockResolvedValue(
+                makeResult({
+                    isFailure: false,
+                    data: {
+                        guilds: 2,
+                        deleted: { server_logs: 5, member_xp: 2 },
+                    },
+                }),
+            )
+
+            await runOnce()
+
+            expect(mockPurgeDepartedGuildData).toHaveBeenCalledWith(30, [
+                'live-guild',
+            ])
+            expect(infoLog).toHaveBeenCalledWith({
+                message:
+                    'Departed-guild purge over 2 guild(s) deleted: server_logs=5, member_xp=2',
+            })
+        })
+
+        test('uses GUILD_DATA_PURGE_GRACE_DAYS when it is a positive integer', async () => {
+            process.env.GUILD_DATA_PURGE_ENABLED = 'true'
+            process.env.GUILD_DATA_PURGE_GRACE_DAYS = '7'
+            mockPurgeDepartedGuildData.mockResolvedValue(
+                makeResult({
+                    isFailure: false,
+                    data: { guilds: 0, deleted: {} },
+                }),
+            )
+
+            await runOnce()
+
+            expect(mockPurgeDepartedGuildData).toHaveBeenCalledWith(7, [
+                'live-guild',
+            ])
+            expect(infoLog).toHaveBeenCalledWith({
+                message:
+                    'Departed-guild purge: no guild past the 7-day grace period',
+            })
+        })
+
+        test.each(['0', '-3', 'abc', '1.5', '3651', '9'.repeat(400)])(
+            'falls back to 30 days for invalid grace value %s',
+            async (value) => {
+                process.env.GUILD_DATA_PURGE_ENABLED = 'true'
+                process.env.GUILD_DATA_PURGE_GRACE_DAYS = value
+                mockPurgeDepartedGuildData.mockResolvedValue(
+                    makeResult({
+                        isFailure: false,
+                        data: { guilds: 0, deleted: {} },
+                    }),
+                )
+
+                await runOnce()
+
+                expect(mockPurgeDepartedGuildData).toHaveBeenCalledWith(30, [
+                    'live-guild',
+                ])
+            },
+        )
+
+        test('reports departed guilds with nothing left to delete (repeat run)', async () => {
+            process.env.GUILD_DATA_PURGE_ENABLED = 'true'
+            mockPurgeDepartedGuildData.mockResolvedValue(
+                makeResult({
+                    isFailure: false,
+                    data: { guilds: 3, deleted: {} },
+                }),
+            )
+
+            await runOnce()
+
+            expect(infoLog).toHaveBeenCalledWith({
+                message:
+                    'Departed-guild purge over 3 guild(s): nothing left to delete',
+            })
+        })
+
+        test('logs an error and does not throw when the purge fails', async () => {
+            process.env.GUILD_DATA_PURGE_ENABLED = 'true'
+            const boom = new Error('purge boom')
+            mockPurgeDepartedGuildData.mockResolvedValue(
+                makeResult({ isFailure: true, error: boom }),
+            )
+
+            await runOnce()
+
+            expect(errorLog).toHaveBeenCalledWith({
+                message: 'Departed-guild purge failed',
+                error: boom,
+            })
+        })
     })
 })
