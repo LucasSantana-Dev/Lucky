@@ -182,7 +182,7 @@ function ArtistTile({
                             }}
                             className='pointer-events-auto absolute top-2 right-2 rounded-full bg-lucky-bg-primary/90 p-1.5 ring-1 ring-lucky-border hover:bg-lucky-error transition-colors'
                         >
-                            <X className='h-4 w-4 text-lucky-error' />
+                            <X className='h-4 w-4 text-lucky-error-text' />
                         </button>
                     )}
                 </div>
@@ -542,7 +542,7 @@ export default function PreferredArtistsPage() {
                         )}
 
                         {searchError && (
-                            <p className='mt-3 type-body-sm text-lucky-error'>
+                            <p className='mt-3 type-body-sm text-lucky-error-text'>
                                 {t('failedToSearchArtists')}
                             </p>
                         )}
@@ -658,7 +658,7 @@ export default function PreferredArtistsPage() {
                             suggestionsError &&
                             !suggestionsLoading && (
                                 <div className='py-6 text-center space-y-3'>
-                                    <p className='type-body-sm text-lucky-error'>
+                                    <p className='type-body-sm text-lucky-error-text'>
                                         {suggestionsError}
                                     </p>
                                     <button

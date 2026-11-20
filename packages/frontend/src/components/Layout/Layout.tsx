@@ -135,7 +135,7 @@ function UserMenu() {
             <button
                 type='button'
                 onClick={logout}
-                className='lucky-focus-visible flex min-h-[28px] min-w-[28px] items-center justify-center rounded-md text-lucky-text-subtle transition-colors hover:bg-lucky-error/10 hover:text-lucky-error'
+                className='lucky-focus-visible flex min-h-[28px] min-w-[28px] items-center justify-center rounded-md text-lucky-text-subtle transition-colors hover:bg-lucky-error/10 hover:text-lucky-error-text'
                 aria-label={t('common.logout')}
                 title={t('common.logout')}
             >

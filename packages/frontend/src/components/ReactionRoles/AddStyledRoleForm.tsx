@@ -110,7 +110,7 @@ export function AddStyledRoleForm({
 
                     {error && (
                         <div className='rounded-md border border-lucky-error/30 bg-lucky-error/10 px-3 py-2'>
-                            <p className='type-body-sm text-lucky-error'>
+                            <p className='type-body-sm text-lucky-error-text'>
                                 {error}
                             </p>
                         </div>
@@ -196,7 +196,7 @@ export function AddStyledRoleForm({
                         <button
                             type='button'
                             onClick={handleReset}
-                            className='text-lucky-text-tertiary hover:text-lucky-error'
+                            className='text-lucky-text-tertiary hover:text-lucky-error-text'
                             aria-label='Close preview'
                         >
                             <X className='h-4 w-4' />
@@ -205,7 +205,7 @@ export function AddStyledRoleForm({
 
                     {error && (
                         <div className='rounded-md border border-lucky-error/30 bg-lucky-error/10 px-3 py-2'>
-                            <p className='type-body-sm text-lucky-error'>
+                            <p className='type-body-sm text-lucky-error-text'>
                                 {error}
                             </p>
                         </div>
@@ -285,7 +285,7 @@ export function AddStyledRoleForm({
 
                     {error && (
                         <div className='rounded-md border border-lucky-error/30 bg-lucky-error/10 px-3 py-2'>
-                            <p className='type-body-sm text-lucky-error'>
+                            <p className='type-body-sm text-lucky-error-text'>
                                 {error}
                             </p>
                         </div>

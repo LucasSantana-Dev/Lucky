@@ -343,7 +343,7 @@ export default function GuildAutomation() {
 
             {loadError && !loading && (
                 <div className='surface-panel rounded-lg border border-lucky-error/40 p-4 flex items-center justify-between gap-4'>
-                    <p className='text-sm text-lucky-error'>
+                    <p className='text-sm text-lucky-error-text'>
                         {t('loadErrorMessage')}
                     </p>
                     <Button

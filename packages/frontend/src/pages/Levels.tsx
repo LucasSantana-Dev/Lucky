@@ -351,7 +351,7 @@ function Levels() {
                     </h3>
 
                     {rolesError && (
-                        <p className='text-sm text-lucky-error mb-4'>
+                        <p className='text-sm text-lucky-error-text mb-4'>
                             {t('levels.couldNotLoadRoles')}
                         </p>
                     )}

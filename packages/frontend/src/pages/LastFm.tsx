@@ -87,7 +87,7 @@ export default function LastFmPage() {
 
             {error && (
                 <div className='flex items-start gap-3 rounded-xl border border-lucky-error/40 bg-lucky-error/10 p-4'>
-                    <X className='mt-0.5 h-5 w-5 flex-shrink-0 text-lucky-error' />
+                    <X className='mt-0.5 h-5 w-5 flex-shrink-0 text-lucky-error-text' />
                     <div className='flex-1'>
                         <p className='type-body-sm text-lucky-text-primary font-500'>
                             {error}
@@ -155,7 +155,7 @@ export default function LastFmPage() {
                     <button
                         onClick={handleUnlink}
                         disabled={isUnlinking}
-                        className='inline-flex items-center gap-2 text-sm font-500 text-lucky-error hover:text-lucky-error transition-colors lucky-focus-visible disabled:opacity-60 disabled:cursor-not-allowed'
+                        className='inline-flex items-center gap-2 text-sm font-500 text-lucky-error-text hover:text-lucky-error-text transition-colors lucky-focus-visible disabled:opacity-60 disabled:cursor-not-allowed'
                     >
                         {isUnlinking ? (
                             <Loader2 className='h-4 w-4 animate-spin' />

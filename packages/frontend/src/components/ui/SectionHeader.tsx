@@ -17,7 +17,7 @@ const TONE_TEXT: Record<StatusBandTone, string> = {
     brand: 'text-lucky-brand-text',
     accent: 'text-lucky-brand-text',
     warning: 'text-lucky-warning',
-    error: 'text-lucky-error',
+    error: 'text-lucky-error-text',
     muted: 'text-lucky-text-tertiary',
 }
 

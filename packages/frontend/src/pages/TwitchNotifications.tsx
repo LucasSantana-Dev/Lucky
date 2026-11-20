@@ -311,7 +311,7 @@ export default function TwitchNotificationsPage() {
                                 setRemoveTarget(notif)
                                 setRemoveOpen(true)
                             }}
-                            className='lucky-focus-visible p-1.5 rounded-sm text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 cursor-pointer'
+                            className='lucky-focus-visible p-1.5 rounded-sm text-lucky-text-tertiary hover:text-lucky-error-text hover:bg-lucky-error/10 transition-colors opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 cursor-pointer'
                             aria-label={t('removeAriaLabel', {
                                 login: notif.twitchLogin,
                             })}
@@ -342,7 +342,7 @@ export default function TwitchNotificationsPage() {
                         {t('twitchNotifications')}
                     </h1>
                 </header>
-                <div className='p-4 rounded-sm bg-lucky-error/10 border border-lucky-error text-lucky-error'>
+                <div className='p-4 rounded-sm bg-lucky-error/10 border border-lucky-error text-lucky-error-text'>
                     <p className='font-semibold uppercase tracking-wide mb-1'>
                         {t('notConfigured')}
                     </p>
@@ -375,7 +375,7 @@ export default function TwitchNotificationsPage() {
             </header>
 
             {error && (
-                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error text-sm'>
+                <div className='p-3 rounded-lg bg-lucky-error/10 text-lucky-error-text text-sm'>
                     {error}
                 </div>
             )}
@@ -422,7 +422,7 @@ export default function TwitchNotificationsPage() {
                         </Select>
                     </div>
                     {channelsError && (
-                        <p className='text-xs text-lucky-error'>
+                        <p className='text-xs text-lucky-error-text'>
                             {channelsError}
                         </p>
                     )}

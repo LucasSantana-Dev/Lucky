@@ -343,7 +343,7 @@ export default function ServerLogsPage() {
                         {loggingLoadFailed && (
                             <p
                                 role='alert'
-                                className='text-xs text-lucky-error mt-1'
+                                className='text-xs text-lucky-error-text mt-1'
                             >
                                 {t('loggingSettingsLoadError')}
                             </p>

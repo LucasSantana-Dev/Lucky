@@ -175,7 +175,7 @@ export default function SupportPage() {
                         />
                         {fileError && (
                             <p
-                                className='type-body-sm text-lucky-error'
+                                className='type-body-sm text-lucky-error-text'
                                 role='alert'
                             >
                                 {fileError}
@@ -185,7 +185,7 @@ export default function SupportPage() {
 
                     {state === 'error' && errorMessage && (
                         <div
-                            className='flex items-center gap-2 type-body-sm text-lucky-error bg-lucky-error/10 border border-lucky-error/20 rounded-sm p-3'
+                            className='flex items-center gap-2 type-body-sm text-lucky-error-text bg-lucky-error/10 border border-lucky-error/20 rounded-sm p-3'
                             role='alert'
                         >
                             <AlertCircle

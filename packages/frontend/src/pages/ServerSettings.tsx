@@ -621,7 +621,7 @@ export default function ServerSettingsPage() {
                                 type='button'
                                 variant='ghost'
                                 size='sm'
-                                className='text-lucky-text-tertiary hover:text-lucky-error hover:bg-lucky-error/10 transition-colors'
+                                className='text-lucky-text-tertiary hover:text-lucky-error-text hover:bg-lucky-error/10 transition-colors'
                                 onClick={() => removeRbacGrant(index)}
                                 title={t('serverSettings.removeRuleTitle')}
                             >
