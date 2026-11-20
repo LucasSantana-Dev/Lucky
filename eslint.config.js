@@ -206,4 +206,16 @@ export default [
             ],
         },
     },
+    {
+        // Same no-console rule as packages/frontend/eslint.config.js, for when
+        // eslint runs from the repo root (lint-staged). Without it the rule is
+        // off here, so the one sanctioned `eslint-disable-next-line no-console`
+        // in src/lib/sentry.ts was reported as unused and `--fix` would strip
+        // it, breaking the frontend's own lint (#2379).
+        basePath: __dirname,
+        files: ["packages/frontend/src/**/*.{ts,tsx}"],
+        rules: {
+            "no-console": ["error", { allow: ["warn"] }],
+        },
+    },
 ]
