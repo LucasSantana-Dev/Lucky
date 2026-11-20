@@ -192,6 +192,33 @@ describe('searchLogs', () => {
         })
     })
 
+    it('expands a level into the raw types of that bucket (#2456)', async () => {
+        mockServerLog.findMany.mockResolvedValue([])
+
+        await serverLogService.searchLogs('g1', { level: 'automod' })
+
+        expect(mockServerLog.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: {
+                    guildId: 'g1',
+                    type: { in: ['automod_trigger', 'automod_settings'] },
+                },
+            }),
+        )
+    })
+
+    it('matches nothing for a level no log type maps to (#2456)', async () => {
+        mockServerLog.findMany.mockResolvedValue([])
+
+        await serverLogService.searchLogs('g1', { level: 'warn' })
+
+        expect(mockServerLog.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { guildId: 'g1', type: { in: [] } },
+            }),
+        )
+    })
+
     it('threads limit and offset through for pagination', async () => {
         mockServerLog.findMany.mockResolvedValue([])
 

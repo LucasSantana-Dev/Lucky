@@ -403,7 +403,7 @@ describe('ServerLogsPage', () => {
         vi.mocked(api.serverLogs.search).mockImplementation((_g, filters) =>
             Promise.resolve({
                 data:
-                    filters.type === 'info'
+                    filters.level === 'info'
                         ? { logs: [mockLogs[0]], total: 1 }
                         : { logs: mockLogs, total: 3 },
             } as any),
@@ -425,9 +425,47 @@ describe('ServerLogsPage', () => {
         await waitFor(() => {
             expect(api.serverLogs.search).toHaveBeenCalledWith(
                 mockGuild.id,
-                expect.objectContaining({ type: 'info' }),
+                expect.objectContaining({ level: 'info' }),
             )
         })
+        // The bucket name is a level, never a raw `type` (#2456).
+        for (const call of vi.mocked(api.serverLogs.search).mock.calls) {
+            expect(call[1]).not.toHaveProperty('type', 'info')
+        }
+    })
+
+    test('ignores a slower response from a superseded request (#2465)', async () => {
+        const user = userEvent.setup()
+        mockGuildStoreFn(mockGuild)
+        let resolveUnfiltered: (value: unknown) => void = () => {}
+        vi.mocked(api.serverLogs.search).mockImplementation((_g, filters) =>
+            filters.level === 'info'
+                ? Promise.resolve({
+                      data: { logs: [mockLogs[0]], total: 1 },
+                  } as any)
+                : (new Promise((resolve) => {
+                      resolveUnfiltered = resolve
+                  }) as any),
+        )
+
+        renderPage()
+        const infoChip = screen
+            .getAllByRole('button')
+            .find((btn) => btn.querySelector('p')?.textContent === 'info')
+        await user.click(infoChip!)
+        await waitFor(() =>
+            expect(
+                screen.getByText('User joined the server'),
+            ).toBeInTheDocument(),
+        )
+
+        // The first (unfiltered) request resolves last, with other rows.
+        await act(async () => {
+            resolveUnfiltered({ data: { logs: mockLogs, total: 3 } })
+        })
+
+        expect(screen.getByText('User joined the server')).toBeInTheDocument()
+        expect(screen.queryByText(mockLogs[1].message)).not.toBeInTheDocument()
     })
 
     test('exports logs as JSON when export button clicked', async () => {

@@ -62,6 +62,25 @@ export const LOG_LEVEL_BY_TYPE: Record<string, ServerLogLevel> = {
     settings_change: 'system',
 }
 
+/** Raw log types that fall in a level bucket (inverse of LOG_LEVEL_BY_TYPE). */
+export function logTypesForLevel(level: ServerLogLevel): LogType[] {
+    return (Object.keys(LOG_LEVEL_BY_TYPE) as LogType[]).filter(
+        (type) => LOG_LEVEL_BY_TYPE[type] === level,
+    )
+}
+
+/** Filters accepted by {@link ServerLogService.searchLogs}. */
+export interface ServerLogSearchFilters {
+    q?: string
+    type?: LogType
+    level?: ServerLogLevel
+    userId?: string
+    channelId?: string
+    moderatorId?: string
+    startDate?: Date
+    endDate?: Date
+}
+
 /** Shape the dashboard expects for each log row. */
 export interface SerializedServerLog {
     id: string
@@ -204,24 +223,18 @@ export class ServerLogService {
     }
 
     /** Builds the shared Prisma `where` clause for {@link searchLogs} and {@link countSearchLogs}. */
-    private buildSearchWhere(
-        guildId: string,
-        filters: {
-            q?: string
-            type?: LogType
-            userId?: string
-            channelId?: string
-            moderatorId?: string
-            startDate?: Date
-            endDate?: Date
-        },
-    ) {
+    private buildSearchWhere(guildId: string, filters: ServerLogSearchFilters) {
         return {
             guildId,
             // `q` is zod-validated and length-bounded by the caller; Prisma
             // parameterizes `contains`, so this is safe against injection.
             ...(filters.q && {
                 action: { contains: filters.q, mode: 'insensitive' as const },
+            }),
+            // `level` expands to the raw types in that bucket; a bucket with
+            // no types (warn, error) matches nothing rather than everything.
+            ...(filters.level && {
+                type: { in: logTypesForLevel(filters.level) },
             }),
             ...(filters.type && { type: filters.type }),
             ...(filters.userId && { userId: filters.userId }),
@@ -241,15 +254,7 @@ export class ServerLogService {
     /** Searches logs with optional filters on text, type, user, channel, moderator, and date range. */
     async searchLogs(
         guildId: string,
-        filters: {
-            q?: string
-            type?: LogType
-            userId?: string
-            channelId?: string
-            moderatorId?: string
-            startDate?: Date
-            endDate?: Date
-        },
+        filters: ServerLogSearchFilters,
         limit: number = 100,
         offset: number = 0,
     ) {
@@ -264,18 +269,7 @@ export class ServerLogService {
     }
 
     /** Counts logs matching the same filters as {@link searchLogs}, for pagination totals. */
-    async countSearchLogs(
-        guildId: string,
-        filters: {
-            q?: string
-            type?: LogType
-            userId?: string
-            channelId?: string
-            moderatorId?: string
-            startDate?: Date
-            endDate?: Date
-        },
-    ) {
+    async countSearchLogs(guildId: string, filters: ServerLogSearchFilters) {
         return await prisma.serverLog.count({
             where: this.buildSearchWhere(guildId, filters),
         })

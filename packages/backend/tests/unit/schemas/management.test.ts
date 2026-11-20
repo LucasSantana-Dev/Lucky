@@ -439,6 +439,7 @@ describe('Management Schemas', () => {
         function buildFrontendSearchParams(filters: {
             q?: string
             type?: string
+            level?: string
             userId?: string
             limit?: number
             offset?: number
@@ -446,6 +447,7 @@ describe('Management Schemas', () => {
             const params: Record<string, string> = {}
             if (filters.q) params.q = filters.q
             if (filters.type) params.type = filters.type
+            if (filters.level) params.level = filters.level
             if (filters.userId) params.userId = filters.userId
             if (filters.limit) params.limit = String(filters.limit)
             if (filters.offset !== undefined) {
@@ -474,16 +476,23 @@ describe('Management Schemas', () => {
         test('accepts a level filter combined with a search term and a paged offset', () => {
             const params = buildFrontendSearchParams({
                 q: 'ban',
-                type: 'moderation',
+                level: 'moderation',
                 limit: 25,
                 offset: 50,
             })
-            expect(s.logsSearchQuery.safeParse(params).success).toBe(true)
+            const result = s.logsSearchQuery.safeParse(params)
+            expect(result.success).toBe(true)
+            if (result.success) expect(result.data.level).toBe('moderation')
+        })
+
+        test('rejects a level outside the dashboard buckets (#2456)', () => {
+            const params = buildFrontendSearchParams({ level: 'mod_action' })
+            expect(s.logsSearchQuery.safeParse(params).success).toBe(false)
         })
 
         test('accepts a level-only request with no search term', () => {
             const params = buildFrontendSearchParams({
-                type: 'automod',
+                level: 'automod',
                 limit: 25,
                 offset: 0,
             })

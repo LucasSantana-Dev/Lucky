@@ -160,7 +160,7 @@ export default function ServerLogsPage() {
     const [logs, setLogs] = useState<ServerLog[]>([])
     const [total, setTotal] = useState(0)
     const [loading, setLoading] = useState(true)
-    const [levelFilter, setLevelFilter] = useState<string>('all')
+    const [levelFilter, setLevelFilter] = useState<LogLevel | 'all'>('all')
     const [searchQuery, setSearchQuery] = useState('')
     const [debouncedSearch, setDebouncedSearch] = useState('')
     const [page, setPage] = useState(1)
@@ -188,19 +188,27 @@ export default function ServerLogsPage() {
         return () => clearTimeout(timer)
     }, [searchQuery])
 
+    // Only the latest request may commit state: an older response landing
+    // after a newer one would show rows for a filter the user already left.
+    const latestRequestRef = useRef(0)
+
     const fetchLogs = useCallback(async () => {
         if (!selectedGuild?.id) return
+        const requestId = ++latestRequestRef.current
+        const isStale = () => latestRequestRef.current !== requestId
         setLoading(true)
         try {
             const res = await api.serverLogs.search(selectedGuild.id, {
                 q: debouncedSearch.trim() || undefined,
-                type: levelFilter !== 'all' ? levelFilter : undefined,
+                level: levelFilter !== 'all' ? levelFilter : undefined,
                 limit,
                 offset: (page - 1) * limit,
             })
+            if (isStale()) return
             setLogs(res.data.logs)
             setTotal(res.data.total)
         } catch (error) {
+            if (isStale()) return
             reportError('Failed to load logs:', error, {
                 component: 'ServerLogs',
                 action: 'loadLogs',
@@ -209,7 +217,7 @@ export default function ServerLogsPage() {
             setLogs([])
             setTotal(0)
         } finally {
-            setLoading(false)
+            if (!isStale()) setLoading(false)
         }
     }, [selectedGuild?.id, levelFilter, debouncedSearch, page])
 
@@ -370,7 +378,12 @@ export default function ServerLogsPage() {
                             </button>
                         )}
                     </div>
-                    <Select value={levelFilter} onValueChange={setLevelFilter}>
+                    <Select
+                        value={levelFilter}
+                        onValueChange={(value) =>
+                            setLevelFilter(value as LogLevel | 'all')
+                        }
+                    >
                         <SelectTrigger className='sm:w-[140px] bg-lucky-bg-tertiary border-lucky-border text-lucky-text-primary'>
                             <SelectValue placeholder={t('allLevels')} />
                         </SelectTrigger>

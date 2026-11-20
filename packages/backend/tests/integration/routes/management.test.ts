@@ -474,6 +474,37 @@ describe('Management Routes Integration', () => {
             )
         })
 
+        test('passes the level bucket through to the service (#2456)', async () => {
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            const mockServerLogService = serverLogService as jest.Mocked<
+                typeof serverLogService
+            >
+            mockServerLogService.searchLogs.mockResolvedValue([])
+            mockServerLogService.countSearchLogs.mockResolvedValue(0)
+
+            await request(app)
+                .get(
+                    '/api/guilds/111111111111111111/logs/search?level=moderation',
+                )
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(200)
+
+            expect(mockServerLogService.searchLogs).toHaveBeenCalledWith(
+                '111111111111111111',
+                expect.objectContaining({ level: 'moderation' }),
+                50,
+                0,
+            )
+            expect(mockServerLogService.countSearchLogs).toHaveBeenCalledWith(
+                '111111111111111111',
+                expect.objectContaining({ level: 'moderation' }),
+            )
+        })
+
         test('rejects a search query over the 200 character limit', async () => {
             const mockSessionService = sessionService as jest.Mocked<
                 typeof sessionService
