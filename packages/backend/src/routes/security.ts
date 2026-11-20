@@ -111,7 +111,8 @@ export function setupSecurityRoutes(app: Express): void {
                 for (const raw of extractReports(req.body)) {
                     const fields = pickReportFields(raw)
                     // Ignore empty/garbage payloads — only act on a real violation.
-                    if (!fields.violatedDirective && !fields.blockedUri) continue
+                    if (!fields.violatedDirective && !fields.blockedUri)
+                        continue
 
                     warnLog({ message: 'csp-violation', data: fields })
                     captureMessageThrottled(
