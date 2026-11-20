@@ -1,5 +1,5 @@
 import { getArtistTopTags } from '../../../lastfm'
-import { primaryArtist } from '../../../utils/music/trackNormalization'
+import { primaryArtistName } from '../../../utils/music/trackNormalization'
 
 export type ArtistTagFetcher = (artist: string | undefined) => Promise<string[]>
 
@@ -38,8 +38,9 @@ export function createArtistTagFetcher(
         // Last.fm has no entry for a Spotify multi-artist credit ("A, B"), so
         // the raw author returns no tags and every genre guard fails open.
         // Retry with the first artist only after the raw name misses: names
-        // like "Tyler, The Creator" carry a comma and resolve as-is.
-        const primary = primaryArtist(artist)
+        // like "Tyler, The Creator" carry a comma and resolve as-is. The
+        // retry also drops "feat." / "ft." / "featuring" credits.
+        const primary = primaryArtistName(artist)
         const pending = getArtistTopTags(artist)
             .catch(() => [])
             .then((tags) =>

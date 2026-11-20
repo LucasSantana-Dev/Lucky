@@ -124,6 +124,22 @@ describe('createArtistTagFetcher', () => {
         expect(spotifyFallback).not.toHaveBeenCalled()
     })
 
+    it('drops dotted and parenthesised featuring credits on the retry (#2513)', async () => {
+        getArtistTopTags.mockImplementation(async (artist: string) =>
+            artist === 'Elis Regina' ? ['mpb'] : [],
+        )
+
+        const fetcher = createArtistTagFetcher()
+
+        for (const author of [
+            'Elis Regina feat. Tom Jobim',
+            'Elis Regina ft. Tom Jobim',
+            'Elis Regina (featuring Tom Jobim)',
+        ]) {
+            await expect(fetcher(author)).resolves.toEqual(['mpb'])
+        }
+    })
+
     it('keeps a comma-named artist whole when Last.fm knows it', async () => {
         getArtistTopTags.mockResolvedValue(['hip-hop', 'rap'])
 
