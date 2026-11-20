@@ -94,17 +94,22 @@ export function isPlayProbeEnabled(env = process.env): boolean {
     return raw !== 'false' && raw !== '0'
 }
 
+// Rejects after `ms` and aborts `controller`, so the losing operation is
+// cancelled, not just abandoned: a stream that arrives late is destroyed and
+// an HTTP read is aborted (#2920 review). `player.search` takes no signal;
+// its extractors run under their own request timeouts.
 function withTimeout<T>(
     promise: Promise<T>,
     ms: number,
     label: string,
+    controller?: AbortController,
 ): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined
     const timeout = new Promise<never>((_, reject) => {
-        timer = setTimeout(
-            () => reject(new Error(`${label} timed out after ${ms}ms`)),
-            ms,
-        )
+        timer = setTimeout(() => {
+            controller?.abort()
+            reject(new Error(`${label} timed out after ${ms}ms`))
+        }, ms)
     })
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
 }
@@ -120,12 +125,13 @@ function searchOptions(probeCase: ProbeCase) {
           }
 }
 
-function readFirstChunk(stream: Readable): Promise<void> {
+function readFirstChunk(stream: Readable, signal: AbortSignal): Promise<void> {
     return new Promise<void>((resolve, reject) => {
         const cleanup = () => {
             stream.off('data', onData)
             stream.off('error', onError)
             stream.off('end', onEnd)
+            signal.removeEventListener('abort', onAbort)
         }
         const onData = () => {
             cleanup()
@@ -139,38 +145,53 @@ function readFirstChunk(stream: Readable): Promise<void> {
             cleanup()
             reject(new Error('stream ended before the first byte'))
         }
+        const onAbort = () => {
+            cleanup()
+            reject(new Error('aborted'))
+        }
+        if (signal.aborted) {
+            onAbort()
+            return
+        }
         stream.on('data', onData)
         stream.once('error', onError)
         stream.once('end', onEnd)
+        signal.addEventListener('abort', onAbort, { once: true })
     }).finally(() => {
+        // Destroying the bridge stream also stops its yt-dlp process.
         stream.destroy()
     })
 }
 
-async function readFirstHttpChunk(url: string): Promise<void> {
+async function readFirstHttpChunk(
+    url: string,
+    signal: AbortSignal,
+): Promise<void> {
     const controller = new AbortController()
+    const onAbort = () => controller.abort()
+    signal.addEventListener('abort', onAbort, { once: true })
     try {
         const response = await fetch(url, { signal: controller.signal })
         if (!response.ok || !response.body) {
             throw new Error(`stream URL answered HTTP ${response.status}`)
         }
-        const reader = response.body.getReader()
-        const { done } = await reader.read()
+        const { done } = await response.body.getReader().read()
         if (done) throw new Error('stream URL returned no bytes')
     } finally {
+        signal.removeEventListener('abort', onAbort)
         controller.abort()
     }
 }
 
-async function firstByte(track: Track): Promise<void> {
+async function firstByte(track: Track, signal: AbortSignal): Promise<void> {
     const extractor = track.extractor
     if (!extractor) throw new Error('resolved track has no extractor')
     const source = await extractor.stream(track)
-    if (typeof source === 'string') return readFirstHttpChunk(source)
+    if (typeof source === 'string') return readFirstHttpChunk(source, signal)
     if ('stream' in source && '$fmt' in source) {
-        return readFirstChunk(source.stream)
+        return readFirstChunk(source.stream, signal)
     }
-    return readFirstChunk(source as Readable)
+    return readFirstChunk(source as Readable, signal)
 }
 
 export async function runProbeCase(
@@ -201,8 +222,14 @@ export async function runProbeCase(
         const resolveMs = Date.now() - resolveStart
 
         const streamStart = Date.now()
+        const controller = new AbortController()
         try {
-            await withTimeout(firstByte(track), timeoutMs, 'first byte')
+            await withTimeout(
+                firstByte(track, controller.signal),
+                timeoutMs,
+                'first byte',
+                controller,
+            )
         } catch (error) {
             return {
                 id: probeCase.id,
@@ -232,7 +259,14 @@ function publish(result: ProbeResult): void {
             result.resolveMs / 1000,
         )
     }
-    if (result.firstByteMs !== undefined) {
+    if (result.firstByteMs === undefined) {
+        // Failed at resolve: drop the previous run's value instead of
+        // showing it as this run's (#2920 review).
+        playProbeDurationSeconds.remove({
+            case: result.id,
+            stage: 'first_byte',
+        })
+    } else {
         playProbeDurationSeconds.set(
             { case: result.id, stage: 'first_byte' },
             result.firstByteMs / 1000,
@@ -253,7 +287,8 @@ export async function runPlayProbe(
 ): Promise<ProbeResult[]> {
     const results: ProbeResult[] = []
     for (const probeCase of cases) {
-        const result = await runProbeCase(player, probeCase, timeoutMs)
+        // Sequential on purpose: one case at a time, no burst against YouTube.
+        const result = await runProbeCase(player, probeCase, timeoutMs) // NOSONAR
         publish(result)
         results.push(result)
         if (!result.ok) {
@@ -283,7 +318,7 @@ export function __resetPlayProbeStateForTests(): void {
     consecutiveFailures.clear()
 }
 
-class PlayProbeScheduler {
+export class PlayProbeScheduler {
     private firstRun: ReturnType<typeof setTimeout> | undefined
     private interval: ReturnType<typeof setInterval> | undefined
     private running = false

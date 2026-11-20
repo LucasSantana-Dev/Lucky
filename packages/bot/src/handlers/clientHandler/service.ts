@@ -213,7 +213,9 @@ export async function startClient({
             // In-process synthetic play probe (#2920): uses this client's own
             // Player, so it needs no second login and joins no voice channel.
             try {
-                playProbeScheduler.start(client.player)
+                // No Player when the bot boots with skipPlayer: nothing to
+                // probe, so do not schedule failures.
+                if (client.player) playProbeScheduler.start(client.player)
             } catch (error) {
                 errorLog({
                     message: 'Failed to start play probe',

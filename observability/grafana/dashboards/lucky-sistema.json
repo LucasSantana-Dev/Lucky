@@ -1217,13 +1217,13 @@
             "type": "row",
             "title": "Sonda de play",
             "collapsed": false,
+            "panels": [],
             "gridPos": {
                 "x": 0,
                 "y": 53,
                 "w": 24,
                 "h": 1
             },
-            "panels": [],
             "id": 21
         },
         {
@@ -1259,8 +1259,14 @@
                         {
                             "type": "value",
                             "options": {
-                                "0": { "text": "falhou", "color": "red" },
-                                "1": { "text": "ok", "color": "green" }
+                                "0": {
+                                    "text": "falhou",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "ok",
+                                    "color": "green"
+                                }
                             }
                         }
                     ]
@@ -1278,7 +1284,7 @@
         {
             "type": "timeseries",
             "title": "Sonda: tempo por etapa",
-            "description": "Última execução de cada caso: resolve (busca) e first_byte (primeiros bytes do stream).",
+            "description": "Última vez que cada etapa rodou: resolve (busca) e first_byte (primeiros bytes do stream). Um caso que falha no resolve fica sem first_byte.",
             "gridPos": {
                 "x": 12,
                 "y": 54,
@@ -1307,8 +1313,9 @@
                     "unit": "s",
                     "custom": {
                         "drawStyle": "line",
-                        "lineWidth": 1,
-                        "fillOpacity": 0
+                        "fillOpacity": 10,
+                        "lineWidth": 2,
+                        "showPoints": "never"
                     }
                 },
                 "overrides": []

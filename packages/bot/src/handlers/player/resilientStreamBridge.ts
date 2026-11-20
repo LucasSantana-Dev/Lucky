@@ -1092,7 +1092,8 @@ async function attemptSpotifyViaYtDlp(
     // The cached match no longer streams and a fresh search found nothing
     // either: remember that for 5 min instead of paying for the same two
     // failures on every replay. A SoundCloud match found below overwrites it.
-    if (staleCache) {
+    // A probe never writes the cache real plays read (#2920).
+    if (staleCache && !isPlayProbe()) {
         await setSpotifySourceNegative(spotifyUrl, trackIsrc(track))
     }
     return null

@@ -29,6 +29,7 @@ import { initProviderHealth } from '../../services/musicManagement/search/provid
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { recapScheduler } from '../../services/recap/recapScheduler'
+import { playProbeScheduler } from '../../services/playProbe/playProbe'
 import { reminderScheduler } from '../../utils/general/reminderScheduler'
 import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
@@ -232,6 +233,7 @@ export class BotInitializer {
                 () => birthdayScheduler.stop(),
             ],
             ['Error stopping recap scheduler:', () => recapScheduler.stop()],
+            ['Error stopping play probe:', () => playProbeScheduler.stop()],
             [
                 'Error stopping support session scheduler:',
                 () => supportSessionScheduler.stop(),

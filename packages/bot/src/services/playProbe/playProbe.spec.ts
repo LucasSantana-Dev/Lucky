@@ -1,8 +1,16 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    jest,
+} from '@jest/globals'
 import { Readable } from 'node:stream'
 
 const mockSuccessSet = jest.fn()
 const mockDurationSet = jest.fn()
+const mockDurationRemove = jest.fn()
 const mockFailuresSet = jest.fn()
 const mockWarnLog = jest.fn()
 const mockInfoLog = jest.fn()
@@ -11,6 +19,7 @@ jest.mock('../../utils/monitoring/prometheus', () => ({
     playProbeSuccess: { set: (...a: unknown[]) => mockSuccessSet(...a) },
     playProbeDurationSeconds: {
         set: (...a: unknown[]) => mockDurationSet(...a),
+        remove: (...a: unknown[]) => mockDurationRemove(...a),
     },
     playProbeConsecutiveFailures: {
         set: (...a: unknown[]) => mockFailuresSet(...a),
@@ -31,6 +40,9 @@ jest.mock(
 
 import { isPlayProbe } from '../../handlers/player/probeContext'
 import {
+    PROBE_FIRST_RUN_DELAY_MS,
+    PROBE_INTERVAL_MS,
+    PlayProbeScheduler,
     __resetPlayProbeStateForTests,
     isPlayProbeEnabled,
     probeCasesFromEnv,
@@ -229,5 +241,184 @@ describe('runPlayProbe', () => {
             { case: 'youtube_watch' },
             0,
         )
+    })
+})
+
+describe('runProbeCase cancellation and HTTP sources (#2920 review)', () => {
+    it('destroys a stream that never yields once the timeout fires', async () => {
+        const stream = new Readable({ read() {} })
+        const player = playerReturning(streamingTrack(async () => stream))
+
+        await runProbeCase(player, URL_CASE, 50)
+
+        expect(stream.destroyed).toBe(true)
+    })
+
+    it('destroys a stream that arrives after the timeout', async () => {
+        const stream = new Readable({ read() {} })
+        let release: () => void = () => undefined
+        const player = playerReturning(
+            streamingTrack(
+                () =>
+                    new Promise((resolve) => {
+                        release = () => resolve(stream)
+                    }),
+            ),
+        )
+
+        await expect(runProbeCase(player, URL_CASE, 20)).resolves.toMatchObject(
+            {
+                ok: false,
+                failedStage: 'first_byte',
+            },
+        )
+        release()
+        await new Promise((resolve) => setImmediate(resolve))
+
+        expect(stream.destroyed).toBe(true)
+    })
+
+    it('reads the first bytes of a stream URL', async () => {
+        const fetchMock = jest
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValue(new Response('audio'))
+        try {
+            const player = playerReturning(
+                streamingTrack(async () => 'https://cdn.example/stream'),
+            )
+            await expect(
+                runProbeCase(player, URL_CASE, 1_000),
+            ).resolves.toMatchObject({ ok: true })
+            expect(fetchMock).toHaveBeenCalledWith(
+                'https://cdn.example/stream',
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
+            )
+        } finally {
+            fetchMock.mockRestore()
+        }
+    })
+
+    it('fails on a stream URL that answers an error status', async () => {
+        const fetchMock = jest
+            .spyOn(globalThis, 'fetch')
+            .mockResolvedValue(new Response('no', { status: 403 }))
+        try {
+            const player = playerReturning(
+                streamingTrack(async () => 'https://cdn.example/stream'),
+            )
+            await expect(
+                runProbeCase(player, URL_CASE, 1_000),
+            ).resolves.toMatchObject({
+                ok: false,
+                failedStage: 'first_byte',
+                error: 'stream URL answered HTTP 403',
+            })
+        } finally {
+            fetchMock.mockRestore()
+        }
+    })
+
+    it('fails on a track without an extractor', async () => {
+        const player = playerReturning({ extractor: null })
+        await expect(
+            runProbeCase(player, URL_CASE, 1_000),
+        ).resolves.toMatchObject({
+            ok: false,
+            failedStage: 'first_byte',
+            error: 'resolved track has no extractor',
+        })
+    })
+})
+
+describe('runPlayProbe gauges', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        __resetPlayProbeStateForTests()
+    })
+
+    it('drops the stale first_byte value when a run fails at resolve', async () => {
+        await runPlayProbe(playerReturning(), [URL_CASE], 1_000)
+
+        expect(mockDurationRemove).toHaveBeenCalledWith({
+            case: 'youtube_watch',
+            stage: 'first_byte',
+        })
+    })
+})
+
+describe('PlayProbeScheduler', () => {
+    const ORIGINAL = process.env.PLAY_PROBE_ENABLED
+
+    beforeEach(() => {
+        jest.useFakeTimers()
+        jest.clearAllMocks()
+        delete process.env.PLAY_PROBE_ENABLED
+    })
+
+    afterEach(() => {
+        jest.useRealTimers()
+        if (ORIGINAL === undefined) delete process.env.PLAY_PROBE_ENABLED
+        else process.env.PLAY_PROBE_ENABLED = ORIGINAL
+    })
+
+    it('first runs after the boot delay, then every interval, until stopped', async () => {
+        const scheduler = new PlayProbeScheduler()
+        const player = playerReturning()
+        scheduler.start(player)
+
+        await jest.advanceTimersByTimeAsync(PROBE_FIRST_RUN_DELAY_MS - 1)
+        expect(player.search).not.toHaveBeenCalled()
+
+        await jest.advanceTimersByTimeAsync(1)
+        const perRun = player.search.mock.calls.length
+        expect(perRun).toBeGreaterThan(0)
+
+        await jest.advanceTimersByTimeAsync(PROBE_INTERVAL_MS)
+        expect(player.search.mock.calls.length).toBe(perRun * 2)
+
+        scheduler.stop()
+        await jest.advanceTimersByTimeAsync(PROBE_INTERVAL_MS * 2)
+        expect(player.search.mock.calls.length).toBe(perRun * 2)
+    })
+
+    it('does not schedule anything when PLAY_PROBE_ENABLED=false', async () => {
+        process.env.PLAY_PROBE_ENABLED = 'false'
+        const scheduler = new PlayProbeScheduler()
+        const player = playerReturning()
+        scheduler.start(player)
+
+        await jest.advanceTimersByTimeAsync(PROBE_INTERVAL_MS * 2)
+
+        expect(player.search).not.toHaveBeenCalled()
+        expect(mockInfoLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'play probe: disabled by PLAY_PROBE_ENABLED',
+            }),
+        )
+    })
+
+    it('ignores a second start and skips a tick while a run is still going', async () => {
+        const scheduler = new PlayProbeScheduler()
+        const player = {
+            search: jest.fn(() => new Promise(() => undefined)),
+        } as unknown as Parameters<typeof runProbeCase>[0] & {
+            search: jest.Mock
+        }
+        scheduler.start(player)
+        scheduler.start(player)
+
+        await jest.advanceTimersByTimeAsync(PROBE_FIRST_RUN_DELAY_MS)
+        expect(player.search).toHaveBeenCalledTimes(1)
+
+        // The first case's search never settles within this interval's
+        // ticks only because of the resolve timeout; the overlap guard
+        // must keep the next tick from starting a second run.
+        await jest.advanceTimersByTimeAsync(
+            PROBE_INTERVAL_MS - PROBE_FIRST_RUN_DELAY_MS,
+        )
+        expect(player.search.mock.calls.length).toBeLessThan(
+            probeCasesFromEnv().length + 2,
+        )
+        scheduler.stop()
     })
 })

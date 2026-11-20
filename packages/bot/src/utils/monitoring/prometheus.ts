@@ -217,14 +217,6 @@ export const guildLeavesTotal = new Counter({
 })
 
 /**
- * Gauge: whether a music extractor is currently known-degraded (1) or
- * healthy (0), labelled by extractor name. Pushed directly by
- * `extractorHealth.ts` on registration success/failure — not lazily
- * collected, since registration is an event, not a queryable state.
- * Distinct from `lucky_bot_gateway_connected`: the gateway can be fully
- * connected while a specific extractor is unusable (#1929).
- */
-/**
  * Synthetic play probe (#2920). `case` is one of the fixed probe cases
  * (youtube_watch|youtube_music|youtu_be|youtube_playlist|soundcloud_text),
  * `stage` is resolve|first_byte. Gauges, not counters: each run overwrites
@@ -239,7 +231,7 @@ export const playProbeSuccess = new Gauge<'case'>({
 
 export const playProbeDurationSeconds = new Gauge<'case' | 'stage'>({
     name: 'lucky_bot_probe_duration_seconds',
-    help: 'Duration in seconds of the last synthetic play probe run, per case and stage (resolve|first_byte).',
+    help: 'Duration in seconds of each stage in the last synthetic play probe run of a case (resolve|first_byte); first_byte is absent when that run failed at resolve.',
     labelNames: ['case', 'stage'],
     registers: [registry],
 })
@@ -251,6 +243,14 @@ export const playProbeConsecutiveFailures = new Gauge<'case'>({
     registers: [registry],
 })
 
+/**
+ * Gauge: whether a music extractor is currently known-degraded (1) or
+ * healthy (0), labelled by extractor name. Pushed directly by
+ * `extractorHealth.ts` on registration success/failure — not lazily
+ * collected, since registration is an event, not a queryable state.
+ * Distinct from `lucky_bot_gateway_connected`: the gateway can be fully
+ * connected while a specific extractor is unusable (#1929).
+ */
 export const musicExtractorDegradedGauge = new Gauge<'extractor'>({
     name: 'lucky_music_extractor_degraded',
     help: 'Whether a music extractor is currently known-degraded (1) or healthy (0), labelled by extractor name.',
