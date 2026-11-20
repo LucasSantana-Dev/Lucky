@@ -62,6 +62,7 @@ import {
     stampFallbackStage,
     type StreamBridgeFallbackStage,
 } from './streamFallbackState'
+import { isPlayProbe } from './probeContext'
 
 type BridgeTrack = Pick<
     Track,
@@ -142,6 +143,8 @@ function observeStage(
     outcome: 'ok' | 'fail',
 ): number {
     const durationMs = Date.now() - startedAt
+    // A synthetic probe is not a play (#2920): it has its own metrics.
+    if (isPlayProbe()) return durationMs
     try {
         playStageSeconds.observe({ stage, outcome }, durationMs / 1000)
     } catch {
@@ -158,6 +161,7 @@ function cacheResolution(
     resolution: SourceResolution,
 ): void {
     if (!track.url || !isHost(track.url, 'open.spotify.com')) return
+    if (isPlayProbe()) return
     if (keepCachedEntry.has(track)) return
     void setSpotifySource(track.url, resolution, trackIsrc(track))
 }
@@ -867,6 +871,9 @@ function logAllStagesExhausted(
     } = {},
 ): void {
     reportedExhausted.add(track)
+    // The probe records its own failure; this line and the Sentry event count
+    // failed plays of real users (#2920).
+    if (isPlayProbe()) return
     const failureClass = firstYouTubeFailure.get(track) ?? 'none'
     captureMessage(
         'YouTube extraction exhausted all fallback stages',

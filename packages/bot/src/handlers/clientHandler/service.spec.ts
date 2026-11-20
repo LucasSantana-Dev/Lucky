@@ -69,6 +69,10 @@ jest.mock('../../utils/general/dataRetentionScheduler', () => ({
     dataRetentionScheduler: { start: jest.fn(), stop: jest.fn() },
 }))
 
+jest.mock('../../services/playProbe/playProbe', () => ({
+    playProbeScheduler: { start: jest.fn(), stop: jest.fn() },
+}))
+
 jest.mock('../../services/recap/recapScheduler', () => ({
     recapScheduler: { start: jest.fn(), stop: jest.fn() },
 }))

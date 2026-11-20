@@ -1,0 +1,32 @@
+# Synthetic play probe alerts (#2920).
+#
+# Its own file, like recap-render.rules.yml: the homelab Prometheus that runs
+# in production loads individual files from the Lucky checkout (#2723), not
+# lucky-alerts.rules.yml, so this file must be added to its rule_files to
+# page in production. Lucky's own Prometheus picks it up through the
+# rules/*.yml glob.
+#
+# The probe runs inside the bot every 15 minutes (first run 2 minutes after
+# boot, so every deploy is checked) and exports
+# lucky_bot_probe_consecutive_failures{case}. Two failed runs in a row of the
+# same case means plays of that kind are broken even when nobody is playing.
+# Worst case from breakage to alert: just under one interval before the
+# first failing run, plus one interval, so about 30 minutes.
+
+groups:
+  - name: lucky-play-probe
+    rules:
+      - alert: LuckyPlayProbeFailing
+        expr: max by (case) (lucky_bot_probe_consecutive_failures) >= 2
+        labels:
+          severity: critical
+          service: lucky-bot
+        annotations:
+          summary: "Synthetic play probe failed twice in a row for {{ $labels.case }}"
+          description: >-
+            The in-process play probe could not resolve or stream its
+            {{ $labels.case }} case on two consecutive runs (15 minutes apart).
+            Real plays of that kind are most likely failing too. Check the bot
+            log for "play probe: case failed" (it names the stage: resolve or
+            first_byte), lucky_bot_extraction_failures_total by type, and the
+            LuckyYouTubeDegraded alert.

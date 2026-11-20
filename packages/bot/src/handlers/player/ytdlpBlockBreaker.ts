@@ -1,4 +1,5 @@
 import { extractionFailuresTotal } from '../../utils/monitoring/prometheus'
+import { isPlayProbe } from './probeContext'
 import { isExtractorDegraded, setExtractorDegraded } from './extractorHealth'
 
 // Since 2026-10-06 YouTube answers yt-dlp media downloads with HTTP 403 for
@@ -103,6 +104,8 @@ function markBreakerDegraded(): void {
  * breaker — only a 403 that also failed the retry reaches recordYtDlpFailure.
  */
 export function countYtDlpFailure(error: unknown): void {
+    // A synthetic probe reports through its own metrics (#2920).
+    if (isPlayProbe()) return
     extractionFailuresTotal.inc({ type: classifyYtDlpFailure(error) })
 }
 
@@ -116,6 +119,8 @@ export function recordYtDlpFailure(
     play?: object,
     videoId?: string,
 ): void {
+    // A probe failure must not open the breaker that gates real plays (#2920).
+    if (isPlayProbe()) return
     const type = classifyYtDlpFailure(error)
     extractionFailuresTotal.inc({ type })
     if (type === 'other') return
@@ -146,6 +151,8 @@ export function recordYtDlpFailure(
 }
 
 export function recordYtDlpSuccess(): void {
+    // Nor may a probe success close one that real plays opened (#2920).
+    if (isPlayProbe()) return
     forbiddenByVideo.clear()
     slowFailureAts = []
     blockedUntil = 0

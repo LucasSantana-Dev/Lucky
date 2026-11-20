@@ -13,6 +13,7 @@ import {
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { recapScheduler } from '../../services/recap/recapScheduler'
+import { playProbeScheduler } from '../../services/playProbe/playProbe'
 import { reminderScheduler } from '../../utils/general/reminderScheduler'
 import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
@@ -205,6 +206,17 @@ export async function startClient({
             } catch (error) {
                 errorLog({
                     message: 'Failed to start recap scheduler',
+                    error,
+                })
+            }
+
+            // In-process synthetic play probe (#2920): uses this client's own
+            // Player, so it needs no second login and joins no voice channel.
+            try {
+                playProbeScheduler.start(client.player)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to start play probe',
                     error,
                 })
             }
