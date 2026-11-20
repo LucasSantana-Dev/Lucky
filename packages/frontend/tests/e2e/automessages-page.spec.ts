@@ -57,6 +57,16 @@ test.describe('Auto Messages Page', () => {
     })
 
     test('shows empty state when no messages configured', async ({ page }) => {
+        await page.route(
+            '**/api/guilds/111111111111111111/automessages',
+            async (route) => {
+                await route.fulfill({
+                    status: 200,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ messages: [] }),
+                })
+            },
+        )
         await page.addInitScript((guild) => {
             localStorage.setItem('selectedGuild', guild)
         }, GUILD_STORAGE)

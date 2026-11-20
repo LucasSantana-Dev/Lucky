@@ -278,7 +278,9 @@ test.describe('Track History Page', () => {
         await page.goto('/music/history')
         await page.waitForLoadState('domcontentloaded')
 
-        const trackLink = page.locator('a[target="_blank"]').first()
+        const trackLink = page
+            .locator('[role="listitem"] a[target="_blank"]')
+            .first()
         await expect(trackLink).toBeVisible({ timeout: 10000 })
         await expect(trackLink).toHaveAttribute('rel', 'noopener noreferrer')
     })
