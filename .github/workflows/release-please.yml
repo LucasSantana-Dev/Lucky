@@ -43,3 +43,40 @@ jobs:
                   token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
                   config-file: release-please-config.json
                   manifest-file: .release-please-manifest.json
+
+            # release-please rewrites package.json and package-lock.json from the
+            # snapshot it held when it opened the release PR. When main later
+            # changes dependencies in a commit that does not alter the release
+            # notes (a chore), the PR branch keeps the old dependency set, so
+            # merging it would revert those bumps and break `npm ci` (#2539).
+            # Fail loudly instead of leaving a silently stale PR.
+            - name: Guard release PR against a stale dependency snapshot
+              env:
+                  GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+                  REPO: ${{ github.repository }}
+              run: |
+                  set -euo pipefail
+                  branch=release-please--branches--main
+                  pr=$(gh pr list --repo "$REPO" --head "$branch" --state open                     --json number --jq '.[0].number // empty')
+                  if [ -z "$pr" ]; then
+                    echo "No open release PR, nothing to check."
+                    exit 0
+                  fi
+                  fetch() {
+                    gh api "repos/$REPO/contents/$1?ref=$2"                       -H "Accept: application/vnd.github.raw+json"
+                  }
+                  # Compare everything except the version bump release-please owns.
+                  pkg='del(.version)'
+                  lock='del(.version) | del(.packages[""].version)'
+                  stale=0
+                  for spec in "package.json:$pkg" "package-lock.json:$lock"; do
+                    file=${spec%%:*}
+                    filter=${spec#*:}
+                    a=$(fetch "$file" main | jq -S "$filter")
+                    b=$(fetch "$file" "$branch" | jq -S "$filter")
+                    if [ "$a" != "$b" ]; then
+                      echo "::error file=$file::Release PR #$pr has a stale $file (differs from main beyond the version). Merging it would revert dependency changes. Refresh the release PR."
+                      stale=1
+                    fi
+                  done
+                  exit "$stale"
