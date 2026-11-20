@@ -1,5 +1,12 @@
+const os = require('node:os')
+
 /** @type {import('jest').Config} */
 module.exports = {
+    // Jest defaults to cores - 1 workers (15 on a 16-thread dev box, ~300MB each).
+    // Several agent worktrees running the suite at once exhausted local RAM.
+    // Cap at half the cores, max 4. A 2-vCPU CI runner still gets 1 worker, as
+    // before. Override per run with --maxWorkers.
+    maxWorkers: Math.max(1, Math.min(4, Math.floor(os.availableParallelism() / 2))),
     preset: 'ts-jest',
     testEnvironment: 'node',
     roots: ['<rootDir>/src', '<rootDir>/tests'],
