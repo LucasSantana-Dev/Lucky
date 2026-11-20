@@ -10,8 +10,7 @@ const WCAG_TAGS = ['wcag2a', 'wcag2aa']
 // named next to each selector is fixed. Anything else still fails the test.
 const KNOWN_VIOLATIONS: Record<string, string[]> = {
     dashboard: [],
-    // #3187: text-lucky-error is 4.28:1 on the panel background.
-    music: ['p.text-lucky-error'],
+    music: [],
 }
 
 async function scan(page: Page, key: keyof typeof KNOWN_VIOLATIONS) {
