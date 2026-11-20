@@ -57,13 +57,13 @@ describe('twitch command', () => {
 
         mockUser = {
             id: 'user123',
-        }
+        } as Partial<User>
 
         mockGuild = {
             id: 'guild123',
             name: 'Test Guild',
             ownerId: 'owner123',
-        }
+        } as Partial<Guild>
 
         mockGetSubcommand = jest.fn()
 
