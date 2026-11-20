@@ -70,7 +70,7 @@ describe('POST /api/security/csp-report (#1283)', () => {
                         body: {
                             documentURL: 'https://app.example/',
                             effectiveDirective: 'img-src',
-                            blockedURL: 'https://evil.example/p.png',
+                            blockedURL: 'https://app.example/p.png',
                         },
                     },
                 ]),
@@ -81,7 +81,7 @@ describe('POST /api/security/csp-report (#1283)', () => {
             message: 'csp-violation',
             data: expect.objectContaining({
                 violatedDirective: 'img-src',
-                blockedUri: 'https://evil.example/p.png',
+                blockedUri: 'https://app.example/p.png',
             }),
         })
         expect(captureMock).toHaveBeenCalledTimes(1)
@@ -149,5 +149,73 @@ describe('POST /api/security/csp-report (#1283)', () => {
         expect(response.status).toBe(204)
         expect(warnLogMock).not.toHaveBeenCalled()
         expect(captureMock).not.toHaveBeenCalled()
+    })
+
+    describe('third-party noise (#3087)', () => {
+        const post = (report: Record<string, string>) =>
+            request(app)
+                .post('/api/security/csp-report')
+                .set('Content-Type', 'application/csp-report')
+                .send(JSON.stringify({ 'csp-report': report }))
+
+        test('a third-party font block (extension) is logged but not sent to Sentry', async () => {
+            await post({
+                'document-uri': 'https://lucky.example/',
+                'violated-directive': 'font-src',
+                'blocked-uri': 'https://fonts.gstatic.com/s/x.woff2',
+            }).expect(204)
+
+            expect(warnLogMock).toHaveBeenCalledTimes(1)
+            expect(captureMock).not.toHaveBeenCalled()
+        })
+
+        test('an own-origin violation still reports', async () => {
+            await post({
+                'document-uri': 'https://lucky.example/',
+                'violated-directive': 'img-src',
+                'blocked-uri': 'https://lucky.example/og-image.png',
+            }).expect(204)
+
+            expect(captureMock).toHaveBeenCalledTimes(1)
+        })
+
+        test('an inline or eval violation still reports', async () => {
+            await post({
+                'document-uri': 'https://lucky.example/',
+                'violated-directive': 'script-src',
+                'blocked-uri': 'inline',
+            }).expect(204)
+
+            expect(captureMock).toHaveBeenCalledTimes(1)
+        })
+
+        test('a third-party script block still reports', async () => {
+            await post({
+                'document-uri': 'https://lucky.example/',
+                'violated-directive': 'script-src',
+                'blocked-uri': 'https://evil.example/x.js',
+            }).expect(204)
+
+            expect(captureMock).toHaveBeenCalledTimes(1)
+        })
+
+        test('counts violations by directive and origin', async () => {
+            const { cspViolationsTotal } =
+                await import('../../../src/utils/prometheus')
+            const count = async () =>
+                (await cspViolationsTotal.get()).values.find(
+                    (v) =>
+                        v.labels.directive === 'font-src' &&
+                        v.labels.origin === 'third_party',
+                )?.value ?? 0
+            const before = await count()
+            await post({
+                'document-uri': 'https://lucky.example/',
+                'violated-directive': 'font-src',
+                'blocked-uri': 'https://fonts.gstatic.com/s/x.woff2',
+            }).expect(204)
+
+            expect(await count()).toBe(before + 1)
+        })
     })
 })

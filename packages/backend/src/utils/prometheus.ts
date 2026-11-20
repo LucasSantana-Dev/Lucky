@@ -54,6 +54,18 @@ export const httpServerErrorsTotal = new Counter<'method' | 'route'>({
  * Counter: Guild Automation usage (plan/apply attempts), labelled by operation type and guild.
  * Cardinality is bounded: we label by operation type (plan|apply|reconcile) and count total attempts.
  */
+/**
+ * Counter: CSP violation reports, by directive and whether the blocked
+ * resource belongs to the page's own origin. Directive is clamped to a fixed
+ * set so a crafted report cannot blow up label cardinality.
+ */
+export const cspViolationsTotal = new Counter<'directive' | 'origin'>({
+    name: 'lucky_backend_csp_violations_total',
+    help: 'CSP violation reports received, labelled by directive and own vs third-party origin.',
+    labelNames: ['directive', 'origin'],
+    registers: [registry],
+})
+
 export const guildAutomationUsageTotal = new Counter<'operation'>({
     name: 'lucky_guild_automation_usage_total',
     help: 'Count of Guild Automation plan/apply/reconcile attempts, labelled by operation type.',

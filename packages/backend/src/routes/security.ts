@@ -7,6 +7,7 @@ import express, {
 import rateLimit from 'express-rate-limit'
 import { warnLog } from '@lucky/shared/utils'
 import { captureMessageThrottled } from '@lucky/shared/utils/monitoring'
+import { cspViolationsTotal } from '../utils/prometheus'
 
 /**
  * Same-origin sink for CSP violation reports (#1283).
@@ -101,6 +102,56 @@ const pickReportFields = (report: Record<string, unknown>) => ({
     disposition: str(report['disposition']),
 })
 
+const KNOWN_DIRECTIVES = new Set([
+    'default-src',
+    'script-src',
+    'script-src-elem',
+    'script-src-attr',
+    'style-src',
+    'style-src-elem',
+    'style-src-attr',
+    'img-src',
+    'font-src',
+    'connect-src',
+    'media-src',
+    'frame-src',
+    'worker-src',
+    'object-src',
+    'base-uri',
+    'form-action',
+    'frame-ancestors',
+])
+// A blocked third-party script, frame or form target can be a real injection
+// attempt, so these always reach Sentry. For the rest (fonts, images, styles,
+// connections) a foreign URL the app never loads is a browser extension.
+const ALWAYS_REPORT_DIRECTIVES = new Set([
+    'script-src',
+    'script-src-elem',
+    'script-src-attr',
+    'object-src',
+    'frame-src',
+    'base-uri',
+    'form-action',
+    'frame-ancestors',
+])
+
+const hostOf = (value: string | undefined): string | undefined => {
+    if (!value) return undefined
+    try {
+        return new URL(value).host
+    } catch {
+        return undefined
+    }
+}
+
+// Own origin = same host as the page, or a non-URL token (inline, eval, data,
+// blob, self) which can only come from the page itself.
+const isOwnOrigin = (fields: ReturnType<typeof pickReportFields>): boolean => {
+    const blockedHost = hostOf(fields.blockedUri)
+    if (!blockedHost) return true
+    return blockedHost === hostOf(fields.documentUri)
+}
+
 export function setupSecurityRoutes(app: Express): void {
     app.post(
         '/api/security/csp-report',
@@ -111,9 +162,25 @@ export function setupSecurityRoutes(app: Express): void {
                 for (const raw of extractReports(req.body)) {
                     const fields = pickReportFields(raw)
                     // Ignore empty/garbage payloads — only act on a real violation.
-                    if (!fields.violatedDirective && !fields.blockedUri) continue
+                    if (!fields.violatedDirective && !fields.blockedUri)
+                        continue
 
+                    const directive = (fields.violatedDirective ?? '').split(
+                        ' ',
+                    )[0]
+                    const own = isOwnOrigin(fields)
+                    cspViolationsTotal
+                        .labels(
+                            KNOWN_DIRECTIVES.has(directive)
+                                ? directive
+                                : 'other',
+                            own ? 'own' : 'third_party',
+                        )
+                        .inc()
                     warnLog({ message: 'csp-violation', data: fields })
+                    if (!own && !ALWAYS_REPORT_DIRECTIVES.has(directive)) {
+                        continue
+                    }
                     captureMessageThrottled(
                         `csp:${fields.violatedDirective ?? 'unknown'}`,
                         `CSP violation: ${
