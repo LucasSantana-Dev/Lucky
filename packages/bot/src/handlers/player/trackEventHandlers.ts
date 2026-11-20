@@ -435,6 +435,9 @@ const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
     // A /stop or disconnect ends the session; its failures must not count
     // against the next one.
     resetAutoplayFailureStreak(queue.guild.id)
+    // An idle-disconnect timer armed for this session would otherwise fire
+    // against whatever new session starts before playerStart clears it.
+    clearIdleTimer(queue.guild.id)
     try {
         const lastStarted = takeGuildLastStartedTrack(queue.guild.id)
         const track = queue.currentTrack ?? lastStarted

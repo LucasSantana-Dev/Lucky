@@ -242,6 +242,12 @@ export async function searchSpotifyTracks(
         .filter((t): t is SpotifyTrackRef => t !== null)
 }
 
+/** Market follows SPOTIFY_MARKET, like the discord-player extractor. */
+function albumMarketParam(): string {
+    const market = process.env.SPOTIFY_MARKET
+    return market ? `&market=${encodeURIComponent(market)}` : ''
+}
+
 /**
  * Spotify's own top-tracks ranking (already most-popular-first) — the
  * accurate "most famous" ordering `/artist`'s discography mode needs, unlike
@@ -253,7 +259,7 @@ export async function getSpotifyArtistTopTracks(
 ): Promise<SpotifyTrackRef[]> {
     try {
         const res = await fetch(
-            `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}/top-tracks?market=US`,
+            `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}/top-tracks?market=${encodeURIComponent(process.env.SPOTIFY_MARKET || 'US')}`,
             {
                 headers: { Authorization: `Bearer ${accessToken}` },
                 signal: AbortSignal.timeout(10_000),
@@ -302,7 +308,7 @@ export async function getSpotifyArtistAlbums(
     const seenNames = new Set<string>()
     const deduped: RawAlbum[] = []
     let url: string | null =
-        `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}/albums?include_groups=album,single&market=US&limit=50`
+        `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}/albums?include_groups=album,single${albumMarketParam()}&limit=50`
     try {
         while (url && deduped.length < maxAlbums) {
             const res = await fetch(url, {
