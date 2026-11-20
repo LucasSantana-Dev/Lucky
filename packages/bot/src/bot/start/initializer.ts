@@ -104,6 +104,11 @@ export class BotInitializer {
             })
             this.client.player = player
             musicWatchdogService.startOrphanSessionMonitor(player)
+            // Keeps each playing queue's saved position fresh, so a restart
+            // resumes the track where it was instead of from 0:00 (#3151).
+            musicSessionSnapshotService.startAutosave(
+                () => player.nodes?.cache?.values() ?? [],
+            )
         }
     }
 
@@ -340,6 +345,10 @@ export class BotInitializer {
             [
                 'Error stopping watchdog periodic scan:',
                 () => musicWatchdogService.stopPeriodicScan(),
+            ],
+            [
+                'Error stopping snapshot autosave:',
+                () => musicSessionSnapshotService.stopAutosave(),
             ],
         ]
         for (const [message, step] of stepsAfterBatchWorker) {

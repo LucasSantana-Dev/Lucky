@@ -66,9 +66,13 @@ jest.mock('../../utils/monitoring/commandEventBuffer', () => ({
 }))
 
 const saveSnapshotMock = jest.fn()
+const startAutosaveMock = jest.fn()
+const stopAutosaveMock = jest.fn()
 jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
     musicSessionSnapshotService: {
         saveSnapshot: (...args: unknown[]) => saveSnapshotMock(...args),
+        startAutosave: (...args: unknown[]) => startAutosaveMock(...args),
+        stopAutosave: (...args: unknown[]) => stopAutosaveMock(...args),
     },
 }))
 
@@ -466,6 +470,28 @@ describe('BotInitializer', () => {
             expect(initializer.isBotInitialized()).toBe(false)
         })
 
+        it('starts snapshot autosave over the player queues (#3151)', async () => {
+            const queueA = { guild: { id: 'a' } }
+            createPlayerMock.mockResolvedValue({
+                nodes: { cache: new Map([['a', queueA]]) },
+            })
+            await initializer.initializeBot()
+
+            expect(startAutosaveMock).toHaveBeenCalledTimes(1)
+            const listQueues = startAutosaveMock.mock
+                .calls[0][0] as () => Iterable<unknown>
+            expect(Array.from(listQueues())).toEqual([queueA])
+        })
+
+        it('lists no queues for autosave when the player has no node cache', async () => {
+            createPlayerMock.mockResolvedValue({})
+            await initializer.initializeBot()
+
+            const listQueues = startAutosaveMock.mock
+                .calls[0][0] as () => Iterable<unknown>
+            expect(Array.from(listQueues())).toEqual([])
+        })
+
         it('awaits a snapshot save for every queue before client.destroy()', async () => {
             const queueA = { guild: { id: 'a' } }
             const queueB = { guild: { id: 'b' } }
@@ -625,6 +651,7 @@ describe('BotInitializer', () => {
             ['stopTwitchService', stopTwitchServiceMock],
             ['stopOrphanSessionMonitor', musicWatchdogStopMock],
             ['stopPeriodicScan', musicWatchdogStopPeriodicScanMock],
+            ['stopAutosave', stopAutosaveMock],
         ]
 
         it.each(failingStops)(
@@ -698,6 +725,7 @@ describe('BotInitializer', () => {
                 ['rss bridge', stopRssBridgeServiceMock],
                 ['watchdog orphan monitor', musicWatchdogStopMock],
                 ['watchdog periodic scan', musicWatchdogStopPeriodicScanMock],
+                ['snapshot autosave', stopAutosaveMock],
                 ['client destroy', client?.destroy as jest.Mock],
                 ['command event buffer', stopCommandEventBufferMock],
                 ['metrics server', stopMetricsServerMock],

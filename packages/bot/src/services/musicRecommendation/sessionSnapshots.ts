@@ -40,6 +40,11 @@ export type SnapshotTrack = {
     recommendationReason?: string
     isAutoplay?: boolean
     requestedById?: string
+    // Current track only (#3151): where playback was when the snapshot was
+    // saved, the track length in ms, and whether the queue was paused.
+    positionMs?: number
+    durationMs?: number
+    paused?: boolean
 }
 
 export type QueueSessionSnapshot = {
@@ -66,6 +71,63 @@ const MAX_SNAPSHOT_TRACKS = 25
 
 /** Maximum age in ms for a snapshot to be automatically restored (30 minutes). */
 const DEFAULT_MAX_SNAPSHOT_AGE_MS = 30 * 60 * 1_000
+
+/** A current track with less than this left is skipped on restore (#3151). */
+const MIN_REMAINING_TO_RESUME_MS = 15_000
+
+/** Positions below this restart from the top instead of seeking. */
+const MIN_SEEK_MS = 5_000
+
+/** How often playing queues are re-saved, so a crash loses little progress. */
+export const SNAPSHOT_AUTOSAVE_INTERVAL_MS = 30_000
+
+function durationStringToMs(duration: string): number | null {
+    const parts = duration.split(':').map(Number)
+    if (parts.length < 2 || parts.length > 3) return null
+    if (parts.some((p) => !Number.isFinite(p))) return null
+    const seconds = parts.reduce((total, part) => total * 60 + part, 0)
+    return seconds > 0 ? seconds * 1_000 : null
+}
+
+function trackLengthMs(track: SnapshotTrack): number | null {
+    if (typeof track.durationMs === 'number' && track.durationMs > 0) {
+        return track.durationMs
+    }
+    return durationStringToMs(track.duration)
+}
+
+type CurrentTrackPlan = { restore: false } | { restore: true; seekMs: number }
+
+/**
+ * Decides how the snapshot's current track comes back after a restart (#3151):
+ * from its saved position, from the top, or not at all. A track is dropped when
+ * little of it is left, or when it would already have ended had it kept
+ * playing since the save (a legacy snapshot without a position counts from
+ * 0:00, the most generous assumption). A paused track does not advance, so
+ * only the first rule applies to it.
+ */
+function planCurrentTrack(
+    track: SnapshotTrack,
+    savedAt: number,
+    now: number,
+): CurrentTrackPlan {
+    const positionMs = Math.max(0, track.positionMs ?? 0)
+    const seekMs = positionMs >= MIN_SEEK_MS ? positionMs : 0
+    const lengthMs = trackLengthMs(track)
+    if (lengthMs === null) return { restore: true, seekMs }
+
+    const remainingMs = lengthMs - positionMs
+    if (
+        track.positionMs !== undefined &&
+        remainingMs < MIN_REMAINING_TO_RESUME_MS
+    ) {
+        return { restore: false }
+    }
+    if (!track.paused && now - savedAt > remainingMs) {
+        return { restore: false }
+    }
+    return { restore: true, seekMs }
+}
 
 type SearchOptions = {
     requestedBy?: User
@@ -105,6 +167,26 @@ export function toSnapshotTrack(track: Track): SnapshotTrack {
         isAutoplay: metadata.isAutoplay,
         requestedById: metadata.requestedById,
     }
+}
+
+/** Position, length and paused state of the playing track, when the node knows them. */
+function playbackState(
+    queue: GuildQueue,
+    track: Track,
+): Pick<SnapshotTrack, 'positionMs' | 'durationMs' | 'paused'> {
+    const state: Pick<SnapshotTrack, 'positionMs' | 'durationMs' | 'paused'> =
+        {}
+    const position = queue.node?.playbackTime
+    if (typeof position === 'number' && Number.isFinite(position)) {
+        state.positionMs = Math.max(0, Math.round(position))
+    }
+    if (typeof track.durationMS === 'number' && track.durationMS > 0) {
+        state.durationMs = track.durationMS
+    }
+    if (typeof queue.node?.isPaused === 'function') {
+        state.paused = queue.node.isPaused()
+    }
+    return state
 }
 
 function applySnapshotMetadata(
@@ -186,7 +268,10 @@ export class MusicSessionSnapshotService {
             }
 
             const currentSnapshot = currentTrack
-                ? toSnapshotTrack(currentTrack as Track)
+                ? {
+                      ...toSnapshotTrack(currentTrack as Track),
+                      ...playbackState(queue, currentTrack as Track),
+                  }
                 : null
             const sessionSnapshotId = randomUUID()
             const prisma = getPrismaClient()
@@ -230,6 +315,49 @@ export class MusicSessionSnapshotService {
             })
             return null
         }
+    }
+
+    private autosaveTimer: ReturnType<typeof setInterval> | null = null
+
+    /**
+     * Re-saves every playing queue on an interval, so the stored position is
+     * at most one interval old when the process dies without a clean shutdown
+     * (#3151). The shutdown path saves once more on its own. Idempotent.
+     */
+    startAutosave(
+        listQueues: () => Iterable<GuildQueue>,
+        intervalMs = SNAPSHOT_AUTOSAVE_INTERVAL_MS,
+    ): void {
+        if (this.autosaveTimer) return
+        this.autosaveTimer = setInterval(() => {
+            void this.autosaveTick(listQueues)
+        }, intervalMs)
+        this.autosaveTimer.unref?.()
+    }
+
+    stopAutosave(): void {
+        if (!this.autosaveTimer) return
+        clearInterval(this.autosaveTimer)
+        this.autosaveTimer = null
+    }
+
+    private async autosaveTick(
+        listQueues: () => Iterable<GuildQueue>,
+    ): Promise<void> {
+        let playing: GuildQueue[]
+        try {
+            playing = Array.from(listQueues()).filter(
+                (queue) => queue.currentTrack && queue.node.isPlaying(),
+            )
+        } catch (error) {
+            errorLog({
+                message: 'Snapshot autosave failed to list queues',
+                error,
+            })
+            return
+        }
+        // saveSnapshot logs and swallows its own errors.
+        await Promise.all(playing.map((queue) => this.saveSnapshot(queue)))
     }
 
     /**
@@ -448,12 +576,35 @@ export class MusicSessionSnapshotService {
                 ...(requestedBy ? { requestedBy } : {}),
             }
 
-            // Build ordered track list: currentTrack first so it replays from the top.
-            // Unless skipCurrentTrack is true (used during orphan session recovery to avoid replaying the same song).
+            // Build ordered track list: currentTrack first, resumed from where it
+            // was (#3151), or left out when it is nearly over, would already have
+            // ended, or skipCurrentTrack is set (orphan session recovery).
+            const currentPlan: CurrentTrackPlan =
+                snapshot.currentTrack && !options.skipCurrentTrack
+                    ? planCurrentTrack(
+                          snapshot.currentTrack,
+                          snapshot.savedAt,
+                          Date.now(),
+                      )
+                    : { restore: false }
+            if (snapshot.currentTrack && !currentPlan.restore) {
+                debugLog({
+                    message:
+                        'Snapshot current track is over or nearly over; not replaying it',
+                    data: {
+                        guildId: queue.guild.id,
+                        title: snapshot.currentTrack.title,
+                        positionMs: snapshot.currentTrack.positionMs,
+                        skipCurrentTrack: options.skipCurrentTrack ?? false,
+                    },
+                })
+            }
+            const currentEntry =
+                currentPlan.restore && snapshot.currentTrack
+                    ? snapshot.currentTrack
+                    : null
             const tracksToRestore: SnapshotTrack[] = [
-                ...(snapshot.currentTrack && !options.skipCurrentTrack
-                    ? [snapshot.currentTrack]
-                    : []),
+                ...(currentEntry ? [currentEntry] : []),
                 // After a restart, queued autoplay picks are dropped: the
                 // recommender that chose them ran before it (often an older
                 // build), and autoplay refills the queue from the restored
@@ -465,6 +616,9 @@ export class MusicSessionSnapshotService {
 
             let restoredCount = 0
             let skippedYoutubeCount = 0
+            // Seek only when the first track queued is the snapshot's current
+            // one: if it failed to resolve, the next track starts from the top.
+            let resumeSeekMs = 0
             // Tracks THIS restore added, so an abort can undo exactly those — never
             // tracks a user may have queued during the (racing) restore window.
             const restoredTracks: Track[] = []
@@ -528,6 +682,13 @@ export class MusicSessionSnapshotService {
                         entry.requestedById,
                     )
                     queue.addTrack(track)
+                    if (
+                        restoredCount === 0 &&
+                        entry === currentEntry &&
+                        currentPlan.restore
+                    ) {
+                        resumeSeekMs = currentPlan.seekMs
+                    }
                     restoredTracks.push(track as Track)
                     restoredCount += 1
                 }
@@ -566,7 +727,11 @@ export class MusicSessionSnapshotService {
                 }
 
                 if (!queue.node.isPlaying()) {
-                    await queue.node.play()
+                    if (resumeSeekMs > 0) {
+                        await queue.node.play(undefined, { seek: resumeSeekMs })
+                    } else {
+                        await queue.node.play()
+                    }
                 }
 
                 // Clear the snapshot now that playback has committed (or was
