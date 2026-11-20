@@ -28,6 +28,7 @@ const debugLogMock = jest.fn()
 const telemetryLogMock = jest.fn()
 const captureExceptionMock = jest.fn()
 const namedSessionListMock = jest.fn()
+const searchSpotifyAlbumsMock = jest.fn()
 const cleanupGuildStateMock = jest.fn()
 const aiDevToolkitStartMock = jest.fn()
 const recordGuildJoinMock = jest.fn(async () => undefined)
@@ -146,6 +147,8 @@ jest.mock('./player/nowPlayingDisplay', () => ({
 }))
 
 jest.mock('@lucky/shared/utils', () => ({
+    searchSpotifyAlbums: (...args: unknown[]) =>
+        searchSpotifyAlbumsMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
     debugLog: (...args: unknown[]) => debugLogMock(...args),
@@ -217,6 +220,8 @@ type AutocompleteMockOptions = {
     commandName?: string
     subcommand?: string | null
     focusedName?: string
+    focusedValue?: string
+    artist?: string | null
     respondMock?: jest.Mock
 }
 
@@ -235,8 +240,9 @@ function createAutocompleteInteraction(
                 .mockReturnValue(options.subcommand ?? 'restore'),
             getFocused: jest.fn().mockReturnValue({
                 name: options.focusedName ?? 'name',
-                value: '',
+                value: options.focusedValue ?? '',
             }),
+            getString: jest.fn().mockReturnValue(options.artist ?? null),
         },
         respond: respondMock,
     } as unknown as Interaction
@@ -634,6 +640,165 @@ describe('eventHandler', () => {
 
             expect(respondMock).toHaveBeenCalledWith([])
             expect(namedSessionListMock).not.toHaveBeenCalled()
+        })
+
+        it('suggests Spotify albums for the /album query option', async () => {
+            searchSpotifyAlbumsMock.mockResolvedValue([
+                {
+                    id: 'a1',
+                    name: 'Abbey Road',
+                    artist: 'The Beatles',
+                    url: 'https://open.spotify.com/album/a1',
+                },
+            ])
+            const respondMock = jest.fn()
+
+            await dispatchAutocomplete(
+                createAutocompleteInteraction({
+                    commandName: 'album',
+                    subcommand: null,
+                    focusedName: 'query',
+                    focusedValue: 'abbey',
+                    artist: 'Beatles',
+                    respondMock,
+                }),
+            )
+
+            expect(searchSpotifyAlbumsMock).toHaveBeenCalledWith(
+                'abbey Beatles',
+                10,
+            )
+            expect(respondMock).toHaveBeenCalledWith([
+                {
+                    name: 'Abbey Road, The Beatles',
+                    value: 'https://open.spotify.com/album/a1',
+                },
+            ])
+        })
+
+        it('keeps an album suggestion name within the Discord limit', async () => {
+            searchSpotifyAlbumsMock.mockResolvedValue([
+                {
+                    id: 'a1',
+                    name: 'A'.repeat(150),
+                    artist: 'Someone',
+                    url: 'https://open.spotify.com/album/a1',
+                },
+            ])
+            const respondMock = jest.fn()
+
+            await dispatchAutocomplete(
+                createAutocompleteInteraction({
+                    commandName: 'album',
+                    subcommand: null,
+                    focusedName: 'query',
+                    focusedValue: 'aaaa',
+                    respondMock,
+                }),
+            )
+
+            const [choices] = respondMock.mock.calls[0] as [{ name: string }[]]
+            expect(choices[0].name).toHaveLength(100)
+        })
+
+        it.each(['a', 'https://open.spotify.com/album/a1'])(
+            'skips the album lookup for %s',
+            async (focusedValue) => {
+                const respondMock = jest.fn()
+
+                await dispatchAutocomplete(
+                    createAutocompleteInteraction({
+                        commandName: 'album',
+                        subcommand: null,
+                        focusedName: 'query',
+                        focusedValue,
+                        respondMock,
+                    }),
+                )
+
+                expect(searchSpotifyAlbumsMock).not.toHaveBeenCalled()
+                expect(respondMock).toHaveBeenCalledWith([])
+            },
+        )
+
+        it('answers with no album suggestions when the lookup is too slow', async () => {
+            jest.useFakeTimers()
+            try {
+                searchSpotifyAlbumsMock.mockReturnValue(new Promise(() => {}))
+                const respondMock = jest.fn()
+
+                const pending = dispatchAutocomplete(
+                    createAutocompleteInteraction({
+                        commandName: 'album',
+                        subcommand: null,
+                        focusedName: 'query',
+                        focusedValue: 'abbey road',
+                        respondMock,
+                    }),
+                )
+                await jest.advanceTimersByTimeAsync(2500)
+                await pending
+
+                expect(respondMock).toHaveBeenCalledWith([])
+            } finally {
+                jest.useRealTimers()
+            }
+        })
+
+        it('asks Spotify once for the same album text typed twice', async () => {
+            searchSpotifyAlbumsMock.mockResolvedValue([
+                {
+                    name: 'Revolver',
+                    artist: 'The Beatles',
+                    url: 'https://open.spotify.com/album/rev',
+                },
+            ])
+            const respondMock = jest.fn()
+            const ask = (focusedValue: string) =>
+                dispatchAutocomplete(
+                    createAutocompleteInteraction({
+                        commandName: 'album',
+                        subcommand: null,
+                        focusedName: 'query',
+                        focusedValue,
+                        respondMock,
+                    }),
+                )
+
+            await ask('revolver')
+            await ask('  Revolver ')
+
+            expect(searchSpotifyAlbumsMock).toHaveBeenCalledTimes(1)
+            expect(respondMock).toHaveBeenCalledTimes(2)
+            expect(respondMock.mock.calls[1]).toEqual(respondMock.mock.calls[0])
+        })
+
+        it('does not remember an album lookup that timed out', async () => {
+            jest.useFakeTimers()
+            try {
+                searchSpotifyAlbumsMock.mockReturnValue(new Promise(() => {}))
+                const ask = () =>
+                    dispatchAutocomplete(
+                        createAutocompleteInteraction({
+                            commandName: 'album',
+                            subcommand: null,
+                            focusedName: 'query',
+                            focusedValue: 'let it be',
+                            respondMock: jest.fn(),
+                        }),
+                    )
+
+                const first = ask()
+                await jest.advanceTimersByTimeAsync(2500)
+                await first
+                const second = ask()
+                await jest.advanceTimersByTimeAsync(2500)
+                await second
+
+                expect(searchSpotifyAlbumsMock).toHaveBeenCalledTimes(2)
+            } finally {
+                jest.useRealTimers()
+            }
         })
 
         it('logs and swallows errors raised by the session service', async () => {

@@ -247,6 +247,16 @@ describe('album command album resolution', () => {
         expect(search.mock.calls[0][0]).toBe(ALBUM_URL)
     })
 
+    it('turns on autocomplete for the query option', () => {
+        const query = albumCommand.data
+            .toJSON()
+            .options?.find((option) => option.name === 'query') as {
+            autocomplete?: boolean
+        }
+
+        expect(query.autocomplete).toBe(true)
+    })
+
     it('shuffles the album when the shuffle option is on', async () => {
         const titles = ['One', 'Two', 'Three', 'Four']
         const search = jest.fn(async () => ({
