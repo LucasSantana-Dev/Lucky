@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.71.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.71.0...v2.71.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **bot:** ask yt-dlp for visionos alone on cookie-less attempts ([#3201](https://github.com/LucasSantana-Dev/Lucky/issues/3201)) ([e2144c9](https://github.com/LucasSantana-Dev/Lucky/commit/e2144c93aeef3263af1dce9e30055a8b7da09d43))
+* **frontend:** fix heading structure and error text contrast ([#3198](https://github.com/LucasSantana-Dev/Lucky/issues/3198)) ([a9aea40](https://github.com/LucasSantana-Dev/Lucky/commit/a9aea4057321546346c58bcf70a8e93881185705))
+* **frontend:** keep header controls reachable at 375px ([#3199](https://github.com/LucasSantana-Dev/Lucky/issues/3199)) ([60c2835](https://github.com/LucasSantana-Dev/Lucky/commit/60c283502a87e52a86b77d865e5c829ea1036a9b))
+* **frontend:** render bold and links on the changelog page ([#3200](https://github.com/LucasSantana-Dev/Lucky/issues/3200)) ([8a5b3c7](https://github.com/LucasSantana-Dev/Lucky/commit/8a5b3c7fc954df5a7b150e87c383b82f38b97f2f))
+* **frontend:** show a retryable error when the server list fails ([#3202](https://github.com/LucasSantana-Dev/Lucky/issues/3202)) ([576a2d0](https://github.com/LucasSantana-Dev/Lucky/commit/576a2d01c50887019cec147b49dc5b5a68bb69cd))
+
 ## [2.71.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.70.0...v2.71.0) (2026-11-20)
 
 
