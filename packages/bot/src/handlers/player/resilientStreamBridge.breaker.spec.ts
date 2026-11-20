@@ -34,6 +34,7 @@ jest.mock('./spotifySourceCache', () => ({
 jest.mock('../../utils/monitoring/prometheus', () => ({
     playStageSeconds: { observe: jest.fn() },
     spotifyCacheTotal: { inc: jest.fn() },
+    playRescuedTotal: { inc: jest.fn() },
     extractionFailuresTotal: {
         inc: (...args: unknown[]) => mockFailureInc(...args),
     },

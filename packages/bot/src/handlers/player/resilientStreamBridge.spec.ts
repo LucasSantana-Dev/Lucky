@@ -18,6 +18,7 @@ const mockSearchYtDlpCandidates = jest.fn()
 const mockStampFallbackStage = jest.fn()
 const mockObserve = jest.fn()
 const mockSpotifyCacheInc = jest.fn()
+const mockRescuedInc = jest.fn()
 const mockGetSpotifySource = jest.fn()
 const mockSetSpotifySource = jest.fn()
 const mockSetSpotifySourceNegative = jest.fn()
@@ -27,6 +28,7 @@ jest.mock('../../utils/monitoring/prometheus', () => ({
     spotifyCacheTotal: {
         inc: (...args: unknown[]) => mockSpotifyCacheInc(...args),
     },
+    playRescuedTotal: { inc: (...args: unknown[]) => mockRescuedInc(...args) },
 }))
 
 const NEGATIVE_SENTINEL = '__negative__'
@@ -1524,6 +1526,9 @@ describe('bridge runs once per track', () => {
                 (c) => (c[0] as { stage: string }).stage,
             ),
         ).toEqual(['ytdlp_url'])
+        // The pass already counted bridge_total fail; this rescue offsets it
+        // in the failed-play alert (#3079 review).
+        expect(mockRescuedInc).toHaveBeenCalledTimes(1)
     })
 
     it('fails fast when the different-URL attempt also fails', async () => {
@@ -1548,6 +1553,7 @@ describe('bridge runs once per track', () => {
         expect(mockStreamViaYtDlp).toHaveBeenCalledTimes(1)
         expect(mockStreamViaSoundCloud).not.toHaveBeenCalled()
         expect(stageCount('bridge_total')).toBe(0)
+        expect(mockRescuedInc).not.toHaveBeenCalled()
     })
 
     it('does not leak the exhausted state into a new play', async () => {

@@ -1027,7 +1027,7 @@
         {
             "type": "timeseries",
             "title": "Plays que falharam (% do total)",
-            "description": "Parcela dos /play em que o bridge esgotou todas as etapas (YouTube e SoundCloud), em janela de 15 min. Mesma conta do alerta LuckyPlayFailureRateHigh (#3079).",
+            "description": "Parcela dos /play em que o bridge esgotou todas as etapas (YouTube e SoundCloud), em janela de 15 min, sem contar os que o fallback resgatou. Mesma conta do alerta LuckyPlayFailureRateHigh (#3079).",
             "gridPos": {
                 "x": 0,
                 "y": 38,
@@ -1044,7 +1044,7 @@
                         "type": "prometheus",
                         "uid": "${ds_prometheus}"
                     },
-                    "expr": "sum(increase(lucky_bot_play_stage_seconds_count{stage=\"bridge_total\",outcome=\"fail\"}[15m])) / sum(increase(lucky_bot_play_stage_seconds_count{stage=\"bridge_total\"}[15m]))",
+                    "expr": "((sum(increase(lucky_bot_play_stage_seconds_count{stage=\"bridge_total\",outcome=\"fail\"}[15m])) or vector(0)) - (sum(increase(lucky_bot_play_rescued_total[15m])) or vector(0))) / sum(increase(lucky_bot_play_stage_seconds_count{stage=\"bridge_total\"}[15m]))",
                     "legendFormat": "plays que falharam",
                     "instant": false,
                     "range": true,
@@ -1054,23 +1054,33 @@
             "fieldConfig": {
                 "defaults": {
                     "unit": "percentunit",
-                    "min": 0,
-                    "max": 1,
                     "thresholds": {
                         "mode": "absolute",
                         "steps": [
-                            { "color": "green", "value": null },
-                            { "color": "red", "value": 0.5 }
+                            {
+                                "color": "green",
+                                "value": null
+                            },
+                            {
+                                "color": "red",
+                                "value": 0.5
+                            }
                         ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
                     },
                     "custom": {
                         "drawStyle": "line",
-                        "lineWidth": 2,
                         "fillOpacity": 10,
+                        "lineWidth": 2,
+                        "showPoints": "never",
                         "thresholdsStyle": {
                             "mode": "line"
                         }
-                    }
+                    },
+                    "min": 0,
+                    "max": 1
                 },
                 "overrides": []
             },
@@ -1085,7 +1095,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 16
+            "id": 15
         },
         {
             "type": "timeseries",
@@ -1133,8 +1143,7 @@
                         "fillOpacity": 80,
                         "lineWidth": 1,
                         "stacking": {
-                            "mode": "none",
-                            "group": "A"
+                            "mode": "none"
                         }
                     }
                 },
@@ -1151,7 +1160,7 @@
                     "sort": "desc"
                 }
             },
-            "id": 17
+            "id": 16
         },
         {
             "type": "logs",
@@ -1189,7 +1198,7 @@
                 "sortOrder": "Descending",
                 "enableLogDetails": true
             },
-            "id": 15
+            "id": 17
         }
     ]
 }

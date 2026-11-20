@@ -21,6 +21,7 @@ import {
 } from '../../utils/monitoring/sentry'
 import { isHost } from '../../utils/general/urlHost'
 import {
+    playRescuedTotal,
     playStageSeconds,
     spotifyCacheTotal,
 } from '../../utils/monitoring/prometheus'
@@ -978,7 +979,12 @@ async function retryExhaustedPass(
         !isYtDlpBlocked()
     if (canRescue) {
         const stream = await attemptYtDlpUrl(track, cleanTitle(track.title))
-        if (stream) return stream
+        if (stream) {
+            // This pass already observed bridge_total fail; the play plays
+            // after all, so the failed-play alert subtracts it (#3079).
+            playRescuedTotal.inc()
+            return stream
+        }
     }
     debugLog({
         message: 'Bridge: already exhausted for this play, failing fast',

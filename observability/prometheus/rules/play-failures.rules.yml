@@ -10,7 +10,9 @@
 # SoundCloud fallback also missed) and only Sentry showed it. bridge_total
 # is observed once per track: outcome="fail" means every stage was
 # exhausted. The `>= 3` floor keeps one failed play out of one attempt, at
-# night, from paging anyone.
+# night, from paging anyone. A failed pass that discord-player's fallback
+# search hit then rescued counts in lucky_bot_play_rescued_total and is
+# subtracted, so a play the user still heard is not a failure.
 
 groups:
   - name: lucky-play-failures
@@ -18,12 +20,18 @@ groups:
       - alert: LuckyPlayFailureRateHigh
         expr: |
           (
-            sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}[15m]))
+            (
+              sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}[15m]))
+                - (sum(increase(lucky_bot_play_rescued_total[15m])) or vector(0))
+            )
               / sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total"}[15m]))
               > 0.5
           )
           and
-          sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}[15m])) >= 3
+          (
+            sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}[15m]))
+              - (sum(increase(lucky_bot_play_rescued_total[15m])) or vector(0))
+          ) >= 3
         for: 5m
         labels:
           severity: critical

@@ -76,3 +76,19 @@ tests:
       - eval_time: 20m
         alertname: LuckyPlayFailureRateHigh
         exp_alerts: []
+
+  # Every failed pass was rescued by the fallback search hit: users heard
+  # every track, so nothing fires.
+  - name: rescued plays do not count as failed
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}'
+        values: '0+1x40'
+      - series: 'lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="ok"}'
+        values: '0+0x40'
+      - series: 'lucky_bot_play_rescued_total'
+        values: '0+1x40'
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: LuckyPlayFailureRateHigh
+        exp_alerts: []
