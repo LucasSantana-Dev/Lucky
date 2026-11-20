@@ -35,14 +35,19 @@ export async function handleFeedback(
     const { queue } = resolveGuildQueue(client, guildId)
     const currentTrack = queue?.currentTrack
 
-    if (!trackUrl && !currentTrack) {
+    const ratesCurrentTrack =
+        currentTrack && (!trackUrl || currentTrack.url === trackUrl)
+
+    if (!ratesCurrentTrack) {
         await interactionReply({
             interaction,
             content: {
                 embeds: [
                     createWarningEmbed(
                         'No Track',
-                        'No current track found. Provide `track_url` to leave feedback.',
+                        currentTrack
+                            ? 'Feedback only applies to the track that is playing now.'
+                            : 'No current track found. Play a track to leave feedback.',
                     ),
                 ],
                 ephemeral: true,
@@ -51,24 +56,32 @@ export async function handleFeedback(
         return
     }
 
-    const trackKey =
-        currentTrack && (!trackUrl || currentTrack.url === trackUrl)
-            ? recommendationFeedbackService.buildTrackKey(
-                  currentTrack.title,
-                  currentTrack.author,
-              )
-            : recommendationFeedbackService.buildTrackKey(
-                  trackUrl ?? 'unknown-track',
-                  'url',
-              )
-
-    await recommendationFeedbackService.setFeedback(
+    const saved = await recommendationFeedbackService.setFeedback(
         guildId,
         interaction.user.id,
         interaction.user.username,
-        trackKey,
+        recommendationFeedbackService.buildTrackKey(
+            currentTrack.title,
+            currentTrack.author,
+        ),
         feedback,
     )
+
+    if (!saved) {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed(
+                        'Feedback not saved',
+                        'Could not store your feedback. Please try again.',
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
 
     await interactionReply({
         interaction,
