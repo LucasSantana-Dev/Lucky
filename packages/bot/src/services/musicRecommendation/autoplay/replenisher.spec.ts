@@ -24,6 +24,10 @@ jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
 }))
 
+jest.mock('../../../utils/monitoring/prometheus', () => ({
+    autoplayHistoryReplayTracksTotal: { inc: jest.fn() },
+}))
+
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {
         getTrackHistory: jest.fn(),
@@ -347,6 +351,10 @@ describe('replenishQueue', () => {
         // Routed through the shared autoplay marking/telemetry path.
         expect(addSelectedTracks).toHaveBeenCalledTimes(1)
         expect(addSelectedTracks.mock.calls[0][1][0].track).toBe(historyTrack)
+        const {
+            autoplayHistoryReplayTracksTotal,
+        } = require('../../../utils/monitoring/prometheus')
+        expect(autoplayHistoryReplayTracksTotal.inc).toHaveBeenCalledWith(1)
     })
 
     async function replayedTitles(history: Track[]): Promise<string[]> {
@@ -465,6 +473,10 @@ describe('replenishQueue', () => {
         )
         expect(replayCall).toBeUndefined()
         expect((queue.addTrack as jest.Mock).mock.calls.length).toBe(0)
+        const {
+            autoplayHistoryReplayTracksTotal,
+        } = require('../../../utils/monitoring/prometheus')
+        expect(autoplayHistoryReplayTracksTotal.inc).not.toHaveBeenCalled()
     })
 
     it('should serialize concurrent calls with locks', async () => {
