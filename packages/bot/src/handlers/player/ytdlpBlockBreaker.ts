@@ -62,6 +62,8 @@ let slowFailureAts: number[] = []
 let anonymousVideoSeq = 0
 let blockedUntil = 0
 let degradedByBreaker = false
+// The open-breaker Sentry event is sent once per episode (#3082).
+let episodeReported = false
 let expiryTimer: ReturnType<typeof setTimeout> | undefined
 const budgetMisses = new WeakSet<object>()
 const countedPlays = new WeakSet<object>()
@@ -82,6 +84,7 @@ export function classifyYtDlpFailure(error: unknown): YtDlpFailureType {
 function clearBreakerDegraded(): void {
     clearTimeout(expiryTimer)
     expiryTimer = undefined
+    episodeReported = false
     if (!degradedByBreaker) return
     degradedByBreaker = false
     setExtractorDegraded('youtube', false)
@@ -156,4 +159,15 @@ export function isYtDlpBlocked(now = Date.now()): boolean {
     if (now < blockedUntil) return true
     clearBreakerDegraded()
     return false
+}
+
+/**
+ * True for the first exhausted play of a breaker-open episode, false for the
+ * rest of it. The episode ends when a yt-dlp success closes the breaker or the
+ * cooldown expires. Callers still count every play in Prometheus.
+ */
+export function claimBreakerEpisodeReport(): boolean {
+    if (episodeReported) return false
+    episodeReported = true
+    return true
 }

@@ -21,6 +21,7 @@ import {
 } from '../../utils/monitoring/sentry'
 import { isHost } from '../../utils/general/urlHost'
 import {
+    extractionFailuresTotal,
     playStageSeconds,
     spotifyCacheTotal,
 } from '../../utils/monitoring/prometheus'
@@ -42,6 +43,7 @@ import {
     isReportedBridgeExhausted,
 } from './bridgeExhaustedError'
 import {
+    claimBreakerEpisodeReport,
     classifyYtDlpFailure,
     isYtDlpBlocked,
     recordYtDlpFailure,
@@ -868,18 +870,27 @@ function logAllStagesExhausted(
 ): void {
     reportedExhausted.add(track)
     const failureClass = firstYouTubeFailure.get(track) ?? 'none'
-    captureMessage(
-        'YouTube extraction exhausted all fallback stages',
-        'warning',
-        { title: track.title, url: safeUrlOrigin(track.url), stages },
-        {
-            category: 'music.youtube-extraction',
-            stage: 'all-exhausted',
-            failure_class: failureClass,
-            stages_tried: stages.join(','),
-        },
-        ['youtube-extraction-exhausted', failureClass],
-    )
+    // An open breaker is a known condition: count each play, but send one
+    // Sentry event per episode instead of one per play (#3082).
+    let sendToSentry = true
+    if (failureClass === 'breaker_open') {
+        extractionFailuresTotal.inc({ type: 'breaker_open' })
+        sendToSentry = claimBreakerEpisodeReport()
+    }
+    if (sendToSentry) {
+        captureMessage(
+            'YouTube extraction exhausted all fallback stages',
+            'warning',
+            { title: track.title, url: safeUrlOrigin(track.url), stages },
+            {
+                category: 'music.youtube-extraction',
+                stage: 'all-exhausted',
+                failure_class: failureClass,
+                stages_tried: stages.join(','),
+            },
+            ['youtube-extraction-exhausted', failureClass],
+        )
+    }
     warnLog({
         message: 'Bridge: all stages exhausted',
         error: extra.error,
