@@ -21,6 +21,7 @@ import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
+import { pickAlbum } from './play/handlers/albumIntent'
 import { QUEUE_LEAVE_OPTIONS } from '../../../services/musicManagement/queueLeaveOptions'
 import { AsmrBlockedError, isAsmrTrack } from '../../../utils/music/asmrFilter'
 
@@ -124,7 +125,9 @@ export default new Command({
                 const albumQuery = artistFilter
                     ? `${query} ${artistFilter}`
                     : query
-                const [match] = await searchSpotifyAlbums(albumQuery, 1)
+                const albums = await searchSpotifyAlbums(albumQuery, 20)
+                // An explicit album request falls back to Spotify's top hit.
+                const match = pickAlbum(albums, albumQuery) ?? albums[0]
                 if (!match) {
                     warnLog({
                         message:

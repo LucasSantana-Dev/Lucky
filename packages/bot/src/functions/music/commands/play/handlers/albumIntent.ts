@@ -1,4 +1,7 @@
-import { searchSpotifyAlbums } from '@lucky/shared/utils'
+import {
+    searchSpotifyAlbums,
+    type SpotifyAlbumMatch,
+} from '@lucky/shared/utils'
 
 const ALBUM_WORDS = new Set(['album'])
 const FULL_WORDS = new Set([
@@ -59,9 +62,34 @@ export function albumIntentQuery(query: string): string | null {
 }
 
 /**
+ * The album a request names, or undefined. Only an album whose whole name is
+ * in the request counts, preferring one by an artist the request also names.
+ */
+export function pickAlbum(
+    albums: SpotifyAlbumMatch[],
+    albumQuery: string,
+): SpotifyAlbumMatch | undefined {
+    const queryWords = new Set(wordsOf(albumQuery))
+    const within = (value: string) => {
+        const words = wordsOf(value)
+        return words.length > 0 && words.every((w) => queryWords.has(w))
+    }
+    const requested = wordsOf(albumQuery).join(' ')
+    const matches = albums.filter(
+        (album) =>
+            within(album.name) &&
+            // A self-titled album only for the artist's name alone:
+            // "album esquinas anavitória" is not "ANAVITÓRIA".
+            (wordsOf(album.name).join(' ') !==
+                wordsOf(album.artist).join(' ') ||
+                wordsOf(album.name).join(' ') === requested),
+    )
+    return matches.find((album) => within(album.artist)) ?? matches[0]
+}
+
+/**
  * The Spotify album URL for an album request, or null so /play keeps its
- * normal track search. Only an album whose whole name is in the request
- * counts, preferring one by an artist the request also names.
+ * normal track search.
  */
 export async function resolveAlbumIntent(
     query: string,
@@ -69,23 +97,8 @@ export async function resolveAlbumIntent(
     const albumQuery = albumIntentQuery(query)
     if (!albumQuery) return null
     try {
-        const queryWords = new Set(wordsOf(albumQuery))
-        const within = (value: string) => {
-            const words = wordsOf(value)
-            return words.length > 0 && words.every((w) => queryWords.has(w))
-        }
-        const requested = wordsOf(albumQuery).join(' ')
-        const matches = (await searchSpotifyAlbums(albumQuery, 20)).filter(
-            (album) =>
-                within(album.name) &&
-                // A self-titled album only for the artist's name alone:
-                // "album esquinas anavitória" is not "ANAVITÓRIA".
-                (wordsOf(album.name).join(' ') !==
-                    wordsOf(album.artist).join(' ') ||
-                    wordsOf(album.name).join(' ') === requested),
-        )
-        const best = matches.find((album) => within(album.artist)) ?? matches[0]
-        return best?.url ?? null
+        const albums = await searchSpotifyAlbums(albumQuery, 20)
+        return pickAlbum(albums, albumQuery)?.url ?? null
     } catch {
         return null
     }
