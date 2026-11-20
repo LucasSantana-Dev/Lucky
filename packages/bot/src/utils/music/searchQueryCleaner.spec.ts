@@ -188,6 +188,38 @@ describe('extractSongCore', () => {
             'Pearl Jam',
             'Black',
         ],
+        // #2866: Spotify puts the release suffix after a dash and never the
+        // artist, so the song is the left side.
+        [
+            'keeps the song when the right side is a soundtrack suffix',
+            'Almost There - From "The Princess and the Frog" / Soundtrack Version',
+            'Anika Noni Rose',
+            'Almost There',
+        ],
+        [
+            'keeps the song before a live suffix',
+            'Ai Se Eu Te Pego - En Vivo',
+            'Michel Teló',
+            'Ai Se Eu Te Pego',
+        ],
+        [
+            'keeps the song before a 12 inch version suffix',
+            'Blue Monday - 12" Version',
+            'New Order',
+            'Blue Monday',
+        ],
+        [
+            'keeps the song before a live at suffix',
+            'Hey Jude - Live at Wembley',
+            'Paul McCartney',
+            'Hey Jude',
+        ],
+        [
+            'a title that only starts with a version word stays on the right',
+            'Oasis - Live Forever',
+            'someuploader123',
+            'Live Forever',
+        ],
     ])('%s', (_, input, author, expected) => {
         if (author === undefined) {
             expect(extractSongCore(input)).toBe(expected)

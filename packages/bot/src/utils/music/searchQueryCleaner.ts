@@ -275,6 +275,18 @@ export function cleanSearchQuery(title: string, author: string): string {
  * Strips secondary separators from the core (e.g. "Halo - VERSÃO FORROZINHO" → "Halo").
  * Returns null when no separator is found in the cleaned title.
  */
+// A release suffix after the dash: Spotify writes "Song - Live at X",
+// "Song - 2011 Remaster", "Song - From \"Film\" / Soundtrack Version" and
+// never puts the artist there. Tested against the right side up to its first
+// inner dash, so a song title like "Live Forever" or "Club Mix" stays a song.
+const RELEASE_SUFFIX_RE =
+    /^(?:from\b|live (?:at|in|from)\b|live$|ao vivo\b|en vivo\b|(?:\d{4} )?remaster(?:ed)?\b|soundtrack\b|acoustic\b|instrumental\b|karaok|coment[aá]rio\b|commentary\b|bonus track\b|demo\b|mono\b|radio edit\b)|\bversion$|\bremaster(?:ed)?(?: \d{4})?$/i
+
+function isReleaseSuffix(text: string): boolean {
+    const head = text.split(/\s[-–—]\s/, 1)[0]?.trim() ?? ''
+    return RELEASE_SUFFIX_RE.test(head)
+}
+
 export function extractSongCore(title: string, author?: string): string | null {
     const cleaned = cleanTitle(title)
     for (const sep of [' - ', ' – ', ' — ']) {
@@ -299,10 +311,10 @@ export function extractSongCore(title: string, author?: string): string | null {
             } else if (overlaps(authNorm, norm(right))) {
                 songPart = left
             } else {
-                songPart = right
+                songPart = isReleaseSuffix(right) ? left : right
             }
         } else {
-            songPart = right
+            songPart = isReleaseSuffix(right) ? left : right
         }
 
         const firstParen = Math.min(
