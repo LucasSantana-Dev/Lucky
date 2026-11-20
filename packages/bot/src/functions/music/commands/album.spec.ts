@@ -129,7 +129,7 @@ describe('album command album resolution', () => {
             interaction: createInteraction('Abbey Road'),
         } as never)
 
-        expect(searchSpotifyAlbumsMock).toHaveBeenCalledWith('Abbey Road', 1)
+        expect(searchSpotifyAlbumsMock).toHaveBeenCalledWith('Abbey Road', 20)
         expect(search).toHaveBeenCalledTimes(1)
         expect(search.mock.calls[0][0]).toBe(ALBUM_URL)
         expect(search.mock.calls[0][1]).toMatchObject({ searchEngine: 'AUTO' })
@@ -162,8 +162,64 @@ describe('album command album resolution', () => {
 
         expect(searchSpotifyAlbumsMock).toHaveBeenCalledWith(
             'Abbey Road The Beatles',
-            1,
+            20,
         )
+    })
+
+    it('picks the album by the named artist over the first hit', async () => {
+        const wanted = 'https://open.spotify.com/album/anavitoria'
+        searchSpotifyAlbumsMock.mockResolvedValue([
+            {
+                id: 'dj',
+                name: 'Esquinas',
+                artist: 'Djavan',
+                url: 'https://open.spotify.com/album/djavan',
+            },
+            { id: 'av', name: 'Esquinas', artist: 'ANAVITÓRIA', url: wanted },
+        ])
+        const search = jest.fn(async () => ({
+            tracks: [createTrack('Lisboa')],
+            playlist: { title: 'Esquinas' },
+        }))
+
+        await albumCommand.execute({
+            client: {
+                player: {
+                    search,
+                    play: jest.fn(async () => ({ track: null })),
+                },
+            },
+            interaction: createInteraction('Esquinas', 'Anavitória'),
+        } as never)
+
+        expect(search.mock.calls[0][0]).toBe(wanted)
+    })
+
+    it('keeps the first hit when no album name matches the request', async () => {
+        searchSpotifyAlbumsMock.mockResolvedValue([
+            {
+                id: 'a1',
+                name: 'Abbey Road (Remastered)',
+                artist: 'The Beatles',
+                url: ALBUM_URL,
+            },
+        ])
+        const search = jest.fn(async () => ({
+            tracks: [createTrack('Come Together')],
+            playlist: { title: 'Abbey Road' },
+        }))
+
+        await albumCommand.execute({
+            client: {
+                player: {
+                    search,
+                    play: jest.fn(async () => ({ track: null })),
+                },
+            },
+            interaction: createInteraction('abbey road'),
+        } as never)
+
+        expect(search.mock.calls[0][0]).toBe(ALBUM_URL)
     })
 
     it('passes a Spotify album URL straight through without a lookup', async () => {
@@ -194,6 +250,52 @@ describe('album command album resolution', () => {
         }
 
         expect(query.autocomplete).toBe(true)
+    })
+
+    it('counts only the tracks left after the ASMR filter (#3001)', async () => {
+        const asmr = { ...createTrack('Rain ASMR'), author: 'Sleepy' }
+        const addTrack = jest.fn()
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({
+            queue: { addTrack },
+        })
+        const search = jest.fn(async () => ({
+            tracks: [
+                createTrack('Come Together'),
+                asmr,
+                createTrack('Something'),
+            ],
+            playlist: { title: 'Abbey Road' },
+        }))
+
+        await albumCommand.execute({
+            client: {
+                player: {
+                    search,
+                    play: jest.fn(async () => ({ track: null })),
+                },
+            },
+            interaction: createInteraction(ALBUM_URL),
+        } as never)
+
+        expect(addTrack).toHaveBeenCalledTimes(1)
+        expect(addTrack).not.toHaveBeenCalledWith(asmr)
+        expect(lastReply().content.embeds[0].description).toContain('**2**')
+    })
+
+    it('says ASMR is blocked when the whole album is ASMR (#3001)', async () => {
+        const play = jest.fn()
+        const search = jest.fn(async () => ({
+            tracks: [{ ...createTrack('Rain ASMR'), author: 'Sleepy' }],
+            playlist: { title: 'Sleep' },
+        }))
+
+        await albumCommand.execute({
+            client: { player: { search, play } },
+            interaction: createInteraction(ALBUM_URL),
+        } as never)
+
+        expect(play).not.toHaveBeenCalled()
+        expect(lastReply().content.embeds[0].description).toContain('ASMR')
     })
 
     it('reports an actionable message when no album matches', async () => {

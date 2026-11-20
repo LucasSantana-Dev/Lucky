@@ -64,6 +64,13 @@ jest.mock('../../utils/monitoring/commandEventBuffer', () => ({
     stopCommandEventBuffer: jest.fn().mockResolvedValue(undefined),
 }))
 
+const saveSnapshotMock = jest.fn()
+jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
+    musicSessionSnapshotService: {
+        saveSnapshot: (...args: unknown[]) => saveSnapshotMock(...args),
+    },
+}))
+
 jest.mock('../../handlers/player', () => ({
     createPlayerWithHandlers: (...args: unknown[]) => createPlayerMock(...args),
 }))
@@ -450,6 +457,54 @@ describe('BotInitializer', () => {
             expect(client?.destroy).toHaveBeenCalled()
             expect(initializer.getClient()).toBeNull()
             expect(initializer.isBotInitialized()).toBe(false)
+        })
+
+        it('awaits a snapshot save for every queue before client.destroy()', async () => {
+            const queueA = { guild: { id: 'a' } }
+            const queueB = { guild: { id: 'b' } }
+            let resolveB: () => void = () => {}
+            saveSnapshotMock.mockImplementation((q: unknown) =>
+                q === queueB
+                    ? new Promise<void>((r) => {
+                          resolveB = r
+                      })
+                    : Promise.resolve(),
+            )
+            createPlayerMock.mockResolvedValue({
+                nodes: {
+                    cache: new Map([
+                        ['a', queueA],
+                        ['b', queueB],
+                    ]),
+                },
+            })
+            await initializer.initializeBot()
+            const client = initializer.getClient()
+            const done = initializer.shutdown()
+            await new Promise((r) => setImmediate(r))
+            expect(saveSnapshotMock).toHaveBeenCalledTimes(2)
+            expect(client?.destroy).not.toHaveBeenCalled()
+            resolveB()
+            await done
+            expect(client?.destroy).toHaveBeenCalled()
+        })
+
+        it('does not hang shutdown when a snapshot save never settles', async () => {
+            jest.useFakeTimers()
+            try {
+                saveSnapshotMock.mockReturnValue(new Promise(() => {}))
+                createPlayerMock.mockResolvedValue({
+                    nodes: { cache: new Map([['a', { guild: { id: 'a' } }]]) },
+                })
+                await initializer.initializeBot()
+                const client = initializer.getClient()
+                const done = initializer.shutdown()
+                await jest.advanceTimersByTimeAsync(10_000)
+                await done
+                expect(client?.destroy).toHaveBeenCalled()
+            } finally {
+                jest.useRealTimers()
+            }
         })
 
         it('resets bot state after shutdown', async () => {

@@ -325,7 +325,7 @@ USER bot
 HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=3 \
     CMD node -e "require('http').get('http://127.0.0.1:9091/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy --config prisma/prisma.config.ts && node packages/bot/dist/index.js"]
+CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy --config prisma/prisma.config.ts && exec node packages/bot/dist/index.js"]
 
 # Production stage — backend (slim runtime, no media tools).
 # Derives directly from node:${NODE_VERSION} instead of a no-op intermediate

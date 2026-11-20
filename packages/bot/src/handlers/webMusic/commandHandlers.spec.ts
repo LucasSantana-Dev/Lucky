@@ -426,6 +426,31 @@ describe('handlePlay', () => {
         expect(search).toHaveBeenCalledWith(url, { requestedBy: undefined })
     })
 
+    it('counts only the playlist tracks left after the ASMR filter (#3001)', async () => {
+        const asmr = { title: 'Rain ASMR' }
+        const { client, addTrack } = setup([
+            { tracks: [track, asmr], playlist: { title: 'Mix' } },
+        ])
+
+        const result = await handlePlay(client as any, cmd('https://x.test/p'))
+
+        expect(addTrack).toHaveBeenCalledTimes(1)
+        expect(addTrack).toHaveBeenCalledWith(track)
+        expect((result as any).data.tracksAdded).toBe(1)
+    })
+
+    it('refuses a single ASMR result (#3001)', async () => {
+        const { client, addTrack } = setup([
+            { tracks: [{ title: 'Rain ASMR' }], playlist: null },
+        ])
+
+        const result = await handlePlay(client as any, cmd('rain'))
+
+        expect(result.success).toBe(false)
+        expect(result.error).toContain('ASMR')
+        expect(addTrack).not.toHaveBeenCalled()
+    })
+
     it('reports no results when every fallback is empty', async () => {
         const { client } = setup([empty, empty, empty])
 
