@@ -55,6 +55,19 @@ describe('createLogsApi', () => {
             )
         })
 
+        test('passes the level bucket as its own param (#2456)', async () => {
+            vi.mocked(mockClient.get).mockResolvedValueOnce({
+                data: { logs: [] },
+            })
+
+            await api.search('g1', { level: 'moderation' })
+
+            expect(mockClient.get).toHaveBeenCalledWith(
+                '/guilds/g1/logs/search',
+                { params: { level: 'moderation' } },
+            )
+        })
+
         test('passes type and userId filters together', async () => {
             vi.mocked(mockClient.get).mockResolvedValueOnce({
                 data: { logs: [] },

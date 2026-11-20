@@ -192,6 +192,72 @@ describe('searchLogs', () => {
         })
     })
 
+    it('expands a level into the raw types of that bucket (#2456)', async () => {
+        mockServerLog.findMany.mockResolvedValue([])
+
+        await serverLogService.searchLogs('g1', { level: 'automod' })
+
+        expect(mockServerLog.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: {
+                    guildId: 'g1',
+                    type: { in: ['automod_trigger', 'automod_settings'] },
+                },
+            }),
+        )
+    })
+
+    it('matches nothing for a level no log type maps to (#2456)', async () => {
+        mockServerLog.findMany.mockResolvedValue([])
+
+        await serverLogService.searchLogs('g1', { level: 'warn' })
+
+        expect(mockServerLog.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { guildId: 'g1', type: { in: [] } },
+            }),
+        )
+    })
+
+    it('filters info by exclusion so unmapped types stay reachable (#2456)', async () => {
+        mockServerLog.findMany.mockResolvedValue([])
+
+        await serverLogService.searchLogs('g1', { level: 'info' })
+
+        const where = mockServerLog.findMany.mock.calls[0][0].where
+        expect(where.type.in).toBeUndefined()
+        expect(where.type.notIn).toEqual(
+            expect.arrayContaining([
+                'message_delete',
+                'automod_trigger',
+                'settings_change',
+            ]),
+        )
+        // Types serialized as info must not be excluded.
+        expect(where.type.notIn).not.toContain('member_join')
+    })
+
+    it('ANDs type with level instead of letting type win (#2456)', async () => {
+        mockServerLog.findMany.mockResolvedValue([])
+
+        await serverLogService.searchLogs('g1', {
+            level: 'automod',
+            type: 'mod_action',
+        })
+
+        expect(mockServerLog.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: {
+                    guildId: 'g1',
+                    type: {
+                        in: ['automod_trigger', 'automod_settings'],
+                        equals: 'mod_action',
+                    },
+                },
+            }),
+        )
+    })
+
     it('threads limit and offset through for pagination', async () => {
         mockServerLog.findMany.mockResolvedValue([])
 
