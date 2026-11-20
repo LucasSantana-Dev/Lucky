@@ -345,10 +345,60 @@ describe('replenishQueue', () => {
         expect(addSelectedTracks.mock.calls[0][1][0].track).toBe(historyTrack)
     })
 
+    it('never replays the same song twice in one pass (#3077)', async () => {
+        const a1 = createTrack({
+            id: 'a1',
+            url: 'https://x/a1',
+            title: 'No',
+            author: 'Artist',
+        })
+        const a2 = createTrack({
+            id: 'a2',
+            url: 'https://y/a2',
+            title: 'No',
+            author: 'Artist',
+        })
+        const a3 = createTrack({
+            id: 'a3',
+            url: 'https://x/a1',
+            title: 'No',
+            author: 'Artist',
+        })
+        const b = createTrack({
+            id: 'b',
+            url: 'https://x/b',
+            title: 'Viva',
+            author: 'Other',
+        })
+        mockProductionExclusions([a1.url, a2.url, b.url])
+        const queue = createGuildQueue({
+            history: { tracks: { toArray: () => [a1, a2, a3, b] } },
+        } as Partial<GuildQueue>)
+
+        await replenishQueue(queue)
+
+        const titles = (queue.addTrack as jest.Mock).mock.calls.map(
+            ([t]: [Track]) => t.title,
+        )
+        expect(titles.sort()).toEqual(['No', 'Viva'])
+    })
+
     it('does not replay the current track or already queued tracks', async () => {
-        const current = createTrack({ id: 'cur', url: 'https://x/cur' })
-        const queued = createTrack({ id: 'q1', url: 'https://x/q1' })
-        const fresh = createTrack({ id: 'h1', url: 'https://x/h1' })
+        const current = createTrack({
+            id: 'cur',
+            url: 'https://x/cur',
+            title: 'Cur',
+        })
+        const queued = createTrack({
+            id: 'q1',
+            url: 'https://x/q1',
+            title: 'Q1',
+        })
+        const fresh = createTrack({
+            id: 'h1',
+            url: 'https://x/h1',
+            title: 'H1',
+        })
         mockProductionExclusions([current.url, queued.url, fresh.url])
         const queue = createGuildQueue({
             currentTrack: current,
@@ -369,6 +419,7 @@ describe('replenishQueue', () => {
         const historyTrack = createTrack({
             id: 'hist1',
             url: 'https://open.spotify.com/track/hist1',
+            title: 'History Song',
         })
         mockProductionExclusions([historyTrack.url])
         const queue = createGuildQueue({
