@@ -31,7 +31,7 @@ Nothing else matters if a join cannot be seen end to end.
 - #2868 why 4 of 10 new guilds never played and 20% were removed within 5 minutes.
 - #3005 invite permissions omit Set Voice Channel Status.
 - #2873 autoplay quality by thumbs per mode and source.
-- Owner actions: #2756, #2757, #2751, #2758, #2754 (Discord app verification), #2755 (support server and App Directory tags).
+- Owner actions: #2756, #2757, #2751, #2758, #2754 (Discord app verification), #2755 (support guild and App Directory tags).
 
 ## Now: playback reliability
 
