@@ -1,0 +1,38 @@
+# Command event drop alert (obs P3, #2394).
+#
+# Its own file, like recap-render.rules.yml: the homelab Prometheus that runs
+# in production loads individual files from the Lucky checkout (#2723), so this
+# file must be added to its rule_files to page in production. Lucky's own
+# Prometheus picks it up through the rules/*.yml glob.
+#
+# The bot buffers command_events in memory and flushes them with createMany
+# (#2391). Every event lost on the way (buffer overflow, failed flush, shutdown)
+# increments lucky_bot_command_events_dropped_total{reason}. Usage numbers on
+# the dashboards undercount while this fires.
+#
+# The 10m window is shorter than the 15m `for` on purpose: one lost batch (a
+# restart) leaves the window before the alert fires; drops at least every 10
+# minutes for 15 minutes page.
+
+groups:
+  - name: lucky-command-events
+    rules:
+      - alert: LuckyCommandEventsDropping
+        expr: sum by (reason) (increase(lucky_bot_command_events_dropped_total[10m])) > 0
+        for: 15m
+        labels:
+          severity: warning
+          service: lucky-bot
+        annotations:
+          summary: "Command events are being dropped ({{ $labels.reason }})"
+          description: >-
+            The bot has been losing command events before they reach
+            command_events for 15 minutes (reason {{ $labels.reason }}).
+            Commands still work; usage and error panels undercount. flush_failure:
+            Postgres is down or slow, check lucky-postgres and the bot log for
+            "Command event flush failed". overflow: flushes cannot keep up with the
+            command rate. stopped or stop_timeout: events arrived during a shutdown;
+            only expected around a deploy, so 15 minutes of it means the bot is
+            restarting in a loop (check docker ps and the restart count).
+            internal_error: a bug in the buffer, look for "Command event buffer
+            internal error" in the bot log and open an issue.
