@@ -70,7 +70,9 @@
             "startedTitle": "Estación iniciada",
             "startedDescription": "Reproduciendo {{genre}} ahora. Salta, mira la cola o explora más con /play.",
             "failedTitle": "No se pudo iniciar la estación",
-            "failedDescription": "Algo salió mal al iniciar la estación. Prueba con /play."
+            "failedDescription": "Algo salió mal al iniciar la estación. Prueba con /play.",
+            "alreadyStartingTitle": "La estación ya está iniciando",
+            "alreadyStartingDescription": "Ya se está iniciando una estación aquí. Dale unos segundos."
         },
         "queue": {
             "nowPlaying": "🎵 Reproduciendo ahora",
