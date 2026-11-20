@@ -798,7 +798,7 @@ describe('implicit feedback', () => {
 
             const weights =
                 service.getGuildImplicitArtistDislikeWeights('guild1')
-            expect(weights.get(trackKey.split('::')[1])).toBe(0.5)
+            expect(weights.get(trackKey.split('::')[1])).toBeCloseTo(0.5, 3)
         })
 
         it('a mild rejection weighs the artist less', () => {
@@ -808,7 +808,7 @@ describe('implicit feedback', () => {
 
             const weights =
                 service.getGuildImplicitArtistDislikeWeights('guild1')
-            expect(weights.get(trackKey.split('::')[1])).toBe(0.25)
+            expect(weights.get(trackKey.split('::')[1])).toBeCloseTo(0.25, 3)
         })
 
         it('repeated rejections add up to a cap', () => {
@@ -820,7 +820,28 @@ describe('implicit feedback', () => {
 
             const weights =
                 service.getGuildImplicitArtistDislikeWeights('guild1')
-            expect(weights.get(trackKey.split('::')[1])).toBe(2)
+            expect(weights.get(trackKey.split('::')[1])).toBeCloseTo(2, 3)
+        })
+
+        it('artist dislikes fade with age before the TTL (#2950)', () => {
+            const service = new RecommendationFeedbackService(30)
+            const now = Date.now()
+            const day = 24 * 60 * 60 * 1000
+
+            service.recordAutoplayRejection(
+                'guild1',
+                [],
+                track,
+                1,
+                now - 6 * day,
+            )
+
+            const key = trackKey.split('::')[1]
+            const faded = service
+                .getGuildImplicitArtistDislikeWeights('guild1', now)
+                .get(key)
+            // Same curve as persisted votes: 1 - (6 / 30) * 0.85 = 0.83.
+            expect(faded).toBeCloseTo(0.5 * 0.83, 5)
         })
 
         it('artist dislikes expire and stay per guild', () => {
