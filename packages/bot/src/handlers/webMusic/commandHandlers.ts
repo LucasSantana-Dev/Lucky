@@ -16,6 +16,7 @@ import {
 } from '../../functions/music/commands/play/handlers/resolveProvider'
 import { isUrl } from '../../functions/music/commands/play/queryUtils'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
+import { AsmrBlockedError, isAsmrTrack } from '../../utils/music/asmrFilter'
 
 type Result = MusicCommandResult
 
@@ -105,6 +106,13 @@ export async function handlePlay(
     if (!result?.tracks.length)
         return fail(cmd.id, cmd.guildId, 'No results found')
 
+    // The queue drops ASMR as it is added, so add and count what stays (#3001).
+    const tracks = (
+        result.playlist ? result.tracks : result.tracks.slice(0, 1)
+    ).filter((track) => !isAsmrTrack(track))
+    if (!tracks.length)
+        return fail(cmd.id, cmd.guildId, new AsmrBlockedError().message)
+
     const queue = getQueue(client, cmd.guildId)
     if (!queue)
         return fail(
@@ -114,11 +122,7 @@ export async function handlePlay(
         )
 
     setReplenishSuppressed(cmd.guildId, 0)
-    if (result.playlist) {
-        for (const track of result.tracks) queue.addTrack(track)
-    } else {
-        queue.addTrack(result.tracks[0])
-    }
+    for (const track of tracks) queue.addTrack(track)
 
     if (!queue.node.isPlaying() && !queue.node.isPaused())
         await queue.node.play()
@@ -126,9 +130,9 @@ export async function handlePlay(
     const state = await buildQueueState(client, cmd.guildId)
     await musicControlService.publishState(state)
     return ok(cmd.id, cmd.guildId, {
-        tracksAdded: result.playlist ? result.tracks.length : 1,
+        tracksAdded: tracks.length,
         isPlaylist: !!result.playlist,
-        title: result.playlist?.title ?? result.tracks[0].title,
+        title: result.playlist?.title ?? tracks[0].title,
     })
 }
 

@@ -20,6 +20,7 @@ import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSaniti
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { isUnknownInteractionError } from '../play/queryUtils'
 import { QUEUE_LEAVE_OPTIONS } from '../../../../services/musicManagement/queueLeaveOptions'
+import { isAsmrTrack } from '../../../../utils/music/asmrFilter'
 
 const MAX_DISCOGRAPHY_ALBUMS = 25
 // A prolific artist's catalog can run into the hundreds of tracks once
@@ -162,6 +163,8 @@ export async function handleArtistDiscography({
             ...albumTrackLists.flat(),
         ]
         for (const track of candidates) {
+            // The queue drops ASMR as it is added, so leave it out (#3001).
+            if (isAsmrTrack(track)) continue
             const key = `${track.title.toLowerCase().trim()}|${track.author.toLowerCase().trim()}`
             if (seen.has(key)) continue
             seen.add(key)
