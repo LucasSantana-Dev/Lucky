@@ -54,11 +54,19 @@ export async function recordGuildJoin(guild: Guild): Promise<void> {
  */
 export async function recordGuildLeave(
     guildDiscordId: string,
-    guildName: string,
+    guildNameInput?: string | null,
 ): Promise<void> {
     const prisma = getPrismaClient()
     const leftAt = new Date()
+    let guildName = guildNameInput ?? ''
     try {
+        if (!guildName) {
+            const stored = await prisma.guild.findUnique({
+                where: { discordId: guildDiscordId },
+                select: { name: true },
+            })
+            guildName = stored?.name || 'Unknown guild'
+        }
         await prisma.$transaction([
             prisma.guild.updateMany({
                 where: { discordId: guildDiscordId },

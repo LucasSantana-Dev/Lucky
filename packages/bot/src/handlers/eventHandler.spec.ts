@@ -1428,6 +1428,25 @@ describe('eventHandler', () => {
                 )
             })
 
+            it('does not record a leave for an unavailable guild', async () => {
+                const { client, onMock } = createMockClient()
+                client.guilds = {
+                    cache: { size: 1 },
+                } as any
+                recordGuildLeaveMock.mockClear()
+
+                handleEvents(client as unknown as never)
+
+                const handler = getGuildDeleteHandler(onMock)
+                await handler?.({
+                    id: 'outage-guild',
+                    available: false,
+                    memberCount: 10,
+                })
+
+                expect(recordGuildLeaveMock).not.toHaveBeenCalled()
+            })
+
             it('logs error if recording guild leave fails', async () => {
                 const { client, onMock } = createMockClient()
                 client.guilds = {
