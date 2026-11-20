@@ -504,21 +504,81 @@ describe('dead feed handling (#3088)', () => {
         expect(parseURLMock).toHaveBeenCalledTimes(3)
         expect(channel.send).toHaveBeenCalledTimes(1)
 
-        // Next hours are skipped while backing off
-        await jest.advanceTimersByTimeAsync(HOUR * 3)
+        expect(channel.send).toHaveBeenCalledWith(
+            expect.objectContaining({ allowedMentions: { parse: [] } }),
+        )
+
+        // The next five polls are skipped while backing off
+        await jest.advanceTimersByTimeAsync(HOUR * 5)
         expect(parseURLMock).toHaveBeenCalledTimes(3)
         expect(channel.send).toHaveBeenCalledTimes(1)
+
+        // The sixth poll after the third failure resumes polling
+        await jest.advanceTimersByTimeAsync(HOUR)
+        expect(parseURLMock).toHaveBeenCalledTimes(4)
     })
 
-    it('resumes normal polling once the feed recovers', async () => {
-        parseURLMock
-            .mockRejectedValueOnce(deadFeed() as never)
-            .mockResolvedValue({ items: [] } as never)
-        await startRssBridgeService(makeClient() as never)
-        await jest.advanceTimersByTimeAsync(HOUR)
-        await jest.advanceTimersByTimeAsync(HOUR)
+    it('retries the notice when the first send fails', async () => {
+        parseURLMock.mockRejectedValue(deadFeed() as never)
+        const send = jest
+            .fn()
+            .mockRejectedValueOnce(new Error('discord down') as never)
+            .mockResolvedValue(undefined as never)
+        await startRssBridgeService(makeClient(makeChannel({ send })) as never)
+        await jest.advanceTimersByTimeAsync(HOUR * 2)
+        expect(send).toHaveBeenCalledTimes(1)
 
+        // Skip the backoff window, then the next failure retries the notice
+        await jest.advanceTimersByTimeAsync(HOUR * 6)
+        expect(send).toHaveBeenCalledTimes(2)
+
+        // Notified now: later failures stay quiet
+        await jest.advanceTimersByTimeAsync(HOUR * 6)
+        expect(send).toHaveBeenCalledTimes(2)
+    })
+
+    it('downgrades non-dead failures to warnings after the threshold', async () => {
+        parseURLMock.mockRejectedValue(new Error('boom') as never)
+        await startRssBridgeService(makeClient() as never)
+        await jest.advanceTimersByTimeAsync(HOUR * 2)
+        expect(errorLogMock).toHaveBeenCalledTimes(3)
+        expect(warnLogMock).not.toHaveBeenCalled()
+
+        await jest.advanceTimersByTimeAsync(HOUR * 5)
         expect(parseURLMock).toHaveBeenCalledTimes(3)
-        expect(warnLogMock).toHaveBeenCalledTimes(1)
+
+        await jest.advanceTimersByTimeAsync(HOUR)
+        expect(parseURLMock).toHaveBeenCalledTimes(4)
+        expect(errorLogMock).toHaveBeenCalledTimes(3)
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'RSS feed still failing' }),
+        )
+    })
+
+    it('treats the first failure after recovery as a fresh failure', async () => {
+        parseURLMock
+            .mockRejectedValueOnce(new Error('boom') as never)
+            .mockRejectedValueOnce(new Error('boom') as never)
+            .mockRejectedValueOnce(new Error('boom') as never)
+            .mockResolvedValueOnce({ items: [] } as never)
+            .mockRejectedValue(new Error('boom') as never)
+        await startRssBridgeService(makeClient() as never)
+        await jest.advanceTimersByTimeAsync(HOUR * 2)
+        expect(parseURLMock).toHaveBeenCalledTimes(3)
+
+        // Five skipped polls, then the feed recovers
+        await jest.advanceTimersByTimeAsync(HOUR * 5)
+        expect(parseURLMock).toHaveBeenCalledTimes(3)
+        await jest.advanceTimersByTimeAsync(HOUR)
+        expect(parseURLMock).toHaveBeenCalledTimes(4)
+        expect(errorLogMock).toHaveBeenCalledTimes(3)
+
+        // The next failure counts as the first one again: an error, no backoff
+        await jest.advanceTimersByTimeAsync(HOUR)
+        expect(parseURLMock).toHaveBeenCalledTimes(5)
+        expect(errorLogMock).toHaveBeenCalledTimes(4)
+        expect(warnLogMock).not.toHaveBeenCalled()
+        await jest.advanceTimersByTimeAsync(HOUR)
+        expect(parseURLMock).toHaveBeenCalledTimes(6)
     })
 })

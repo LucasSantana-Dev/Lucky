@@ -328,7 +328,6 @@ async function recordFeedFailure(
     if (health.failures < FAILURE_THRESHOLD) return
     health.skipsLeft = BACKOFF_SKIPPED_POLLS
     if (health.notified) return
-    health.notified = true
     try {
         const channel = await client.channels.fetch(subscription.channelId)
         if (channel?.isTextBased() && 'send' in channel) {
@@ -338,7 +337,10 @@ async function recordFeedFailure(
                 }
             ).send({
                 content: `The RSS feed ${subscription.feedUrl} has stopped working. It will be checked less often until it recovers.`,
+                allowedMentions: { parse: [] },
             })
+            // Only after a successful send, so a transient failure retries
+            health.notified = true
         }
     } catch (noticeErr) {
         warnLog({
