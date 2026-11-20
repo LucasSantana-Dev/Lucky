@@ -215,6 +215,12 @@ describe('extractSongCore', () => {
             'Hey Jude',
         ],
         [
+            'a song title starting with From stays on the right',
+            'The Beatles - From Me to You',
+            'someuploader123',
+            'From Me to You',
+        ],
+        [
             'a title that only starts with a version word stays on the right',
             'Oasis - Live Forever',
             'someuploader123',
@@ -230,6 +236,16 @@ describe('extractSongCore', () => {
 })
 
 describe('splitArtistAndSong', () => {
+    it('takes the artist from the author when the right side is a release tag (#2866)', () => {
+        expect(
+            splitArtistAndSong(
+                'Almost There - From "The Princess and the Frog" / Soundtrack Version',
+                'Anika Noni Rose',
+            ),
+        ).toEqual({ artist: 'Anika Noni Rose', song: 'Almost There' })
+        expect(splitArtistAndSong('Hey Jude - Live at Wembley')).toBeNull()
+    })
+
     it.each([
         [
             'channel author, artist on the left',

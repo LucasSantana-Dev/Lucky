@@ -268,6 +268,18 @@ export function cleanSearchQuery(title: string, author: string): string {
     return `${cleanedTitle} ${cleanedAuthor}`.trim()
 }
 
+// A release suffix after the dash: Spotify writes "Song - Live at X",
+// "Song - 2011 Remaster", "Song - From \"Film\" / Soundtrack Version" and
+// never puts the artist there. Tested against the right side up to its first
+// inner dash, so a song title like "Live Forever" or "Club Mix" stays a song.
+const RELEASE_SUFFIX_RE =
+    /^(?:from ["“'(]|live (?:at|in|from)\b|live$|ao vivo\b|en vivo\b|(?:\d{4} )?remaster(?:ed)?\b|soundtrack\b|acoustic\b|instrumental\b|karaok|coment[aá]rio\b|commentary\b|bonus track\b|demo\b|mono\b|radio edit\b)|\bversion$|\bremaster(?:ed)?(?: \d{4})?$/i
+
+function isReleaseSuffix(text: string): boolean {
+    const head = text.split(/\s[-–—]\s/, 1)[0]?.trim() ?? ''
+    return RELEASE_SUFFIX_RE.test(head)
+}
+
 /**
  * Extract the song-title core from a YouTube-style "Artist - Song" title.
  * Uses the author field to determine which side of the separator is the artist
@@ -275,18 +287,6 @@ export function cleanSearchQuery(title: string, author: string): string {
  * Strips secondary separators from the core (e.g. "Halo - VERSÃO FORROZINHO" → "Halo").
  * Returns null when no separator is found in the cleaned title.
  */
-// A release suffix after the dash: Spotify writes "Song - Live at X",
-// "Song - 2011 Remaster", "Song - From \"Film\" / Soundtrack Version" and
-// never puts the artist there. Tested against the right side up to its first
-// inner dash, so a song title like "Live Forever" or "Club Mix" stays a song.
-const RELEASE_SUFFIX_RE =
-    /^(?:from\b|live (?:at|in|from)\b|live$|ao vivo\b|en vivo\b|(?:\d{4} )?remaster(?:ed)?\b|soundtrack\b|acoustic\b|instrumental\b|karaok|coment[aá]rio\b|commentary\b|bonus track\b|demo\b|mono\b|radio edit\b)|\bversion$|\bremaster(?:ed)?(?: \d{4})?$/i
-
-function isReleaseSuffix(text: string): boolean {
-    const head = text.split(/\s[-–—]\s/, 1)[0]?.trim() ?? ''
-    return RELEASE_SUFFIX_RE.test(head)
-}
-
 export function extractSongCore(title: string, author?: string): string | null {
     const cleaned = cleanTitle(title)
     for (const sep of [' - ', ' – ', ' — ']) {
@@ -444,7 +444,11 @@ export function splitArtistAndSong(
         const left = cleaned.slice(0, idx).trim()
         if (/[()[\]]/.test(left)) continue
         const right = cleaned.slice(idx + sep.length).trim()
-        const artist = right.startsWith(song) ? left : right
+        // "Song - <release tag>" (Spotify) names no artist in the title:
+        // the tag on the right is not one, so only the author can be.
+        const releaseTagged = song === left && isReleaseSuffix(right)
+        const fromTitle = right.startsWith(song) ? left : right
+        const artist = releaseTagged ? cleanAuthor(author ?? '') : fromTitle
         if (artist.length < 2) return null
         // Upload decorations cleanTitle keeps ("Ben 1972 (4K Remastered)"):
         // Last.fm track names carry neither the tag nor the year.
