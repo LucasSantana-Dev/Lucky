@@ -123,6 +123,12 @@ jobs:
               run: npm run test:scripts
             - name: Type check
               run: npm run type:check
+            # Specs are excluded from each package tsconfig and ts-jest runs
+            # with diagnostics off, so nothing type-checked them and a call
+            # with the wrong arity passed green (#2351). Each package opts in
+            # by adding a `type:check:tests` script.
+            - name: Type check specs
+              run: npm run type:check:tests
             - name: Check documentation coverage
               run: npm run docs:check --workspace=packages/shared
             # This was `npm run build`, which was almost entirely duplicated

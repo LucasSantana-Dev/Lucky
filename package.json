@@ -24,6 +24,7 @@
         "lint": "eslint . -c eslint.config.js",
         "lint:fix": "eslint . -c eslint.config.js --fix",
         "type:check": "npm run db:generate && npm run type:check --workspace=packages/shared && npm run type:check --workspace=packages/bot && npm run type:check --workspace=packages/backend && npm run type:check --workspace=packages/frontend",
+        "type:check:tests": "npm run type:check:tests --workspaces --if-present",
         "test": "npm run test --workspace=packages/backend",
         "test:backend": "npm run test --workspace=packages/backend -- --ci",
         "test:bot": "npm run test --workspace=packages/bot -- --ci",
