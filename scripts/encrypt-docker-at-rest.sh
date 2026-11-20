@@ -18,6 +18,8 @@ if [ -e /var/lib/docker.plain ]; then
 fi
 
 TAG=$(cut -c1-7 .deploy-last-good-sha)
+# Homelab monitoring services (~/homelab compose/monitoring.yml) restarted after Lucky.
+MONITORING="alertmanager prometheus grafana node-exporter cadvisor loki promtail blackbox-exporter"
 SZ=$(( $(sudo du -sb /var/lib/docker | cut -f1) * 3 / 2 / 1073741824 + 10 ))G
 echo ">> image tag: $TAG  container size: $SZ"
 
@@ -57,11 +59,21 @@ sudo systemctl unmask --runtime docker.socket docker.service containerd.service
 trap - ERR
 sudo systemctl start containerd.service docker.service
 IMAGE_TAG=$TAG docker compose up -d
+# The homelab monitoring stack is a separate compose project: nothing else brings it
+# back, and on 2026-11-16 it stayed down for four days unnoticed (#3153). After Lucky,
+# because its Prometheus joins the lucky-monitoring network Lucky creates.
+(cd ~/homelab && docker compose up -d $MONITORING)
 
 sleep 20
 echo ">> checks"
 findmnt /var/lib/docker
 docker inspect lucky-bot --format '{{.Config.Image}}'
 docker exec lucky-postgres psql -U discordbot -d discordbot -c 'select count(*) from guilds;'
+# Same check as the runbook: a dead monitoring stack fails the run (#3153).
+MON_UP=$(docker ps --format '{{.Names}}' | grep -cE '^(prometheus|grafana|alertmanager)$' || true)
+if [ "$MON_UP" -ne 3 ]; then
+    echo "!! monitoring stack not up ($MON_UP of prometheus, grafana, alertmanager running)"
+    exit 1
+fi
 echo ">> done. After every reboot, unlock with:"
-echo "sudo cryptsetup open /srv/docker-crypt.img dockercrypt && sudo mount /dev/mapper/dockercrypt /var/lib/docker && sudo systemctl start containerd docker && cd ~/Lucky && IMAGE_TAG=\$(cut -c1-7 .deploy-last-good-sha) docker compose up -d"
+echo "sudo cryptsetup open /srv/docker-crypt.img dockercrypt && sudo mount /dev/mapper/dockercrypt /var/lib/docker && sudo systemctl start containerd docker && cd ~/Lucky && IMAGE_TAG=\$(cut -c1-7 .deploy-last-good-sha) docker compose up -d && cd ~/homelab && docker compose up -d $MONITORING"
