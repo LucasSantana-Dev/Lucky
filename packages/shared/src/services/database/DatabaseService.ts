@@ -72,7 +72,8 @@ export class DatabaseService {
     }
 
     /** Deletes track history, expired rate limit records, and server logs older than 30 days,
-     * user feedback (#2477), command events (#2391) and activation events older than their own 180-day window. */
+     * user feedback (#2477), command events (#2391) and activation events older than their own 180-day window,
+     * invite clicks after 180 days and top.gg vote events after 400 days (#2395). */
     async cleanupOldData(): Promise<Result<number>> {
         return this.executeWithFallback(async () => {
             const thirtyDaysAgo = new Date(

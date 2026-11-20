@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from 'express'
 import { getPrismaClient, infoLog } from '@lucky/shared/utils'
-import { logAndSwallow } from '@lucky/shared/utils/error'
+import { logAndSwallow, logAndWarn } from '@lucky/shared/utils/error'
 import { buildBotAddUrl } from '@lucky/shared/constants'
 import { apiLimiter } from '../middleware/rateLimit'
 import { getOAuthRedirectUri } from '../utils/oauthRedirectUri'
@@ -45,6 +45,16 @@ type InviteClickFields = {
     referer?: string
 }
 
+// A lost click is logged at warn (prod runs without debug). The guard keeps a
+// throwing log sink from turning into an unhandled rejection.
+function reportClickFailure(err: unknown): void {
+    try {
+        logAndWarn(err, 'invite.recordClick')
+    } catch {
+        // Logging failed too; the redirect is already sent, nothing else to do.
+    }
+}
+
 // Fire-and-forget (obs P4, #2395): the redirect never waits on this write and
 // a failure only logs.
 function recordInviteClick(fields: InviteClickFields): void {
@@ -59,11 +69,9 @@ function recordInviteClick(fields: InviteClickFields): void {
                     referrerHost: referrerHostOf(fields.referer),
                 },
             })
-            .catch((err: unknown) => {
-                logAndSwallow(err, 'invite.recordClick')
-            })
+            .catch(reportClickFailure)
     } catch (err) {
-        logAndSwallow(err, 'invite.recordClick')
+        reportClickFailure(err)
     }
 }
 

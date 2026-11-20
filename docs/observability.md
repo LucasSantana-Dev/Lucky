@@ -26,7 +26,7 @@ homelab (veja [`observability/README.md`](../observability/README.md)).
   usados, entradas e saídas de servidores, aceite do autoplay por fonte,
   votos no top.gg, cards de recap, onboarding e de onde vem o áudio. A
   seção "Convites e votos" mostra cliques em `/invite` por origem, as
-  entradas de servidor ligadas a eles (aproximado: clique mais recente nos
+  entradas de guildas ligadas a eles (aproximado: clique mais recente nos
   10 minutos antes da entrada) e os votos no top.gg por dia.
 - **Lucky: erros**: erros e avisos nos logs por serviço, mensagens mais
   frequentes, comandos que falharam, respostas 5xx, eventos e issues do

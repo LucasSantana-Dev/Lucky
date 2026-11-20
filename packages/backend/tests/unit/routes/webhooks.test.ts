@@ -41,7 +41,8 @@ jest.mock('../../../src/middleware/auth', () => ({
 // Mock Prisma client via getPrismaClient so the route never opens a real database connection.
 // This must be done before importing the route module.
 const mockFindUnique = jest.fn<AsyncMockFn>()
-const mockTransaction = jest.fn<(callback: Function) => Promise<unknown>>()
+const mockTransaction =
+    jest.fn<(callback: Function, options?: unknown) => Promise<unknown>>()
 const txEventCreate = jest.fn<AsyncMockFn>()
 
 jest.mock(
@@ -347,6 +348,9 @@ describe('POST /webhooks/topgg-votes persistence', () => {
         expect(res.body).toEqual({ ok: true })
         expect(mockTransaction).toHaveBeenCalled()
         expect(txUpsertCalls).toHaveLength(1)
+        expect(mockTransaction.mock.calls[0][1]).toEqual({
+            isolationLevel: 'Serializable',
+        })
         expect(txEventCreate).toHaveBeenCalledWith({
             data: expect.objectContaining({
                 userId: '123456789012345678',

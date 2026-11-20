@@ -4,6 +4,7 @@ import request from 'supertest'
 
 const mockInfoLog = jest.fn()
 const mockLogAndSwallow = jest.fn()
+const mockLogAndWarn = jest.fn()
 const mockInviteClickCreate = jest.fn<(arg: unknown) => Promise<unknown>>()
 const mockGetPrismaClient = jest.fn(() => ({
     inviteClick: { create: mockInviteClickCreate },
@@ -16,6 +17,7 @@ jest.mock('@lucky/shared/utils', () => ({
 
 jest.mock('@lucky/shared/utils/error', () => ({
     logAndSwallow: (...args: unknown[]) => mockLogAndSwallow(...args),
+    logAndWarn: (...args: unknown[]) => mockLogAndWarn(...args),
 }))
 
 jest.mock('../../../src/middleware/rateLimit', () => ({
@@ -178,10 +180,22 @@ describe('GET /invite', () => {
             )
             expect(res.status).toBe(302)
             await new Promise((resolve) => setImmediate(resolve))
-            expect(mockLogAndSwallow).toHaveBeenCalledWith(
+            expect(mockLogAndWarn).toHaveBeenCalledWith(
                 expect.any(Error),
                 'invite.recordClick',
             )
+        })
+
+        test('a throwing logger never escapes the route', async () => {
+            mockInviteClickCreate.mockRejectedValue(new Error('db down'))
+            mockLogAndWarn.mockImplementation(() => {
+                throw new Error('sink down')
+            })
+            const res = await request(buildApp()).get('/invite')
+            await new Promise((resolve) => setImmediate(resolve))
+            expect(res.status).toBe(302)
+            expect(mockLogAndWarn).toHaveBeenCalled()
+            mockLogAndWarn.mockReset()
         })
 
         test('still redirects when the client cannot be created', async () => {
@@ -191,7 +205,7 @@ describe('GET /invite', () => {
             const res = await request(buildApp()).get('/invite')
             expect(res.status).toBe(302)
             expect(res.headers.location).toContain('discord.com')
-            expect(mockLogAndSwallow).toHaveBeenCalledWith(
+            expect(mockLogAndWarn).toHaveBeenCalledWith(
                 expect.any(Error),
                 'invite.recordClick',
             )

@@ -210,58 +210,65 @@ async function recordVote(
     const now = new Date()
     const nowMs = now.getTime()
 
-    return await prisma.$transaction(async (tx) => {
-        // Check for existing vote record
-        const existing = await tx.topggVote.findUnique({
-            where: { userId },
-        })
+    // Serializable: two concurrent deliveries for one user must not both pass
+    // the 12h check and both bump the streak and append history. The loser
+    // gets a serialization error and answers 500; a top.gg retry of it then
+    // lands as a duplicate.
+    return await prisma.$transaction(
+        async (tx) => {
+            // Check for existing vote record
+            const existing = await tx.topggVote.findUnique({
+                where: { userId },
+            })
 
-        // Duplicate check: vote exists and is within 12h TTL
-        if (existing) {
-            const timeSinceVote = nowMs - existing.lastVoteAt.getTime()
-            if (timeSinceVote < VOTE_TTL_MILLISECONDS) {
-                return 'duplicate'
+            // Duplicate check: vote exists and is within 12h TTL
+            if (existing) {
+                const timeSinceVote = nowMs - existing.lastVoteAt.getTime()
+                if (timeSinceVote < VOTE_TTL_MILLISECONDS) {
+                    return 'duplicate'
+                }
             }
-        }
 
-        // Accept: compute new streak
-        let newStreak = 1
-        if (existing) {
-            const timeSinceVote = nowMs - existing.lastVoteAt.getTime()
-            // Preserve streak if within 36h, otherwise reset to 1
-            newStreak =
-                timeSinceVote <= STREAK_TTL_MILLISECONDS
-                    ? existing.streak + 1
-                    : 1
-        }
+            // Accept: compute new streak
+            let newStreak = 1
+            if (existing) {
+                const timeSinceVote = nowMs - existing.lastVoteAt.getTime()
+                // Preserve streak if within 36h, otherwise reset to 1
+                newStreak =
+                    timeSinceVote <= STREAK_TTL_MILLISECONDS
+                        ? existing.streak + 1
+                        : 1
+            }
 
-        // Upsert: create or update vote record
-        await tx.topggVote.upsert({
-            where: { userId },
-            create: {
-                userId,
-                lastVoteAt: now,
-                streak: newStreak,
-            },
-            update: {
-                lastVoteAt: now,
-                streak: newStreak,
-            },
-        })
+            // Upsert: create or update vote record
+            await tx.topggVote.upsert({
+                where: { userId },
+                create: {
+                    userId,
+                    lastVoteAt: now,
+                    streak: newStreak,
+                },
+                update: {
+                    lastVoteAt: now,
+                    streak: newStreak,
+                },
+            })
 
-        // Append-only history (obs P4, #2395). Same transaction as the
-        // summary row, so history and summary never disagree.
-        await tx.topggVoteEvent.create({
-            data: {
-                userId,
-                occurredAt: now,
-                streak: newStreak,
-                isWeekend,
-            },
-        })
+            // Append-only history (obs P4, #2395). Same transaction as the
+            // summary row, so history and summary never disagree.
+            await tx.topggVoteEvent.create({
+                data: {
+                    userId,
+                    occurredAt: now,
+                    streak: newStreak,
+                    isWeekend,
+                },
+            })
 
-        return 'recorded'
-    })
+            return 'recorded'
+        },
+        { isolationLevel: 'Serializable' },
+    )
 }
 
 function validateVoteUserId(userId: unknown): string {

@@ -427,7 +427,7 @@ def negocio():
         "WITH joins AS (SELECT \"guildDiscordId\" AS g, \"occurredAt\" AS t FROM guild_membership_events "
         f"WHERE kind = 'JOIN' AND $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN {EXCL}), "
         "m AS (SELECT coalesce((SELECT coalesce(c.\"utmSource\", 'sem utm') FROM invite_clicks c "
-        "WHERE c.\"occurredAt\" <= j.t AND c.\"occurredAt\" > j.t - interval '10 minutes' "
+        "WHERE c.\"occurredAt\" <= j.t AND c.\"occurredAt\" > j.t - interval '10 minutes' AND $__timeFilter(c.\"occurredAt\") "
         "ORDER BY c.\"occurredAt\" DESC LIMIT 1), 'sem clique antes') AS src FROM joins j), "
         "a AS (SELECT src, count(*) AS n FROM m GROUP BY 1), "
         "c AS (SELECT coalesce(\"utmSource\", 'sem utm') AS src, count(*) AS n FROM invite_clicks "
