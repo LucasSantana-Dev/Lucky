@@ -56,6 +56,13 @@ const updateEmbedBody = embedDataSchema
     .omit({ author: true, url: true })
     .extend({
         name: z.string().min(1).max(100).optional(),
+        title: z.string().max(256).nullable().optional(),
+        description: z.string().max(4096).nullable().optional(),
+        color: z
+            .string()
+            .regex(/^#[0-9a-fA-F]{6}$/)
+            .nullable()
+            .optional(),
         thumbnail: z.string().url().max(2048).nullable().optional(),
         image: z.string().url().max(2048).nullable().optional(),
         footer: z.string().max(2048).nullable().optional(),
