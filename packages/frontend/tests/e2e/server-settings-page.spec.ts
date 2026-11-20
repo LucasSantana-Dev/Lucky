@@ -1,68 +1,73 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import {
     setupMockApiResponses,
     mockServerSettings,
 } from './helpers/api-helpers'
+import { MOCK_GUILDS } from './fixtures/test-data'
 
+const GUILD_ID = '111111111111111111'
 const GUILD_STORAGE = JSON.stringify({
-    id: '111111111111111111',
+    id: GUILD_ID,
     name: 'Test Server 1',
 })
+
+async function mockNoBotGuilds(page: Page): Promise<void> {
+    await page.route('**/api/guilds', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+                guilds: MOCK_GUILDS.filter((g) => !g.hasBot),
+            }),
+        })
+    })
+}
 
 test.describe('Server Settings Page', () => {
     test.beforeEach(async ({ page }) => {
         await setupMockApiResponses(page)
     })
 
-    test('shows no server selected when no guild', async ({ page }) => {
+    test('shows no server selected when no server has the bot', async ({
+        page,
+    }) => {
+        await mockNoBotGuilds(page)
         await page.goto('/settings')
-        await page.waitForLoadState('domcontentloaded')
 
-        const heading = page.locator('text=/No Server Selected/i')
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-        }
+        await expect(
+            page.getByRole('heading', { name: 'No Server Selected' }),
+        ).toBeVisible()
+        await expect(
+            page.getByRole('button', { name: 'Save Changes' }),
+        ).toHaveCount(0)
     })
 
     test('displays server settings heading with guild', async ({ page }) => {
-        await mockServerSettings(page, '111111111111111111')
+        await mockServerSettings(page, GUILD_ID)
         await page.addInitScript((guild) => {
             localStorage.setItem('selectedGuild', guild)
         }, GUILD_STORAGE)
 
         await page.goto('/settings')
-        await page.waitForLoadState('domcontentloaded')
 
-        const heading = page.locator('text=/Server Settings/i')
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-        }
+        await expect(
+            page.getByRole('heading', { name: 'Server Settings' }),
+        ).toBeVisible()
+        await expect(
+            page.getByText('General configuration for Test Server 1'),
+        ).toBeVisible()
     })
 
     test('shows save button', async ({ page }) => {
-        await mockServerSettings(page, '111111111111111111')
+        await mockServerSettings(page, GUILD_ID)
         await page.addInitScript((guild) => {
             localStorage.setItem('selectedGuild', guild)
         }, GUILD_STORAGE)
 
         await page.goto('/settings')
-        await page.waitForLoadState('domcontentloaded')
 
-        const saveBtn = page.locator('button:has-text("Save")').first()
-        const isVisible = await saveBtn
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(saveBtn).toBeVisible()
-        }
+        await expect(
+            page.getByRole('button', { name: 'Save Changes' }).first(),
+        ).toBeVisible()
     })
 })

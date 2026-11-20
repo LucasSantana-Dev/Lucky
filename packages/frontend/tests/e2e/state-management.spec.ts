@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test'
 import { setupMockApiResponses } from './helpers/api-helpers'
 import { navigateToDashboard, navigateToFeatures } from './helpers/page-helpers'
+import { getServerSelector } from './helpers/ui-helpers'
+import { MOCK_GUILDS } from './fixtures/test-data'
+
+const ACTIVE_NAME = `Active server: ${MOCK_GUILDS.find((g) => g.hasBot)!.name}. Click to switch.`
 
 test.describe('State Management', () => {
     test.beforeEach(async ({ page }) => {
@@ -17,70 +21,56 @@ test.describe('State Management', () => {
     test('guild state updates correctly', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const serverSelector = page.locator('text=Select a server').first()
-        const isVisible = await serverSelector
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(serverSelector).toBeVisible()
-        }
+        await expect(getServerSelector(page)).toHaveAccessibleName(ACTIVE_NAME)
     })
 
     test('features state updates correctly', async ({ page }) => {
         await navigateToFeatures(page)
+
+        await expect(
+            page
+                .locator('#lucky-main-content')
+                .getByRole('heading', { name: 'Features', exact: true }),
+        ).toBeVisible()
     })
 
-    test('state persists across page reloads', async ({ page }) => {
+    test('default server is selected again after a reload', async ({
+        page,
+    }) => {
         await navigateToDashboard(page)
-        await page.waitForTimeout(500)
+        await expect(getServerSelector(page)).toHaveAccessibleName(ACTIVE_NAME)
 
         await page.reload()
-        await page.waitForLoadState('domcontentloaded')
-        await page.waitForTimeout(1000)
 
-        const sidebar = page.locator('aside').first()
-        await expect(sidebar).toBeVisible({ timeout: 5000 })
+        await expect(page.locator('aside').first()).toBeVisible()
+        await expect(getServerSelector(page)).toHaveAccessibleName(ACTIVE_NAME)
     })
 
     test('state synchronization between stores', async ({ page }) => {
         await navigateToDashboard(page)
-        await page.waitForTimeout(500)
-
         await navigateToFeatures(page)
-        await page.waitForTimeout(500)
 
-        const sidebar = page.locator('aside').first()
-        await expect(sidebar).toBeVisible({ timeout: 5000 })
+        await expect(page.locator('aside').first()).toBeVisible()
+        await expect(getServerSelector(page)).toHaveAccessibleName(ACTIVE_NAME)
     })
 
-    test('optimistic updates', async ({ page }) => {
-        await page.route('**/api/guilds/*/features/*', async (route) => {
-            await page.waitForTimeout(2000)
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({ success: true }),
-            })
+    test('feature switches stay read-only and send no writes', async ({
+        page,
+    }) => {
+        const writes: string[] = []
+        page.on('request', (request) => {
+            if (request.url().includes('/api/') && request.method() !== 'GET') {
+                writes.push(request.method())
+            }
         })
 
         await navigateToFeatures(page)
 
-        const featureCard = page.locator('[class*="card"]').first()
-        const switchButton = featureCard.locator('[role="switch"]').first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            const initialState = await switchButton.getAttribute('aria-checked')
-            await switchButton.click()
-            await page.waitForTimeout(100)
-
-            const optimisticState =
-                await switchButton.getAttribute('aria-checked')
-            expect(optimisticState).not.toBe(initialState)
+        const switches = page.getByRole('switch')
+        await expect(switches.first()).toBeVisible()
+        for (const toggle of await switches.all()) {
+            await expect(toggle).toBeDisabled()
         }
+        expect(writes).toEqual([])
     })
 })

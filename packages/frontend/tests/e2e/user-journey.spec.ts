@@ -5,8 +5,8 @@ import {
     navigateToDashboard,
     navigateToFeatures,
 } from './helpers/page-helpers'
-
-import { MOCK_GUILDS } from './fixtures/test-data'
+import { getFeatureCard } from './helpers/ui-helpers'
+import { MOCK_FEATURES, MOCK_GUILDS } from './fixtures/test-data'
 
 test.describe('User Journey', () => {
     test.beforeEach(async ({ page }) => {
@@ -33,14 +33,7 @@ test.describe('User Journey', () => {
         await navigateToFeatures(page)
         await page.waitForTimeout(1000)
 
-        const featureCard = page.locator('[class*="card"]').first()
-        const isVisible = await featureCard
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(featureCard).toBeVisible()
-        }
+        await expect(getFeatureCard(page, MOCK_FEATURES[0].name)).toBeVisible()
     })
 
     test('navigates between pages', async ({ page }) => {

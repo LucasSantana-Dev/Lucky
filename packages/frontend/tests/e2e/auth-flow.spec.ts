@@ -4,7 +4,7 @@ import {
     verifySessionCookie,
     interceptAuthRequests,
 } from './helpers/auth-helpers'
-import { mockAuthStatus } from './helpers/api-helpers'
+import { mockAuthStatus, setupMockApiResponses } from './helpers/api-helpers'
 import { MOCK_DISCORD_USER } from './fixtures/test-data'
 
 test.describe('OAuth Login Flow', () => {
@@ -198,15 +198,15 @@ test.describe('Session Management', () => {
         }
     })
 
-    test('Logout clears session', async ({ page }) => {
-        await interceptAuthRequests(page)
+    test('Logout calls the API and leaves the session', async ({ page }) => {
+        await setupMockApiResponses(page)
 
-        await page.goto('/?authenticated=true')
+        await page.goto('/')
         await page.waitForLoadState('domcontentloaded')
 
-        const hasSessionBefore = await verifySessionCookie(page)
-
+        let logoutCalls = 0
         await page.route('**/api/auth/logout', async (route) => {
+            logoutCalls += 1
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -215,15 +215,11 @@ test.describe('Session Management', () => {
         })
 
         const logoutButton = page.getByRole('button', { name: /log out/i })
-        if (await logoutButton.isVisible()) {
-            await logoutButton.click()
-            await page.waitForTimeout(1000)
+        await expect(logoutButton).toBeVisible()
+        await logoutButton.click()
 
-            const hasSessionAfter = await verifySessionCookie(page)
-            if (hasSessionBefore) {
-                expect(hasSessionAfter).toBe(false)
-            }
-        }
+        await expect.poll(() => logoutCalls).toBe(1)
+        await expect(logoutButton).toHaveCount(0)
     })
 })
 

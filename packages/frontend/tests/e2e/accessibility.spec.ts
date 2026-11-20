@@ -31,6 +31,9 @@ async function scan(page: Page, key: keyof typeof KNOWN_VIOLATIONS) {
 
 test.describe('Accessibility (axe, WCAG 2 A and AA)', () => {
     test.beforeEach(async ({ page }) => {
+        // Sections fade in over ~0.6s; axe would sample text mid-fade and
+        // report contrast failures that depend on timing, not on the palette.
+        await page.emulateMedia({ reducedMotion: 'reduce' })
         await setupMockApiResponses(page)
     })
 

@@ -11,18 +11,15 @@ test.describe('Config Page', () => {
         await setupMockApiResponses(page)
     })
 
-    test('shows configuration heading without guild', async ({ page }) => {
+    test('shows configuration heading and active server', async ({ page }) => {
         await page.goto('/config')
-        await page.waitForLoadState('domcontentloaded')
 
-        const heading = page.locator('text=/Configuration/i')
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-        }
+        await expect(
+            page
+                .locator('#lucky-main-content')
+                .getByText('Configuration', { exact: true }),
+        ).toBeVisible()
+        await expect(page.getByText('Server: Test Server 1')).toBeVisible()
     })
 
     test('displays module cards with guild selected', async ({ page }) => {
@@ -31,20 +28,16 @@ test.describe('Config Page', () => {
         }, GUILD_STORAGE)
 
         await page.goto('/config')
-        await page.waitForLoadState('domcontentloaded')
 
-        const musicModule = page.locator('text=/Music Module/i')
-        const isVisible = await musicModule
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(musicModule).toBeVisible()
-            await expect(page.locator('text=/Commands/i').first()).toBeVisible()
-            await expect(
-                page.locator('text=/Moderation/i').first(),
-            ).toBeVisible()
-        }
+        await expect(
+            page.getByText('Available Configuration Modules'),
+        ).toBeVisible()
+        await expect(
+            page.getByRole('button', { name: /Music Module/ }),
+        ).toBeVisible()
+        await expect(
+            page.getByRole('button', { name: /Moderation/ }),
+        ).toBeVisible()
     })
 
     test('shows module descriptions', async ({ page }) => {
@@ -53,17 +46,16 @@ test.describe('Config Page', () => {
         }, GUILD_STORAGE)
 
         await page.goto('/config')
-        await page.waitForLoadState('domcontentloaded')
 
-        const desc = page.locator(
-            'text=/Configure music playback, queue management/i',
-        )
-        const isVisible = await desc
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(desc).toBeVisible()
-        }
+        await expect(
+            page.getByText(
+                'Configure music playback, queue management, and audio settings',
+            ),
+        ).toBeVisible()
+        await expect(
+            page.getByText(
+                'Set up auto-moderation, filters, and moderation actions',
+            ),
+        ).toBeVisible()
     })
 })
