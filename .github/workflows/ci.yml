@@ -3,8 +3,9 @@ name: CI/CD Pipeline
 on:
     push:
         branches: [main, 'release/**']
+    # No branch filter: a stacked PR (base is another feature branch) must
+    # still run tests, type-check and lint (#2944).
     pull_request:
-        branches: [main, 'release/**']
     merge_group:
         branches: [main, 'release/**']
 
