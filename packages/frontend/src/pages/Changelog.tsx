@@ -66,7 +66,7 @@ function formatDate(date: string | null): string {
 }
 
 const INLINE_TOKEN =
-    /(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\(https?:\/\/[^)\s]+\)|#\d{2,5})/g
+    /(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\(https?:\/\/(?:[^()\s]|\([^()\s]*\))+\)|#\d{2,5})/gi
 
 function renderInlineMd(text: string, keyPrefix = 'm'): React.ReactNode {
     return text.split(INLINE_TOKEN).map((chunk, i) => {
@@ -93,7 +93,9 @@ function renderInlineMd(text: string, keyPrefix = 'm'): React.ReactNode {
                 </strong>
             )
         }
-        const link = chunk.match(/^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)$/)
+        const link = chunk.match(
+            /^\[([^\]]+)\]\((https?:\/\/(?:[^()\s]|\([^()\s]*\))+)\)$/i,
+        )
         if (link) {
             return (
                 <a
