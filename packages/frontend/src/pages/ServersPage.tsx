@@ -1,8 +1,15 @@
-import { Crown, LayoutGrid, Settings, ExternalLink } from 'lucide-react'
+import {
+    AlertTriangle,
+    Crown,
+    LayoutGrid,
+    Settings,
+    ExternalLink,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import Button from '@/components/ui/Button'
 import Skeleton from '@/components/ui/Skeleton'
 import ServerGrid from '@/components/Dashboard/ServerGrid'
 import { useGuildStore } from '@/stores/guildStore'
@@ -17,6 +24,8 @@ export default function ServersPage() {
     const { t } = useTranslation('servers')
     const guilds = useGuildStore((state) => state.guilds)
     const isLoading = useGuildStore((state) => state.isLoading)
+    const guildLoadError = useGuildStore((state) => state.guildLoadError)
+    const fetchGuilds = useGuildStore((state) => state.fetchGuilds)
     const selectGuild = useGuildStore((state) => state.selectGuild)
     const user = useAuthStore((state) => state.user)
     const navigate = useNavigate()
@@ -220,7 +229,33 @@ export default function ServersPage() {
                     </section>
                 )}
 
-                {guilds.length === 0 && (
+                {guilds.length === 0 && guildLoadError && (
+                    <div
+                        role='alert'
+                        className='surface-panel rounded-lg p-12 text-center border border-lucky-border'
+                    >
+                        <div className='w-12 h-12 rounded-full bg-lucky-bg-tertiary mx-auto mb-4 flex items-center justify-center'>
+                            <AlertTriangle
+                                className='h-6 w-6 text-lucky-error'
+                                aria-hidden='true'
+                            />
+                        </div>
+                        <p className='text-lucky-text-primary font-medium mb-2'>
+                            {t('loadErrorTitle')}
+                        </p>
+                        <p className='text-sm text-lucky-text-secondary mb-4'>
+                            {guildLoadError.message}
+                        </p>
+                        <Button
+                            size='sm'
+                            onClick={() => void fetchGuilds(true)}
+                        >
+                            {t('retry')}
+                        </Button>
+                    </div>
+                )}
+
+                {guilds.length === 0 && !guildLoadError && (
                     <div className='surface-panel rounded-lg p-12 text-center border border-lucky-border'>
                         <div className='w-12 h-12 rounded-full bg-lucky-bg-tertiary mx-auto mb-4 flex items-center justify-center'>
                             <LayoutGrid className='h-6 w-6 text-lucky-text-tertiary' />
