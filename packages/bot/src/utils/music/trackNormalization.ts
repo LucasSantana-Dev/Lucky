@@ -44,7 +44,7 @@ export function normalizeText(value?: string): string {
     return (value ?? '')
         .normalize('NFKC')
         .toLowerCase()
-        .replaceAll(/[^\p{L}\p{N}]+/gu, '')
+        .replaceAll(/[^\p{L}\p{M}\p{N}]+/gu, '')
         .trim()
 }
 
