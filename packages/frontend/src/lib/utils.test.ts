@@ -13,7 +13,7 @@ describe('cn', () => {
 
 describe('formatDate', () => {
     test('formats an ISO date with month, day and year', () => {
-        expect(formatDate('2026-03-05T12:00:00Z')).toMatch(/Mar 5, 2026/)
+        expect(formatDate('2026-03-05T12:00:00')).toMatch(/Mar 5, 2026/)
     })
 })
 
