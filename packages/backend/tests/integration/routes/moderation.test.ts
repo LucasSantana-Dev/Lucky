@@ -102,7 +102,10 @@ describe('Moderation Routes Integration', () => {
             { id: '777777777777777777', name: 'Mod', position: 2 },
         ])
         mockGetTextChannels.mockResolvedValue([
-            { id: '555555555555555555', name: '#mod-log' },
+            { id: '555555555555555555', name: '#mod-log', type: 0 },
+            { id: '888888888888888888', name: '#forum', type: 15 },
+            { id: '888888888888888889', name: '#media', type: 16 },
+            { id: '888888888888888887', name: '#news', type: 5 },
         ])
     })
 
@@ -877,6 +880,23 @@ describe('Moderation Routes Integration', () => {
                 })
                 expect(res.status).toBe(400)
                 expect(updateSettings()).not.toHaveBeenCalled()
+            })
+
+            test.each(['888888888888888888', '888888888888888889'])(
+                'rejects forum or media channel %s as the mod-log channel',
+                async (id) => {
+                    const res = await patch({ modLogChannelId: id })
+                    expect(res.status).toBe(400)
+                    expect(updateSettings()).not.toHaveBeenCalled()
+                },
+            )
+
+            test('accepts an announcement channel as the mod-log channel', async () => {
+                updateSettings().mockResolvedValue({} as any)
+                const res = await patch({
+                    modLogChannelId: '888888888888888887',
+                })
+                expect(res.status).toBe(200)
             })
 
             test('rejects a role id from another guild', async () => {

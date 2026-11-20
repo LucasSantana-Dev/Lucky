@@ -233,23 +233,42 @@ export const musicExtractorDegradedGauge = new Gauge<'extractor'>({
 
 /**
  * Counter: yt-dlp stream extraction failures by type
- * (forbidden|botcheck|empty|timeout|other). `forbidden` is YouTube's HTTP 403
+ * (forbidden|botcheck|empty|timeout|other|breaker_open). `breaker_open` counts a play that
+ * exhausted every stage while the breaker was open. `forbidden` is YouTube's HTTP 403
  * on the media download and `botcheck` is its "not a bot" sign-in challenge;
  * both open the bridge's yt-dlp block breaker (#2653, #2744).
  * This is the counter the 2026-08-03 Lavalink re-evaluation ADR asked for.
  */
 export const extractionFailuresTotal = new Counter<'type'>({
     name: 'lucky_bot_extraction_failures_total',
-    help: 'yt-dlp stream extraction failures, by type (forbidden|botcheck|empty|timeout|other).',
+    help: 'yt-dlp stream extraction failures, by type (forbidden|botcheck|empty|timeout|other|breaker_open).',
     labelNames: ['type'],
     registers: [registry],
 })
 // Seed all types at 0 on boot so rate()/increase() queries (dashboards, future
 // alert rules) have a baseline from the first scrape, even before the first
 // failure (#2864).
-for (const type of ['forbidden', 'botcheck', 'empty', 'timeout', 'other']) {
+for (const type of [
+    'forbidden',
+    'botcheck',
+    'empty',
+    'timeout',
+    'other',
+    'breaker_open',
+]) {
     extractionFailuresTotal.labels(type).inc(0)
 }
+
+/**
+ * Counter: interactions that expired before the bot acknowledged them
+ * (Discord 10062), by command or button family (#3085).
+ */
+export const interactionExpiredTotal = new Counter<'source'>({
+    name: 'lucky_bot_interaction_expired_total',
+    help: 'Interactions that expired before the bot acknowledged them, by command or button.',
+    labelNames: ['source'],
+    registers: [registry],
+})
 
 /**
  * Counter: Spotify source cache lookups by result (hit|miss|negative).

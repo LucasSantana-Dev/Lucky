@@ -62,6 +62,10 @@ let slowFailureAts: number[] = []
 let anonymousVideoSeq = 0
 let blockedUntil = 0
 let degradedByBreaker = false
+// The open-breaker Sentry event is sent once per episode (#3082). Episodes are
+// numbered so a play claims the one it was blocked in, not the current one.
+let episodeSeq = 0
+let reportedEpisode = 0
 let expiryTimer: ReturnType<typeof setTimeout> | undefined
 const budgetMisses = new WeakSet<object>()
 const countedPlays = new WeakSet<object>()
@@ -140,6 +144,7 @@ export function recordYtDlpFailure(
         opens = slowFailureAts.length >= SLOW_FAILURE_THRESHOLD
     }
     if (opens) {
+        if (now >= blockedUntil) episodeSeq++
         blockedUntil = now + YTDLP_BLOCK_COOLDOWN_MS
         markBreakerDegraded()
     }
@@ -156,4 +161,21 @@ export function isYtDlpBlocked(now = Date.now()): boolean {
     if (now < blockedUntil) return true
     clearBreakerDegraded()
     return false
+}
+
+/** Id of the current breaker-open episode; a new one starts on each open. */
+export function getBreakerEpisode(): number {
+    return episodeSeq
+}
+
+/**
+ * True for the first exhausted play of a breaker-open episode, false for the
+ * rest of it. `episode` is the id the play observed when it was blocked, so a
+ * play that outlives its episode cannot use up a newer episode's report.
+ * Callers still count every play in Prometheus.
+ */
+export function claimBreakerEpisodeReport(episode: number): boolean {
+    if (episode === reportedEpisode) return false
+    reportedEpisode = episode
+    return true
 }

@@ -143,6 +143,8 @@
             "unknownTrack": "Faixa desconhecida",
             "unknownArtist": "Artista desconhecido",
             "moreControls": "Mais",
+
+            "nowPlayingNoAccess": "Não consigo enviar a mensagem de tocando agora nesse canal: faltam as permissões Ver Canal e Enviar Mensagens. A música continua tocando, mas sem a mensagem de controles.",
             "controlsTitle": "🎛️ Controles de música",
             "streamFailed": "Não achei a original de **{{title}}** agora, então não vou tocar um cover. Tente de novo em instantes ou cole um link.",
             "streamFailedMany_one": "{{count}} música não pôde ser tocada. Tente de novo em instantes ou cole um link.",

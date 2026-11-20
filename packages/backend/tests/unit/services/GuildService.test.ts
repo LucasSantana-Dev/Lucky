@@ -596,8 +596,8 @@ describe('GuildService', () => {
                 await guildService.getGuildTextChannelOptions(guildId)
 
             expect(channels).toEqual([
-                { id: '3', name: '#general' },
-                { id: '1', name: '#updates' },
+                { id: '3', name: '#general', type: 5 },
+                { id: '1', name: '#updates', type: 0 },
             ])
         })
 
@@ -628,8 +628,8 @@ describe('GuildService', () => {
                 await guildService.getGuildTextChannelOptions(guildId)
 
             expect(channels).toEqual([
-                { id: '1', name: '#general' },
-                { id: '2', name: '#rules' },
+                { id: '1', name: '#general', type: 0 },
+                { id: '2', name: '#rules', type: 5 },
             ])
         })
 

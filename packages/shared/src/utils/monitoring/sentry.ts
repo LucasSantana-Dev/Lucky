@@ -19,7 +19,6 @@ export interface InitializeSentryOptions {
     release?: string
     serverName?: string
     tracesSampleRate?: number
-    profilesSampleRate?: number
     tags?: Record<string, string>
 }
 
@@ -228,11 +227,6 @@ export function initializeSentry(options: InitializeSentryOptions = {}): void {
         process.env.SENTRY_TRACES_SAMPLE_RATE,
         0.1,
     )
-    const profilesSampleRate = resolveSampleRate(
-        options.profilesSampleRate,
-        process.env.SENTRY_PROFILES_SAMPLE_RATE,
-        0.1,
-    )
     const { appName, serviceName, release, serverName } =
         getSentryMetadata(options)
 
@@ -242,9 +236,6 @@ export function initializeSentry(options: InitializeSentryOptions = {}): void {
         release,
         serverName,
         tracesSampleRate,
-        // Sentry 11 dropped `profilesSampleRate` from NodeOptions (profiling moved to
-        // profileSessionSampleRate). Kept at runtime so the init payload is unchanged.
-        ...({ profilesSampleRate } as object),
         integrations: [],
         // The ~1160 infoLog/warnLog/debugLog calls only became BREADCRUMBS, and a
         // breadcrumb shows up attached to an error event: with no error, none of it

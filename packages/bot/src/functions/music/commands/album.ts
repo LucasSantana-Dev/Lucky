@@ -44,7 +44,8 @@ export default new Command({
             option
                 .setName('query')
                 .setDescription('Album name or Spotify album URL')
-                .setRequired(true),
+                .setRequired(true)
+                .setAutocomplete(true),
         )
         .addStringOption((option) =>
             option

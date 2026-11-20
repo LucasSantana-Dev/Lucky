@@ -13,6 +13,10 @@ import type {
     JSONEncodable,
 } from 'discord.js'
 import { errorLog, debugLog, captureException } from '@lucky/shared/utils'
+import {
+    isExpiredInteractionError,
+    recordExpiredInteraction,
+} from './expiredInteraction'
 import { errorEmbed, infoEmbed } from './embeds'
 
 export type ReplyableInteraction =
@@ -92,9 +96,7 @@ async function handleReplyableInteraction(
                 flags: processedContent.ephemeral ? 64 : undefined,
             })
         } catch (error) {
-            throw new Error('Failed to defer interaction reply', {
-                cause: error,
-            })
+            throw new InteractionDeferError(error)
         }
     }
     try {
@@ -105,6 +107,13 @@ async function handleReplyableInteraction(
         }
     } catch (error) {
         throw error
+    }
+}
+
+class InteractionDeferError extends Error {
+    constructor(cause: unknown) {
+        super('Failed to defer interaction reply', { cause })
+        this.name = 'InteractionDeferError'
     }
 }
 
@@ -122,6 +131,20 @@ export const interactionReply = async ({
 
         await handleReplyableInteraction(interaction, processedContent)
     } catch (error) {
+        // Only a failed defer means "expired before acknowledged"; a 10062
+        // from editReply/followUp after a successful defer is a real error.
+        if (
+            error instanceof InteractionDeferError &&
+            isExpiredInteractionError(error)
+        ) {
+            recordExpiredInteraction(
+                'commandName' in interaction
+                    ? String(interaction.commandName)
+                    : 'component',
+                'guildId' in interaction ? interaction.guildId : undefined,
+            )
+            return
+        }
         errorLog({ message: 'Error sending interaction reply:', error })
 
         const extras: Record<string, unknown> = {

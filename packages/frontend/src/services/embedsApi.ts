@@ -40,9 +40,10 @@ export interface CreateEmbedInput {
 }
 
 export interface UpdateEmbedInput {
-    title?: string
-    description?: string
-    color?: string
+    // null explicitly clears an existing value; undefined leaves it unchanged.
+    title?: string | null
+    description?: string | null
+    color?: string | null
     // null explicitly clears an existing value; undefined leaves it unchanged.
     footer?: string | null
     thumbnail?: string | null
@@ -78,16 +79,18 @@ export function buildCreateEmbedInput(form: EmbedFormValues): CreateEmbedInput {
 
 export function buildUpdateEmbedInput(form: EmbedFormValues): UpdateEmbedInput {
     return {
-        title: form.title || undefined,
-        description: form.description || undefined,
-        color: form.color || undefined,
+        // null (not undefined) so a blanked field explicitly clears
+        // the stored value (#2645).
+        title: form.title || null,
+        description: form.description || null,
+        color: form.color || null,
         // null (not undefined) so a blanked field explicitly clears
         // the existing value on the template instead of the PATCH
         // silently omitting the key and leaving it unchanged (#2407 review).
         footer: form.footer || null,
         thumbnail: form.thumbnail || null,
         image: form.image || null,
-        fields: form.fields.length > 0 ? form.fields : undefined,
+        fields: form.fields,
     }
 }
 

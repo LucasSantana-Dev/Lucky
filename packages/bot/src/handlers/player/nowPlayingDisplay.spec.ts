@@ -62,7 +62,7 @@ jest.mock('./lastfmScrobbler', () => ({
 import { describe, expect, it, beforeEach } from '@jest/globals'
 import type { Track, GuildQueue } from 'discord-player'
 import type { TextChannel, Guild, Message, EmbedBuilder } from 'discord.js'
-import { sendNowPlayingEmbed } from './nowPlayingDisplay'
+import { sendNowPlayingEmbed, cleanupGuildState } from './nowPlayingDisplay'
 import { translatorFor } from '../../i18n'
 import { MUSIC_ACTION_STYLE } from '../../utils/music/musicActionStyle'
 
@@ -723,6 +723,129 @@ describe('nowPlayingDisplay', () => {
 
             // The second send sees the replacement, not the old message.
             expect(previous.edit).toHaveBeenCalledTimes(1)
+        })
+    })
+
+    describe('channel without write permission', () => {
+        const missingAccess = () =>
+            Object.assign(new Error('Missing Access'), { code: 50001 })
+
+        beforeEach(() => cleanupGuildState('guild-123'))
+
+        it('swallows 50001, warns once, and stops retrying on later tracks', async () => {
+            ;(mockChannel.send as jest.Mock).mockRejectedValue(missingAccess())
+
+            await expect(
+                sendNowPlayingEmbed(
+                    mockQueue as GuildQueue,
+                    mockTrack as Track,
+                    false,
+                ),
+            ).resolves.toBeUndefined()
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                false,
+            )
+
+            expect(mockChannel.send).toHaveBeenCalledTimes(1)
+            expect(mockWarnLog).toHaveBeenCalledTimes(1)
+        })
+
+        it('treats 50013 the same way', async () => {
+            ;(mockChannel.send as jest.Mock).mockRejectedValue(
+                Object.assign(new Error('Missing Permissions'), {
+                    code: 50013,
+                }),
+            )
+
+            await expect(
+                sendNowPlayingEmbed(
+                    mockQueue as GuildQueue,
+                    mockTrack as Track,
+                    false,
+                ),
+            ).resolves.toBeUndefined()
+        })
+
+        it('tells the requester once which permission is missing', async () => {
+            const dm = jest.fn().mockResolvedValue(undefined)
+            ;(mockQueue.metadata as { requestedBy?: unknown }).requestedBy = {
+                send: dm,
+            }
+            ;(mockChannel.send as jest.Mock).mockRejectedValue(missingAccess())
+
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                false,
+            )
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                false,
+            )
+
+            expect(dm).toHaveBeenCalledTimes(1)
+        })
+
+        it('DMs the requester of the failed track, not the queue starter', async () => {
+            const starterDm = jest.fn().mockResolvedValue(undefined)
+            const trackDm = jest.fn().mockResolvedValue(undefined)
+            ;(mockQueue.metadata as { requestedBy?: unknown }).requestedBy = {
+                send: starterDm,
+            }
+            mockTrack.requestedBy = { username: 'other', send: trackDm } as any
+            ;(mockChannel.send as jest.Mock).mockRejectedValue(missingAccess())
+
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                false,
+            )
+
+            expect(trackDm).toHaveBeenCalledTimes(1)
+            expect(starterDm).not.toHaveBeenCalled()
+        })
+
+        it('remembers every unwritable channel, not only the last one', async () => {
+            const metadata = mockQueue.metadata as { channel: unknown }
+            const channelA = mockChannel
+            const channelB = {
+                ...mockChannel,
+                id: 'channel-b',
+                send: jest.fn().mockRejectedValue(missingAccess()),
+            }
+            ;(channelA.send as jest.Mock).mockRejectedValue(missingAccess())
+            const play = () =>
+                sendNowPlayingEmbed(
+                    mockQueue as GuildQueue,
+                    mockTrack as Track,
+                    false,
+                )
+
+            await play()
+            metadata.channel = channelB
+            await play()
+            metadata.channel = channelA
+            await play()
+
+            expect(channelA.send).toHaveBeenCalledTimes(1)
+            expect(channelB.send).toHaveBeenCalledTimes(1)
+        })
+
+        it('still rethrows other send failures', async () => {
+            ;(mockChannel.send as jest.Mock).mockRejectedValue(
+                new Error('boom'),
+            )
+
+            await expect(
+                sendNowPlayingEmbed(
+                    mockQueue as GuildQueue,
+                    mockTrack as Track,
+                    false,
+                ),
+            ).rejects.toThrow('boom')
         })
     })
 })
