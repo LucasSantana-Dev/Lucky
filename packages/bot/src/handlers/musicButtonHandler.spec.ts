@@ -7,10 +7,19 @@ const refreshMusicComponentsMock = jest.fn((..._args: unknown[]) => [
 ])
 const setFeedbackMock = jest.fn<(...args: unknown[]) => Promise<boolean>>()
 
+const errorLogMock = jest.fn()
+const expiredMock = jest.fn()
+
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
-    errorLog: jest.fn(),
+    errorLog: (...args: unknown[]) => errorLogMock(...args),
 }))
+
+jest.mock('../utils/general/expiredInteraction', () =>
+    Object.assign(jest.requireActual('../utils/general/expiredInteraction'), {
+        recordExpiredInteraction: (...a: unknown[]) => expiredMock(...a),
+    }),
+)
 
 jest.mock('../utils/general/embeds', () => ({
     createErrorEmbed: (title: string, description: string) => ({
@@ -159,6 +168,24 @@ describe('handleMusicButtonInteraction — previous button (#1191)', () => {
             expect.objectContaining({
                 embeds: [expect.objectContaining({ title: 'Error' })],
             }),
+        )
+    })
+
+    it('counts an expired interaction (10062) instead of reporting an error', async () => {
+        const queue = createQueue()
+        queue.history.previousTrack = { id: 't1' } as never
+        queue.history.back.mockRejectedValue(
+            Object.assign(new Error('Unknown interaction'), { code: 10062 }),
+        )
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.PREVIOUS)
+
+        await handleMusicButtonInteraction(interaction as never)
+
+        expect(errorLogMock).not.toHaveBeenCalled()
+        expect(expiredMock).toHaveBeenCalledWith(
+            'music_button',
+            expect.anything(),
         )
     })
 })

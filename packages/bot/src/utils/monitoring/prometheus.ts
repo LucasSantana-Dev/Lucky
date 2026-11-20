@@ -252,6 +252,17 @@ for (const type of ['forbidden', 'botcheck', 'empty', 'timeout', 'other']) {
 }
 
 /**
+ * Counter: interactions that expired before the bot acknowledged them
+ * (Discord 10062), by command or button family (#3085).
+ */
+export const interactionExpiredTotal = new Counter<'source'>({
+    name: 'lucky_bot_interaction_expired_total',
+    help: 'Interactions that expired before the bot acknowledged them, by command or button.',
+    labelNames: ['source'],
+    registers: [registry],
+})
+
+/**
  * Counter: Spotify source cache lookups by result (hit|miss|negative).
  * `hit` — resolved YouTube URL served from cache (L1 or Redis).
  * `miss` — cache miss; yt-dlp search runs to resolve the source.

@@ -33,6 +33,10 @@ import {
     maybePromptAutoplayFeedback,
 } from '../services/musicRecommendation/autoplayFeedbackPrompt'
 import { recommendationFeedbackService } from '../services/musicRecommendation/feedbackService'
+import {
+    isExpiredInteractionError,
+    recordExpiredInteraction,
+} from '../utils/general/expiredInteraction'
 
 type NonNullQueue = GuildQueue
 
@@ -84,6 +88,10 @@ export async function handleMusicButtonInteraction(
 
         await routeButtonAction(interaction, queue)
     } catch (error) {
+        if (isExpiredInteractionError(error)) {
+            recordExpiredInteraction('music_button', interaction.guildId)
+            return
+        }
         errorLog({
             message: 'Music button interaction error',
             error,
