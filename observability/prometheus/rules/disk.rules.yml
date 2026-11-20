@@ -21,8 +21,9 @@ groups:
           summary: "Disk {{ $labels.mountpoint }} on {{ $labels.instance }} below 20% free"
           description: >-
             Filesystem {{ $labels.mountpoint }} has less than 20% free space
-            for 15 minutes. Prometheus/Loki are size-capped so telemetry
-            cannot be the cause; check Postgres growth and application logs.
+            for 15 minutes. Prometheus is size-capped (5GB) but Loki is not:
+            check the loki_data volume (a log loop can write tens of GB a day),
+            then Postgres growth and application logs.
 
       - alert: LuckyDiskSpaceCritical
         expr: |

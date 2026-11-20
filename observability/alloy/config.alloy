@@ -1,0 +1,93 @@
+// Lucky log pipeline (obs P2b, #2393; ADR 2026-09-26 section 1).
+//
+// Ships the stdout of the Lucky app containers to the profile's own Loki.
+// Explicit allowlist, never a lucky-* wildcard, so staging, tunnel, webhook,
+// postgres and the observability containers themselves are not ingested.
+//
+// Labels: service, env and level (ADR), plus container_name with the same
+// value as service. container_name is what the homelab promtail sets and what
+// the repo dashboards select on, so the same dashboard JSON works against both
+// Lokis during the cutover. It adds no cardinality (one value per service).
+// guildId, userId and correlationId stay in the JSON body, never labels.
+//
+// Docker is reached through lucky-docker-socket-proxy (GET on containers and
+// networks only), never the socket itself: socket access is root on the host.
+
+logging {
+  level = "warn"
+}
+
+discovery.docker "lucky" {
+  host             = "tcp://lucky-docker-socket-proxy:2375"
+  refresh_interval = "30s"
+}
+
+discovery.relabel "lucky" {
+  targets = discovery.docker.lucky.targets
+
+  // Docker names carry a leading slash. The regex is anchored, so
+  // lucky-bot-staging or lucky-backend-old never match.
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(lucky-bot|lucky-backend|lucky-render)"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container_name"
+  }
+}
+
+loki.source.docker "lucky" {
+  host             = "tcp://lucky-docker-socket-proxy:2375"
+  targets          = discovery.relabel.lucky.output
+  refresh_interval = "30s"
+  forward_to       = [loki.process.lucky.receiver]
+}
+
+loki.process "lucky" {
+  // The logger writes `[LEVEL] {json}` (#2386). Split the token off so the
+  // stored line is pure JSON and LogQL `| json` works. Lines that do not
+  // match (pretty-format output, a crash trace) are stored unchanged and get
+  // no level label.
+  stage.regex {
+    expression = "^\\[(?P<level>[A-Z]+)\\] (?P<body>\\{.*)$"
+  }
+
+  stage.template {
+    source   = "level"
+    template = "{{ ToLower .Value }}"
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+
+  stage.output {
+    source = "body"
+  }
+
+  stage.static_labels {
+    values = {
+      env = coalesce(sys.env("LUCKY_ENV"), "production"),
+    }
+  }
+
+  forward_to = [loki.write.lucky.receiver]
+}
+
+loki.write "lucky" {
+  endpoint {
+    url = "http://lucky-loki:3100/loki/api/v1/push"
+  }
+}

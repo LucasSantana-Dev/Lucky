@@ -480,12 +480,98 @@ services:
             - grafana_data:/var/lib/grafana
         networks:
             - lucky-network
-            # Shared monitoring network so Grafana can reach the homelab's
-            # Loki instance for the Loki panels of the lucky dashboards
-            # datasource (see observability/grafana/provisioning/datasources/loki.yaml).
-            # Same network bot/backend already join for the reverse
-            # direction (homelab Prometheus scraping them). See homelab PR #135.
+            # Shared monitoring network with the homelab stack. The Loki
+            # datasource now points at this profile's own `lucky-loki`
+            # (P2b, #2393); the network stays until the cutover from the
+            # homelab promtail is done (ADR 2026-09-26 section 1).
+            # See homelab PR #135.
             - lucky-monitoring
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    # Lucky-owned logs (ADR 2026-09-26 phase P2b, #2393). Loki keeps 30 days on
+    # the disposable `loki_data` volume; Alloy ships only the allowlisted app
+    # containers (observability/alloy/config.alloy). Neither binds a host port.
+    loki:
+        <<: *medium-svc
+        mem_limit: 512m
+        image: grafana/loki:3.7.2
+        container_name: lucky-loki
+        command:
+            - "-config.file=/etc/loki/loki.yaml"
+        volumes:
+            - ./observability/loki/loki.yaml:/etc/loki/loki.yaml:ro
+            - loki_data:/loki
+        networks:
+            - lucky-network
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    # Alloy never gets the Docker socket: full socket access is root on the
+    # host whatever the mount flags (`:ro` only protects the socket file, not
+    # the API). This proxy is the only holder and answers GET on /containers
+    # (list, inspect, logs) and /networks (discovery labels) plus /_ping,
+    # /version and /events; every POST, exec, image or volume call is
+    # refused. Even GET /containers/{id}/json exposes every container's env
+    # (secrets), so the proxy sits alone with alloy on the internal
+    # `lucky-docker-api` network: no app service can reach it. No host port.
+    docker-socket-proxy:
+        <<: *small-svc
+        mem_limit: 64m
+        image: tecnativa/docker-socket-proxy:0.3.0
+        container_name: lucky-docker-socket-proxy
+        environment:
+            CONTAINERS: 1
+            NETWORKS: 1
+            POST: 0
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+        networks:
+            - lucky-docker-api
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
+    alloy:
+        <<: *small-svc
+        mem_limit: 192m
+        image: grafana/alloy:v1.10.0
+        container_name: lucky-alloy
+        depends_on:
+            - loki
+            - docker-socket-proxy
+        command:
+            - "run"
+            - "--storage.path=/var/lib/alloy/data"
+            - "/etc/alloy/config.alloy"
+        environment:
+            LUCKY_ENV: ${LUCKY_ENV:-production}
+        volumes:
+            - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+            # Read positions, so a restart does not resend or skip lines.
+            - alloy_data:/var/lib/alloy/data
+        networks:
+            # lucky-network to push to lucky-loki; lucky-docker-api to reach
+            # the socket proxy (only alloy and the proxy join it).
+            - lucky-network
+            - lucky-docker-api
         profiles:
             - observability
         logging:
@@ -627,6 +713,8 @@ volumes:
     grafana_data:
     alertmanager_data:
     alertmanager_config:
+    loki_data:
+    alloy_data:
 
 networks:
     lucky-network:
@@ -647,3 +735,8 @@ networks:
     lucky-db-ro:
         name: lucky-db-ro
         driver: bridge
+    # Only docker-socket-proxy and alloy. internal: no route outside the host.
+    lucky-docker-api:
+        name: lucky-docker-api
+        driver: bridge
+        internal: true

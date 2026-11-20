@@ -100,7 +100,7 @@
                         "type": "loki",
                         "uid": "${ds_loki}"
                     },
-                    "expr": "sum(count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]` [$__range])) or vector(0)",
+                    "expr": "sum(count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]|^\\{\"ts\":\"[^\"]*\",\"level\":\"(error|fatal|critical)\"` [$__range])) or vector(0)",
                     "legendFormat": "",
                     "queryType": "instant",
                     "refId": "A"
@@ -481,7 +481,7 @@
                         "type": "loki",
                         "uid": "${ds_loki}"
                     },
-                    "expr": "sum by (container_name) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]` [$__auto]))",
+                    "expr": "sum by (container_name) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]|^\\{\"ts\":\"[^\"]*\",\"level\":\"(error|fatal|critical)\"` [$__auto]))",
                     "legendFormat": "erro {{container_name}}",
                     "queryType": "range",
                     "refId": "A"
@@ -491,7 +491,7 @@
                         "type": "loki",
                         "uid": "${ds_loki}"
                     },
-                    "expr": "sum by (container_name) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[WARN\\]` [$__auto]))",
+                    "expr": "sum by (container_name) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[WARN\\]|^\\{\"ts\":\"[^\"]*\",\"level\":\"warn\"` [$__auto]))",
                     "legendFormat": "aviso {{container_name}}",
                     "queryType": "range",
                     "refId": "B"
@@ -617,7 +617,7 @@
                         "type": "loki",
                         "uid": "${ds_loki}"
                     },
-                    "expr": "topk(15, sum by (container_name, msg) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]` | regexp `\"msg\":\"(?P<msg>[^\"]{0,120}?)(?: [0-9]+ms)?\"` [$__range])))",
+                    "expr": "topk(15, sum by (container_name, msg) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]|^\\{\"ts\":\"[^\"]*\",\"level\":\"(error|fatal|critical)\"` | regexp `\"msg\":\"(?P<msg>[^\"]{0,120}?)(?: [0-9]+ms)?\"` [$__range])))",
                     "legendFormat": "",
                     "queryType": "instant",
                     "refId": "A"
@@ -732,7 +732,7 @@
                         "type": "loki",
                         "uid": "${ds_loki}"
                     },
-                    "expr": "topk(15, sum by (container_name, msg) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[WARN\\]` | regexp `\"msg\":\"(?P<msg>[^\"]{0,120}?)(?: [0-9]+ms)?\"` [$__range])))",
+                    "expr": "topk(15, sum by (container_name, msg) (count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[WARN\\]|^\\{\"ts\":\"[^\"]*\",\"level\":\"warn\"` | regexp `\"msg\":\"(?P<msg>[^\"]{0,120}?)(?: [0-9]+ms)?\"` [$__range])))",
                     "legendFormat": "",
                     "queryType": "instant",
                     "refId": "A"
@@ -1247,7 +1247,7 @@
                         "type": "loki",
                         "uid": "${ds_loki}"
                     },
-                    "expr": "{container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]`",
+                    "expr": "{container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]|^\\{\"ts\":\"[^\"]*\",\"level\":\"(error|fatal|critical)\"`",
                     "legendFormat": "",
                     "queryType": "range",
                     "refId": "A"

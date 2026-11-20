@@ -94,11 +94,11 @@
                 "x": 0,
                 "y": 0,
                 "w": 24,
-                "h": 6
+                "h": 7
             },
             "options": {
                 "mode": "markdown",
-                "content": "**Tudo verde = nada a fazer.** Cada número abre o dashboard que explica.\n\n- **[Lucky: negócio](/d/lucky-negocio)**: quem usa, quanto usa, metas do music-first (WAG, 1ª hora, dia 8), autoplay, votos.\n- **[Lucky: produto](/d/lucky-produto)**: guildas ativas por dia, semana e mês, retenção D1/D7/D30, comandos por guilda.\n- **[Lucky: erros](/d/lucky-erros)**: erros nos logs, comandos que falharam, 5xx, Sentry, alertas.\n- **[Lucky: sistema](/d/lucky-sistema)**: serviços no ar, memória, CPU, latência, disco.\n\nGuildas do operador, de listagem e de teste ficam fora das contas de uso."
+                "content": "**Tudo verde = nada a fazer.** Cada número abre o dashboard que explica.\n\n- **[Lucky: negócio](/d/lucky-negocio)**: quem usa, quanto usa, metas do music-first (WAG, 1ª hora, dia 8), autoplay, votos.\n- **[Lucky: produto](/d/lucky-produto)**: guildas ativas por dia, semana e mês, retenção D1/D7/D30, comandos por guilda.\n- **[Lucky: erros](/d/lucky-erros)**: erros nos logs, comandos que falharam, 5xx, Sentry, alertas.\n- **[Lucky: sistema](/d/lucky-sistema)**: serviços no ar, memória, CPU, latência, disco.\n- **[Lucky: logs](/d/lucky-logs)**: linhas de log com filtros (serviço, nível, guildId, userId, correlationId, texto).\n\nGuildas do operador, de listagem e de teste ficam fora das contas de uso."
             },
             "id": 1
         },
@@ -108,7 +108,7 @@
             "description": "",
             "gridPos": {
                 "x": 0,
-                "y": 6,
+                "y": 7,
                 "w": 3,
                 "h": 4
             },
@@ -183,7 +183,7 @@
             "description": "",
             "gridPos": {
                 "x": 3,
-                "y": 6,
+                "y": 7,
                 "w": 3,
                 "h": 4
             },
@@ -258,7 +258,7 @@
             "description": "",
             "gridPos": {
                 "x": 6,
-                "y": 6,
+                "y": 7,
                 "w": 3,
                 "h": 4
             },
@@ -333,7 +333,7 @@
             "description": "Sidecar que desenha o card do recap semanal.",
             "gridPos": {
                 "x": 9,
-                "y": 6,
+                "y": 7,
                 "w": 3,
                 "h": 4
             },
@@ -408,7 +408,7 @@
             "description": "Alertas do Lucky ativos agora no Prometheus.",
             "gridPos": {
                 "x": 12,
-                "y": 6,
+                "y": 7,
                 "w": 4,
                 "h": 4
             },
@@ -468,7 +468,7 @@
             "description": "Linhas [ERROR]/[FATAL] do bot, backend e render no período selecionado.",
             "gridPos": {
                 "x": 16,
-                "y": 6,
+                "y": 7,
                 "w": 4,
                 "h": 4
             },
@@ -482,7 +482,7 @@
                         "type": "loki",
                         "uid": "${ds_loki}"
                     },
-                    "expr": "sum(count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]` [$__range])) or vector(0)",
+                    "expr": "sum(count_over_time({container_name=~\"lucky-(bot|backend|render)\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]|^\\{\"ts\":\"[^\"]*\",\"level\":\"(error|fatal|critical)\"` [$__range])) or vector(0)",
                     "legendFormat": "",
                     "queryType": "instant",
                     "refId": "A"
@@ -531,7 +531,7 @@
             "description": "",
             "gridPos": {
                 "x": 20,
-                "y": 6,
+                "y": 7,
                 "w": 4,
                 "h": 4
             },
@@ -574,7 +574,7 @@
             "description": "Guildas com música tocada ou comando nos últimos 7 dias. Meta music-first: 20 por 3 semanas seguidas.",
             "gridPos": {
                 "x": 0,
-                "y": 10,
+                "y": 11,
                 "w": 5,
                 "h": 4
             },
@@ -638,7 +638,7 @@
             "description": "",
             "gridPos": {
                 "x": 5,
-                "y": 10,
+                "y": 11,
                 "w": 5,
                 "h": 4
             },
@@ -681,7 +681,7 @@
             "description": "",
             "gridPos": {
                 "x": 10,
-                "y": 10,
+                "y": 11,
                 "w": 5,
                 "h": 4
             },
@@ -724,7 +724,7 @@
             "description": "",
             "gridPos": {
                 "x": 15,
-                "y": 10,
+                "y": 11,
                 "w": 5,
                 "h": 4
             },

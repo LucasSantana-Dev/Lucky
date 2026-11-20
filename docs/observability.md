@@ -16,7 +16,7 @@ Os dashboards ficam na pasta **Lucky**. O perfil `observability` deste repo
 sobe um Grafana próprio com os mesmos dashboards, para quando o Lucky sair do
 homelab (veja [`observability/README.md`](../observability/README.md)).
 
-## Os cinco dashboards
+## Os seis dashboards
 
 - **Lucky: comece aqui**: uma tela só. Bot, Discord, backend e render no ar,
   alertas disparando, erros nos logs, WAG e uso do período. Tudo verde = nada
@@ -37,6 +37,13 @@ homelab (veja [`observability/README.md`](../observability/README.md)).
   frequentes, comandos que falharam, respostas 5xx, eventos e issues do
   Sentry, fallbacks do card do recap, extratores degradados e as últimas
   linhas de erro.
+- **Lucky: logs**: as linhas de log do bot, backend e render, com filtros no
+  topo (serviço, nível, guildId, userId, correlationId e texto), erros por
+  minuto por serviço e "Seguir uma requisição": cole um correlationId e veja
+  tudo o que aquela requisição registrou, em ordem. Nada para digitar além
+  dos filtros. Usa o Loki do próprio Lucky (perfil `observability`); no
+  Grafana do homelab os painéis leem o Loki de lá até a troca descrita em
+  [`observability/README.md`](../observability/README.md).
 - **Lucky: sistema**: serviços no ar, tempo de resposta dos comandos e do
   backend, memória e CPU por container, event loop, heap, disco e se o
   Prometheus consegue coletar cada serviço.

@@ -56,8 +56,10 @@ ACTIVITY = (
     "UNION ALL SELECT \"guildId\", \"occurredAt\" FROM command_events WHERE \"guildId\" IS NOT NULL)"
 )
 APP = 'container_name=~"lucky-(bot|backend|render)"'
-ERR_LINE = r"|~ `^\[(ERROR|FATAL|CRITICAL)\]`"
-WARN_LINE = r"|~ `^\[WARN\]`"
+# Matches the line with the `[LEVEL] ` token (homelab promtail keeps it) and the
+# pure JSON line (Lucky Alloy strips it, #2393), so the panels read both Lokis.
+ERR_LINE = r'|~ `^\[(ERROR|FATAL|CRITICAL)\]|^\{"ts":"[^"]*","level":"(error|fatal|critical)"`'
+WARN_LINE = r'|~ `^\[WARN\]|^\{"ts":"[^"]*","level":"warn"`'
 # Message text without the trailing request duration, so "GET /x 401 3ms" groups as one.
 MSG = r'| regexp `"msg":"(?P<msg>[^"]{0,120}?)(?: [0-9]+ms)?"`'
 
@@ -207,8 +209,9 @@ def inicio():
         "- **[Lucky: negócio](/d/lucky-negocio)**: quem usa, quanto usa, metas do music-first (WAG, 1ª hora, dia 8), autoplay, votos.\n"
         "- **[Lucky: produto](/d/lucky-produto)**: guildas ativas por dia, semana e mês, retenção D1/D7/D30, comandos por guilda.\n"
         "- **[Lucky: erros](/d/lucky-erros)**: erros nos logs, comandos que falharam, 5xx, Sentry, alertas.\n"
-        "- **[Lucky: sistema](/d/lucky-sistema)**: serviços no ar, memória, CPU, latência, disco.\n\n"
-        "Guildas do operador, de listagem e de teste ficam fora das contas de uso."), h=6)
+        "- **[Lucky: sistema](/d/lucky-sistema)**: serviços no ar, memória, CPU, latência, disco.\n"
+        "- **[Lucky: logs](/d/lucky-logs)**: linhas de log com filtros (serviço, nível, guildId, userId, correlationId, texto).\n\n"
+        "Guildas do operador, de listagem e de teste ficam fora das contas de uso."), h=7)
     b.stat("Bot", prom('max(up{job="lucky-bot"})', instant=True), mappings=UP_MAP, th=thresholds((RED, 0), (GREEN, 1)), w=3)
     b.stat("Discord conectado", prom("max(lucky_bot_gateway_connected)", instant=True), mappings=UP_MAP, th=thresholds((RED, 0), (GREEN, 1)), w=3)
     b.stat("Backend", prom('max(up{job="lucky-backend"})', instant=True), mappings=UP_MAP, th=thresholds((RED, 0), (GREEN, 1)), w=3)
@@ -747,9 +750,81 @@ def sistema():
     return b
 
 
+# --------------------------------------------------------------------------- logs
+def custom_var(name, label, options, all_value, desc):
+    """Visible dropdown; options are "texto : valor" pairs (Grafana custom variable syntax)."""
+    for o in options:
+        if "," in o:
+            raise SystemExit(f"custom variable {name!r}: Grafana splits options on commas, {o!r} has one")
+    return {"name": name, "label": label, "description": desc, "type": "custom", "query": ",".join(options),
+            "includeAll": True, "allValue": all_value, "multi": False, "hide": 0,
+            "current": {"selected": True, "text": "All", "value": "$__all"}, "options": []}
+
+
+def text_var(name, label, desc):
+    return {"name": name, "label": label, "description": desc, "type": "textbox", "query": "", "hide": 0,
+            "current": {"selected": False, "text": "", "value": ""}, "options": []}
+
+
+def level_re(levels):
+    """Line regex for the given lower-case levels, with or without the `[LEVEL] ` token.
+
+    No comma in it: Grafana splits custom-variable options on commas, so the separator
+    between the "ts" and "level" keys is matched with `.` instead of a literal comma.
+    """
+    return r'(?i)^\[(' + levels + r')\] |^\{"ts":"[^"]*"."level":"(' + levels + r')"'
+
+
+def logs():
+    b = Board("lucky-logs", "Lucky: logs",
+              "Linhas de log do bot, backend e render, com filtros. Fonte: Loki. Nada para digitar além dos filtros no topo.",
+              "now-6h", ("logs",))
+    b.variables = [
+        custom_var("servico", "Serviço", ["bot : lucky-bot", "backend : lucky-backend", "render : lucky-render"],
+                   "lucky-(bot|backend|render)", "Qual serviço mostrar."),
+        # Each value is the whole line regex, so "All" can be `.*` and keep lines with no level
+        # (a crash trace, pretty-format output). Same dual form as ERR_LINE: `[LEVEL] {json}`
+        # (homelab promtail) or the pure JSON line (Lucky Alloy).
+        custom_var("nivel", "Nível", [f"{t} : {level_re(v)}" for t, v in (
+            ("erro", "error|fatal|critical"), ("aviso", "warn"), ("info", "info"), ("debug", "debug"))],
+                   ".*", "Gravidade da linha."),
+        text_var("guildId", "guildId", "Id do servidor (Discord). Vazio = todos."),
+        text_var("userId", "userId", "Id do usuário (Discord). Vazio = todos."),
+        text_var("correlationId", "correlationId", "Id de uma requisição, para seguir tudo o que ela fez."),
+        text_var("busca", "Texto", "Trecho de texto que a linha precisa ter (diferencia maiúsculas). Vazio = tudo."),
+    ]
+    level = "|~ `$nivel`"
+    ids = "|= `$guildId` |= `$userId` |= `$correlationId` |= `$busca`"
+    sel = '{container_name=~"$servico"}'
+    b.text("Como usar", (
+        "Escolha **Serviço** e **Nível** e, se quiser, cole um **guildId**, **userId**, **correlationId** ou um trecho de "
+        "**Texto** nas caixas do topo; o painel de linhas usa todos os filtros (a descrição de cada painel diz quais usa). Para ver tudo o que uma requisição fez, "
+        "cole o `correlationId` de uma linha (abra a linha para ver os campos) e olhe **Seguir uma requisição**. "
+        "Os logs guardam 30 dias."), h=3)
+    b.add("timeseries", "Erros por minuto por serviço", [loki(
+        f"sum by (container_name) (rate({sel} {ERR_LINE} [$__auto])) * 60", "{{container_name}}")],
+        w=24, h=7, custom=LINES, options=TS_OPTS, no_value="0", decimals=1,
+        desc="Média de linhas de erro por minuto (ignora o filtro Nível). Normal: perto de zero, com picos curtos em deploy. "
+             "Preocupante: um patamar que não volta a zero ou um serviço que de repente passa dos outros.")
+    b.add("logs", "Linhas de log (mais recentes primeiro)", [loki(f"{sel} {level} {ids}")], w=24, h=14,
+          options={"showTime": True, "wrapLogMessage": True, "sortOrder": "Descending", "enableLogDetails": True,
+                   "prettifyLogMessage": False, "dedupStrategy": "none"},
+          desc="Até 1000 linhas que passam por todos os filtros do topo. Clique numa linha para ver os campos "
+               "(guildId, userId, correlationId, error).")
+    b.row("Seguir uma requisição")
+    b.add("logs", "Seguir uma requisição (correlationId)", [loki(
+        '{container_name=~"lucky-(bot|backend|render)"} |= `"correlationId":"$correlationId"`')], w=24, h=12,
+          options={"showTime": True, "wrapLogMessage": True, "sortOrder": "Ascending", "enableLogDetails": True,
+                   "prettifyLogMessage": False, "dedupStrategy": "none"},
+          no_value="preencha correlationId no topo",
+          desc="Tudo o que uma requisição registrou, em ordem, em todos os serviços (ignora Serviço, Nível e os outros "
+               "filtros). Fica vazio até a caixa correlationId ser preenchida.")
+    return b
+
+
 if __name__ == "__main__":
     OUT.mkdir(exist_ok=True)
-    for build in (inicio, negocio, produto, erros, sistema):
+    for build in (inicio, negocio, produto, erros, sistema, logs):
         board = build()
         path = OUT / f"{board.uid}.json"
         path.write_text(json.dumps(board.json(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
