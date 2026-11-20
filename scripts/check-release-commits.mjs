@@ -83,15 +83,22 @@ function main() {
         '--jq',
         '.tag_name',
     ]).trim()
-    // The compare API returns at most 250 commits, far above a release batch.
-    const commits = JSON.parse(
+    // The compare API returns at most 250 commits. A release batch is far
+    // smaller, so a capped response fails loudly instead of being paginated.
+    const { total, commits } = JSON.parse(
         gh([
             'api',
             `repos/${repo}/compare/${tag}...main`,
             '--jq',
-            '[.commits[] | {sha, message: .commit.message}]',
+            '{total: .total_commits, commits: [.commits[] | {sha, message: .commit.message}]}',
         ]),
     )
+    if (total > commits.length) {
+        console.log(
+            `::error::${total} commits since ${tag}, but the compare API returned ${commits.length}. The check cannot cover the whole range.`,
+        )
+        process.exit(1)
+    }
     const prBodyOf = (sha) =>
         gh([
             'api',
