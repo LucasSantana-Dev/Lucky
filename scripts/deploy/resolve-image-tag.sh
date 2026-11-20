@@ -11,24 +11,33 @@
 
 IMAGE_INPUT_PATHS=(
     packages prisma Dockerfile 'Dockerfile.*' nginx
-    package.json package-lock.json CHANGELOG.md
+    package.json package-lock.json CHANGELOG.md .github/workflows/docker-publish.yml
 )
 IMAGE_SERVICES=(bot backend frontend nginx render)
 
-# Succeeds when every service image exists for tag $1 (render is optional so a
-# commit that predates the render service still resolves). Override the probe
-# with IMAGE_TAG_EXISTS_CMD "<service> <tag>" (used by tests).
+# Succeeds when every service image exists for tag $1. render is optional only
+# for a commit that predates the render service: when $3 (the commit the tag
+# was built from) contains packages/render, or is unknown, render is required.
+# $2 is the git dir. Override the probe with IMAGE_TAG_EXISTS_CMD
+# "<service> <tag>" (used by tests).
 image_tag_exists() {
-    local tag="$1" svc
+    local tag="$1" repo="${2:-}" ref="${3:-}" svc
     for svc in "${IMAGE_SERVICES[@]}"; do
         if [[ -n "${IMAGE_TAG_EXISTS_CMD:-}" ]]; then
-            "$IMAGE_TAG_EXISTS_CMD" "$svc" "$tag" || { [[ "$svc" == "render" ]] && continue; return 1; }
+            "$IMAGE_TAG_EXISTS_CMD" "$svc" "$tag" || { _render_optional "$svc" "$repo" "$ref" && continue; return 1; }
         else
-            docker manifest inspect "${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-${svc}:${tag}" \
-                >/dev/null 2>&1 || { [[ "$svc" == "render" ]] && continue; return 1; }
+            docker manifest inspect "${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-${svc}:${tag}"                 >/dev/null 2>&1 || { _render_optional "$svc" "$repo" "$ref" && continue; return 1; }
         fi
     done
     return 0
+}
+
+# Succeeds only for the render service at a commit known to predate it.
+_render_optional() {
+    local svc="$1" repo="$2" ref="$3"
+    [[ "$svc" == "render" && -n "$repo" && -n "$ref" ]] || return 1
+    git -C "$repo" cat-file -e "${ref}^{commit}" 2>/dev/null || return 1
+    ! git -C "$repo" cat-file -e "${ref}:packages/render/Cargo.toml" 2>/dev/null
 }
 
 # resolve_image_tag <git-dir> <sha>
@@ -37,7 +46,7 @@ image_tag_exists() {
 resolve_image_tag() {
     local repo="$1" sha="$2" short cand
     short="${sha:0:7}"
-    if image_tag_exists "$short"; then
+    if image_tag_exists "$short" "$repo" "$sha"; then
         printf '%s\n' "$short"
         return 0
     fi
@@ -51,7 +60,7 @@ resolve_image_tag() {
             echo "no images for ${short} and image inputs changed since ${cand:0:7}" >&2
             return 1
         fi
-        if image_tag_exists "${cand:0:7}"; then
+        if image_tag_exists "${cand:0:7}" "$repo" "$cand"; then
             printf '%s\n' "${cand:0:7}"
             return 0
         fi

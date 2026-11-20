@@ -795,6 +795,8 @@ if [[ -n "$DEPLOY_SHA" ]]; then
         git fetch origin main >/dev/null 2>&1 || log "WARN: git fetch origin main failed before tag resolution"
         if ! _resolved_tag="$(resolve_image_tag "$DEPLOY_DIR" "$DEPLOY_SHA")"; then
             log "ERROR: no usable image tag for $DEPLOY_SHA; checkout left untouched"
+            # Let the EXIT trap post the failed homelab-deploy commit status.
+            DEPLOYED_SHA="$DEPLOY_SHA"
             notify 16711680 "Deploy Failed" "No image tag found for ${DEPLOY_SHA:0:7} or a safe ancestor"
             exit 1
         fi
