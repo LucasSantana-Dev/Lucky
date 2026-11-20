@@ -35,12 +35,9 @@ export default function GlobalTogglesSection({
                     className='w-5 h-5 text-lucky-brand-text'
                     aria-hidden='true'
                 />
-                <h2
-                    id='global-toggles-heading'
-                    className='text-lg font-semibold text-white'
-                >
+                <h3 className='text-lg font-semibold text-white'>
                     Global Feature Toggles
-                </h2>
+                </h3>
                 <Badge className='bg-lucky-purple/20 text-lucky-brand-text text-xs'>
                     Admin Only
                 </Badge>

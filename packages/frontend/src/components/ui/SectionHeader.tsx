@@ -2,12 +2,7 @@ import { type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 export type StatusBandTone =
-    | 'success'
-    | 'brand'
-    | 'accent'
-    | 'warning'
-    | 'error'
-    | 'muted'
+    'success' | 'brand' | 'accent' | 'warning' | 'error' | 'muted'
 
 export interface StatusBandTile {
     id?: string
@@ -34,6 +29,7 @@ interface SectionHeaderProps {
     actions?: ReactNode
     statusBand?: StatusBandTile[]
     className?: string
+    headingLevel?: 1 | 2
 }
 
 export default function SectionHeader({
@@ -44,7 +40,9 @@ export default function SectionHeader({
     actions,
     statusBand,
     className,
+    headingLevel = 1,
 }: SectionHeaderProps) {
+    const Heading = headingLevel === 2 ? 'h2' : 'h1'
     return (
         <div className={cn('space-y-4', className)}>
             <header className='flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4'>
@@ -62,14 +60,20 @@ export default function SectionHeader({
                             <span>{eyebrow}</span>
                         </p>
                     )}
-                    <h1 className='type-h1 text-lucky-text-primary'>{title}</h1>
+                    <Heading className='type-h1 text-lucky-text-primary'>
+                        {title}
+                    </Heading>
                     {description && (
                         <p className='type-body max-w-3xl text-lucky-text-secondary'>
                             {description}
                         </p>
                     )}
                 </div>
-                {actions && <div className='flex flex-wrap gap-2 md:justify-end'>{actions}</div>}
+                {actions && (
+                    <div className='flex flex-wrap gap-2 md:justify-end'>
+                        {actions}
+                    </div>
+                )}
             </header>
 
             {statusBand && statusBand.length > 0 && (
@@ -82,7 +86,10 @@ export default function SectionHeader({
                         const toneClass = TONE_TEXT[tile.tone ?? 'muted']
                         return (
                             <div
-                                key={tile.id ?? `${tile.label}:${tile.status}:${index}`}
+                                key={
+                                    tile.id ??
+                                    `${tile.label}:${tile.status}:${index}`
+                                }
                                 role='listitem'
                                 className='group flex min-h-[84px] items-center gap-3 rounded-xl border border-transparent bg-canvas/40 p-3.5 transition-colors hover:border-panel'
                             >

@@ -54,6 +54,15 @@ describe('GlobalTogglesSection', () => {
         expect(screen.getByText('Global Feature Toggles')).toBeInTheDocument()
     })
 
+    test('does not reuse the id owned by the parent section heading', () => {
+        mockStore()
+        const { container } = render(<GlobalTogglesSection {...baseProps} />)
+        expect(container.querySelector('#global-toggles-heading')).toBeNull()
+        expect(
+            screen.getByRole('heading', { name: 'Global Feature Toggles' }),
+        ).toHaveProperty('tagName', 'H3')
+    })
+
     test('renders Admin Only badge', () => {
         mockStore()
         render(<GlobalTogglesSection {...baseProps} />)

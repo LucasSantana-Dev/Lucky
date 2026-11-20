@@ -536,7 +536,7 @@ export default function GuildAutomation() {
 
             {}
             <div className='space-y-3'>
-                <SectionHeader title={t('runHistory')} />
+                <SectionHeader title={t('runHistory')} headingLevel={2} />
                 {loading ? (
                     <div className='space-y-2'>
                         {Array.from({ length: 3 }).map((_, i) => (
