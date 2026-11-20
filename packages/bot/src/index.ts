@@ -13,19 +13,21 @@ import { initializeBot, shutdown as shutdownBot } from './bot/start'
 import { dependencyCheckService } from './services/DependencyCheckService'
 import { installExitDiagnostics } from './utils/monitoring/exitDiagnostics'
 
-// First, so even an exit during startup leaves its code and cause (#3036).
+// Installed when this module's body starts, so every exit from here on
+// (startup in main() included) leaves its code and cause (#3036). An exit
+// while the imports above are still evaluating is not covered.
 const exitDiagnostics = installExitDiagnostics()
 
 let isShuttingDown = false
 
 async function gracefulShutdown(signal: string): Promise<void> {
-    exitDiagnostics.noteSignal(signal)
     if (isShuttingDown) {
         debugLog({ message: `${signal} already in progress, ignoring` })
         return
     }
 
     isShuttingDown = true
+    exitDiagnostics.noteSignal(signal)
     infoLog({ message: `Received ${signal}, initiating graceful shutdown...` })
 
     try {
@@ -45,6 +47,10 @@ async function gracefulShutdown(signal: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+    // Before the first await, so a signal during startup is still logged.
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'))
+
     await ensureEnvironment()
 
     setupErrorHandlers()
@@ -68,9 +74,6 @@ async function main(): Promise<void> {
     debugLog({
         message: `Starting bot in environment: ${process.env.NODE_ENV ?? 'default'}`,
     })
-
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'))
 
     const result = await initializeBot()
     if (!result.success) {
