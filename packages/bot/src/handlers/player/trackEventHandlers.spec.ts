@@ -41,6 +41,18 @@ const setReplenishSuppressedMock = jest.fn()
 const recordImplicitFeedbackMock = jest.fn()
 const prefetchNextSpotifyTrackMock = jest.fn()
 
+const clearIdleTimerMock = jest.fn()
+jest.mock('../../services/musicManagement/idleDisconnect', () => ({
+    scheduleIdleDisconnect: jest.fn(),
+    clearIdleTimer: (...args: unknown[]) => clearIdleTimerMock(...args),
+}))
+
+const clearIdleTimerMock = jest.fn()
+jest.mock('../../services/musicManagement/idleDisconnect', () => ({
+    scheduleIdleDisconnect: jest.fn(),
+    clearIdleTimer: (...args: unknown[]) => clearIdleTimerMock(...args),
+}))
+
 jest.mock('./spotifyPrefetch', () => ({
     prefetchNextSpotifyTrack: (...args: unknown[]) =>
         prefetchNextSpotifyTrackMock(...args),
@@ -1387,6 +1399,24 @@ describe('track history when a queue is deleted mid-play', () => {
 
         expect(addTrackToHistoryMock).not.toHaveBeenCalled()
         expect(scrobbleCurrentTrackIfLastFmMock).not.toHaveBeenCalled()
+    })
+
+    it('clears the idle-disconnect timer so it cannot hit a new session (#2985)', async () => {
+        const handlers = setupHandlers()
+        clearIdleTimerMock.mockClear()
+
+        await handlers.queueDelete(makeQueue('guild-idle'))
+
+        expect(clearIdleTimerMock).toHaveBeenCalledWith('guild-idle')
+    })
+
+    it('clears the idle-disconnect timer so it cannot hit a new session (#2985)', async () => {
+        const handlers = setupHandlers()
+        clearIdleTimerMock.mockClear()
+
+        await handlers.queueDelete(makeQueue('guild-idle'))
+
+        expect(clearIdleTimerMock).toHaveBeenCalledWith('guild-idle')
     })
 
     it('does not throw when the scrobble fails', async () => {
