@@ -99,11 +99,9 @@ describe('/birthday', () => {
     test('rejects when used in DMs', async () => {
         await birthdayCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction(
-                'set',
-                { month: 3, day: 15 },
-                false,
-            ) as never,
+            interaction: createMockInteraction(
+                makeInteraction('set', { month: 3, day: 15 }, false),
+            ),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
@@ -115,7 +113,9 @@ describe('/birthday', () => {
     test('rejects invalid month', async () => {
         await birthdayCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction('set', { month: 13, day: 1 }) as never,
+            interaction: createMockInteraction(
+                makeInteraction('set', { month: 13, day: 1 }),
+            ),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
@@ -127,7 +127,9 @@ describe('/birthday', () => {
     test('rejects Feb 30', async () => {
         await birthdayCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction('set', { month: 2, day: 30 }) as never,
+            interaction: createMockInteraction(
+                makeInteraction('set', { month: 2, day: 30 }),
+            ),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
@@ -139,7 +141,9 @@ describe('/birthday', () => {
     test('accepts Feb 29 (leap-day tolerant)', async () => {
         await birthdayCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction('set', { month: 2, day: 29 }) as never,
+            interaction: createMockInteraction(
+                makeInteraction('set', { month: 2, day: 29 }),
+            ),
         })
         expect(memberBirthdayUpsert).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -151,7 +155,9 @@ describe('/birthday', () => {
     test('persists a valid birthday via upsert', async () => {
         await birthdayCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction('set', { month: 3, day: 15 }) as never,
+            interaction: createMockInteraction(
+                makeInteraction('set', { month: 3, day: 15 }),
+            ),
         })
         expect(memberBirthdayUpsert).toHaveBeenCalledTimes(1)
         const call = memberBirthdayUpsert.mock.calls[0][0] as {
@@ -206,10 +212,10 @@ describe('/birthday', () => {
         memberBirthdayFindMany.mockResolvedValueOnce([])
         await birthdayCommand.execute({
             client: createMockClient({}),
-            interaction: {
+            interaction: createMockInteraction({
                 ...makeInteraction('list'),
                 guild: { id: 'guild-1', name: 'TestGuild' },
-            } as never,
+            }),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
@@ -229,10 +235,10 @@ describe('/birthday', () => {
         ])
         await birthdayCommand.execute({
             client: createMockClient({}),
-            interaction: {
+            interaction: createMockInteraction({
                 ...makeInteraction('list'),
                 guild: { id: 'guild-1', name: 'TestGuild' },
-            } as never,
+            }),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: {
@@ -253,10 +259,10 @@ describe('/birthday', () => {
         ])
         await birthdayCommand.execute({
             client: createMockClient({}),
-            interaction: {
+            interaction: createMockInteraction({
                 ...makeInteraction('list'),
                 guild: { id: 'guild-1', name: 'TestGuild' },
-            } as never,
+            }),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { embeds: Array<{ description: string }> }
@@ -270,10 +276,10 @@ describe('/birthday', () => {
         ])
         await birthdayCommand.execute({
             client: createMockClient({}),
-            interaction: {
+            interaction: createMockInteraction({
                 ...makeInteraction('list'),
                 guild: { id: 'guild-1', name: 'TestGuild' },
-            } as never,
+            }),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { allowedMentions: { parse: unknown[] } }
@@ -285,7 +291,9 @@ describe('/birthday', () => {
         memberBirthdayUpsert.mockRejectedValueOnce(new Error('db down'))
         await birthdayCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction('set', { month: 3, day: 15 }) as never,
+            interaction: createMockInteraction(
+                makeInteraction('set', { month: 3, day: 15 }),
+            ),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
@@ -294,7 +302,7 @@ describe('/birthday', () => {
     })
 
     test('channel command rejects non-ManageGuild users', async () => {
-        const interaction = {
+        const interaction = createMockInteraction({
             ...makeInteraction('channel'),
             member: {
                 permissions: {
@@ -305,7 +313,7 @@ describe('/birthday', () => {
                 getSubcommand: () => 'channel',
                 getChannel: () => null,
             },
-        } as never
+        })
         await birthdayCommand.execute({
             client: createMockClient({}),
             interaction,
@@ -318,7 +326,7 @@ describe('/birthday', () => {
     })
 
     test('channel command sets the channel when ManageGuild user provides it', async () => {
-        const interaction = {
+        const interaction = createMockInteraction({
             ...makeInteraction('channel'),
             guild: { id: 'guild-1' },
             member: {
@@ -330,7 +338,7 @@ describe('/birthday', () => {
                 getSubcommand: () => 'channel',
                 getChannel: () => ({ id: 'chan-123' }),
             },
-        } as never
+        })
         await birthdayCommand.execute({
             client: createMockClient({}),
             interaction,
@@ -348,7 +356,7 @@ describe('/birthday', () => {
     })
 
     test('channel command clears the channel when none provided', async () => {
-        const interaction = {
+        const interaction = createMockInteraction({
             ...makeInteraction('channel'),
             guild: { id: 'guild-1' },
             member: {
@@ -360,7 +368,7 @@ describe('/birthday', () => {
                 getSubcommand: () => 'channel',
                 getChannel: () => null,
             },
-        } as never
+        })
         await birthdayCommand.execute({
             client: createMockClient({}),
             interaction,
@@ -377,7 +385,7 @@ describe('/birthday', () => {
     })
 
     test('role command rejects non-ManageGuild users', async () => {
-        const interaction = {
+        const interaction = createMockInteraction({
             ...makeInteraction('role'),
             member: {
                 permissions: {
@@ -388,7 +396,7 @@ describe('/birthday', () => {
                 getSubcommand: () => 'role',
                 getRole: () => null,
             },
-        } as never
+        })
         await birthdayCommand.execute({
             client: createMockClient({}),
             interaction,
@@ -401,7 +409,7 @@ describe('/birthday', () => {
     })
 
     test('role command sets the role when ManageGuild user provides it', async () => {
-        const interaction = {
+        const interaction = createMockInteraction({
             ...makeInteraction('role'),
             guild: { id: 'guild-1' },
             member: {
@@ -413,7 +421,7 @@ describe('/birthday', () => {
                 getSubcommand: () => 'role',
                 getRole: () => ({ id: 'role-456' }),
             },
-        } as never
+        })
         await birthdayCommand.execute({
             client: createMockClient({}),
             interaction,
@@ -431,7 +439,7 @@ describe('/birthday', () => {
     })
 
     test('role command clears the role when none provided', async () => {
-        const interaction = {
+        const interaction = createMockInteraction({
             ...makeInteraction('role'),
             guild: { id: 'guild-1' },
             member: {
@@ -443,7 +451,7 @@ describe('/birthday', () => {
                 getSubcommand: () => 'role',
                 getRole: () => null,
             },
-        } as never
+        })
         await birthdayCommand.execute({
             client: createMockClient({}),
             interaction,

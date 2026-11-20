@@ -33,7 +33,10 @@ jest.mock('../../../i18n/translatorForInteraction.js', () => ({
 
 import { errorLog } from '@lucky/shared/utils'
 import helpCommand, { handleHelpCategorySelect } from './help.js'
-import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
+import {
+    createMockClient,
+    createMockInteraction,
+} from '../../../../tests/utils/command/fixtures.js'
 
 function makeCommand(name: string, description: string, category = 'general') {
     return {
@@ -103,7 +106,7 @@ describe('/help', () => {
             makeCommand('ping', 'Check latency'),
             makeCommand('version', 'Show version'),
         ])
-        const interaction = makeInteraction() as never
+        const interaction = createMockInteraction(makeInteraction())
 
         await helpCommand.execute({
             client: createMockClient(client),
@@ -115,7 +118,7 @@ describe('/help', () => {
 
     test('calls interactionReply for each embed page', async () => {
         const client = makeClient([makeCommand('ping', 'Check latency')])
-        const interaction = makeInteraction() as never
+        const interaction = createMockInteraction(makeInteraction())
 
         await helpCommand.execute({
             client: createMockClient(client),
@@ -128,7 +131,7 @@ describe('/help', () => {
 
     test('handles empty command list', async () => {
         const client = makeClient([])
-        const interaction = makeInteraction() as never
+        const interaction = createMockInteraction(makeInteraction())
 
         await helpCommand.execute({
             client: createMockClient(client),
@@ -150,7 +153,7 @@ describe('/help', () => {
             ),
         )
         const client = makeClient(commands)
-        const interaction = makeInteraction() as never
+        const interaction = createMockInteraction(makeInteraction())
 
         await helpCommand.execute({
             client: createMockClient(client),
@@ -169,7 +172,7 @@ describe('/help', () => {
             ),
         )
         const client = makeClient(commands)
-        const interaction = makeInteraction() as never
+        const interaction = createMockInteraction(makeInteraction())
 
         await helpCommand.execute({
             client: createMockClient(client),
@@ -193,7 +196,7 @@ describe('/help', () => {
             makeCommand('play', 'Play music', 'music'),
             makeCommand('ban', 'Ban a user', 'general'),
         ])
-        const interaction = makeInteraction() as never
+        const interaction = createMockInteraction(makeInteraction())
 
         await helpCommand.execute({
             client: createMockClient(client),
@@ -215,7 +218,7 @@ describe('/help', () => {
 
     test('default reply attaches a category select menu', async () => {
         const client = makeClient([makeCommand('play', 'Play music', 'music')])
-        const interaction = makeInteraction() as never
+        const interaction = createMockInteraction(makeInteraction())
 
         await helpCommand.execute({
             client: createMockClient(client),
@@ -308,7 +311,7 @@ describe('/help', () => {
 
     test('catches errors and replies with error message', async () => {
         const client = makeClient([makeCommand('ping', 'Check latency')])
-        const interaction = {
+        const interaction = createMockInteraction({
             ...makeInteraction(),
             user: {
                 id: 'u1',
@@ -317,7 +320,7 @@ describe('/help', () => {
                     throw new Error('avatar unavailable')
                 },
             },
-        } as never
+        })
 
         await helpCommand.execute({
             client: createMockClient(client),
@@ -334,7 +337,7 @@ describe('/help', () => {
 
     test('handles empty command list', async () => {
         const client = makeClient([])
-        const interaction = makeInteraction() as never
+        const interaction = createMockInteraction(makeInteraction())
 
         await helpCommand.execute({
             client: createMockClient(client),
@@ -359,7 +362,10 @@ describe('/help on the hosted bot (#2736)', () => {
             makeCommand('play', 'Play music', 'music'),
             makeCommand('ban', 'Ban a user', 'general'),
         ])
-        const interaction = { ...makeInteraction(), guildId: '2' } as never
+        const interaction = createMockInteraction({
+            ...makeInteraction(),
+            guildId: '2',
+        })
 
         await helpCommand.execute({
             client: createMockClient(client),

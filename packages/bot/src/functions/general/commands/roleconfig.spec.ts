@@ -31,7 +31,10 @@ jest.mock('../handlers/roleconfigHandlers.js', () => ({
 }))
 
 import roleConfigCommand from './roleconfig.js'
-import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
+import {
+    createMockClient,
+    createMockInteraction,
+} from '../../../../tests/utils/command/fixtures.js'
 
 function makeInteraction(
     subcommand: string,
@@ -64,7 +67,9 @@ describe('/roleconfig', () => {
         }
         requireGuild.mockResolvedValueOnce(false)
 
-        const interaction = makeInteraction('set-exclusive', {}, false) as never
+        const interaction = createMockInteraction(
+            makeInteraction('set-exclusive', {}, false),
+        )
 
         await roleConfigCommand.execute({
             client: createMockClient({}),
@@ -78,10 +83,12 @@ describe('/roleconfig', () => {
         test('delegates to handleSetExclusive', async () => {
             const role = { id: 'role-1' }
             const excludedRole = { id: 'role-2' }
-            const interaction = makeInteraction('set-exclusive', {
-                role,
-                excluded_role: excludedRole,
-            }) as never
+            const interaction = createMockInteraction(
+                makeInteraction('set-exclusive', {
+                    role,
+                    excluded_role: excludedRole,
+                }),
+            )
 
             await roleConfigCommand.execute({
                 client: createMockClient({}),
@@ -96,10 +103,12 @@ describe('/roleconfig', () => {
         test('delegates to handleRemoveExclusive', async () => {
             const role = { id: 'role-1' }
             const excludedRole = { id: 'role-2' }
-            const interaction = makeInteraction('remove-exclusive', {
-                role,
-                excluded_role: excludedRole,
-            }) as never
+            const interaction = createMockInteraction(
+                makeInteraction('remove-exclusive', {
+                    role,
+                    excluded_role: excludedRole,
+                }),
+            )
 
             await roleConfigCommand.execute({
                 client: createMockClient({}),
@@ -112,7 +121,7 @@ describe('/roleconfig', () => {
 
     describe('list subcommand', () => {
         test('delegates to handleListExclusive', async () => {
-            const interaction = makeInteraction('list') as never
+            const interaction = createMockInteraction(makeInteraction('list'))
 
             await roleConfigCommand.execute({
                 client: createMockClient({}),
@@ -129,10 +138,12 @@ describe('/roleconfig', () => {
             const excludedRole = { id: 'role-2' }
             handleSetExclusive.mockRejectedValueOnce(new Error('db error'))
 
-            const interaction = makeInteraction('set-exclusive', {
-                role,
-                excluded_role: excludedRole,
-            }) as never
+            const interaction = createMockInteraction(
+                makeInteraction('set-exclusive', {
+                    role,
+                    excluded_role: excludedRole,
+                }),
+            )
 
             await roleConfigCommand.execute({
                 client: createMockClient({}),
