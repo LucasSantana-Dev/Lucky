@@ -129,7 +129,9 @@ echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
 #   - DATABASE_URL (postgres://...)
 #   - REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_DB (defaults work for the bundled Redis container)
 
-# Start everything
+# Start everything. docker-compose.yml has no default image tag (a bare run
+# would use a stale :latest on a server); set one explicitly:
+export IMAGE_TAG=latest
 docker compose up -d
 
 # Watch the bot come online

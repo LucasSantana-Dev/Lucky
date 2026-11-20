@@ -99,7 +99,7 @@ services:
 
     bot:
         <<: *large-svc
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-bot:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-bot:${IMAGE_TAG:?IMAGE_TAG is required. A bare compose run would use a stale latest image. On prod set it to the 7 char sha in .deploy-last-good-sha}
         build:
             context: .
             dockerfile: Dockerfile
@@ -190,7 +190,7 @@ services:
 
     backend:
         <<: *medium-svc
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-backend:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-backend:${IMAGE_TAG:?IMAGE_TAG is required. A bare compose run would use a stale latest image. On prod set it to the 7 char sha in .deploy-last-good-sha}
         build:
             context: .
             dockerfile: Dockerfile
@@ -239,7 +239,7 @@ services:
 
     frontend:
         <<: *small-svc
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-frontend:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-frontend:${IMAGE_TAG:?IMAGE_TAG is required. A bare compose run would use a stale latest image. On prod set it to the 7 char sha in .deploy-last-good-sha}
         build:
             context: .
             dockerfile: Dockerfile
@@ -256,7 +256,7 @@ services:
 
     nginx:
         <<: *small-svc
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-nginx:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-nginx:${IMAGE_TAG:?IMAGE_TAG is required. A bare compose run would use a stale latest image. On prod set it to the 7 char sha in .deploy-last-good-sha}
         build:
             context: .
             dockerfile: Dockerfile.nginx
@@ -289,7 +289,7 @@ services:
     # joins lucky-network and publishes no ports. 128m/0.5 matches neither
     # x-small-svc nor x-medium-svc, so limits are explicit.
     render:
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-render:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-render:${IMAGE_TAG:?IMAGE_TAG is required. A bare compose run would use a stale latest image. On prod set it to the 7 char sha in .deploy-last-good-sha}
         build:
             context: ./packages/render
             dockerfile: Dockerfile

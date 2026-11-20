@@ -743,6 +743,10 @@ fi
 if [[ -n "$DEPLOY_SHA" ]]; then
     export IMAGE_TAG="${DEPLOY_SHA:0:7}"
     log "Deploying pinned image tag: $IMAGE_TAG (from $DEPLOY_SHA)"
+else
+    # docker-compose.yml has no IMAGE_TAG default (#3017); an unpinned deploy
+    # asks for :latest explicitly.
+    export IMAGE_TAG="${IMAGE_TAG:-latest}"
 fi
 
 incoming_sha=""

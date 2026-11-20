@@ -38,7 +38,7 @@ sudo cryptsetup open /srv/docker-crypt.img dockercrypt
 sudo mkfs.ext4 -L dockercrypt /dev/mapper/dockercrypt
 
 echo ">> downtime starts"
-docker compose down
+IMAGE_TAG=$TAG docker compose down
 # Option A: Docker must never autostart on an empty, unmounted /var/lib/docker.
 # Disable before the move, so a reboot mid-migration cannot start it there.
 sudo systemctl disable docker.service docker.socket containerd.service
