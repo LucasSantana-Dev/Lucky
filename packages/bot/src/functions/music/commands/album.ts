@@ -227,12 +227,12 @@ export default new Command({
                     // Played by URL, so it lost the link the other tracks
                     // keep. Put it back before the track starts, or now
                     // playing could not name the album.
-                    afterSearch: async (result) => {
+                    afterSearch: (result) => {
                         const played = result.tracks[0]
                         if (played && searchResult.playlist) {
                             played.playlist ??= searchResult.playlist
                         }
-                        return result
+                        return Promise.resolve(result)
                     },
                 },
             )
