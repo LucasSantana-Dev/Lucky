@@ -222,12 +222,10 @@ describe('sentry monitoring', () => {
 
         it('uses env-based sample rates when options not provided', () => {
             process.env.SENTRY_TRACES_SAMPLE_RATE = '0.5'
-            process.env.SENTRY_PROFILES_SAMPLE_RATE = '0.3'
             initializeSentry({})
             expect(initMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     tracesSampleRate: 0.5,
-                    profilesSampleRate: 0.3,
                 }),
             )
         })
@@ -242,24 +240,20 @@ describe('sentry monitoring', () => {
 
         it('defaults sample rates to 0.1 when env vars are unset', () => {
             delete process.env.SENTRY_TRACES_SAMPLE_RATE
-            delete process.env.SENTRY_PROFILES_SAMPLE_RATE
             initializeSentry({})
             expect(initMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     tracesSampleRate: 0.1,
-                    profilesSampleRate: 0.1,
                 }),
             )
         })
 
         it('defaults sample rates to 0.1 when env vars are empty strings', () => {
             process.env.SENTRY_TRACES_SAMPLE_RATE = ''
-            process.env.SENTRY_PROFILES_SAMPLE_RATE = ''
             initializeSentry({})
             expect(initMock).toHaveBeenCalledWith(
                 expect.objectContaining({
                     tracesSampleRate: 0.1,
-                    profilesSampleRate: 0.1,
                 }),
             )
         })

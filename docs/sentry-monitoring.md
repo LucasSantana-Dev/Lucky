@@ -15,7 +15,6 @@ Optional environment variables:
 - `SENTRY_APP_NAME`: top-level app tag, defaults to the caller-provided app name when set
 - `SENTRY_SERVICE_NAME`: service tag, useful when backend and bot share the same org/project
 - `SENTRY_TRACES_SAMPLE_RATE`: override performance trace sampling
-- `SENTRY_PROFILES_SAMPLE_RATE`: override profile sampling
 
 Docker and host wiring:
 
