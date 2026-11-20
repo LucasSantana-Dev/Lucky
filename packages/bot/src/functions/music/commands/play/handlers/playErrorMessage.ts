@@ -87,9 +87,24 @@ export function logPlayFailure(
     error: unknown,
     data: { query?: string; guildId: string | null },
 ): void {
-    if (classifyPlayFailure(error).outcome === 'user_error') {
+    // A no-results failure on a link only YouTube could serve while the
+    // extractor is degraded is an outage, not the user's query: keep it on
+    // the error path so Sentry and the error-rate alert still see it.
+    const degradedYoutubeOutage =
+        error instanceof Error &&
+        !(error instanceof AsmrBlockedError) &&
+        data.query !== undefined &&
+        detectQueryType(data.query) === 'youtube' &&
+        isExtractorDegraded('youtube')
+    if (
+        !degradedYoutubeOutage &&
+        classifyPlayFailure(error).outcome === 'user_error'
+    ) {
         warnLog({
-            message: `${message} no results (expected)`,
+            message:
+                error instanceof AsmrBlockedError
+                    ? `${message} ASMR blocked (expected)`
+                    : `${message} no results (expected)`,
             data: { guildId: data.guildId },
         })
         return

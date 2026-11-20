@@ -175,7 +175,10 @@ describe('resolvePlayErrorMessage for YouTube links', () => {
 })
 
 describe('logPlayFailure', () => {
-    beforeEach(() => jest.clearAllMocks())
+    beforeEach(() => {
+        jest.clearAllMocks()
+        isExtractorDegradedMock.mockReturnValue(false)
+    })
 
     it('logs a no-results failure as a warning without the query text', () => {
         const error = new Error(
@@ -193,6 +196,44 @@ describe('logPlayFailure', () => {
         const arg = JSON.stringify(warnLogMock.mock.calls[0][0])
         expect(arg).not.toContain('secret query')
         expect(arg).toContain('g1')
+    })
+
+    it('keeps reporting an error when youtube is degraded for a youtube query', () => {
+        isExtractorDegradedMock.mockReturnValue(true)
+        const error = new Error('No results found for "x" (Extractor: y)')
+
+        logPlayFailure('Play command error:', error, {
+            query: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            guildId: 'g1',
+        })
+
+        expect(warnLogMock).not.toHaveBeenCalled()
+        expect(errorLogMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('stays a warning when youtube is degraded but the query is a text search', () => {
+        isExtractorDegradedMock.mockReturnValue(true)
+        const error = new Error('No results found for "x" (Extractor: y)')
+
+        logPlayFailure('Play command error:', error, {
+            query: 'some song',
+            guildId: 'g1',
+        })
+
+        expect(errorLogMock).not.toHaveBeenCalled()
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('labels a blocked asmr failure as asmr, not no results', () => {
+        logPlayFailure('Play command error:', new AsmrBlockedError(), {
+            query: 'asmr',
+            guildId: 'g1',
+        })
+
+        expect(errorLogMock).not.toHaveBeenCalled()
+        const msg = warnLogMock.mock.calls[0][0].message as string
+        expect(msg).toContain('ASMR blocked (expected)')
+        expect(msg).not.toContain('no results')
     })
 
     it('still reports other failures as errors', () => {
