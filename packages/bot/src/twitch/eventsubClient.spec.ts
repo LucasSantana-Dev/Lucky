@@ -73,6 +73,7 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 import { TwitchEventSubClient } from './eventsubClient'
+import { TwitchAuthError } from './twitchAuthError'
 
 describe('TwitchEventSubClient', () => {
     let client: TwitchEventSubClient
@@ -226,6 +227,53 @@ describe('TwitchEventSubClient', () => {
             expect(setSizesAtCall).toEqual([0, 0])
 
             jest.useRealTimers()
+        })
+    })
+
+    describe('401 from Twitch (#2654)', () => {
+        it('logs one actionable error and stops instead of reconnect-looping', async () => {
+            jest.useFakeTimers()
+            const auth = () =>
+                Promise.reject(new TwitchAuthError('token rejected'))
+            subscribeToStreamOnlineMock.mockImplementation(auth)
+            subscribeToStreamOfflineMock.mockImplementation(auth)
+            subscribeToChannelUpdateMock.mockImplementation(auth)
+            subscribeToChannelRaidMock.mockImplementation(auth)
+            getTwitchUserAccessTokenMock.mockResolvedValue('bad-token')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+            await jest.advanceTimersByTimeAsync(0)
+
+            expect(errorLogMock).toHaveBeenCalledTimes(1)
+            expect(mockWsInstance.close).toHaveBeenCalledWith(1000)
+
+            // Twitch closes an unused session; no reconnect may follow.
+            mockWsHandlers.close?.(4003, Buffer.from('unused'))
+            await jest.advanceTimersByTimeAsync(60_000)
+            expect(mockWsUrls).toHaveLength(1)
+
+            jest.useRealTimers()
+        })
+
+        it('still logs other subscription failures per topic', async () => {
+            subscribeToStreamOnlineMock.mockRejectedValue(new Error('boom'))
+            subscribeToStreamOfflineMock.mockResolvedValue(undefined)
+            subscribeToChannelUpdateMock.mockResolvedValue(undefined)
+            subscribeToChannelRaidMock.mockResolvedValue(undefined)
+            getTwitchUserAccessTokenMock.mockResolvedValue('ok')
+
+            const startPromise = client.start(mockDiscordClient as Client)
+            await Promise.resolve()
+            fireWelcome('session-1')
+            await startPromise
+            await Promise.resolve()
+            await Promise.resolve()
+
+            expect(errorLogMock).toHaveBeenCalledTimes(1)
+            expect(mockWsInstance.close).not.toHaveBeenCalled()
         })
     })
 
