@@ -1,5 +1,5 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import AutoModPage from './AutoMod'
@@ -680,6 +680,195 @@ describe('AutoModPage', () => {
         await waitFor(() => {
             expect(
                 screen.getByText('Failed to load Discord roles'),
+            ).toBeInTheDocument()
+        })
+    })
+
+    describe('guild switch races (#2467)', () => {
+        const otherGuild = { ...mockGuild, id: '456', name: 'Other Guild' }
+
+        function deferred<T>() {
+            let resolve!: (value: T) => void
+            let reject!: (reason: unknown) => void
+            const promise = new Promise<T>((res, rej) => {
+                resolve = res
+                reject = rej
+            })
+            return { promise, resolve, reject }
+        }
+
+        const flush = () =>
+            act(async () => {
+                await new Promise((resolve) => setTimeout(resolve, 0))
+            })
+
+        const switchGuild = (rerender: (ui: React.ReactElement) => void) => {
+            mockGuildStore(otherGuild)
+            rerender(
+                <MemoryRouter>
+                    <AutoModPage />
+                </MemoryRouter>,
+            )
+        }
+
+        beforeEach(() => {
+            mockGuildStore(mockGuild)
+            vi.mocked(api.automod.getSettings).mockResolvedValue({
+                data: { settings: mockSettings },
+            } as any)
+        })
+
+        test('ignores templates of the previous guild resolving late', async () => {
+            const slow = deferred<any>()
+            vi.mocked(api.automod.listTemplates).mockImplementation(
+                (guildId: string) =>
+                    guildId === mockGuild.id
+                        ? slow.promise
+                        : (Promise.resolve({
+                              data: {
+                                  templates: [
+                                      {
+                                          id: 'new',
+                                          name: 'New',
+                                          description: 'New guild',
+                                      },
+                                  ],
+                              },
+                          }) as any),
+            )
+
+            const { rerender } = renderPage()
+            switchGuild(rerender)
+            await screen.findByRole('button', { name: 'Apply New template' })
+
+            slow.resolve({
+                data: {
+                    templates: [
+                        { id: 'old', name: 'Old', description: 'Old guild' },
+                    ],
+                },
+            })
+            await flush()
+
+            expect(
+                screen.getByRole('button', { name: 'Apply New template' }),
+            ).toBeInTheDocument()
+            expect(
+                screen.queryByRole('button', { name: 'Apply Old template' }),
+            ).not.toBeInTheDocument()
+        })
+
+        test('ignores a templates failure of the previous guild', async () => {
+            const slow = deferred<any>()
+            vi.mocked(api.automod.listTemplates).mockImplementation(
+                (guildId: string) =>
+                    guildId === mockGuild.id
+                        ? slow.promise
+                        : (Promise.resolve({ data: { templates: [] } }) as any),
+            )
+
+            const { rerender } = renderPage()
+            switchGuild(rerender)
+            await waitFor(() =>
+                expect(api.automod.listTemplates).toHaveBeenCalledWith(
+                    otherGuild.id,
+                ),
+            )
+
+            slow.reject(new Error('boom'))
+            await flush()
+
+            expect(
+                screen.queryByText('Failed to load templates'),
+            ).not.toBeInTheDocument()
+        })
+
+        test('ignores channel and role failures of the previous guild', async () => {
+            const slowChannels = deferred<any>()
+            const slowRoles = deferred<any>()
+            vi.mocked(api.guilds.getChannels).mockImplementation(
+                (guildId: string) =>
+                    guildId === mockGuild.id
+                        ? slowChannels.promise
+                        : (Promise.resolve({ data: { channels: [] } }) as any),
+            )
+            vi.mocked(api.guilds.getRbac).mockImplementation(
+                (guildId: string) =>
+                    guildId === mockGuild.id
+                        ? slowRoles.promise
+                        : (Promise.resolve({ data: { roles: [] } }) as any),
+            )
+
+            const { rerender } = renderPage()
+            switchGuild(rerender)
+            await waitFor(() =>
+                expect(api.guilds.getRbac).toHaveBeenCalledWith(otherGuild.id),
+            )
+
+            slowChannels.reject(new Error('boom'))
+            slowRoles.reject(new Error('boom'))
+            await flush()
+
+            expect(
+                screen.queryByText('Failed to load Discord channels'),
+            ).not.toBeInTheDocument()
+            expect(
+                screen.queryByText('Failed to load Discord roles'),
+            ).not.toBeInTheDocument()
+        })
+
+        test('hides the previous guild channels and roles while the new ones load', async () => {
+            const pendingChannels = deferred<any>()
+            const pendingRoles = deferred<any>()
+            vi.mocked(api.guilds.getChannels).mockImplementation(
+                (guildId: string) =>
+                    guildId === mockGuild.id
+                        ? (Promise.resolve({
+                              data: {
+                                  channels: [{ id: 'c1', name: 'general' }],
+                              },
+                          }) as any)
+                        : pendingChannels.promise,
+            )
+            vi.mocked(api.guilds.getRbac).mockImplementation(
+                (guildId: string) =>
+                    guildId === mockGuild.id
+                        ? (Promise.resolve({
+                              data: { roles: [{ id: 'r1', name: 'Mods' }] },
+                          }) as any)
+                        : pendingRoles.promise,
+            )
+
+            const { rerender } = renderPage()
+            await screen.findByText('Spam Detection')
+            await flush()
+            expect(
+                screen.queryByText(
+                    'Channels unavailable, enter IDs manually below',
+                ),
+            ).not.toBeInTheDocument()
+            expect(
+                screen.queryByText(
+                    'Roles unavailable, enter IDs manually below',
+                ),
+            ).not.toBeInTheDocument()
+
+            switchGuild(rerender)
+            await waitFor(() =>
+                expect(api.guilds.getRbac).toHaveBeenCalledWith(otherGuild.id),
+            )
+            await screen.findByText('Spam Detection')
+            await flush()
+
+            // No stale picker for the new guild: fall back to manual IDs
+            // until its own lists arrive.
+            expect(
+                screen.getByText(
+                    'Channels unavailable, enter IDs manually below',
+                ),
+            ).toBeInTheDocument()
+            expect(
+                screen.getByText('Roles unavailable, enter IDs manually below'),
             ).toBeInTheDocument()
         })
     })

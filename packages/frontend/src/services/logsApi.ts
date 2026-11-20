@@ -1,5 +1,5 @@
 import type { AxiosInstance } from 'axios'
-import type { ServerLog } from '@/types'
+import type { ServerLog, LogLevel } from '@/types'
 
 export function createLogsApi(apiClient: AxiosInstance) {
     return {
@@ -8,6 +8,7 @@ export function createLogsApi(apiClient: AxiosInstance) {
             filters: {
                 q?: string
                 type?: string
+                level?: LogLevel
                 userId?: string
                 limit?: number
                 offset?: number
@@ -19,6 +20,7 @@ export function createLogsApi(apiClient: AxiosInstance) {
                     params: {
                         ...(filters.q ? { q: filters.q } : {}),
                         ...(filters.type ? { type: filters.type } : {}),
+                        ...(filters.level ? { level: filters.level } : {}),
                         ...(filters.userId ? { userId: filters.userId } : {}),
                         ...(filters.limit ? { limit: filters.limit } : {}),
                         ...(filters.offset !== undefined

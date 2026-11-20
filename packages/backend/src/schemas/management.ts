@@ -41,6 +41,9 @@ const logsSettingsBody = z.object({ enabled: z.boolean() }).strict()
 const logsSearchQuery = z.object({
     q: z.string().trim().min(1, 'Search query is required').max(200).optional(),
     type: z.string().max(50).optional(),
+    level: z
+        .enum(['info', 'warn', 'error', 'moderation', 'automod', 'system'])
+        .optional(),
     userId: snowflakeId.optional(),
     limit: z.coerce.number().int().min(1).max(500).optional(),
     // Capped so a crafted deep-page request can't force an unbounded

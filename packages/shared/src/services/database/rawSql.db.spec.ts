@@ -51,12 +51,7 @@ describe('raw SQL against Postgres', () => {
     })
 
     describe('DatabaseService.checkRateLimit', () => {
-        const service = new DatabaseService({
-            url: process.env.DATABASE_URL ?? '',
-            ttl: 0,
-            maxConnections: 10,
-            connectionTimeout: 5000,
-        })
+        const service = new DatabaseService()
 
         it('admits exactly `limit` of many concurrent calls', async () => {
             const key = `${RUN_ID}:concurrent`

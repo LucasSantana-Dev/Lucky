@@ -6,15 +6,7 @@ import { IntervalScheduler } from './IntervalScheduler'
 // expired rate limits, server logs; see DatabaseService.cleanupOldData).
 const DEFAULT_TICK_INTERVAL_MS = 24 * 60 * 60 * 1000
 
-// DatabaseConfig is accepted by the constructor but not read by
-// DatabaseService today (it talks to the shared getPrismaClient() singleton
-// regardless of these values); kept only to satisfy the required shape.
-const databaseService = new DatabaseService({
-    url: process.env.DATABASE_URL ?? '',
-    ttl: 3600,
-    maxConnections: 10,
-    connectionTimeout: 5000,
-})
+const databaseService = new DatabaseService()
 
 /**
  * Runs DatabaseService.cleanupOldData() once a day to prune track history,

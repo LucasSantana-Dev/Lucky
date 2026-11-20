@@ -62,6 +62,39 @@ export const LOG_LEVEL_BY_TYPE: Record<string, ServerLogLevel> = {
     settings_change: 'system',
 }
 
+/** Raw log types that fall in a level bucket (inverse of LOG_LEVEL_BY_TYPE). */
+export function logTypesForLevel(level: ServerLogLevel): LogType[] {
+    return (Object.keys(LOG_LEVEL_BY_TYPE) as LogType[]).filter(
+        (type) => LOG_LEVEL_BY_TYPE[type] === level,
+    )
+}
+
+/**
+ * Prisma `type` condition for a level bucket. A stored type missing from
+ * LOG_LEVEL_BY_TYPE is serialized as `info`, so `info` is everything that is
+ * not mapped to another bucket; an inclusion list would hide those rows.
+ */
+function typeConditionForLevel(level: ServerLogLevel) {
+    if (level !== 'info') return { in: logTypesForLevel(level) }
+    return {
+        notIn: (Object.keys(LOG_LEVEL_BY_TYPE) as LogType[]).filter(
+            (type) => LOG_LEVEL_BY_TYPE[type] !== 'info',
+        ),
+    }
+}
+
+/** Filters accepted by {@link ServerLogService.searchLogs}. */
+export interface ServerLogSearchFilters {
+    q?: string
+    type?: LogType
+    level?: ServerLogLevel
+    userId?: string
+    channelId?: string
+    moderatorId?: string
+    startDate?: Date
+    endDate?: Date
+}
+
 /** Shape the dashboard expects for each log row. */
 export interface SerializedServerLog {
     id: string
@@ -204,18 +237,7 @@ export class ServerLogService {
     }
 
     /** Builds the shared Prisma `where` clause for {@link searchLogs} and {@link countSearchLogs}. */
-    private buildSearchWhere(
-        guildId: string,
-        filters: {
-            q?: string
-            type?: LogType
-            userId?: string
-            channelId?: string
-            moderatorId?: string
-            startDate?: Date
-            endDate?: Date
-        },
-    ) {
+    private buildSearchWhere(guildId: string, filters: ServerLogSearchFilters) {
         return {
             guildId,
             // `q` is zod-validated and length-bounded by the caller; Prisma
@@ -223,7 +245,17 @@ export class ServerLogService {
             ...(filters.q && {
                 action: { contains: filters.q, mode: 'insensitive' as const },
             }),
-            ...(filters.type && { type: filters.type }),
+            // `level` expands to the raw types in that bucket; a bucket with
+            // no types (warn, error) matches nothing rather than everything.
+            // `type` narrows within the level (AND) instead of replacing it.
+            ...(filters.level
+                ? {
+                      type: {
+                          ...typeConditionForLevel(filters.level),
+                          ...(filters.type && { equals: filters.type }),
+                      },
+                  }
+                : filters.type && { type: filters.type }),
             ...(filters.userId && { userId: filters.userId }),
             ...(filters.channelId && { channelId: filters.channelId }),
             ...(filters.moderatorId && {
@@ -241,15 +273,7 @@ export class ServerLogService {
     /** Searches logs with optional filters on text, type, user, channel, moderator, and date range. */
     async searchLogs(
         guildId: string,
-        filters: {
-            q?: string
-            type?: LogType
-            userId?: string
-            channelId?: string
-            moderatorId?: string
-            startDate?: Date
-            endDate?: Date
-        },
+        filters: ServerLogSearchFilters,
         limit: number = 100,
         offset: number = 0,
     ) {
@@ -264,18 +288,7 @@ export class ServerLogService {
     }
 
     /** Counts logs matching the same filters as {@link searchLogs}, for pagination totals. */
-    async countSearchLogs(
-        guildId: string,
-        filters: {
-            q?: string
-            type?: LogType
-            userId?: string
-            channelId?: string
-            moderatorId?: string
-            startDate?: Date
-            endDate?: Date
-        },
-    ) {
+    async countSearchLogs(guildId: string, filters: ServerLogSearchFilters) {
         return await prisma.serverLog.count({
             where: this.buildSearchWhere(guildId, filters),
         })

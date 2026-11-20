@@ -111,7 +111,9 @@ function omitKeys(data: unknown, keys: string[]): unknown {
     if (keys.length === 0) return data
     if (data === null || typeof data !== 'object' || Array.isArray(data))
         return data
-    const rest: Record<string, unknown> = { ...(data as Record<string, unknown>) }
+    const rest: Record<string, unknown> = {
+        ...(data as Record<string, unknown>),
+    }
     for (const key of keys) delete rest[key]
     return Object.keys(rest).length > 0 ? rest : undefined
 }
@@ -208,8 +210,20 @@ function asLogAttributes(
     return Object.keys(attrs).length > 0 ? attrs : undefined
 }
 
+// Two passes on purpose. The second one already covers CR and LF, but CodeQL's
+// js/log-injection query only recognises a sanitizer whose pattern names the
+// line breaks literally; a \x00-\x1f range is opaque to it, which kept two
+// alerts open on sinks that were in fact safe (#2404).
 function sanitizeForLogging(text: string): string {
-    return text.replace(/[\x00-\x1f\x7f]/g, ' ')
+    return text.replace(/\r|\n/g, ' ').replace(/[\x00-\x1f\x7f]/g, ' ')
+}
+
+// For the String() fallbacks only. JSON.stringify escapes control characters
+// inside every string value, so its newlines are indentation and nothing else;
+// String(value) gives no such guarantee (a toString() can return anything), and
+// prefixLines would turn each of its newlines into a fresh prefixed record.
+function toDisplayLine(value: unknown): string {
+    return sanitizeForLogging(toDisplayString(value))
 }
 
 // Last-resort coercion. String() itself throws on a null-prototype object with
@@ -288,9 +302,9 @@ function serializeError(err: unknown): string {
         // Same undefined case as serializeData: JSON.stringify returns
         // undefined, not a string, for functions, symbols and objects whose
         // toJSON() returns undefined.
-        return JSON.stringify(err, null, 2) ?? toDisplayString(err)
+        return JSON.stringify(err, null, 2) ?? toDisplayLine(err)
     } catch {
-        return toDisplayString(err)
+        return toDisplayLine(err)
     }
 }
 
@@ -328,9 +342,9 @@ function serializeData(data: unknown): string {
         // symbols, and objects whose toJSON() returns undefined. Those are all
         // truthy, so the caller's guard lets them through and prefixLines would
         // then call .split on undefined and throw.
-        return JSON.stringify(data, null, 2) ?? toDisplayString(data)
+        return JSON.stringify(data, null, 2) ?? toDisplayLine(data)
     } catch {
-        return toDisplayString(data)
+        return toDisplayLine(data)
     }
 }
 

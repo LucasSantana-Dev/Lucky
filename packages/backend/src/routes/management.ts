@@ -205,6 +205,7 @@ export function setupManagementRoutes(app: Express): void {
             const filters = {
                 q: query.q,
                 type: query.type as LogType | undefined,
+                level: query.level,
                 userId: query.userId,
             }
             const limit = query.limit ?? 50

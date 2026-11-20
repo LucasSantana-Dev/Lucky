@@ -79,6 +79,7 @@
         "build": "tsc -b --force && node add-js-extensions.js",
         "dev": "tsc --watch",
         "type:check": "tsc --noEmit",
+        "type:check:tests": "tsc -p tsconfig.spec.json",
         "test": "jest",
         "test:ci": "jest --ci",
         "test:db": "jest --config jest.db.config.cjs --ci",
