@@ -180,9 +180,9 @@ function ArtistTile({
                                 e.stopPropagation()
                                 onBlock()
                             }}
-                            className='pointer-events-auto absolute top-2 right-2 rounded-full bg-lucky-bg-primary/90 p-1.5 ring-1 ring-lucky-border hover:bg-lucky-error transition-colors'
+                            className='pointer-events-auto absolute top-2 right-2 group rounded-full bg-lucky-bg-primary/90 p-1.5 ring-1 ring-lucky-border hover:bg-lucky-error transition-colors'
                         >
-                            <X className='h-4 w-4 text-lucky-error-text' />
+                            <X className='h-4 w-4 text-lucky-error-text group-hover:text-white' />
                         </button>
                     )}
                 </div>
