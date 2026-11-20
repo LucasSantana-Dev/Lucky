@@ -1404,7 +1404,7 @@
         },
         {
             "type": "row",
-            "title": "Gatilhos YouTube-off",
+            "title": "Convites e votos (atribuição aproximada)",
             "collapsed": false,
             "panels": [],
             "gridPos": {
@@ -1416,12 +1416,161 @@
             "id": 31
         },
         {
+            "type": "stat",
+            "title": "Cliques em /invite (período)",
+            "description": "Cada acesso ao link /invite do Lucky (#2395). Normal: sobe quando há divulgação; zero por dias seguidos com listagens ativas é estranho.",
+            "gridPos": {
+                "x": 0,
+                "y": 69,
+                "w": 4,
+                "h": 4
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT count(*) AS \"Cliques\" FROM invite_clicks WHERE $__timeFilter(\"occurredAt\")",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "sem cliques"
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "value",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 32
+        },
+        {
+            "type": "table",
+            "title": "Cliques e entradas por origem (aproximado)",
+            "description": "APROXIMADO: cada entrada de servidor é ligada ao clique em /invite mais recente nos 10 minutos antes dela, sem confirmar que foi a mesma pessoa. 'sem clique antes' = a entrada veio por outro caminho (link direto do Discord, listagem com link próprio). Normal: a maioria das entradas com clique antes vem das listagens. Preocupante: muitos cliques de uma origem e nenhuma entrada (link quebrado ou permissão recusada). A origem exata, quando existe, está em 'Entradas e 1ª hora por origem'.",
+            "gridPos": {
+                "x": 4,
+                "y": 69,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "WITH joins AS (SELECT \"guildDiscordId\" AS g, \"occurredAt\" AS t FROM guild_membership_events WHERE kind = 'JOIN' AND $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')), m AS (SELECT coalesce((SELECT coalesce(c.\"utmSource\", 'sem utm') FROM invite_clicks c WHERE c.\"occurredAt\" <= j.t AND c.\"occurredAt\" > j.t - interval '10 minutes' AND $__timeFilter(c.\"occurredAt\") ORDER BY c.\"occurredAt\" DESC LIMIT 1), 'sem clique antes') AS src FROM joins j), a AS (SELECT src, count(*) AS n FROM m GROUP BY 1), c AS (SELECT coalesce(\"utmSource\", 'sem utm') AS src, count(*) AS n FROM invite_clicks WHERE $__timeFilter(\"occurredAt\") GROUP BY 1) SELECT coalesce(c.src, a.src) AS \"Origem (utm_source)\", coalesce(c.n, 0) AS \"Cliques\", coalesce(a.n, 0) AS \"Entradas atribuídas (aprox.)\", round(100.0 * a.n / nullif(c.n, 0), 1) AS \"Conversão aprox. (%)\" FROM c FULL JOIN a ON a.src = c.src ORDER BY 2 DESC, 3 DESC",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "sem cliques nem entradas no período"
+                },
+                "overrides": []
+            },
+            "options": {},
+            "id": 33
+        },
+        {
+            "type": "timeseries",
+            "title": "Votos no top.gg por dia",
+            "description": "Cada voto aceito no top.gg (#2395); votos repetidos em menos de 12 horas não contam. Normal: alguns por dia, mais no fim de semana. Preocupante: zero por vários dias quando antes havia votos (webhook do top.gg quebrado). O histórico começa no deploy desta tabela.",
+            "gridPos": {
+                "x": 16,
+                "y": 69,
+                "w": 8,
+                "h": 8
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT date_trunc('day', \"occurredAt\") AS time, count(*) FILTER (WHERE NOT \"isWeekend\") AS \"Votos\", count(*) FILTER (WHERE \"isWeekend\") AS \"Votos de fim de semana (valem 2)\" FROM topgg_vote_events WHERE $__timeFilter(\"occurredAt\") GROUP BY 1 ORDER BY 1",
+                    "format": "time_series",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "sem votos no período",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 80,
+                        "lineWidth": 1,
+                        "stacking": {
+                            "mode": "normal",
+                            "group": "A"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "id": 34
+        },
+        {
+            "type": "row",
+            "title": "Gatilhos YouTube-off",
+            "collapsed": false,
+            "panels": [],
+            "gridPos": {
+                "x": 0,
+                "y": 77,
+                "w": 24,
+                "h": 1
+            },
+            "id": 35
+        },
+        {
             "type": "gauge",
             "title": "WAG (7 dias) vs limite 100",
             "description": "WAG (janela móvel de 7 dias) ≥ 100 aciona o desligamento do YouTube (decisão 2027-01-17). Laranja a 70 (70 % do limite), vermelho a 90.",
             "gridPos": {
                 "x": 0,
-                "y": 69,
+                "y": 78,
                 "w": 12,
                 "h": 7
             },
@@ -1479,7 +1628,7 @@
                 "showThresholdLabels": true,
                 "showThresholdMarkers": true
             },
-            "id": 32
+            "id": 36
         },
         {
             "type": "gauge",
@@ -1487,7 +1636,7 @@
             "description": "1.000 servidores ativos aciona o desligamento do YouTube (decisão 2027-01-17). Laranja a 700 (70 % do limite), vermelho a 900.",
             "gridPos": {
                 "x": 12,
-                "y": 69,
+                "y": 78,
                 "w": 12,
                 "h": 7
             },
@@ -1545,7 +1694,7 @@
                 "showThresholdLabels": true,
                 "showThresholdMarkers": true
             },
-            "id": 33
+            "id": 37
         }
     ]
 }

@@ -10,6 +10,8 @@ const mockServerLogDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockUserFeedbackDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockCommandEventDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockActivationEventDeleteMany = jest.fn<(args?: any) => Promise<any>>()
+const mockInviteClickDeleteMany = jest.fn<(args?: any) => Promise<any>>()
+const mockTopggVoteEventDeleteMany = jest.fn<(args?: any) => Promise<any>>()
 const mockGetPrismaClient = jest.fn<() => any>()
 
 jest.mock('../../utils/database/prismaClient', () => ({
@@ -51,11 +53,19 @@ describe('DatabaseService', () => {
             activationEvent: {
                 deleteMany: mockActivationEventDeleteMany,
             },
+            inviteClick: {
+                deleteMany: mockInviteClickDeleteMany,
+            },
+            topggVoteEvent: {
+                deleteMany: mockTopggVoteEventDeleteMany,
+            },
         })
         mockServerLogDeleteMany.mockResolvedValue({ count: 0 })
         mockUserFeedbackDeleteMany.mockResolvedValue({ count: 0 })
         mockCommandEventDeleteMany.mockResolvedValue({ count: 0 })
         mockActivationEventDeleteMany.mockResolvedValue({ count: 0 })
+        mockInviteClickDeleteMany.mockResolvedValue({ count: 0 })
+        mockTopggVoteEventDeleteMany.mockResolvedValue({ count: 0 })
         service = new DatabaseService()
     })
 
@@ -210,6 +220,35 @@ describe('DatabaseService', () => {
             expect(cutoff.getTime()).toBeLessThanOrEqual(
                 Date.now() - days180 + 1000,
             )
+        })
+
+        it('prunes invite clicks after 180 days and vote events after 400 days (#2395)', async () => {
+            mockTrackHistoryDeleteMany.mockResolvedValue({ count: 0 })
+            mockRateLimitDeleteMany.mockResolvedValue({ count: 0 })
+            mockInviteClickDeleteMany.mockResolvedValue({ count: 2 })
+            mockTopggVoteEventDeleteMany.mockResolvedValue({ count: 3 })
+
+            const before = Date.now()
+            const result = await service.cleanupOldData()
+            const after = Date.now()
+
+            expect(result.getData()).toBe(5)
+            const day = 24 * 60 * 60 * 1000
+            for (const [mock, days] of [
+                [mockInviteClickDeleteMany, 180],
+                [mockTopggVoteEventDeleteMany, 400],
+            ] as const) {
+                expect(mock).toHaveBeenCalledWith({
+                    where: { occurredAt: { lt: expect.any(Date) } },
+                })
+                const cutoff = (
+                    mock.mock.calls[0]?.[0].where.occurredAt.lt as Date
+                ).getTime()
+                expect(cutoff).toBeGreaterThanOrEqual(
+                    before - days * day - 1000,
+                )
+                expect(cutoff).toBeLessThanOrEqual(after - days * day + 1000)
+            }
         })
 
         it('deletes command events older than 180 days and counts them (#2391)', async () => {
