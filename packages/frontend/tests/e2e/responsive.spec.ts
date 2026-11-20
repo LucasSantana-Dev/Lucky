@@ -35,7 +35,10 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
             })
             .map((el) => `${el.tagName.toLowerCase()}.${el.className}`)
         return {
-            document: document.documentElement.scrollWidth - viewport,
+            document: Math.max(
+                0,
+                document.documentElement.scrollWidth - viewport,
+            ),
             main: main.scrollWidth - main.clientWidth,
             escaping: escaping.slice(0, 5),
         }
