@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.74.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.73.1...v2.74.0) (2026-11-20)
+
+
+### Features
+
+* **infra:** enable po-token sidecar by default ([#3240](https://github.com/LucasSantana-Dev/Lucky/issues/3240)) ([a908ebe](https://github.com/LucasSantana-Dev/Lucky/commit/a908ebe22df6e45da46ffd3096956b085575ccba))
+
+
+### Bug Fixes
+
+* **bot:** accept voice channel text chat as recap channel ([#3241](https://github.com/LucasSantana-Dev/Lucky/issues/3241)) ([f561685](https://github.com/LucasSantana-Dev/Lucky/commit/f5616854b108682dc0faf392fa6fff53dd529ddf))
+* **deps:** bump the minor-patch group across 1 directory with 5 updates ([#3033](https://github.com/LucasSantana-Dev/Lucky/issues/3033)) ([7b89263](https://github.com/LucasSantana-Dev/Lucky/commit/7b89263babb297ab17265ad8ebd35d3061ac42f8))
+* **deps:** bump youtube-dl-exec from 3.1.17 to 3.1.19 ([#2952](https://github.com/LucasSantana-Dev/Lucky/issues/2952)) ([06d70b2](https://github.com/LucasSantana-Dev/Lucky/commit/06d70b2c255bfe087926e4ba25319fd05cdd7cf9))
+
+
+### Performance Improvements
+
+* **bot:** race soundcloud and yt-dlp in the stream bridge ([#3246](https://github.com/LucasSantana-Dev/Lucky/issues/3246)) ([f4d092a](https://github.com/LucasSantana-Dev/Lucky/commit/f4d092afe1f3005f86a320b2307d83e488d2c719))
+
 ## [2.73.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.73.0...v2.73.1) (2026-11-20)
 
 
