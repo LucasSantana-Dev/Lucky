@@ -11,16 +11,16 @@ The acquisition phase of the music-first test restarted on 2026-11-16 and runs t
 | Date                               | What happens                                                                                         |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | 2026-11-16                         | Acquisition restarts: top.gg ads (#2756), free directories (#2751), Meta Ads at owner's call (#2757) |
-| 2026-12-14                         | Server Members privileged intent review due                                                          |
+| 2026-12-14                         | Guild Members privileged intent review due (source: #3046)                                           |
 | 2026-12-20                         | Acquisition phase ends                                                                               |
 | 2026-12-27, 2027-01-03, 2027-01-10 | Weekly-active-guild (WAG) windows ending                                                             |
 | 2026-12-28                         | Interim read (#2758): WAG under 12 means portfolio mode                                              |
 | 2027-01-17                         | Continue or portfolio decision                                                                       |
 | 2027-02-28                         | Portfolio case study, if portfolio                                                                   |
 
-Continue gates (thresholds unchanged): 20 or more weekly active guilds for 3 weeks, 35% or more of new guilds hear a track in the first hour, 15% or more still active on day 8. Measured with `scripts/music-first-gates.sql`.
+Continue gates (thresholds unchanged): 20 or more weekly active guilds for 3 weeks, 35% or more of new guilds hear a track in the first hour, 15% or more still active on day 8. Measured with `scripts/music-first-gates.sql`. Positioning check, separate from the gates: if under 20% of active guilds used thumbs feedback, drop the "learns your taste" pitch and lead with the weekly recap.
 
-Rule for new work: anything that does not move a gate or protect playback is parked below.
+Rule for new work: anything that does not move a gate, protect playback or keep CI and releases trustworthy is parked below.
 
 ## Now: measurement and activation
 
@@ -60,7 +60,7 @@ Only items that help a first-hour listener.
 
 ## Decision gates
 
-- 2026-12-14: Server Members intent review. The Message Content intent was dropped in #2717 and is not needed by current features (#3046).
+- 2026-12-14: Guild Members intent review, deadline from Discord's notice that Lucky passed 10,000 users (#3046). The Message Content intent was dropped in #2717 and is not needed by current features (#3046).
 - 2026-12-28: interim WAG read (#2758).
 - 2027-01-17: continue or portfolio.
 - If continue: App Directory, the Brazil question (the pt-BR cohort split was cut on 2026-10-18, so it needs fresh evidence) and a YouTube-free mode. A paid tier needs 300 weekly active guilds for 4 weeks and a YouTube-free mode holding at least 50% of sessions.
@@ -78,7 +78,7 @@ Not cancelled, not scheduled. Revisit only if the decision is continue.
 - Context-menu pack, welcome and leave editor, giveaways dashboard page, role groups v2, move-message extensions, reaction-roles dashboard follow-ups.
 - Integration feeds spine (RSS, YouTube, Twitch clips), Twitch EventSub tier 2 (needs a broadcaster OAuth flow ADR), #2654 EventSub 401 retries, #3088 dead RSS feed logging.
 - Voice flows: voice logging, join-to-create, voice XP.
-- Guild Automation removal (decided 2026-08-03, `decisions/2026-08-03-guild-automation-remove.md`): execute only as cleanup capacity allows.
+- Guild Automation removal (decided 2026-08-03, `decisions/2026-08-03-guild-automation-remove.md`): it is a decided removal, not a revival, so it may run as cleanup before 2027-01-17 only if it touches no playback code and capacity is free.
 
 ### Dashboard
 
@@ -96,6 +96,7 @@ Not cancelled, not scheduled. Revisit only if the decision is continue.
 
 ## Explicit non-goals
 
+- Server Wrapped, the per-server taste profile and the public share page: cut from the test by the 2026-10-18 amendment (decision 8).
 - Apple Music or YouTube Music taste integration.
 - RabbitMQ, Kafka or NATS: keep Redis pub/sub.
 - Blue/green for the bot process (`decisions/2026-07-11-bot-redeploy-no-bluegreen.md`).
