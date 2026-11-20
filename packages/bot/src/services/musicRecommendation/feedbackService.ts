@@ -668,7 +668,9 @@ export class RecommendationFeedbackService {
         const previous = cache.get(artist)
         const live =
             previous && now - previous.updatedAt < this.implicitCacheTTL
-                ? previous.weight
+                ? // Fold in the decay earned so far: only the newest rejection's
+                  // timestamp is stored, so older ones must not regain full weight.
+                  previous.weight * decayWeight(previous.updatedAt, now)
                 : 0
         cache.set(artist, {
             weight: Math.min(

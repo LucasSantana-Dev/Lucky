@@ -844,6 +844,28 @@ describe('implicit feedback', () => {
             expect(faded).toBeCloseTo(0.5 * 0.83, 5)
         })
 
+        it('a new rejection does not refresh older ones (#2950)', () => {
+            const service = new RecommendationFeedbackService(30)
+            const now = Date.now()
+            const day = 24 * 60 * 60 * 1000
+
+            service.recordAutoplayRejection(
+                'guild1',
+                [],
+                track,
+                1,
+                now - 10 * day,
+            )
+            service.recordAutoplayRejection('guild1', [], track, 1, now)
+
+            const key = trackKey.split('::')[1]
+            const weight = service
+                .getGuildImplicitArtistDislikeWeights('guild1', now)
+                .get(key)
+            // Old 0.5 decayed by 10 days (0.3583) plus a fresh 0.5, not 1.0.
+            expect(weight).toBeCloseTo(0.5 * (1 - (10 / 30) * 0.85) + 0.5, 5)
+        })
+
         it('artist dislikes expire and stay per guild', () => {
             const service = new RecommendationFeedbackService(30)
             const now = 1000
