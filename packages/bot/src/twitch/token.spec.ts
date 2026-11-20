@@ -12,7 +12,11 @@ describe('twitch/token', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         process.env = { ...originalEnv }
-        fetchSpy = jest.spyOn(global, 'fetch')
+        // Never reach the network: a test that forgets to stub the refresh call
+        // would otherwise POST to id.twitch.tv (#2399).
+        fetchSpy = jest
+            .spyOn(global, 'fetch')
+            .mockRejectedValue(new Error('unexpected network call'))
         clearTwitchTokenCache()
     })
 

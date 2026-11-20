@@ -1,151 +1,127 @@
 import { test, expect } from '@playwright/test'
-import { setupMockApiResponses } from './helpers/api-helpers'
-import {
-    navigateToServers,
-    navigateToFeatures,
-    waitForServerList,
-} from './helpers/page-helpers'
+import { setupMockApiResponses, mockInviteUrl } from './helpers/api-helpers'
+import { navigateToServers, waitForServerList } from './helpers/page-helpers'
 import {
     getServerCard,
-    getFeatureCard,
     getAddBotButton,
+    getManageButton,
 } from './helpers/ui-helpers'
-import { MOCK_GUILDS, MOCK_FEATURES } from './fixtures/test-data'
+import { MOCK_GUILDS, MOCK_API_RESPONSES } from './fixtures/test-data'
+
+const guildWithoutBot = MOCK_GUILDS.find((guild) => !guild.hasBot)!
+const lastGuildWithBot = [...MOCK_GUILDS]
+    .reverse()
+    .find((guild) => guild.hasBot)!
 
 test.describe('Component Interactions', () => {
     test.beforeEach(async ({ page }) => {
         await setupMockApiResponses(page)
     })
 
-    test('ServerCard click interactions', async ({ page }) => {
+    test('server cards expose the action that matches the bot state', async ({
+        page,
+    }) => {
         await navigateToServers(page)
         await waitForServerList(page)
 
-        const firstServer = MOCK_GUILDS[0]
-        const serverCard = getServerCard(page, firstServer.name)
-
-        await expect(serverCard).toBeVisible()
-    })
-
-    test('FeatureCard toggle interactions', async ({ page }) => {
-        await navigateToFeatures(page)
-
-        const firstFeature = MOCK_FEATURES[0]
-        const featureCard = getFeatureCard(page, firstFeature.name)
-        const switchButton = featureCard.locator('[role="switch"]').first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await switchButton.click()
-            await page.waitForTimeout(500)
-
-            const newState = await switchButton.getAttribute('aria-checked')
-            expect(newState).toBeTruthy()
-        }
-    })
-
-    test('AddBotButton click and invite flow', async ({ page }) => {
-        const serverWithoutBot = MOCK_GUILDS.find((g) => !g.hasBot)
-        if (serverWithoutBot) {
-            await page.route(
-                `**/api/guilds/${serverWithoutBot.id}/invite`,
-                async (route) => {
-                    await route.fulfill({
-                        status: 200,
-                        contentType: 'application/json',
-                        body: JSON.stringify({
-                            inviteUrl:
-                                'https://discord.com/api/oauth2/authorize?client_id=test',
-                        }),
-                    })
-                },
+        for (const guild of MOCK_GUILDS) {
+            await expect(getServerCard(page, guild.name)).toBeVisible()
+            await expect(getManageButton(page, guild.name)).toHaveCount(
+                guild.hasBot ? 1 : 0,
             )
-
-            await navigateToServers(page)
-            await waitForServerList(page)
-
-            const addBotButton = getAddBotButton(page, serverWithoutBot.name)
-            await expect(addBotButton).toBeVisible()
-            await addBotButton.click()
-
-            await page.waitForTimeout(1000)
+            await expect(getAddBotButton(page, guild.name)).toHaveCount(
+                guild.hasBot ? 0 : 1,
+            )
         }
     })
 
-    test('dropdown menu interactions', async ({ page }) => {
+    test('Manage selects the server and opens the dashboard', async ({
+        page,
+    }) => {
         await navigateToServers(page)
+        await waitForServerList(page)
 
-        const serverSelector = page
-            .locator('button[aria-haspopup="listbox"]')
-            .first()
-        const isVisible = await serverSelector
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
+        await getManageButton(page, lastGuildWithBot.name).click()
 
-        if (isVisible) {
-            await serverSelector.click()
-            await page.waitForTimeout(500)
-        }
+        await expect(page).toHaveURL(/\/$/)
+        await expect(
+            page.getByRole('button', {
+                name: `Active server: ${lastGuildWithBot.name}. Click to switch.`,
+            }),
+        ).toBeVisible()
     })
 
-    test('button states (loading, disabled)', async ({ page }) => {
+    test('Add Bot requests the invite and opens it in a new tab', async ({
+        page,
+    }) => {
+        await mockInviteUrl(page, guildWithoutBot.id)
+        await page
+            .context()
+            .route('https://discord.com/**', (route) =>
+                route.fulfill({ status: 200, body: 'invite' }),
+            )
+        await navigateToServers(page)
+        await waitForServerList(page)
+
+        const [popup, inviteRequest] = await Promise.all([
+            page.waitForEvent('popup'),
+            page.waitForRequest(`**/api/guilds/${guildWithoutBot.id}/invite`),
+            getAddBotButton(page, guildWithoutBot.name).click(),
+        ])
+
+        expect(inviteRequest.method()).toBe('GET')
+        await popup.waitForURL(MOCK_API_RESPONSES.inviteUrl.inviteUrl)
+        expect(popup.url()).toBe(MOCK_API_RESPONSES.inviteUrl.inviteUrl)
+    })
+
+    test('Add Bot shows an error toast when the invite fails', async ({
+        page,
+    }) => {
+        await page.route(
+            `**/api/guilds/${guildWithoutBot.id}/invite`,
+            (route) =>
+                route.fulfill({
+                    status: 500,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ error: 'boom' }),
+                }),
+        )
+        await navigateToServers(page)
+        await waitForServerList(page)
+
+        await getAddBotButton(page, guildWithoutBot.name).click()
+
+        await expect(
+            page.getByText('Failed to generate invite URL'),
+        ).toBeVisible()
+    })
+
+    test('shows loading placeholders until the server list arrives', async ({
+        page,
+    }) => {
+        let release: () => void = () => {}
+        const gate = new Promise<void>((resolve) => {
+            release = resolve
+        })
         await page.route('**/api/guilds', async (route) => {
-            await new Promise((resolve) => setTimeout(resolve, 1200))
+            await gate
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
-                body: JSON.stringify({ guilds: MOCK_GUILDS }),
+                body: JSON.stringify(MOCK_API_RESPONSES.guildsList),
             })
         })
 
         await navigateToServers(page)
 
-        await page.unroute('**/api/guilds')
-    })
+        await expect(page.locator('.animate-pulse').first()).toBeVisible({
+            timeout: 10000,
+        })
+        await expect(getManageButton(page, MOCK_GUILDS[0].name)).toHaveCount(0)
 
-    test('toast notifications display', async ({ page }) => {
-        await navigateToFeatures(page)
+        release()
 
-        const firstFeature = MOCK_FEATURES[0]
-        const featureCard = getFeatureCard(page, firstFeature.name)
-        const switchButton = featureCard.locator('[role="switch"]').first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await switchButton.click()
-            await page.waitForTimeout(1000)
-        }
-    })
-
-    test('form submissions', async ({ page }) => {
-        await navigateToFeatures(page)
-
-        const firstFeature = MOCK_FEATURES[0]
-        const featureCard = getFeatureCard(page, firstFeature.name)
-        const switchButton = featureCard.locator('[role="switch"]').first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await switchButton.click()
-
-            await Promise.all([
-                page
-                    .waitForResponse(
-                        (response) => response.url().includes('/api/'),
-                        { timeout: 5000 },
-                    )
-                    .catch(() => null),
-                page.waitForTimeout(1000),
-            ])
-        }
+        await expect(getManageButton(page, MOCK_GUILDS[0].name)).toBeVisible()
+        await expect(page.locator('.animate-pulse')).toHaveCount(0)
     })
 })

@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.71.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.70.0...v2.71.0) (2026-11-20)
+
+
+### Features
+
+* **observability:** count session restores and autoplay history replays ([#3154](https://github.com/LucasSantana-Dev/Lucky/issues/3154)) ([750603e](https://github.com/LucasSantana-Dev/Lucky/commit/750603e06343dfe8ffe307e1383a785355dd5426))
+
+
+### Bug Fixes
+
+* **backend:** reject embed fields that are never stored ([#3179](https://github.com/LucasSantana-Dev/Lucky/issues/3179)) ([a895424](https://github.com/LucasSantana-Dev/Lucky/commit/a89542454899f81374bcbe0884d50edecf4d002e))
+* **bot:** block autoplay re-queue of near-duplicate titles across sources ([#3156](https://github.com/LucasSantana-Dev/Lucky/issues/3156)) ([477f986](https://github.com/LucasSantana-Dev/Lucky/commit/477f9866b8635b9ae192e17af3ff5bdc4f499e5b))
+* **bot:** cut dotted featuring credits before the last.fm tag retry ([#3162](https://github.com/LucasSantana-Dev/Lucky/issues/3162)) ([da5468c](https://github.com/LucasSantana-Dev/Lucky/commit/da5468ca3aba4b2bbf9ad7f59c17abef72f6a306))
+* **bot:** keep the play probe out of breaker_open failure counts ([#3167](https://github.com/LucasSantana-Dev/Lucky/issues/3167)) ([9e4bea3](https://github.com/LucasSantana-Dev/Lucky/commit/9e4bea3ae3207300c9cb74bc13890274fc991f9f))
+* **bot:** log guild queue resolution misses at debug level ([#3168](https://github.com/LucasSantana-Dev/Lucky/issues/3168)) ([8c2ca1f](https://github.com/LucasSantana-Dev/Lucky/commit/8c2ca1f3a5d7dfb678716dc5fa2245e53140bc0b))
+* **bot:** resume the current track at its saved position after a restart ([#3163](https://github.com/LucasSantana-Dev/Lucky/issues/3163)) ([0431e18](https://github.com/LucasSantana-Dev/Lucky/commit/0431e18aa7c090a735196bd51e31ab3266fd2924))
+* **bot:** stamp the playlist flag on tracks queued via play-at-top ([#3160](https://github.com/LucasSantana-Dev/Lucky/issues/3160)) ([1fa7efe](https://github.com/LucasSantana-Dev/Lucky/commit/1fa7efec6faf237a968d1c0d3279ee191c5ad7c0))
+* **bot:** stop yt-dlp when a playing stream is skipped ([#3164](https://github.com/LucasSantana-Dev/Lucky/issues/3164)) ([f1efa58](https://github.com/LucasSantana-Dev/Lucky/commit/f1efa584953f8b8f7f0665b76930d22c4a8a06d8))
+* **dashboard:** cancel stale automod loads on guild switch ([#3166](https://github.com/LucasSantana-Dev/Lucky/issues/3166)) ([d417fec](https://github.com/LucasSantana-Dev/Lucky/commit/d417fec062a7ff43387154594d67e5e07209b388))
+* **dashboard:** filter server logs by level and drop stale responses ([#3157](https://github.com/LucasSantana-Dev/Lucky/issues/3157)) ([e2be040](https://github.com/LucasSantana-Dev/Lucky/commit/e2be040a42018f5147f386b75127e0340bc81612))
+* **dashboard:** localize the bot invite toasts ([#3169](https://github.com/LucasSantana-Dev/Lucky/issues/3169)) ([383b0f5](https://github.com/LucasSantana-Dev/Lucky/commit/383b0f5c2b35d90c14f56c546e14e7c51f814416))
+* **lint:** keep eslint-disable directives in the pre-commit hook ([#3171](https://github.com/LucasSantana-Dev/Lucky/issues/3171)) ([3fdef03](https://github.com/LucasSantana-Dev/Lucky/commit/3fdef0316b203aa03e5bad21a1d76128cdd4b05e))
+* **shared:** sanitize the string fallbacks of the pretty logger ([#3161](https://github.com/LucasSantana-Dev/Lucky/issues/3161)) ([9f7c3ff](https://github.com/LucasSantana-Dev/Lucky/commit/9f7c3ff6afb53576e2397237b04e6c9c7b5d2faf))
+
 ## [2.70.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.69.0...v2.70.0) (2026-11-20)
 
 

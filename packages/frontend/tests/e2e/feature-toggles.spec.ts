@@ -1,170 +1,72 @@
 import { test, expect } from '@playwright/test'
-import { setupMockApiResponses, mockToggleUpdate } from './helpers/api-helpers'
-import { navigateToFeatures } from './helpers/page-helpers'
+import { setupMockApiResponses } from './helpers/api-helpers'
+import { navigateToFeatures, waitForFeatures } from './helpers/page-helpers'
 import { getFeatureCard } from './helpers/ui-helpers'
 import { MOCK_FEATURES } from './fixtures/test-data'
+
+const featureLabel = (name: string): string =>
+    name
+        .toLowerCase()
+        .split('_')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
 
 test.describe('Feature Toggles', () => {
     test.beforeEach(async ({ page }) => {
         await setupMockApiResponses(page)
     })
 
-    test('lists all available features', async ({ page }) => {
+    test('lists every feature with its description', async ({ page }) => {
         await navigateToFeatures(page)
-    })
+        await waitForFeatures(page)
 
-    test('toggles individual features', async ({ page }) => {
-        await navigateToFeatures(page)
+        await expect(
+            page.getByRole('heading', { name: 'Available Features' }),
+        ).toBeVisible()
 
-        const firstFeature = MOCK_FEATURES[0]
-        const featureCard = getFeatureCard(page, firstFeature.name)
-        const switchButton = featureCard.locator('[role="switch"]').first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            const initialState = await switchButton.getAttribute('aria-checked')
-            await switchButton.click()
-            await page.waitForTimeout(500)
-
-            const newState = await switchButton.getAttribute('aria-checked')
-            expect(newState).not.toBe(initialState)
+        for (const feature of MOCK_FEATURES) {
+            const card = getFeatureCard(page, feature.name)
+            await expect(card).toBeVisible()
+            await expect(card).toContainText(feature.description)
         }
+        await expect(page.getByRole('switch')).toHaveCount(MOCK_FEATURES.length)
     })
 
-    test('verifies API calls on toggle', async ({ page }) => {
-        await mockToggleUpdate(page, false, '111111111111111111')
+    test('feature switches are read-only and marked as managed', async ({
+        page,
+    }) => {
         await navigateToFeatures(page)
+        await waitForFeatures(page)
 
-        const firstFeature = MOCK_FEATURES[0]
-        const featureCard = getFeatureCard(page, firstFeature.name)
-        const switchButton = featureCard.locator('[role="switch"]').first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            const [response] = await Promise.all([
-                page.waitForResponse(
-                    (response) =>
-                        response.url().includes('/api/guilds/') &&
-                        response.url().includes('/features/'),
-                    { timeout: 5000 },
-                ),
-                switchButton.click(),
-            ])
-
-            expect(response.status()).toBe(200)
-        }
-    })
-
-    test('state updates after toggle', async ({ page }) => {
-        await navigateToFeatures(page)
-
-        const firstFeature = MOCK_FEATURES[0]
-        const featureCard = getFeatureCard(page, firstFeature.name)
-        const switchButton = featureCard.locator('[role="switch"]').first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            const beforeState = await switchButton.getAttribute('aria-checked')
-            await switchButton.click()
-            await page.waitForTimeout(1000)
-
-            const afterState = await switchButton.getAttribute('aria-checked')
-            expect(afterState).not.toBe(beforeState)
-        }
-    })
-
-    test('handles error on toggle failure', async ({ page }) => {
-        await page.route('**/api/guilds/*/features/*', async (route) => {
-            await route.fulfill({
-                status: 500,
-                contentType: 'application/json',
-                body: JSON.stringify({ error: 'Internal server error' }),
+        for (const feature of MOCK_FEATURES) {
+            const card = getFeatureCard(page, feature.name)
+            const toggle = card.getByRole('switch', {
+                name: `Toggle ${featureLabel(feature.name)}`,
             })
-        })
-
-        await navigateToFeatures(page)
-
-        const firstFeature = MOCK_FEATURES[0]
-        const featureCard = getFeatureCard(page, firstFeature.name)
-        const switchButton = featureCard.locator('[role="switch"]').first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await switchButton.click()
-            await page.waitForTimeout(1000)
+            await expect(toggle).toBeDisabled()
+            await expect(card).toContainText('Managed')
         }
     })
 
-    test('global toggle permissions (developer only)', async ({ page }) => {
-        await page.route('**/api/toggles/global', async (route) => {
-            await route.fulfill({
-                status: 403,
-                contentType: 'application/json',
-                body: JSON.stringify({ error: 'Forbidden' }),
-            })
-        })
-
-        await navigateToFeatures(page)
-
-        const globalSection = page.locator('text=/Global Toggles/i')
-        const isVisible = await globalSection
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
-        expect(isVisible).toBe(false)
-    })
-
-    test('toggle state persistence', async ({ page }) => {
-        await navigateToFeatures(page)
-
-        const firstFeature = MOCK_FEATURES[0]
-        const featureCard = getFeatureCard(page, firstFeature.name)
-        const switchButton = featureCard.locator('[role="switch"]').first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await switchButton.click()
-            await page.waitForTimeout(1000)
-
-            await page.reload()
-            await page.waitForLoadState('domcontentloaded')
-        }
-    })
-
-    test('multiple rapid toggles', async ({ page }) => {
-        await navigateToFeatures(page)
-
-        const firstFeature = MOCK_FEATURES[0]
-        const featureCard = getFeatureCard(page, firstFeature.name)
-        const switchButton = featureCard.locator('[role="switch"]').first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            for (let i = 0; i < 3; i++) {
-                await switchButton.click()
-                await page.waitForTimeout(300)
+    test('clicking a read-only switch sends no write request', async ({
+        page,
+    }) => {
+        const writes: string[] = []
+        page.on('request', (request) => {
+            if (request.url().includes('/api/') && request.method() !== 'GET') {
+                writes.push(`${request.method()} ${request.url()}`)
             }
-        }
-    })
+        })
 
-    test('feature descriptions display', async ({ page }) => {
         await navigateToFeatures(page)
+        await waitForFeatures(page)
+
+        const toggle = page.getByRole('switch', { name: 'Toggle Autoplay' })
+        const before = await toggle.getAttribute('aria-checked')
+        await toggle.click({ force: true })
+
+        await expect(toggle).toHaveAttribute('aria-checked', before ?? '')
+        await page.waitForLoadState('networkidle')
+        expect(writes).toEqual([])
     })
 })
