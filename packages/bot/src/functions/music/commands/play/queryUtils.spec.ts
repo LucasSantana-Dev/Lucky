@@ -386,6 +386,39 @@ describe('executePlayAtTop — fallback chain', () => {
         expect(interactionReplyMock).toHaveBeenCalled()
     })
 
+    it('blocks the attachment extractor on the YouTube fallback arm (#3226)', async () => {
+        const play = jest.fn((_: unknown, __: unknown, opts: unknown) => {
+            const o = opts as { searchEngine: string }
+            return o.searchEngine === 'spotifySearch'
+                ? Promise.reject(new Error('Spotify unavailable'))
+                : Promise.resolve({ track: fakeTrack })
+        })
+        const client = {
+            player: { play },
+        } as unknown as Parameters<typeof executePlayAtTop>[0]['client']
+
+        await executePlayAtTop({
+            client,
+            interaction: makeInteraction(),
+            skipCurrent: false,
+            commandName: 'playtop',
+        })
+
+        const youtubeCall = play.mock.calls.find(
+            ([, , o]) =>
+                (o as { searchEngine: string }).searchEngine ===
+                'youtubeSearch',
+        )
+        const blocked = (youtubeCall?.[2] as { blockExtractors: string[] })
+            .blockExtractors
+        expect(blocked).toEqual(
+            expect.arrayContaining([
+                'com.discord-player.attachmentextractor',
+                'com.discord-player.itsmaat.spotifyextractor',
+            ]),
+        )
+    })
+
     it('falls back to SoundCloud when both Spotify and YouTube throw', async () => {
         const successResult = { track: fakeTrack }
         const client = makeClient((_, __, opts: unknown) => {

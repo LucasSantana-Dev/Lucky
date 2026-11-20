@@ -12,11 +12,11 @@ import type {
     VoiceBasedChannel,
 } from 'discord.js'
 
-const SPOTIFY_EXTRACTOR_ID = 'com.discord-player.itsmaat.spotifyextractor'
 import type { CustomClient } from '../../../../types'
 import {
     preferExactMatch,
     SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
+    TEXT_SEARCH_BLOCKED_EXTRACTORS,
 } from './handlers/resolveProvider'
 import { ensureTrackMetadata } from './handlers/trackMetadataHydration'
 import {
@@ -369,7 +369,7 @@ export async function playWithFallbacks({
         try {
             return await client.player.play(voiceChannel, query, {
                 searchEngine: QueryType.YOUTUBE_SEARCH,
-                blockExtractors: [SPOTIFY_EXTRACTOR_ID],
+                blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
                 afterSearch,
             })
         } catch (youtubeError) {
