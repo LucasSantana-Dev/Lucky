@@ -15,3 +15,15 @@ export function createMockInteraction(
 export function createMockClient(overrides: object = {}): CustomClient {
     return { ...overrides } as unknown as CustomClient
 }
+
+/**
+ * Identity-preserving cast for specs that keep asserting on the same object
+ * they pass in (or whose mock has getters), where the spread copy made by
+ * `createMockInteraction` would change behavior. Defaults to a slash-command
+ * interaction; pass a type argument for other interaction kinds.
+ */
+export function asInteraction<T = ChatInputCommandInteraction>(
+    mock: object,
+): T {
+    return mock as unknown as T
+}

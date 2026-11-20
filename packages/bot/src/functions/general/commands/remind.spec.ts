@@ -26,6 +26,7 @@ jest.mock('../../../utils/general/interactionReply.js', () => ({
 
 import remindCommand, { parseDuration, parseTimeOfDay } from './remind.js'
 import {
+    asInteraction,
     createMockClient,
     createMockInteraction,
 } from '../../../../tests/utils/command/fixtures.js'
@@ -164,13 +165,9 @@ describe('/remind command', () => {
     test('rejects when not in a guild', async () => {
         await remindCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction(
-                'set',
-                '10m',
-                'Test',
-                undefined,
-                false,
-            ) as never,
+            interaction: asInteraction(
+                makeInteraction('set', '10m', 'Test', undefined, false),
+            ),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
@@ -181,11 +178,9 @@ describe('/remind command', () => {
     test('set: rejects invalid tempo format', async () => {
         await remindCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction(
-                'set',
-                'invalid',
-                'Test message',
-            ) as never,
+            interaction: asInteraction(
+                makeInteraction('set', 'invalid', 'Test message'),
+            ),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
@@ -196,7 +191,9 @@ describe('/remind command', () => {
     test('set: rejects tempo > 30 days', async () => {
         await remindCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction('set', '31d', 'Test message') as never,
+            interaction: asInteraction(
+                makeInteraction('set', '31d', 'Test message'),
+            ),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
@@ -207,11 +204,9 @@ describe('/remind command', () => {
     test('set: creates reminder and confirms ephemeral', async () => {
         await remindCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction(
-                'set',
-                '10m',
-                'Remember to drink water',
-            ) as never,
+            interaction: asInteraction(
+                makeInteraction('set', '10m', 'Remember to drink water'),
+            ),
         })
         expect(reminderServiceMock.create).toHaveBeenCalledWith(
             'guild-1',
@@ -273,12 +268,9 @@ describe('/remind command', () => {
         reminderServiceMock.listPending.mockResolvedValue([])
         await remindCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction(
-                'delete',
-                undefined,
-                undefined,
-                'nonexistent',
-            ) as never,
+            interaction: asInteraction(
+                makeInteraction('delete', undefined, undefined, 'nonexistent'),
+            ),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string; ephemeral?: boolean }
@@ -290,9 +282,11 @@ describe('/remind command', () => {
     test('channel: rejects without Manage Server permission', async () => {
         await remindCommand.execute({
             client: createMockClient({}),
-            interaction: makeBroadcastInteraction('channel', {
-                canManage: false,
-            }) as never,
+            interaction: asInteraction(
+                makeBroadcastInteraction('channel', {
+                    canManage: false,
+                }),
+            ),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
@@ -351,12 +345,9 @@ describe('/remind command', () => {
         ])
         await remindCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction(
-                'delete',
-                undefined,
-                undefined,
-                'abc12345',
-            ) as never,
+            interaction: asInteraction(
+                makeInteraction('delete', undefined, undefined, 'abc12345'),
+            ),
         })
         expect(reminderServiceMock.findPendingByIdPrefix).toHaveBeenCalledWith(
             'guild-1',
@@ -423,11 +414,13 @@ describe('remind in DMs (#2619)', () => {
         ] as never)
         await remindCommand.execute({
             client: createMockClient({}),
-            interaction: dmInteraction(
-                'list',
-                undefined,
-                new Map([['guild-1', { name: 'Alpha' }]]),
-            ) as never,
+            interaction: asInteraction(
+                dmInteraction(
+                    'list',
+                    undefined,
+                    new Map([['guild-1', { name: 'Alpha' }]]),
+                ),
+            ),
         })
 
         expect(reminderServiceMock.listPending).toHaveBeenCalledWith(
@@ -462,7 +455,7 @@ describe('remind in DMs (#2619)', () => {
         ] as never)
         await remindCommand.execute({
             client: createMockClient({}),
-            interaction: dmInteraction('delete', 'abc12345') as never,
+            interaction: asInteraction(dmInteraction('delete', 'abc12345')),
         })
         expect(reminderServiceMock.findPendingByIdPrefix).toHaveBeenCalledWith(
             null,
