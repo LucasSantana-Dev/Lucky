@@ -332,6 +332,21 @@ describe('autoplay feedback prompt', () => {
             )
         })
 
+        it('does not report an expired interaction (10062) as an error', async () => {
+            const prompt = await sendPrompt('user-1')
+            const click = buttonInteraction('like', keyFrom(prompt))
+            click.update.mockRejectedValue(
+                Object.assign(new Error('Unknown interaction'), {
+                    code: 10062,
+                }),
+            )
+
+            await handleAutoplayFeedbackButton(click as never)
+
+            expect(errorLogMock).not.toHaveBeenCalled()
+            expect(warnLogMock).toHaveBeenCalledTimes(1)
+        })
+
         it('answers "expired" once the 30 minute key lifetime has passed', async () => {
             jest.useFakeTimers({ now: 5_000_000 })
             const prompt = await sendPrompt()

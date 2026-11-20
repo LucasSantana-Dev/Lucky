@@ -3,16 +3,18 @@ import { interactionExpiredTotal } from '../monitoring/prometheus'
 
 /** Discord's "Unknown interaction": the 3 s acknowledge window passed. */
 const DISCORD_UNKNOWN_INTERACTION = 10062
-const MAX_CAUSE_DEPTH = 3
 
 /**
  * True when the error, or one of its causes, is Discord's 10062. Used for the
- * wrapped defer failure too, which keeps the raw error as `cause`.
+ * wrapped defer failure too, which keeps the raw error as `cause`. Walks the
+ * whole cause chain; the visited set makes cyclic chains terminate.
  */
 export function isExpiredInteractionError(error: unknown): boolean {
+    const seen = new Set<unknown>()
     let current: unknown = error
-    for (let depth = 0; depth <= MAX_CAUSE_DEPTH; depth++) {
-        if (typeof current !== 'object' || current === null) return false
+    while (typeof current === 'object' && current !== null) {
+        if (seen.has(current)) return false
+        seen.add(current)
         if (
             (current as { code?: unknown }).code === DISCORD_UNKNOWN_INTERACTION
         )
@@ -33,8 +35,12 @@ export function recordExpiredInteraction(
     guildId?: string | null,
 ): void {
     interactionExpiredTotal.labels(source).inc()
-    warnLog({
-        message: 'Interaction expired before the bot acknowledged it',
-        data: { source, guildId: guildId ?? undefined },
-    })
+    try {
+        warnLog({
+            message: 'Interaction expired before the bot acknowledged it',
+            data: { source, guildId: guildId ?? undefined },
+        })
+    } catch {
+        // A failing log sink must not turn an expected expiry into an error.
+    }
 }

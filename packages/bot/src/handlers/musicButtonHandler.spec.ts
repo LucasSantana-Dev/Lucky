@@ -183,6 +183,7 @@ describe('handleMusicButtonInteraction — previous button (#1191)', () => {
         await handleMusicButtonInteraction(interaction as never)
 
         expect(errorLogMock).not.toHaveBeenCalled()
+        expect(expiredMock).toHaveBeenCalledTimes(1)
         expect(expiredMock).toHaveBeenCalledWith(
             'music_button',
             expect.anything(),

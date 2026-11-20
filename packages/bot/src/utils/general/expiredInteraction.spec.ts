@@ -30,6 +30,19 @@ describe('isExpiredInteractionError', () => {
         expect(isExpiredInteractionError(wrapped)).toBe(true)
     })
 
+    it('matches 10062 nested deeper than four causes', () => {
+        let err: unknown = { code: 10062 }
+        for (let i = 0; i < 8; i++) err = new Error(`wrap ${i}`, { cause: err })
+        expect(isExpiredInteractionError(err)).toBe(true)
+    })
+
+    it('terminates on a cyclic cause chain', () => {
+        const a: { cause?: unknown } = {}
+        const b = { cause: a }
+        a.cause = b
+        expect(isExpiredInteractionError(a)).toBe(false)
+    })
+
     it('does not match other failures', () => {
         expect(isExpiredInteractionError(new Error('boom'))).toBe(false)
         expect(isExpiredInteractionError({ code: 50013 })).toBe(false)
@@ -51,5 +64,17 @@ describe('recordExpiredInteraction', () => {
         expect(labelsMock).toHaveBeenCalledWith('play')
         expect(incMock).toHaveBeenCalledTimes(1)
         expect(warnLogMock).toHaveBeenCalledTimes(1)
+        expect(warnLogMock).toHaveBeenCalledWith({
+            message: 'Interaction expired before the bot acknowledged it',
+            data: { source: 'play', guildId: 'g1' },
+        })
+    })
+
+    it('does not throw when the log sink fails', () => {
+        warnLogMock.mockImplementationOnce(() => {
+            throw new Error('sink down')
+        })
+        expect(() => recordExpiredInteraction('play', 'g1')).not.toThrow()
+        expect(incMock).toHaveBeenCalledTimes(1)
     })
 })

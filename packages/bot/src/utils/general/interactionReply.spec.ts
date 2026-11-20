@@ -327,6 +327,22 @@ describe('interactionReply', () => {
             expect(mockExpiredInc).toHaveBeenCalledTimes(1)
         })
 
+        it('still reports a 10062 from editReply after a successful defer', async () => {
+            mockInteraction.editReply = jest.fn().mockRejectedValue(
+                Object.assign(new Error('Unknown interaction'), {
+                    code: 10062,
+                }),
+            )
+
+            await interactionReply({
+                interaction: mockInteraction,
+                content: { content: 'button' },
+            })
+
+            expect(mockCaptureException).toHaveBeenCalledTimes(1)
+            expect(mockExpiredInc).not.toHaveBeenCalled()
+        })
+
         it('propagates the raw error when editReply fails', async () => {
             const editError = new Error('Discord API error')
             mockInteraction.editReply = jest.fn().mockRejectedValue(editError)
