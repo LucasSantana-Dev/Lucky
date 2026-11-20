@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import { type AsyncMockFn } from '../../fixtures/mock-types'
 
 // Mock Prisma error class for testing
 class MockPrismaError extends Error {
@@ -13,15 +14,15 @@ class MockPrismaError extends Error {
 
 const mockPrisma: any = {
     moderationCase: {
-        create: jest.fn<any>(),
-        findFirst: jest.fn<any>(),
-        findUnique: jest.fn<any>(),
-        findMany: jest.fn<any>(),
-        count: jest.fn<any>(),
-        update: jest.fn<any>(),
-        updateMany: jest.fn<any>(),
+        create: jest.fn(),
+        findFirst: jest.fn(),
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
+        update: jest.fn(),
+        updateMany: jest.fn(),
     },
-    $transaction: jest.fn<any>(async (txFn: any) => {
+    $transaction: jest.fn(async (txFn: any) => {
         return txFn({
             moderationCase: mockPrisma.moderationCase,
         })
@@ -29,10 +30,10 @@ const mockPrisma: any = {
 }
 
 const mockModerationSettings = {
-    getModerationSettings: jest.fn<any>(),
-    updateModerationSettings: jest.fn<any>(),
-    hasModPermissions: jest.fn<any>(),
-    getModerationStats: jest.fn<any>(),
+    getModerationSettings: jest.fn<AsyncMockFn>(),
+    updateModerationSettings: jest.fn<AsyncMockFn>(),
+    hasModPermissions: jest.fn<AsyncMockFn>(),
+    getModerationStats: jest.fn<AsyncMockFn>(),
 }
 
 jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
@@ -253,9 +254,11 @@ describe('ModerationService', () => {
                     moderationCase: {
                         ...mockPrisma.moderationCase,
                         findFirst: jest
-                            .fn()
+                            .fn<AsyncMockFn>()
                             .mockResolvedValue({ caseNumber: 1 }),
-                        create: jest.fn().mockResolvedValue(mockCase),
+                        create: jest
+                            .fn<AsyncMockFn>()
+                            .mockResolvedValue(mockCase),
                     },
                 })
             })

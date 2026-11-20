@@ -1,16 +1,18 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals'
 import type { DiscordGuild } from '../../../src/services/DiscordOAuthService'
 import type { SessionData } from '../../../src/services/SessionService'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
+import type { EffectiveAccessMap } from '@lucky/shared/services'
 
-const mockGetUserGuilds = jest.fn<Promise<DiscordGuild[]>, [string]>()
-const mockHasAdminPermission = jest.fn<
-    boolean,
-    [string | null | undefined, string | null | undefined]
->()
-const mockGetPermissionsBitfield = jest.fn<
-    string,
-    [string | null | undefined, string | null | undefined]
->()
+const mockGetUserGuilds = jest.fn<(token: string) => Promise<DiscordGuild[]>>()
+const mockHasAdminPermission =
+    jest.fn<
+        (a: string | null | undefined, b: string | null | undefined) => boolean
+    >()
+const mockGetPermissionsBitfield =
+    jest.fn<
+        (a: string | null | undefined, b: string | null | undefined) => string
+    >()
 
 class MockDiscordApiError extends Error {
     constructor(
@@ -22,19 +24,40 @@ class MockDiscordApiError extends Error {
     }
 }
 
-const mockHasBotInGuild = jest.fn<Promise<boolean>, [string]>()
-const mockGetGuildMemberContext = jest.fn<
-    Promise<{ nickname: string | null; roleIds: string[] }>,
-    [string, string]
->()
-const mockEnrichGuildsWithBotStatus = jest.fn()
+const mockHasBotInGuild = jest.fn<(guildId: string) => Promise<boolean>>()
+const mockGetGuildMemberContext =
+    jest.fn<
+        (
+            guildId: string,
+            userId: string,
+        ) => Promise<{ nickname: string | null; roleIds: string[] }>
+    >()
+const mockEnrichGuildsWithBotStatus =
+    jest.fn<
+        (
+            guilds: DiscordGuild[],
+        ) => Promise<
+            Array<DiscordGuild & { hasBot: boolean; botInviteUrl?: string }>
+        >
+    >()
 
-const mockResolveEffectiveAccess = jest.fn()
-const mockHasAnyAccess = jest.fn<boolean, [Record<string, string>]>()
-const mockHasAccess = jest.fn<
-    boolean,
-    [Record<string, string>, string, string]
->()
+const mockResolveEffectiveAccess =
+    jest.fn<
+        (
+            guildId: string,
+            roleIds: string[],
+            isAdmin: boolean,
+        ) => Promise<EffectiveAccessMap>
+    >()
+const mockHasAnyAccess = jest.fn<(access: Record<string, string>) => boolean>()
+const mockHasAccess =
+    jest.fn<
+        (
+            access: Record<string, string>,
+            module: string,
+            requiredMode: string,
+        ) => boolean
+    >()
 
 class MockGuildRoleGrantStorageError extends Error {}
 
@@ -74,9 +97,8 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 import { guildAccessService } from '../../../src/services/GuildAccessService'
-import { DiscordApiError } from '../../../src/services/DiscordOAuthService'
 
-const EMPTY_ACCESS = {
+const EMPTY_ACCESS: EffectiveAccessMap = {
     overview: 'none',
     settings: 'none',
     moderation: 'none',
@@ -85,7 +107,7 @@ const EMPTY_ACCESS = {
     integrations: 'none',
 }
 
-const MANAGE_ALL_ACCESS = {
+const MANAGE_ALL_ACCESS: EffectiveAccessMap = {
     overview: 'manage',
     settings: 'manage',
     moderation: 'manage',
@@ -240,7 +262,7 @@ describe('GuildAccessService', () => {
 
     test('listAuthorizedGuilds maps Discord 401 errors to unauthorized AppError', async () => {
         mockGetUserGuilds.mockRejectedValue(
-            new DiscordApiError(401, 'invalid token'),
+            new MockDiscordApiError(401, 'invalid token'),
         )
 
         await expect(
@@ -507,7 +529,7 @@ describe('GuildAccessService', () => {
 
     test('resolveGuildContext returns member nickname/roles for authorized guild', async () => {
         const guild = makeGuild('606', { permissions: '19' })
-        const moderationViewAccess = {
+        const moderationViewAccess: EffectiveAccessMap = {
             ...EMPTY_ACCESS,
             moderation: 'view',
         }
@@ -606,7 +628,7 @@ describe('GuildAccessService', () => {
     })
 
     test('hasAccess delegates to guild role access service', () => {
-        const access = {
+        const access: EffectiveAccessMap = {
             ...EMPTY_ACCESS,
             settings: 'manage',
         }

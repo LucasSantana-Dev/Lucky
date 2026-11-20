@@ -10,6 +10,7 @@ import express from 'express'
 import request from 'supertest'
 import { createHmac } from 'node:crypto'
 import { TOPGG_WEBHOOK_PATH } from '../../../src/utils/topggSignature'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 // Mock chalk to avoid "color is not a function" in LogService
 jest.mock('chalk', () => ({
@@ -39,13 +40,15 @@ jest.mock('../../../src/middleware/auth', () => ({
 
 // Mock Prisma client via getPrismaClient so the route never opens a real database connection.
 // This must be done before importing the route module.
-const mockFindUnique = jest.fn()
-const mockTransaction = jest.fn()
+const mockFindUnique = jest.fn<AsyncMockFn>()
+const mockTransaction = jest.fn<(callback: Function) => Promise<unknown>>()
 
 jest.mock(
     '@lucky/shared/utils',
     () => {
-        const actual = jest.requireActual('@lucky/shared/utils')
+        const actual = jest.requireActual<Record<string, unknown>>(
+            '@lucky/shared/utils',
+        )
         return {
             ...actual,
             getPrismaClient: jest.fn(() => ({
@@ -312,7 +315,7 @@ describe('POST /webhooks/topgg-votes persistence', () => {
             // The callback receives a tx object with topggVote operations
             const txMock = {
                 topggVote: {
-                    findUnique: jest.fn().mockResolvedValue(null), // No existing vote
+                    findUnique: jest.fn<AsyncMockFn>().mockResolvedValue(null), // No existing vote
                     upsert: jest.fn(async (arg) => {
                         txUpsertCalls.push(arg)
                         return {
@@ -361,7 +364,7 @@ describe('POST /webhooks/topgg-votes persistence', () => {
         mockTransaction.mockImplementation(async (callback: Function) => {
             const txMock = {
                 topggVote: {
-                    findUnique: jest.fn().mockResolvedValue({
+                    findUnique: jest.fn<AsyncMockFn>().mockResolvedValue({
                         userId: '123456789012345678',
                         lastVoteAt: lastVoteTime,
                         streak: 5,
@@ -395,16 +398,16 @@ describe('POST /webhooks/topgg-votes persistence', () => {
     it('increments streak when vote recorded after 12h but within 36h', async () => {
         const now = Date.now()
         const lastVoteTime = new Date(now - 86400000) // 24 hours ago, within 36h window
-        let txMockUpsert: jest.Mock
+        let txMockUpsert!: jest.Mock<AsyncMockFn>
         mockTransaction.mockImplementation(async (callback: Function) => {
-            txMockUpsert = jest.fn().mockResolvedValue({
+            txMockUpsert = jest.fn<AsyncMockFn>().mockResolvedValue({
                 userId: '123456789012345678',
                 lastVoteAt: new Date(),
                 streak: 6,
             })
             const txMock = {
                 topggVote: {
-                    findUnique: jest.fn().mockResolvedValue({
+                    findUnique: jest.fn<AsyncMockFn>().mockResolvedValue({
                         userId: '123456789012345678',
                         lastVoteAt: lastVoteTime,
                         streak: 5,
@@ -445,16 +448,16 @@ describe('POST /webhooks/topgg-votes persistence', () => {
         jest.setSystemTime(baseTime)
 
         const lastVoteTime = new Date(baseTime - STREAK_TTL) // exactly 36h ago
-        let txMockUpsert: jest.Mock
+        let txMockUpsert!: jest.Mock<AsyncMockFn>
         mockTransaction.mockImplementation(async (callback: Function) => {
-            txMockUpsert = jest.fn().mockResolvedValue({
+            txMockUpsert = jest.fn<AsyncMockFn>().mockResolvedValue({
                 userId: '123456789012345678',
                 lastVoteAt: new Date(),
                 streak: 11,
             })
             const txMock = {
                 topggVote: {
-                    findUnique: jest.fn().mockResolvedValue({
+                    findUnique: jest.fn<AsyncMockFn>().mockResolvedValue({
                         userId: '123456789012345678',
                         lastVoteAt: lastVoteTime,
                         streak: 10,
@@ -497,16 +500,16 @@ describe('POST /webhooks/topgg-votes persistence', () => {
         jest.setSystemTime(baseTime)
 
         const lastVoteTime = new Date(baseTime - STREAK_TTL - 1) // 36h + 1ms ago, beyond window
-        let txMockUpsert: jest.Mock
+        let txMockUpsert!: jest.Mock<AsyncMockFn>
         mockTransaction.mockImplementation(async (callback: Function) => {
-            txMockUpsert = jest.fn().mockResolvedValue({
+            txMockUpsert = jest.fn<AsyncMockFn>().mockResolvedValue({
                 userId: '123456789012345678',
                 lastVoteAt: new Date(),
                 streak: 1,
             })
             const txMock = {
                 topggVote: {
-                    findUnique: jest.fn().mockResolvedValue({
+                    findUnique: jest.fn<AsyncMockFn>().mockResolvedValue({
                         userId: '123456789012345678',
                         lastVoteAt: lastVoteTime,
                         streak: 10,

@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 type MockAutoModSettingsDelegate = {
-    findUnique: jest.Mock
-    create: jest.Mock
-    upsert: jest.Mock
+    findUnique: jest.Mock<AsyncMockFn>
+    create: jest.Mock<AsyncMockFn>
+    upsert: jest.Mock<AsyncMockFn>
 }
 
 type MockPrisma = {
@@ -12,7 +13,7 @@ type MockPrisma = {
 
 const mockPrisma: MockPrisma = {
     autoModSettings: {
-        findUnique: jest.fn(),
+        findUnique: jest.fn<AsyncMockFn>(),
         create: jest.fn(),
         upsert: jest.fn(),
     },
@@ -38,7 +39,10 @@ jest.mock('@lucky/shared/utils/general/log', () => ({
     warnLog: jest.fn(),
 }))
 
-import { AutoModService, _resetSettingsCache } from '@lucky/shared/services/AutoModService'
+import {
+    AutoModService,
+    _resetSettingsCache,
+} from '@lucky/shared/services/AutoModService'
 
 const DEFAULT_SETTINGS = {
     id: '1',

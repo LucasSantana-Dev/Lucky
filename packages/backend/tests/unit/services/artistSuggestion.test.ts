@@ -12,11 +12,14 @@ import {
     errorLog,
     captureException,
 } from '@lucky/shared/utils'
+import { type AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/services/SpotifyAuthService')
 jest.mock('@lucky/shared/services')
 jest.mock('@lucky/shared/utils', () => {
-    const actual = jest.requireActual('@lucky/shared/utils')
+    const actual = jest.requireActual<Record<string, unknown>>(
+        '@lucky/shared/utils',
+    )
     return {
         ...actual,
         getPrismaClient: jest.fn(),
@@ -55,11 +58,11 @@ describe('ArtistSuggestionService', () => {
                 deleteMany: jest.fn(),
             },
         }
-        ;(getPrismaClient as jest.Mock).mockReturnValue(mockPrisma)
+        jest.mocked(getPrismaClient).mockReturnValue(mockPrisma)
         ;(spotifyLinkService as any) = {
             getValidAccessToken: jest.fn(),
         }
-        ;(errorLog as jest.Mock).mockImplementation(() => {})
+        jest.mocked(errorLog).mockImplementation(() => {})
 
         service = new ArtistSuggestionService({
             maxSuggestions: 10,
@@ -70,7 +73,7 @@ describe('ArtistSuggestionService', () => {
 
     describe('getSuggestions', () => {
         test('should return preferred artists when cache misses on top artists', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
 
             const mockPref = {
                 spotifyId: 'pref_artist_1',
@@ -82,8 +85,8 @@ describe('ArtistSuggestionService', () => {
             mockPrisma.userArtistPreference.findMany.mockResolvedValue([
                 mockPref,
             ])
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue(null)
 
             const suggestions = await service.getSuggestions('user_123')
@@ -97,7 +100,7 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('should throw when Spotify is not configured', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(false)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(false)
 
             await expect(service.getSuggestions('user_123')).rejects.toThrow(
                 'Spotify not configured',
@@ -105,14 +108,14 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('should load Spotify top artists when not yet cached', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
             mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue('token_123')
 
             const originalFetch = global.fetch
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => ({
                     items: [{ id: 'artist_1', name: 'Test Artist' }],
@@ -130,7 +133,7 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('should respect maxSuggestions limit', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
 
             const manyPrefs = Array.from({ length: 15 }, (_, i) => ({
                 spotifyId: `artist_${i}`,
@@ -142,8 +145,8 @@ describe('ArtistSuggestionService', () => {
             mockPrisma.userArtistPreference.findMany.mockResolvedValue(
                 manyPrefs,
             )
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue(null)
 
             const suggestions = await service.getSuggestions('user_123')
@@ -154,9 +157,9 @@ describe('ArtistSuggestionService', () => {
 
     describe('handleGetSuggestions', () => {
         test('should throw 401 when discordUserId is missing', async () => {
-            const error = await service
+            const error = (await service
                 .handleGetSuggestions(undefined)
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(401)
@@ -164,30 +167,30 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('should throw 503 when Spotify not configured', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(false)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(false)
 
-            const error = await service
+            const error = (await service
                 .handleGetSuggestions('user_123')
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(503)
         })
 
         test('should throw 503 when suggestions are empty', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
             mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue(null)
 
             const { searchSpotifyArtists } = await import('@lucky/shared/utils')
-            ;(searchSpotifyArtists as jest.Mock).mockResolvedValue([])
-            ;(getSpotifyClientToken as jest.Mock).mockResolvedValue(null)
+            jest.mocked(searchSpotifyArtists).mockResolvedValue([])
+            jest.mocked(getSpotifyClientToken).mockResolvedValue(null)
 
-            const error = await service
+            const error = (await service
                 .handleGetSuggestions('user_123')
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(503)
@@ -195,7 +198,7 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('should return suggestions when all conditions met', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
 
             const mockPref = {
                 spotifyId: 'artist_1',
@@ -207,8 +210,8 @@ describe('ArtistSuggestionService', () => {
             mockPrisma.userArtistPreference.findMany.mockResolvedValue([
                 mockPref,
             ])
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue(null)
 
             const suggestions = await service.handleGetSuggestions('user_123')
@@ -221,15 +224,15 @@ describe('ArtistSuggestionService', () => {
             // getSuggestions itself swallows per-tier failures, so force it to
             // reject directly — this is the only way to exercise the outer
             // catch-all in handleGetSuggestions (where captureException lives).
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
             const boom = new Error('unexpected: getSuggestions blew up')
             const getSuggestionsSpy = jest
                 .spyOn(service, 'getSuggestions')
                 .mockRejectedValue(boom)
 
-            const error = await service
+            const error = (await service
                 .handleGetSuggestions('user_123')
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             // 503 (not 500) to the client...
             expect(error).toBeInstanceOf(AppError)
@@ -248,19 +251,19 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('does NOT captureException on expected empty-result unavailability', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
             mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue(null)
-            ;(getSpotifyClientToken as jest.Mock).mockResolvedValue(null)
+            jest.mocked(getSpotifyClientToken).mockResolvedValue(null)
 
             const { searchSpotifyArtists } = await import('@lucky/shared/utils')
-            ;(searchSpotifyArtists as jest.Mock).mockResolvedValue([])
+            jest.mocked(searchSpotifyArtists).mockResolvedValue([])
 
-            const error = await service
+            const error = (await service
                 .handleGetSuggestions('user_123')
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(503)
@@ -271,7 +274,9 @@ describe('ArtistSuggestionService', () => {
 
     describe('handleSearchArtists', () => {
         test('should throw 400 when query is empty', async () => {
-            const error = await service.handleSearchArtists('').catch((e) => e)
+            const error = (await service
+                .handleSearchArtists('')
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(400)
@@ -279,34 +284,34 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('should throw 503 when Spotify not configured', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(false)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(false)
 
-            const error = await service
+            const error = (await service
                 .handleSearchArtists('test')
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(503)
         })
 
         test('should throw 503 when Spotify token unavailable', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
-            ;(getSpotifyClientToken as jest.Mock).mockResolvedValue(null)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
+            jest.mocked(getSpotifyClientToken).mockResolvedValue(null)
 
-            const error = await service
+            const error = (await service
                 .handleSearchArtists('test')
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(503)
         })
 
         test('should return search results', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
-            ;(getSpotifyClientToken as jest.Mock).mockResolvedValue('token_123')
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
+            jest.mocked(getSpotifyClientToken).mockResolvedValue('token_123')
 
             const { searchSpotifyArtists } = await import('@lucky/shared/utils')
-            ;(searchSpotifyArtists as jest.Mock).mockResolvedValue([
+            jest.mocked(searchSpotifyArtists).mockResolvedValue([
                 mockSpotifyArtist,
             ])
 
@@ -323,9 +328,9 @@ describe('ArtistSuggestionService', () => {
 
     describe('handleGetRelatedArtists', () => {
         test('should throw 400 when artistId is missing', async () => {
-            const error = await service
+            const error = (await service
                 .handleGetRelatedArtists(undefined)
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(400)
@@ -333,23 +338,23 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('should throw 503 when Spotify not configured', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(false)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(false)
 
-            const error = await service
+            const error = (await service
                 .handleGetRelatedArtists('artist_1')
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(503)
         })
 
         test('should return related artists', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
-            ;(getSpotifyClientToken as jest.Mock).mockResolvedValue('token_123')
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
+            jest.mocked(getSpotifyClientToken).mockResolvedValue('token_123')
 
             const { getSpotifyRelatedArtists } =
                 await import('@lucky/shared/utils')
-            ;(getSpotifyRelatedArtists as jest.Mock).mockResolvedValue([
+            jest.mocked(getSpotifyRelatedArtists).mockResolvedValue([
                 mockSpotifyArtist,
             ])
 
@@ -365,9 +370,9 @@ describe('ArtistSuggestionService', () => {
 
     describe('handleGetPreferredArtists', () => {
         test('should throw 401 when discordUserId is missing', async () => {
-            const error = await service
+            const error = (await service
                 .handleGetPreferredArtists(undefined, undefined)
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(401)
@@ -409,18 +414,18 @@ describe('ArtistSuggestionService', () => {
 
     describe('handleSavePreferredArtist', () => {
         test('should throw 401 when discordUserId is missing', async () => {
-            const error = await service
+            const error = (await service
                 .handleSavePreferredArtist(undefined, {})
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(401)
         })
 
         test('should throw 400 on invalid body', async () => {
-            const error = await service
+            const error = (await service
                 .handleSavePreferredArtist('user_123', { guildId: 'guild_1' })
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(400)
@@ -498,13 +503,13 @@ describe('ArtistSuggestionService', () => {
         test.each(['!!!', '\u0301\u0308'])(
             'should throw 400 when the name %j has no letters or digits',
             async (name) => {
-                const error = await service
+                const error = (await service
                     .handleSavePreferredArtist('user_123', {
                         guildId: 'guild_1',
                         artistKey: name,
                         artistName: name,
                     })
-                    .catch((e) => e)
+                    .catch((e: unknown) => e)) as AppError
 
                 expect(error).toBeInstanceOf(AppError)
                 expect(error.statusCode).toBe(400)
@@ -517,21 +522,21 @@ describe('ArtistSuggestionService', () => {
 
     describe('handleBatchSavePreferences', () => {
         test('should throw 401 when discordUserId is missing', async () => {
-            const error = await service
+            const error = (await service
                 .handleBatchSavePreferences(undefined, {
                     guildId: 'g1',
                     items: [],
                 })
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(401)
         })
 
         test('should throw 400 on invalid body', async () => {
-            const error = await service
+            const error = (await service
                 .handleBatchSavePreferences('user_123', { items: [] })
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(400)
@@ -613,18 +618,18 @@ describe('ArtistSuggestionService', () => {
 
     describe('handleDeletePreferredArtist', () => {
         test('should throw 401 when discordUserId is missing', async () => {
-            const error = await service
+            const error = (await service
                 .handleDeletePreferredArtist(undefined, 'key', 'guild')
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(401)
         })
 
         test('should throw 400 when artistKey is missing', async () => {
-            const error = await service
+            const error = (await service
                 .handleDeletePreferredArtist('user_123', undefined, 'guild')
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(400)
@@ -632,9 +637,9 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('should throw 400 when guildId is missing', async () => {
-            const error = await service
+            const error = (await service
                 .handleDeletePreferredArtist('user_123', 'key', undefined)
-                .catch((e) => e)
+                .catch((e: unknown) => e)) as AppError
 
             expect(error).toBeInstanceOf(AppError)
             expect(error.statusCode).toBe(400)
@@ -666,7 +671,7 @@ describe('ArtistSuggestionService', () => {
 
     describe('prewarmCache', () => {
         test('should skip when Spotify not configured', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(false)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(false)
 
             await service.prewarmCache()
 
@@ -674,22 +679,22 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('should not refetch once the in-memory fallback cache is warm', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
-            ;(getSpotifyClientToken as jest.Mock).mockResolvedValue('token_123')
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
+            jest.mocked(getSpotifyClientToken).mockResolvedValue('token_123')
 
             const { searchSpotifyArtists } = await import('@lucky/shared/utils')
-            ;(searchSpotifyArtists as jest.Mock).mockResolvedValue([
+            jest.mocked(searchSpotifyArtists).mockResolvedValue([
                 mockSpotifyArtist,
             ])
 
             await service.prewarmCache()
-            const callsAfterWarm = (searchSpotifyArtists as jest.Mock).mock
-                .calls.length
+            const callsAfterWarm =
+                jest.mocked(searchSpotifyArtists).mock.calls.length
             expect(callsAfterWarm).toBeGreaterThan(0)
 
             // Second prewarm finds the cache warm and performs no Spotify search.
             await service.prewarmCache()
-            expect((searchSpotifyArtists as jest.Mock).mock.calls.length).toBe(
+            expect(jest.mocked(searchSpotifyArtists).mock.calls.length).toBe(
                 callsAfterWarm,
             )
         })
@@ -697,15 +702,15 @@ describe('ArtistSuggestionService', () => {
 
     describe('cache behavior', () => {
         test('serves the expired popular list while it refreshes in the background (LUCKY-7C)', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
-            ;(getSpotifyClientToken as jest.Mock).mockResolvedValue('token_123')
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
+            jest.mocked(getSpotifyClientToken).mockResolvedValue('token_123')
             mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue(null)
 
             const { searchSpotifyArtists } = await import('@lucky/shared/utils')
-            const search = searchSpotifyArtists as jest.Mock
+            const search = jest.mocked(searchSpotifyArtists)
             search.mockResolvedValue([mockSpotifyArtist])
             await service.prewarmCache()
 
@@ -753,15 +758,15 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('an empty refresh keeps serving the old list without sweeping again per request', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
-            ;(getSpotifyClientToken as jest.Mock).mockResolvedValue('token_123')
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
+            jest.mocked(getSpotifyClientToken).mockResolvedValue('token_123')
             mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue(null)
 
             const { searchSpotifyArtists } = await import('@lucky/shared/utils')
-            const search = searchSpotifyArtists as jest.Mock
+            const search = jest.mocked(searchSpotifyArtists)
             search.mockResolvedValue([mockSpotifyArtist])
             await service.prewarmCache()
 
@@ -790,14 +795,14 @@ describe('ArtistSuggestionService', () => {
         })
 
         test('caches user top artists in-memory and skips refetch on repeat calls', async () => {
-            ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
+            jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
             mockPrisma.userArtistPreference.findMany.mockResolvedValue([])
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue('token_123')
 
             const originalFetch = global.fetch
-            const fetch = jest.fn().mockResolvedValue({
+            const fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => ({
                     items: [
@@ -882,7 +887,7 @@ describe('ArtistSuggestionService', () => {
 
             try {
                 ;(spotifyLinkService as any).getValidAccessToken = jest
-                    .fn()
+                    .fn<AsyncMockFn>()
                     .mockResolvedValue('test-token')
                 const suggestions = await service.getSuggestions('user_123')
 

@@ -8,6 +8,7 @@ import {
 } from '@jest/globals'
 import { guildService, setBotClient } from '../../../src/services/GuildService'
 import type { Client, Guild, Role } from 'discord.js'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 const originalFetch = global.fetch
 
@@ -140,7 +141,7 @@ describe('GuildService - Role Write Operations Error Handling', () => {
                 managed: false,
             }
 
-            const fetchMock = jest.fn().mockResolvedValue({
+            const fetchMock = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => restRole,
             } as never)
@@ -250,7 +251,7 @@ describe('GuildService - Role Write Operations Error Handling', () => {
             setBotClient(null)
             process.env.DISCORD_TOKEN = 'test-bot-token'
 
-            const fetchMock = jest.fn().mockResolvedValue({
+            const fetchMock = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
             } as never)
             global.fetch = fetchMock as unknown as typeof fetch
@@ -328,7 +329,7 @@ describe('GuildService - Role Write Operations Error Handling', () => {
                 managed: false,
             }
 
-            const fetchMock = jest.fn().mockResolvedValue({
+            const fetchMock = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => restRole,
             } as never)
