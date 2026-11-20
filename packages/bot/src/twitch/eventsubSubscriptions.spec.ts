@@ -933,7 +933,23 @@ describe('eventsubSubscriptions', () => {
                 },
             }
 
-            await handleChannelRaid(payload as any, mockClient as Client)
+            // Simulate a pt-BR host: the default locale groups with a dot, so
+            // only a handler that pins the locale yields "1,234".
+            const original = Number.prototype.toLocaleString
+            const localeSpy = jest
+                .spyOn(Number.prototype, 'toLocaleString')
+                .mockImplementation(function (
+                    this: number,
+                    locales?: Intl.LocalesArgument,
+                    options?: Intl.NumberFormatOptions,
+                ) {
+                    return original.call(this, locales ?? 'pt-BR', options)
+                })
+            try {
+                await handleChannelRaid(payload as any, mockClient as Client)
+            } finally {
+                localeSpy.mockRestore()
+            }
 
             const sendCall = jest.mocked(mockChannel.send).mock.calls[0]
             const embed = sendCall[0].embeds[0]
