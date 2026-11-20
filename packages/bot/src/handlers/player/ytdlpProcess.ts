@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import type { ChildProcess } from 'node:child_process'
 import { accessSync, constants, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,6 +8,7 @@ import type { Readable } from 'node:stream'
 import { infoLog, warnLog } from '@lucky/shared/utils'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
+import { ytdlpLiveProcesses } from '../../utils/monitoring/prometheus'
 import {
     classifyYtDlpFailure,
     countYtDlpFailure,
@@ -465,14 +467,7 @@ function spawnYtDlp(
             { stdio: ['ignore', 'pipe', 'pipe'], cwd: workDir },
         )
         proc.once('close', removeWorkDir)
-        // 'exit' comes before stdio closes, and the stream handed to the
-        // player can close in between: no kill for a process already gone.
-        let exited = false
-        const markExited = () => {
-            exited = true
-        }
-        proc.once('exit', markExited)
-        proc.once('close', markExited)
+        const kill = trackYtDlpChild(proc)
 
         // On every attempt this fires, the caller still has to wait out the
         // full duration before falling back to SoundCloud, so a long timeout
@@ -484,7 +479,7 @@ function spawnYtDlp(
         const delayMs = Math.max(0, timeoutMs - spawnMs)
         const dueAt = performance.now() + delayMs
         const timeout = setTimeout(() => {
-            proc.kill()
+            kill()
             reject(
                 Object.assign(
                     new Error('yt-dlp: timed out waiting for stream start'),
@@ -513,9 +508,7 @@ function spawnYtDlp(
                 settled = true
                 clearTimeout(timeout)
                 const through = new PassThrough()
-                stopWhenAbandoned(through, () => {
-                    if (!exited) proc.kill()
-                })
+                stopWhenAbandoned(through, kill)
                 through.write(firstChunk)
                 assertDefined(
                     proc.stdout,
@@ -530,7 +523,7 @@ function spawnYtDlp(
             if (settled) return
             settled = true
             clearTimeout(timeout)
-            proc.kill()
+            kill()
             reject(err)
         })
 
@@ -553,25 +546,77 @@ function spawnYtDlp(
     })
 }
 
+// SIGTERM alone is not enough: a yt-dlp blocked on a full pipe, or one whose
+// ffmpeg child holds the download, can outlive it (#3119).
+export const YTDLP_KILL_ESCALATION_MS = 3_000
+
+/**
+ * Counts the child in the live-process gauge and returns its kill switch:
+ * SIGTERM once, then SIGKILL if the process is still there after
+ * YTDLP_KILL_ESCALATION_MS. A no-op once the process is gone.
+ */
+function trackYtDlpChild(proc: ChildProcess): () => void {
+    // 'exit' comes before stdio closes, and the stream handed to the player
+    // can close in between: no kill for a process already gone. A failed
+    // spawn emits 'error' and may never emit 'exit'.
+    let gone = false
+    let killed = false
+    let force: ReturnType<typeof setTimeout> | undefined
+    ytdlpLiveProcesses.inc()
+    const markGone = () => {
+        if (gone) return
+        gone = true
+        clearTimeout(force)
+        ytdlpLiveProcesses.dec()
+    }
+    proc.once('exit', markGone)
+    proc.once('close', markGone)
+    proc.once('error', markGone)
+    return () => {
+        if (gone || killed) return
+        killed = true
+        proc.kill()
+        force = setTimeout(() => proc.kill('SIGKILL'), YTDLP_KILL_ESCALATION_MS)
+        force.unref()
+    }
+}
+
+// Every caller hands the stream to the player at once, which pipes it into
+// ffmpeg within the same play. A stream still unread after this long belongs
+// to a track that was skipped or stopped while it resolved.
+export const YTDLP_UNREAD_STREAM_GRACE_MS = 30_000
+
 // When a track ends early (skip, stop, a new filter), discord-player destroys
 // its ffmpeg transcoder, which only unpipes this stream. Nothing reads it any
 // more, yt-dlp blocks on a full pipe and stays alive holding ~57MB: prod
 // gathered 29 of them in 3h and the container hit its memory limit (OOM kill
 // 2026-11-09 23:54Z). An unpipe leaves no data listener; a paused playback
 // (backpressure) keeps its listener, so pausing never stops the stream.
+//
+// The unpipe is watched through the listener removal, not through 'pause': a
+// playing stream sits in backpressure nearly all the time, so it is already
+// paused when the reader goes away and no 'pause' fires (#3119: 4 of 6 yt-dlp
+// children orphaned 24 min after a restart, all from tracks that had played).
 function stopWhenAbandoned(stream: PassThrough, onAbandon: () => void): void {
     let stopped = false
     const stop = () => {
         if (stopped) return
         stopped = true
+        clearTimeout(unread)
         onAbandon()
     }
-    stream.on('pause', () => {
-        setImmediate(() => {
-            if (stream.listenerCount('data') > 0 || stream.destroyed) return
-            stop()
-            stream.destroy()
-        })
+    const stopIfUnread = () => {
+        if (stream.listenerCount('data') > 0 || stream.destroyed) return
+        stop()
+        stream.destroy()
+    }
+    const unread = setTimeout(() => {
+        if (!stream.readableDidRead) stopIfUnread()
+    }, YTDLP_UNREAD_STREAM_GRACE_MS)
+    unread.unref()
+    stream.on('pause', () => setImmediate(stopIfUnread))
+    stream.on('removeListener', (event) => {
+        if (event === 'data') setImmediate(stopIfUnread)
     })
     stream.once('close', stop)
 }
@@ -624,6 +669,7 @@ export function searchYtDlpCandidates(
             ],
             { stdio: ['ignore', 'pipe', 'pipe'], cwd: tmpdir() },
         )
+        const kill = trackYtDlpChild(proc)
 
         let settled = false
         const finish = (error: Error | null, result?: YtSearchCandidate[]) => {
@@ -635,7 +681,7 @@ export function searchYtDlpCandidates(
         }
 
         const timeout = setTimeout(() => {
-            proc.kill()
+            kill()
             finish(new Error('yt-dlp: timed out resolving search results'))
         }, YTDLP_SEARCH_RESOLVE_TIMEOUT_MS)
 
@@ -657,7 +703,7 @@ export function searchYtDlpCandidates(
         )
 
         proc.once('error', (err) => {
-            proc.kill()
+            kill()
             finish(err)
         })
 

@@ -201,6 +201,17 @@ export const playRescuedTotal = new Counter({
 })
 playRescuedTotal.inc(0)
 
+/**
+ * Gauge: yt-dlp child processes spawned by the bot that have not exited yet.
+ * One per playing stream plus the ones still resolving; a value that only
+ * grows is a process leak (#3119).
+ */
+export const ytdlpLiveProcesses = new Gauge({
+    name: 'lucky_bot_ytdlp_live_processes',
+    help: 'yt-dlp child processes spawned by the bot that have not exited yet.',
+    registers: [registry],
+})
+
 /** Counter: command events lost before reaching the database (reason: overflow|flush_failure|stopped|internal_error). */
 export const commandEventsDroppedTotal = new Counter<'reason'>({
     name: 'lucky_bot_command_events_dropped_total',
