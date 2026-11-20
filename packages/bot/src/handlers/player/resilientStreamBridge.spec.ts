@@ -47,10 +47,13 @@ const mockSoundCloudMatch = jest.fn(() => ({
 }))
 const mockStreamSoundCloudTrack = jest.fn()
 jest.mock('./soundcloudMatcher', () => ({
-    resolveViaSoundCloud: async (...args: unknown[]) => ({
-        stream: await mockStreamViaSoundCloud(...args),
-        match: mockSoundCloudMatch(),
-    }),
+    // The real resolver throws when nothing matches; an unconfigured mock
+    // must not look like a SoundCloud hit now that SoundCloud races yt-dlp.
+    resolveViaSoundCloud: async (...args: unknown[]) => {
+        const stream = await mockStreamViaSoundCloud(...args)
+        if (!stream) throw new Error('no SoundCloud match')
+        return { stream, match: mockSoundCloudMatch() }
+    },
     streamSoundCloudTrack: (...args: unknown[]) =>
         mockStreamSoundCloudTrack(...args),
 }))
@@ -154,6 +157,9 @@ import {
 // Suite-wide: every test starts as a Spotify cache miss unless it says
 // otherwise. clearAllMocks in the describe-level hooks keeps this default.
 beforeEach(() => {
+    // yt-dlp and SoundCloud race (#2871): a SoundCloud stream left over from
+    // an earlier test would win against the yt-dlp stage under test.
+    mockStreamViaSoundCloud.mockReset()
     mockGetSpotifySource.mockResolvedValue(null)
     mockEnsureSpotifyIsrc.mockResolvedValue(null)
 })
@@ -188,7 +194,16 @@ function makeTrack(
     }
 }
 
-const fakeStream = new EventEmitter() as any
+const fakeStream = Object.assign(new EventEmitter(), {
+    destroy: jest.fn(),
+}) as any
+
+// SoundCloud answers only after the other race arm has settled.
+const soundCloudAnswersLate = () =>
+    mockStreamViaSoundCloud.mockImplementation(
+        () =>
+            new Promise((resolve) => setTimeout(() => resolve(fakeStream), 30)),
+    )
 
 // A search hit that passes validation for makeTrack()'s defaults.
 function hit(
@@ -239,6 +254,7 @@ describe('createResilientStream', () => {
             await createResilientStream(makeTrack({ url: 'https://y/ok' }))
             expect(stageCalls()).toEqual([
                 { stage: 'ytdlp_url', outcome: 'ok' },
+                { stage: 'soundcloud_full', outcome: 'fail' },
                 { stage: 'bridge_total', outcome: 'ok' },
             ])
             for (const call of mockObserve.mock.calls) {
@@ -264,6 +280,7 @@ describe('createResilientStream', () => {
                 makeTrack({ url: 'https://open.spotify.com/track/1' }),
             )
             expect(stageCalls()).toEqual([
+                { stage: 'soundcloud_full', outcome: 'fail' },
                 { stage: 'ytdlp_search', outcome: 'ok' },
                 { stage: 'bridge_total', outcome: 'ok' },
             ])
@@ -958,6 +975,7 @@ describe('Spotify source cache', () => {
 
         expect(mockObserve.mock.calls.map((c) => c[0])).toEqual([
             { stage: 'ytdlp_search', outcome: 'ok' },
+            { stage: 'soundcloud_full', outcome: 'fail' },
             { stage: 'bridge_total', outcome: 'ok' },
         ])
         expect(mockRecordYtDlpSuccess).toHaveBeenCalledTimes(1)
@@ -974,12 +992,14 @@ describe('Spotify source cache', () => {
 
         expect(mockObserve.mock.calls.map((c) => c[0])).toEqual([
             { stage: 'ytdlp_search', outcome: 'fail' },
+            { stage: 'soundcloud_full', outcome: 'fail' },
             { stage: 'ytdlp_search', outcome: 'ok' },
+            { stage: 'soundcloud_title', outcome: 'fail' },
             { stage: 'bridge_total', outcome: 'ok' },
         ])
     })
 
-    it('writes a negative entry when the stale URL and the fresh search both fail', async () => {
+    it('skips the negative entry when SoundCloud wins the race after a failed yt-dlp arm', async () => {
         mockGetSpotifySource.mockResolvedValueOnce(cachedYt)
         mockStreamViaYtDlp.mockRejectedValueOnce(new Error('stale'))
         mockSearchYtDlpCandidates.mockResolvedValue([])
@@ -988,12 +1008,9 @@ describe('Spotify source cache', () => {
         const result = await createResilientStream(spotifyTrack())
 
         expect(result).toBe(fakeStream)
-        expect(mockSetSpotifySourceNegative).toHaveBeenCalledTimes(1)
-        expect(mockSetSpotifySourceNegative).toHaveBeenCalledWith(
-            spotifyUrl,
-            null,
-        )
-        // The SoundCloud match that played replaces the negative entry.
+        // SoundCloud answered, so the track is playable: no negative entry.
+        expect(mockSetSpotifySourceNegative).not.toHaveBeenCalled()
+        // The SoundCloud match that played is cached instead.
         expect(mockSetSpotifySource).toHaveBeenCalledTimes(1)
         expect(mockSetSpotifySource).toHaveBeenCalledWith(
             spotifyUrl,
@@ -1183,7 +1200,12 @@ describe('Spotify source cache', () => {
             mockGetSpotifySource.mockResolvedValueOnce(cachedYt)
             mockStreamViaYtDlp.mockRejectedValue(new Error('Video unavailable'))
             mockSearchYtDlpCandidates.mockResolvedValue([])
-            mockStreamViaSoundCloud.mockResolvedValueOnce(fakeStream)
+            // Both race arms fail (full + title search); only the core search plays.
+            mockExtractSongCore.mockReturnValue('Core')
+            mockStreamViaSoundCloud
+                .mockRejectedValueOnce(new Error('sc full'))
+                .mockRejectedValueOnce(new Error('sc title'))
+                .mockResolvedValueOnce(fakeStream)
 
             await createResilientStream(spotifyTrack())
 
@@ -1248,7 +1270,8 @@ describe('empty YouTube search retry', () => {
         mockExtractSongCore.mockReturnValue(null)
         mockIsAvailable.mockReturnValue(true)
         mockIsYtDlpBlocked.mockReturnValue(false)
-        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+        // SoundCloud finds nothing, so the yt-dlp arm decides these cases.
+        mockStreamViaSoundCloud.mockResolvedValue(null)
         mockStreamViaYtDlp.mockResolvedValue(fakeStream)
     })
 
@@ -1267,12 +1290,17 @@ describe('empty YouTube search retry', () => {
         expect(mockSearchYtDlpCandidates.mock.calls[1][0]).toBe(
             'Tempo Nerissima',
         )
-        expect(mockStreamViaSoundCloud).not.toHaveBeenCalled()
-        expect(mockObserve.mock.calls.map((c) => c[0])).toEqual([
-            { stage: 'ytdlp_search', outcome: 'fail' },
-            { stage: 'ytdlp_search_broad', outcome: 'ok' },
-            { stage: 'bridge_total', outcome: 'ok' },
-        ])
+        const observed = mockObserve.mock.calls.map((c) => c[0])
+        expect(observed).toEqual(
+            expect.arrayContaining([
+                { stage: 'ytdlp_search', outcome: 'fail' },
+                { stage: 'ytdlp_search_broad', outcome: 'ok' },
+            ]),
+        )
+        expect(observed.at(-1)).toEqual({
+            stage: 'bridge_total',
+            outcome: 'ok',
+        })
     })
 
     it('caches the broad search hit for the Spotify track', async () => {
@@ -1327,6 +1355,7 @@ describe('empty YouTube search retry', () => {
     })
 
     it('caches no YouTube match when the broad retry is empty too', async () => {
+        soundCloudAnswersLate()
         mockSearchYtDlpCandidates.mockResolvedValue([])
 
         await createResilientStream(spotifyTrack())
@@ -1339,6 +1368,7 @@ describe('empty YouTube search retry', () => {
 
     it('falls back to SoundCloud when the broad retry is empty too', async () => {
         mockSearchYtDlpCandidates.mockResolvedValue([])
+        soundCloudAnswersLate()
 
         const result = await createResilientStream(spotifyTrack())
 
@@ -1392,6 +1422,7 @@ describe('empty YouTube search retry', () => {
     })
 
     it('logs the empty search as a retry, not a SoundCloud fallback', async () => {
+        soundCloudAnswersLate()
         mockSearchYtDlpCandidates
             .mockResolvedValueOnce([])
             .mockResolvedValueOnce(found('Tempo'))
@@ -1430,6 +1461,7 @@ describe('empty YouTube search retry', () => {
     })
 
     it('does not retry on a 403', async () => {
+        soundCloudAnswersLate()
         mockSearchYtDlpCandidates.mockRejectedValue(
             new Error('HTTP Error 403: Forbidden'),
         )
@@ -1766,6 +1798,13 @@ describe('YouTube search hit validation', () => {
             hit({ id: 'radio1', channel: 'Musicolor Radio' }),
             hit({ id: 'other1', title: 'Another Song' }),
         ])
+        // SoundCloud answers after the yt-dlp arm has settled.
+        mockStreamViaSoundCloud.mockImplementation(
+            () =>
+                new Promise((resolve) =>
+                    setTimeout(() => resolve(fakeStream), 30),
+                ),
+        )
 
         await expect(createResilientStream(spotifyTrack())).resolves.toBe(
             fakeStream,
@@ -1841,7 +1880,8 @@ describe('youtubei native stage', () => {
         mockSearchYtDlpCandidates.mockRejectedValue(
             new Error("Sign in to confirm you're not a bot"),
         )
-        mockStreamViaSoundCloud.mockResolvedValue(fakeStream)
+        // SoundCloud races yt-dlp first; youtubei only runs once both fail.
+        mockStreamViaSoundCloud.mockResolvedValue(null)
     })
 
     afterAll(() => {
@@ -1856,16 +1896,21 @@ describe('youtubei native stage', () => {
 
         expect(mockStreamViaYoutubei).toHaveBeenCalledWith('abcdefghijk')
         expect(mockSearchYoutubeiCandidates).not.toHaveBeenCalled()
-        expect(mockStreamViaSoundCloud).not.toHaveBeenCalled()
         expect(mockStampBridgeSource).toHaveBeenCalledWith(
             track,
             'youtubei-native',
         )
-        expect(stageCalls()).toEqual([
-            { stage: 'ytdlp_url', outcome: 'fail' },
+        const observed = stageCalls()
+        expect(observed.slice(-2)).toEqual([
             { stage: 'youtubei_native', outcome: 'ok' },
             { stage: 'bridge_total', outcome: 'ok' },
         ])
+        expect(observed).toEqual(
+            expect.arrayContaining([
+                { stage: 'ytdlp_url', outcome: 'fail' },
+                { stage: 'soundcloud_full', outcome: 'fail' },
+            ]),
+        )
         expect(mockInfoLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Bridge: streamed via youtubei',
@@ -1911,17 +1956,22 @@ describe('youtubei native stage', () => {
         expect(mockSearchYtDlpCandidates).not.toHaveBeenCalled()
     })
 
-    it('falls to SoundCloud when youtubei fails, and lists the stage when all exhaust', async () => {
+    it('falls to the SoundCloud core search when youtubei fails, and lists the stage when all exhaust', async () => {
         mockStreamViaYoutubei.mockRejectedValue(
             new Error('youtubei stream timed out after 8000ms'),
         )
+        mockExtractSongCore.mockReturnValue('Core')
+        mockStreamViaSoundCloud
+            .mockRejectedValueOnce(new Error('sc full'))
+            .mockRejectedValueOnce(new Error('sc title'))
+            .mockResolvedValueOnce(fakeStream)
         await expect(createResilientStream(youtubeTrack())).resolves.toBe(
             fakeStream,
         )
         expect(mockStampBridgeSource).not.toHaveBeenCalled()
         expect(mockStampFallbackStage).toHaveBeenCalledWith(
             expect.anything(),
-            'soundcloud-full',
+            'soundcloud-core',
         )
         expect(mockWarnLog).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -1930,6 +1980,8 @@ describe('youtubei native stage', () => {
         )
 
         jest.clearAllMocks()
+        mockExtractSongCore.mockReturnValue(null)
+        mockStreamViaSoundCloud.mockReset()
         mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
         await expect(createResilientStream(youtubeTrack())).rejects.toThrow(
             'Bridge exhausted',
@@ -1942,10 +1994,15 @@ describe('youtubei native stage', () => {
         ])
     })
 
-    it('falls to SoundCloud when no youtubei search hit validates', async () => {
+    it('falls to the SoundCloud core search when no youtubei search hit validates', async () => {
         mockSearchYoutubeiCandidates.mockResolvedValue([
             hit({ id: 'radio1', channel: 'Musicolor Radio' }),
         ])
+        mockExtractSongCore.mockReturnValue('Core')
+        mockStreamViaSoundCloud
+            .mockRejectedValueOnce(new Error('sc full'))
+            .mockRejectedValueOnce(new Error('sc title'))
+            .mockResolvedValueOnce(fakeStream)
 
         await expect(createResilientStream(spotifyTrack())).resolves.toBe(
             fakeStream,
@@ -1958,6 +2015,7 @@ describe('youtubei native stage', () => {
     })
 
     it('skips the youtubei search when the yt-dlp search found no valid hit', async () => {
+        soundCloudAnswersLate()
         mockSearchYtDlpCandidates.mockResolvedValue([
             hit({ id: 'long1', durationSec: 400 }),
         ])
@@ -2029,5 +2087,159 @@ describe('createResilientStream inside a synthetic play probe (#2920)', () => {
             }),
         )
         expect(mockObserve).not.toHaveBeenCalled()
+    })
+})
+
+describe('yt-dlp and SoundCloud race (#2871)', () => {
+    const track = () => makeTrack({ url: 'https://y/race' })
+    const stageCalls = () =>
+        mockObserve.mock.calls.map(
+            (c) => c[0] as { stage: string; outcome: string },
+        )
+    const makeStream = () =>
+        Object.assign(new EventEmitter(), { destroy: jest.fn() }) as any
+    const defer = () => {
+        let resolve!: (value: unknown) => void
+        let reject!: (error: unknown) => void
+        const promise = new Promise((res, rej) => {
+            resolve = res
+            reject = rej
+        })
+        return { promise, resolve, reject }
+    }
+    const flush = () => new Promise((resolve) => setImmediate(resolve))
+    let unhandled: unknown[]
+    const onUnhandled = (reason: unknown) => unhandled.push(reason)
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockStreamViaYtDlp.mockReset()
+        mockStreamViaSoundCloud.mockReset()
+        mockCleanTitle.mockReturnValue('Test Track')
+        mockCleanAuthor.mockReturnValue('Test Artist')
+        mockCleanSearchQuery.mockReturnValue('test track test artist')
+        mockExtractSongCore.mockReturnValue(null)
+        mockIsAvailable.mockReturnValue(true)
+        mockIsYtDlpBlocked.mockReturnValue(false)
+        unhandled = []
+        process.on('unhandledRejection', onUnhandled)
+    })
+
+    afterEach(() => {
+        process.off('unhandledRejection', onUnhandled)
+    })
+
+    it('uses SoundCloud when it answers first and destroys the late yt-dlp stream', async () => {
+        const yt = defer()
+        const sc = makeStream()
+        const ytStream = makeStream()
+        mockStreamViaYtDlp.mockReturnValue(yt.promise)
+        mockStreamViaSoundCloud.mockResolvedValue(sc)
+
+        await expect(createResilientStream(track())).resolves.toBe(sc)
+        expect(ytStream.destroy).not.toHaveBeenCalled()
+
+        yt.resolve(ytStream)
+        await flush()
+
+        expect(ytStream.destroy).toHaveBeenCalledTimes(1)
+        expect(sc.destroy).not.toHaveBeenCalled()
+        expect(unhandled).toEqual([])
+    })
+
+    it('uses yt-dlp when it answers first and destroys the late SoundCloud stream', async () => {
+        const sc = defer()
+        const scStream = makeStream()
+        const ytStream = makeStream()
+        mockStreamViaYtDlp.mockResolvedValue(ytStream)
+        mockStreamViaSoundCloud.mockReturnValue(sc.promise)
+
+        await expect(createResilientStream(track())).resolves.toBe(ytStream)
+
+        sc.resolve(scStream)
+        await flush()
+
+        expect(scStream.destroy).toHaveBeenCalledTimes(1)
+        expect(ytStream.destroy).not.toHaveBeenCalled()
+        expect(unhandled).toEqual([])
+    })
+
+    it('still awaits and uses SoundCloud when yt-dlp fails first', async () => {
+        const sc = defer()
+        const scStream = makeStream()
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt fail'))
+        mockStreamViaSoundCloud.mockReturnValue(sc.promise)
+
+        const result = createResilientStream(track())
+        await flush()
+        sc.resolve(scStream)
+
+        await expect(result).resolves.toBe(scStream)
+        expect(mockRecordYtDlpFailure).toHaveBeenCalledTimes(1)
+        expect(stageCalls()).toEqual([
+            { stage: 'ytdlp_url', outcome: 'fail' },
+            { stage: 'soundcloud_full', outcome: 'ok' },
+            { stage: 'bridge_total', outcome: 'ok' },
+        ])
+    })
+
+    it('still awaits and uses yt-dlp when SoundCloud fails first', async () => {
+        const yt = defer()
+        const ytStream = makeStream()
+        mockStreamViaYtDlp.mockReturnValue(yt.promise)
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
+
+        const result = createResilientStream(track())
+        await flush()
+        yt.resolve(ytStream)
+
+        await expect(result).resolves.toBe(ytStream)
+        expect(mockRecordYtDlpSuccess).toHaveBeenCalledTimes(1)
+        expect(mockRecordYtDlpFailure).not.toHaveBeenCalled()
+        expect(stageCalls()).toEqual([
+            { stage: 'soundcloud_full', outcome: 'fail' },
+            { stage: 'soundcloud_title', outcome: 'fail' },
+            { stage: 'ytdlp_url', outcome: 'ok' },
+            { stage: 'bridge_total', outcome: 'ok' },
+        ])
+    })
+
+    it('falls through to the exhausted path when both arms fail', async () => {
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt fail'))
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('sc fail'))
+
+        await expect(createResilientStream(track())).rejects.toThrow(
+            'Bridge exhausted',
+        )
+
+        expect(mockRecordYtDlpFailure).toHaveBeenCalledTimes(1)
+        expect(stageCalls().at(-1)).toEqual({
+            stage: 'bridge_total',
+            outcome: 'fail',
+        })
+        expect(unhandled).toEqual([])
+    })
+
+    it('does not leak an unhandled rejection when the loser fails late', async () => {
+        const yt = defer()
+        const sc = makeStream()
+        mockStreamViaYtDlp.mockReturnValue(yt.promise)
+        mockStreamViaSoundCloud.mockResolvedValue(sc)
+
+        await expect(createResilientStream(track())).resolves.toBe(sc)
+        yt.reject(new Error('late yt failure'))
+        await flush()
+        await flush()
+
+        expect(unhandled).toEqual([])
+    })
+
+    it('skips the race while yt-dlp is blocked', async () => {
+        const sc = makeStream()
+        mockStreamViaSoundCloud.mockResolvedValue(sc)
+        mockIsYtDlpBlocked.mockReturnValue(true)
+
+        await expect(createResilientStream(track())).resolves.toBe(sc)
+        expect(mockStreamViaYtDlp).not.toHaveBeenCalled()
     })
 })

@@ -68,6 +68,11 @@ import {
     type StreamBridgeFallbackStage,
 } from './streamFallbackState'
 import { isPlayProbe } from './probeContext'
+import {
+    claimStageResult,
+    raceStreams,
+    raceWonByAnotherArm,
+} from './bridgeRace'
 
 type BridgeTrack = Pick<
     Track,
@@ -170,6 +175,8 @@ function cacheResolution(
     if (!track.url || !isHost(track.url, 'open.spotify.com')) return
     if (isPlayProbe()) return
     if (keepCachedEntry.has(track)) return
+    // A race loser must not record itself as the source that played.
+    if (!claimStageResult()) return
     void setSpotifySource(track.url, resolution, trackIsrc(track))
 }
 
@@ -753,7 +760,7 @@ async function attemptSoundCloud(
             startedAt,
             'ok',
         )
-        stampFallbackStage(track, stageLabel)
+        if (claimStageResult()) stampFallbackStage(track, stageLabel)
         cacheResolution(track, soundCloudResolution(match, stageLabel))
         infoLog({
             message: 'Bridge: streamed via SoundCloud',
@@ -1147,10 +1154,74 @@ async function attemptSpotifyViaYtDlp(
     // either: remember that for 5 min instead of paying for the same two
     // failures on every replay. A SoundCloud match found below overwrites it.
     // A probe never writes the cache real plays read (#2920).
-    if (staleCache && !isPlayProbe()) {
+    // A SoundCloud match that won the race already replaced the entry.
+    if (staleCache && !isPlayProbe() && !raceWonByAnotherArm()) {
         await setSpotifySourceNegative(spotifyUrl, trackIsrc(track))
     }
     return null
+}
+
+// SoundCloud's full-query search, then the title-only one. A race loser skips
+// the second search: nothing it finds can be used.
+async function attemptSoundCloudSearches(
+    track: BridgeTrack,
+    cleanedTitle: string,
+    cleanedAuthor: string,
+    expectedArtists: readonly string[],
+): Promise<Readable | null> {
+    const fullSearchStream = await attemptSoundCloud(
+        cleanSearchQuery(cleanedTitle, cleanedAuthor),
+        track,
+        'soundcloud-full',
+        'Bridge: SoundCloud primary search failed, retrying with title only',
+        cleanedTitle,
+        expectedArtists,
+    )
+    if (fullSearchStream || raceWonByAnotherArm()) return fullSearchStream
+
+    return attemptSoundCloud(
+        cleanedTitle,
+        track,
+        'soundcloud-title',
+        'Bridge: title-only SoundCloud failed, retrying without parentheticals',
+        cleanedTitle,
+        expectedArtists,
+    )
+}
+
+// The yt-dlp stages and the SoundCloud searches, raced: see bridgeRace.
+function raceYtDlpAndSoundCloud(
+    track: BridgeTrack,
+    cleanedTitle: string,
+    cleanedAuthor: string,
+    isSpotifyUrl: boolean,
+    spotifyCache: SpotifyCacheRead,
+    expectedArtists: readonly string[],
+): Promise<Readable | null> {
+    return raceStreams([
+        {
+            name: 'yt-dlp',
+            run: () =>
+                isSpotifyUrl
+                    ? attemptSpotifyViaYtDlp(
+                          track,
+                          cleanedTitle,
+                          cleanedAuthor,
+                          spotifyCache,
+                      )
+                    : attemptYtDlpUrl(track, cleanedTitle),
+        },
+        {
+            name: 'soundcloud',
+            run: () =>
+                attemptSoundCloudSearches(
+                    track,
+                    cleanedTitle,
+                    cleanedAuthor,
+                    expectedArtists,
+                ),
+        },
+    ])
 }
 
 async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
@@ -1197,7 +1268,20 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         })
     }
 
-    if (!ytDlpBlocked && track.url && !isSpotifyUrl) {
+    // #2871: yt-dlp and SoundCloud run at once and the first stream wins,
+    // instead of paying yt-dlp's whole budget (8 s when it times out) before
+    // SoundCloud starts. Only when both can run: yt-dlp not blocked, a URL
+    // for it to resolve (not a SoundCloud URL: that is the exact track, a search
+    // would only add load), a title for SoundCloud to search, SoundCloud up.
+    const raceSoundCloud =
+        !ytDlpBlocked &&
+        Boolean(track.url) &&
+        !isHost(track.url, 'soundcloud.com') &&
+        Boolean(cleanedTitle) &&
+        providerHealthService.isAvailable('soundcloud')
+    const expectedArtists = soundCloudArtists(cleanedTitle, cleanedAuthor)
+
+    if (!ytDlpBlocked && track.url && !isSpotifyUrl && !raceSoundCloud) {
         const stream = await attemptYtDlpUrl(track, cleanedTitle)
         if (stream) return stream
         youtubeStages = ['yt-dlp-url']
@@ -1210,7 +1294,22 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         spotifyCache = read
     }
 
-    if (!ytDlpBlocked && isSpotifyUrl) {
+    if (raceSoundCloud) {
+        const stream = await raceYtDlpAndSoundCloud(
+            track,
+            cleanedTitle,
+            cleanedAuthor,
+            isSpotifyUrl,
+            spotifyCache,
+            expectedArtists,
+        )
+        if (stream) return stream
+        youtubeStages = isSpotifyUrl
+            ? broadSearchTried.has(track)
+                ? ['yt-dlp-search', 'yt-dlp-search-broad']
+                : ['yt-dlp-search']
+            : ['yt-dlp-url']
+    } else if (!ytDlpBlocked && isSpotifyUrl) {
         const stream = await attemptSpotifyViaYtDlp(
             track,
             cleanedTitle,
@@ -1267,26 +1366,16 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
         )
     }
 
-    const expectedArtists = soundCloudArtists(cleanedTitle, cleanedAuthor)
-    const fullSearchStream = await attemptSoundCloud(
-        cleanSearchQuery(cleanedTitle, cleanedAuthor),
-        track,
-        'soundcloud-full',
-        'Bridge: SoundCloud primary search failed, retrying with title only',
-        cleanedTitle,
-        expectedArtists,
-    )
-    if (fullSearchStream) return fullSearchStream
-
-    const titleOnlyStream = await attemptSoundCloud(
-        cleanedTitle,
-        track,
-        'soundcloud-title',
-        'Bridge: title-only SoundCloud failed, retrying without parentheticals',
-        cleanedTitle,
-        expectedArtists,
-    )
-    if (titleOnlyStream) return titleOnlyStream
+    // The race already ran the full and title-only searches.
+    if (!raceSoundCloud) {
+        const soundCloudStream = await attemptSoundCloudSearches(
+            track,
+            cleanedTitle,
+            cleanedAuthor,
+            expectedArtists,
+        )
+        if (soundCloudStream) return soundCloudStream
+    }
 
     const coreStream = await attemptCoreStageOrLogExhausted(
         track,
