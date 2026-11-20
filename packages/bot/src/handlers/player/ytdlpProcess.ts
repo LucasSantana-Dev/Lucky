@@ -213,11 +213,21 @@ function ytdlpPotProviderArgs(url: string): string[] {
 // default clients (tv_samsung, then mweb) now get a pre-roll ad and yt-dlp
 // waits it out (~5 s) before googlevideo serves the stream, so a start took
 // 7 to 13 s. visionos has no ad: measured 2.4 to 3.1 s on the same videos,
-// full file downloaded. default stays listed as the fallback for a video
-// visionos cannot serve.
-function ytdlpYoutubeClientArgs(url: string): string[] {
+// full file downloaded.
+//
+// #3170: a client list is not a fallback chain. With visionos,default yt-dlp
+// also fetched tv_samsung after visionos answered and then solved its JS
+// challenge in a fresh node process, on every spawn. Prod container
+// 2026-11-20, same video, 3 runs each: first byte 5.3 to 5.9 s against 2.0 to
+// 2.4 s with visionos alone, so loaded starts crossed the 8 s budget. When
+// visionos is refused, tv_samsung was refused too (LOGIN_REQUIRED on both),
+// and that sign-in failure goes to the cookies retry, which keeps default:
+// visionos takes no cookies, so the logged-in session needs the default
+// clients.
+function ytdlpYoutubeClientArgs(url: string, withCookies: boolean): string[] {
     if (!isYoutubeYtDlpTarget(url)) return []
-    return ['--extractor-args', 'youtube:player_client=visionos,default']
+    const clients = withCookies ? 'visionos,default' : 'visionos'
+    return ['--extractor-args', `youtube:player_client=${clients}`]
 }
 
 // #2141: the prior 6s budget (set by #2044) sat inside the normal latency
@@ -459,7 +469,7 @@ function spawnYtDlp(
                 '--no-progress',
                 '--js-runtimes',
                 `node:${process.execPath}`,
-                ...ytdlpYoutubeClientArgs(url),
+                ...ytdlpYoutubeClientArgs(url, cookiesArgs.length > 0),
                 ...ytdlpPotProviderArgs(url),
                 ...cookiesArgs,
                 url,

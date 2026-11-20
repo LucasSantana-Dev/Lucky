@@ -33,6 +33,8 @@ const translations: Record<string, string> = {
     inviteFailed: 'Failed to generate invite URL',
     noServersTitle: 'No servers yet',
     noServersDescription: 'Join a Discord server and Lucky will appear here.',
+    loadErrorTitle: 'Unable to load your servers',
+    retry: 'Retry',
 }
 
 vi.mock('react-i18next', () => ({
@@ -62,6 +64,8 @@ function mockStores({
     guilds = mockGuilds,
     user = mockUser,
     selectGuild = vi.fn(),
+    guildLoadError = null,
+    fetchGuilds = vi.fn(),
 }: any = {}) {
     vi.mocked(useGuildStore).mockImplementation((selector?: any) => {
         const state = {
@@ -69,8 +73,8 @@ function mockStores({
             selectedGuild: null,
             selectGuild,
             isLoading,
-            error: null,
-            fetchGuilds: vi.fn(),
+            guildLoadError,
+            fetchGuilds,
         }
         return typeof selector === 'function' ? selector(state) : state
     })
@@ -264,5 +268,34 @@ describe('ServersPage', () => {
         } finally {
             openSpy.mockRestore()
         }
+    })
+
+    test('shows an error with retry, not the empty state, when the load failed', async () => {
+        const fetchGuilds = vi.fn()
+        mockStores({
+            guilds: [],
+            fetchGuilds,
+            guildLoadError: { kind: 'network', message: 'Network down' },
+        })
+        render(
+            <MemoryRouter>
+                <ServersPage />
+            </MemoryRouter>,
+        )
+        expect(screen.getByRole('alert')).toHaveTextContent('Network down')
+        expect(screen.queryByText('No servers yet')).not.toBeInTheDocument()
+        await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+        expect(fetchGuilds).toHaveBeenCalledWith(true)
+    })
+
+    test('still shows the empty state when the load succeeded with no guilds', () => {
+        mockStores({ guilds: [] })
+        render(
+            <MemoryRouter>
+                <ServersPage />
+            </MemoryRouter>,
+        )
+        expect(screen.getByText('No servers yet')).toBeInTheDocument()
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     })
 })

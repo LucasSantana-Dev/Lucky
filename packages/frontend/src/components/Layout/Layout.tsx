@@ -83,7 +83,7 @@ function GuildChip() {
         <button
             type='button'
             onClick={() => navigate('/servers')}
-            className='lucky-focus-visible flex items-center gap-2 rounded-md border border-lucky-border bg-lucky-bg-secondary px-3 py-1.5 text-left transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary'
+            className='lucky-focus-visible flex min-w-0 items-center gap-2 rounded-md border border-lucky-border bg-lucky-bg-secondary px-2.5 py-1.5 text-left sm:px-3 transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary'
             aria-label={t('common.activeServerAriaLabel', {
                 name: selectedGuild.name,
             })}
@@ -102,7 +102,7 @@ function GuildChip() {
                     {selectedGuild.name.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
             </Avatar>
-            <p className='type-body-sm truncate max-w-[140px] text-lucky-text-primary'>
+            <p className='type-body-sm truncate max-w-[72px] text-lucky-text-primary sm:max-w-[140px]'>
                 {selectedGuild.name}
             </p>
             <ChevronDown className='h-3.5 w-3.5 shrink-0 text-lucky-text-subtle' />
@@ -171,7 +171,7 @@ function Layout({ children }: LayoutProps) {
                         and every routed page owns its own single H1. */}
                     {/* pl-16 (64px) clears the fixed mobile menu button in
                         Sidebar.tsx (left-3 + 44px = 56px right edge) below lg. */}
-                    <div className='mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4 pl-16 pr-4 py-3.5 md:pr-6 md:py-4 lg:pl-6'>
+                    <div className='mx-auto flex w-full max-w-[1400px] items-center justify-between gap-2 pl-16 sm:gap-4 pr-4 py-3.5 md:pr-6 md:py-4 lg:pl-6'>
                         <div className='min-w-0'>
                             <p className='type-body font-semibold text-lucky-text-primary leading-tight truncate'>
                                 {routeCopy.title}
@@ -180,7 +180,7 @@ function Layout({ children }: LayoutProps) {
                                 {routeCopy.subtitle}
                             </p>
                         </div>
-                        <div className='flex items-center gap-2'>
+                        <div className='flex min-w-0 items-center gap-2'>
                             <VoteBadge />
                             <LanguageSwitcher />
                             <GuildChip />
