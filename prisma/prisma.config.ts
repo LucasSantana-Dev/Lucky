@@ -12,15 +12,19 @@ import { defineConfig } from 'prisma/config'
 // Supabase deployments should set both.
 //
 // `prisma generate` needs a syntactically valid URL but never connects, so
-// the final fallback is a local placeholder. It lives here, not in the npm
-// script, because inline `VAR=value cmd` env syntax does not run under
-// Windows cmd.exe (#2937).
+// for that command alone a local placeholder is used. It lives here, not in
+// the npm script, because inline `VAR=value cmd` env syntax does not run under
+// Windows cmd.exe (#2937). Migrate and other database commands still get an
+// empty URL when none is set, so they fail instead of reaching a local server.
+const isGenerate = process.argv.slice(2).includes('generate')
+const placeholderUrl = 'postgresql://localhost:5432/postgres'
+
 export default defineConfig({
     schema: 'schema.prisma',
     migrations: {
         path: 'migrations',
     },
     datasource: {
-        url: process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? 'postgresql://localhost:5432/postgres',
+        url: process.env.DIRECT_URL ?? process.env.DATABASE_URL ?? (isGenerate ? placeholderUrl : ''),
     },
 })
