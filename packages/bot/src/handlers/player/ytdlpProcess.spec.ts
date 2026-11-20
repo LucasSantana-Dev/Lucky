@@ -32,6 +32,8 @@ import {
     streamViaYtDlpSearch,
     PLAIN_BOTCHECK_SKIP_WINDOW_MS,
     YTDLP_COOKIES_STREAM_START_TIMEOUT_MS,
+    YTDLP_KILL_ESCALATION_MS,
+    YTDLP_UNREAD_STREAM_GRACE_MS,
     YTDLP_SEARCH_RESOLVE_TIMEOUT_MS,
     YTDLP_STREAM_START_TIMEOUT_MS,
     __resetPlainBotCheckStateForTests,
@@ -43,7 +45,10 @@ import {
     recordYtDlpFailure,
     recordYtDlpSuccess,
 } from './ytdlpBlockBreaker'
-import { extractionFailuresTotal } from '../../utils/monitoring/prometheus'
+import {
+    extractionFailuresTotal,
+    ytdlpLiveProcesses,
+} from '../../utils/monitoring/prometheus'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -881,6 +886,116 @@ describe('streamViaYtDlp – process lifecycle', () => {
         await tick()
         expect(stream.isPaused()).toBe(true)
         expect(proc.kill).not.toHaveBeenCalled()
+    })
+
+    // #3119: a playing stream sits in backpressure nearly all the time, so
+    // it is already paused when a skip unpipes it and no 'pause' fires.
+    it('kills yt-dlp when a reader under backpressure unpipes', async () => {
+        const proc = makeFakeProc()
+        const stream = await startedStream(proc)
+        const reader = new Writable({
+            highWaterMark: 1,
+            write: () => {
+                // never calls back: ffmpeg's stdin is full
+            },
+        })
+        stream.pipe(reader)
+        for (let i = 0; i < 64; i++) proc.stdout.write(Buffer.alloc(1024))
+        await tick()
+        await tick()
+        expect(stream.isPaused()).toBe(true)
+        expect(proc.kill).not.toHaveBeenCalled()
+        stream.unpipe(reader)
+        reader.destroy()
+        await tick()
+        await tick()
+        expect(proc.kill).toHaveBeenCalledTimes(1)
+        expect(stream.destroyed).toBe(true)
+    })
+
+    // #3119: a track skipped while its stream was still resolving gets a
+    // stream nobody ever reads, so it never pauses or closes.
+    it('kills yt-dlp when nobody starts reading the stream', async () => {
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+        try {
+            const proc = makeFakeProc()
+            const stream = await startedStream(proc)
+            jest.advanceTimersByTime(YTDLP_UNREAD_STREAM_GRACE_MS)
+            expect(proc.kill).toHaveBeenCalledTimes(1)
+            expect(stream.destroyed).toBe(true)
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    it('keeps yt-dlp alive when a reader attached within the grace period', async () => {
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+        try {
+            const proc = makeFakeProc()
+            const stream = await startedStream(proc)
+            stream.pipe(new PassThrough())
+            jest.advanceTimersByTime(YTDLP_UNREAD_STREAM_GRACE_MS)
+            expect(proc.kill).not.toHaveBeenCalled()
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    it('escalates to SIGKILL when yt-dlp ignores the first signal', async () => {
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+        try {
+            const proc = makeFakeProc()
+            const stream = await startedStream(proc)
+            stream.destroy()
+            await tick()
+            expect(proc.kill).toHaveBeenCalledTimes(1)
+            jest.advanceTimersByTime(YTDLP_KILL_ESCALATION_MS)
+            expect(proc.kill).toHaveBeenLastCalledWith('SIGKILL')
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    it('does not SIGKILL a yt-dlp that exited after the first signal', async () => {
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+        try {
+            const proc = makeFakeProc()
+            const stream = await startedStream(proc)
+            stream.destroy()
+            await tick()
+            proc.emit('exit', null, 'SIGTERM')
+            jest.advanceTimersByTime(YTDLP_KILL_ESCALATION_MS)
+            expect(proc.kill).toHaveBeenCalledTimes(1)
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    it('escalates to SIGKILL after a start timeout too', async () => {
+        jest.useFakeTimers()
+        try {
+            const proc = makeFakeProc()
+            mockSpawn.mockReturnValue(proc)
+            const promise = streamViaYtDlp(validUrl)
+            jest.advanceTimersByTime(YTDLP_STREAM_START_TIMEOUT_MS)
+            await expect(promise).rejects.toThrow('yt-dlp: timed out')
+            jest.advanceTimersByTime(YTDLP_KILL_ESCALATION_MS)
+            expect(proc.kill).toHaveBeenLastCalledWith('SIGKILL')
+        } finally {
+            jest.useRealTimers()
+        }
+    })
+
+    it('tracks live yt-dlp children in a gauge', async () => {
+        const proc = makeFakeProc()
+        const before = (await ytdlpLiveProcesses.get()).values[0]?.value ?? 0
+        await startedStream(proc)
+        expect((await ytdlpLiveProcesses.get()).values[0]?.value).toBe(
+            before + 1,
+        )
+        proc.emit('exit', 0)
+        proc.emit('close', 0)
+        expect((await ytdlpLiveProcesses.get()).values[0]?.value).toBe(before)
     })
 
     it('kills yt-dlp when the stream is destroyed', async () => {
