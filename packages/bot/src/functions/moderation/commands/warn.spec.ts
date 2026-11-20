@@ -24,6 +24,7 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 import warnCommand from './warn'
+import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
 
 function createMockUser(id = 'user-123', tag = 'TestUser#1234') {
     return {
@@ -85,7 +86,7 @@ describe('warn command', () => {
             name === 'user' ? targetUser : null,
         )
 
-        await warnCommand.execute({ client: {} as never, interaction })
+        await warnCommand.execute({ client: createMockClient({}), interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -109,7 +110,7 @@ describe('warn command', () => {
             reason: 'off-topic spam',
         })
 
-        await warnCommand.execute({ client: {} as never, interaction })
+        await warnCommand.execute({ client: createMockClient({}), interaction })
 
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith({
             guildId: 'guild-456',
@@ -132,7 +133,7 @@ describe('warn command', () => {
             reason: null,
         })
 
-        await warnCommand.execute({ client: {} as never, interaction })
+        await warnCommand.execute({ client: createMockClient({}), interaction })
 
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -155,7 +156,7 @@ describe('warn command', () => {
             caseNumber: 42,
         })
 
-        await warnCommand.execute({ client: {} as never, interaction })
+        await warnCommand.execute({ client: createMockClient({}), interaction })
 
         expect(interactionReplyMock).toHaveBeenCalled()
         expect(interactionReplyMock.mock.calls.length).toBeGreaterThan(0)
@@ -175,7 +176,7 @@ describe('warn command', () => {
             caseNumber: 10,
         })
 
-        await warnCommand.execute({ client: {} as never, interaction })
+        await warnCommand.execute({ client: createMockClient({}), interaction })
 
         expect(targetUser.send).toHaveBeenCalled()
         expect(targetUser.send.mock.calls.length).toBeGreaterThan(0)
@@ -191,7 +192,7 @@ describe('warn command', () => {
             silent: true,
         })
 
-        await warnCommand.execute({ client: {} as never, interaction })
+        await warnCommand.execute({ client: createMockClient({}), interaction })
 
         expect(targetUser.send).not.toHaveBeenCalled()
     })
@@ -205,7 +206,7 @@ describe('warn command', () => {
             reason: 'spam',
         })
 
-        await warnCommand.execute({ client: {} as never, interaction })
+        await warnCommand.execute({ client: createMockClient({}), interaction })
 
         expect(postToModLogMock).toHaveBeenCalledWith(guild, expect.any(Object))
     })
@@ -221,7 +222,7 @@ describe('warn command', () => {
             reason: 'spam',
         })
 
-        await warnCommand.execute({ client: {} as never, interaction })
+        await warnCommand.execute({ client: createMockClient({}), interaction })
 
         expect(infoLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -241,7 +242,7 @@ describe('warn command', () => {
             silent: false,
         })
 
-        await warnCommand.execute({ client: {} as never, interaction })
+        await warnCommand.execute({ client: createMockClient({}), interaction })
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -263,7 +264,7 @@ describe('warn command', () => {
             reason: 'spam',
         })
 
-        await warnCommand.execute({ client: {} as never, interaction })
+        await warnCommand.execute({ client: createMockClient({}), interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -290,7 +291,7 @@ describe('warn command', () => {
             silent: false,
         })
 
-        await warnCommand.execute({ client: {} as never, interaction })
+        await warnCommand.execute({ client: createMockClient({}), interaction })
 
         expect(interactionReplyMock).toHaveBeenCalled()
         expect(targetUser.send).toHaveBeenCalled()
@@ -321,7 +322,7 @@ describe('warn command', () => {
             return Promise.resolve(undefined)
         })
 
-        await warnCommand.execute({ client: {} as never, interaction })
+        await warnCommand.execute({ client: createMockClient({}), interaction })
 
         expect(callOrder.indexOf('createCase')).toBeLessThan(
             callOrder.indexOf('sendDM'),

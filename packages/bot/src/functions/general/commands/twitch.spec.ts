@@ -41,6 +41,7 @@ jest.mock('../handlers/twitchHandlers', () => ({
 }))
 
 import twitchCommand from './twitch'
+import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
 
 describe('twitch command', () => {
     let mockInteraction: Partial<ChatInputCommandInteraction>
@@ -108,7 +109,7 @@ describe('twitch command', () => {
         requireGuildMock.mockResolvedValue(false)
 
         await twitchCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -119,7 +120,7 @@ describe('twitch command', () => {
         ;(mockInteraction as { guild: unknown }).guild = null
 
         await twitchCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -130,7 +131,7 @@ describe('twitch command', () => {
         featureToggleServiceMock.mockResolvedValue(false)
 
         await twitchCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -148,7 +149,7 @@ describe('twitch command', () => {
         handleTwitchAddMock.mockResolvedValue(undefined)
 
         await twitchCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -161,7 +162,7 @@ describe('twitch command', () => {
         handleTwitchRemoveMock.mockResolvedValue(undefined)
 
         await twitchCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -174,7 +175,7 @@ describe('twitch command', () => {
         handleTwitchListMock.mockResolvedValue(undefined)
 
         await twitchCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -187,7 +188,7 @@ describe('twitch command', () => {
         handleTwitchAddMock.mockRejectedValue(new Error('API error'))
 
         await twitchCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -209,7 +210,7 @@ describe('twitch command', () => {
         handleTwitchListMock.mockResolvedValue(undefined)
 
         await twitchCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 
@@ -226,7 +227,7 @@ describe('twitch command', () => {
         mockGetSubcommand.mockReturnValue('unknown')
 
         await twitchCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: mockInteraction as ChatInputCommandInteraction,
         })
 

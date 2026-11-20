@@ -22,6 +22,10 @@ jest.mock('../../../utils/general/interactionReply.js', () => ({
 }))
 
 import inviteCommand from './invite.js'
+import {
+    createMockClient,
+    createMockInteraction,
+} from '../../../../tests/utils/command/fixtures.js'
 
 function makeInteraction() {
     return {
@@ -43,8 +47,8 @@ describe('/invite', () => {
             user: { id: '962198089161134131' },
         }
         await inviteCommand.execute({
-            client: mockClient as never,
-            interaction: makeInteraction() as never,
+            client: createMockClient(mockClient),
+            interaction: createMockInteraction(makeInteraction()),
         })
 
         expect(interactionReply).toHaveBeenCalledTimes(1)
@@ -71,8 +75,8 @@ describe('/invite', () => {
             user: { id: '962198089161134131' },
         }
         await inviteCommand.execute({
-            client: mockClient as never,
-            interaction: makeInteraction() as never,
+            client: createMockClient(mockClient),
+            interaction: createMockInteraction(makeInteraction()),
         })
 
         const args = interactionReply.mock.calls[0][0] as {
@@ -89,8 +93,8 @@ describe('/invite', () => {
             user: { id: '962198089161134131' },
         }
         await inviteCommand.execute({
-            client: mockClient as never,
-            interaction: makeInteraction() as never,
+            client: createMockClient(mockClient),
+            interaction: createMockInteraction(makeInteraction()),
         })
 
         const args = interactionReply.mock.calls[0][0] as {
@@ -109,8 +113,8 @@ describe('/invite', () => {
             user: { id: '962198089161134131' },
         }
         await inviteCommand.execute({
-            client: mockClient as never,
-            interaction: makeInteraction() as never,
+            client: createMockClient(mockClient),
+            interaction: createMockInteraction(makeInteraction()),
         })
 
         const args = interactionReply.mock.calls[0][0] as {
@@ -128,8 +132,8 @@ describe('/invite', () => {
             user: null,
         }
         await inviteCommand.execute({
-            client: mockClient as never,
-            interaction: makeInteraction() as never,
+            client: createMockClient(mockClient),
+            interaction: createMockInteraction(makeInteraction()),
         })
 
         expect(interactionReply).toHaveBeenCalledTimes(1)
@@ -146,8 +150,8 @@ describe('/invite', () => {
             user: { id: '962198089161134131' },
         }
         await inviteCommand.execute({
-            client: mockClient as never,
-            interaction: makeInteraction() as never,
+            client: createMockClient(mockClient),
+            interaction: createMockInteraction(makeInteraction()),
         })
 
         expect(interactionReply).toHaveBeenCalledTimes(1)
@@ -164,8 +168,11 @@ describe('/invite', () => {
     test('links the backend invite route with source bot when configured', async () => {
         process.env.WEBAPP_BACKEND_URL = 'https://lucky-api.example.com/api'
         await inviteCommand.execute({
-            client: { application: { id: '1' }, user: { id: '1' } } as never,
-            interaction: makeInteraction() as never,
+            client: createMockClient({
+                application: { id: '1' },
+                user: { id: '1' },
+            }),
+            interaction: createMockInteraction(makeInteraction()),
         })
 
         const args = interactionReply.mock.calls[0][0] as {
@@ -185,7 +192,7 @@ describe('/invite', () => {
                 application: { id: '962198089161134131' },
                 user: null,
             } as never,
-            interaction: makeInteraction() as never,
+            interaction: createMockInteraction(makeInteraction()),
         })
 
         const args = interactionReply.mock.calls[0][0] as {

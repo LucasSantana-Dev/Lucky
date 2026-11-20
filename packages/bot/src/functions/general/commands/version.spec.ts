@@ -23,6 +23,10 @@ jest.mock('node:fs', () => ({
 }))
 
 import versionCommand from './version.js'
+import {
+    createMockClient,
+    createMockInteraction,
+} from '../../../../tests/utils/command/fixtures.js'
 
 function makeInteraction() {
     return {
@@ -42,8 +46,8 @@ describe('/version', () => {
         const interaction = makeInteraction()
 
         await versionCommand.execute({
-            client: {} as never,
-            interaction: interaction as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(interaction),
         })
 
         expect(interaction.deferReply).toHaveBeenCalledWith({
@@ -56,8 +60,8 @@ describe('/version', () => {
         const interaction = makeInteraction()
 
         await versionCommand.execute({
-            client: {} as never,
-            interaction: interaction as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(interaction),
         })
 
         const callArg = interactionReply.mock.calls[0][0] as {
@@ -71,8 +75,8 @@ describe('/version', () => {
         const interaction = makeInteraction()
 
         await versionCommand.execute({
-            client: {} as never,
-            interaction: interaction as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(interaction),
         })
 
         const callArg = interactionReply.mock.calls[0][0] as {
@@ -85,8 +89,8 @@ describe('/version', () => {
         const interaction = makeInteraction()
 
         await versionCommand.execute({
-            client: {} as never,
-            interaction: interaction as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(interaction),
         })
 
         const callArg = interactionReply.mock.calls[0][0] as {
@@ -100,8 +104,8 @@ describe('/version', () => {
         const interaction = makeInteraction()
 
         await versionCommand.execute({
-            client: {} as never,
-            interaction: interaction as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(interaction),
         })
 
         const callArg = interactionReply.mock.calls[0][0] as {
