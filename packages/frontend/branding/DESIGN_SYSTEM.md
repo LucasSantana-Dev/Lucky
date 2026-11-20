@@ -99,7 +99,7 @@ The three fonts are self-hosted via `@fontsource/*` packages imported at the top
 
 ## Interaction & Motion
 
-- Focus ring: blurple, from the `--color-lucky-focus: #5865f2` token. Tailwind rings use `focus-visible:ring-2 focus-visible:ring-lucky-focus` (2px, full opacity); `lucky-focus-visible` / `lucky-focus-ring` use `--lucky-shadow-focus` (3px, full opacity). Both clear 3:1 on canvas, sidebar, panel and elevated surfaces; against `bg-active` (`#2a3140`) it is 2.83:1, so keep the ring's outer edge on a darker surface. `ServerCard` uses a full `focus-within:ring-lucky-focus` ring with a 2px offset onto `bg-primary` (4.10:1). `ui/Card` adds a faint `focus-within` halo (`ring-lucky-focus/20`) around a card whose child has focus; it is decorative, the child's own ring is the indicator.
+- Focus ring: blurple, from the `--color-lucky-focus: #7480f7` token (3.83:1 on `bg-active` `#2a3140`, 5.64:1 on canvas; the previous `#5865f2` was 2.83:1 on `bg-active`, #2575). One indicator spec (#2576): a 2px full-opacity ring. Controls without their own border (Button, `lucky-focus-visible`, `lucky-focus-ring`) add a 2px gap in the canvas color (`ring-offset-2 ring-offset-background`, or the two-layer `--lucky-shadow-focus`); bordered form fields (input, textarea, select, checkbox) keep the 2px ring flush against the border. Tailwind rings use `focus-visible:ring-2 focus-visible:ring-lucky-focus`. `ServerCard` uses a full `focus-within:ring-lucky-focus` ring with a 2px offset onto `bg-primary`. `ui/Card` adds a faint `focus-within` halo (`ring-lucky-focus/20`) around a card whose child has focus; it is decorative, the child's own ring is the indicator.
 - Hover borders: upgrade from `border-soft` to `border-strong`
 - Active nav items: pink `border-lucky-brand/40` + `bg-lucky-bg-active` background
 - Allowed animations: `fade-up`, `fade-in`, `accordion-down/up`, `animate-spin` (loaders)
@@ -115,7 +115,7 @@ The three fonts are self-hosted via `@fontsource/*` packages imported at the top
 
 ## Principles
 
-1. **Single accent**: neon pink for CTAs (`brand-strong` fills), active states, accents and gradient highlights. Discord blurple `#5865f2` appears only in focus rings. No gold, no legacy-purple gradients.
+1. **Single accent**: neon pink for CTAs (`brand-strong` fills), active states, accents and gradient highlights. Discord-style blurple (`#7480f7`) appears only in focus rings. No gold, no legacy-purple gradients.
 2. **Flat panels**: No glassmorphism, no background radial gradients on pages.
 3. **Professional motion**: Only fade transitions. No glow-pulse, float, or shimmer.
 4. **Sora display + Manrope body + JetBrains Mono**: see Typography. All three are self-hosted.
