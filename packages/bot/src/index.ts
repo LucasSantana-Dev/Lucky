@@ -96,6 +96,10 @@ main().catch(async (error: unknown) => {
         })
     }
 
+    // A signal already started gracefulShutdown(), which flushes and exits;
+    // exiting here would cut its shutdownBot() short.
+    if (isShuttingDown) return
+
     try {
         await flushSentry(3000)
     } finally {
