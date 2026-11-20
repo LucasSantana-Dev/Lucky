@@ -4,7 +4,7 @@ import type { SessionData } from '../../src/services/SessionService'
 import { MOCK_SESSION_DATA, MOCK_SESSION_ID } from './mock-data'
 
 export function createMockRequest(
-    overrides: Partial<Request> = {},
+    overrides: Partial<Request> & Record<string, unknown> = {},
 ): AuthenticatedRequest {
     const req = {
         sessionID: MOCK_SESSION_ID,
@@ -69,7 +69,7 @@ export async function createTestApp() {
  */
 export function createSseTestFinish(
     server: any,
-    done: (err?: unknown) => void,
+    done: (reason?: string | Error) => void,
     assert?: () => void,
 ): { finish: (fallback?: NodeJS.Timeout) => void } {
     let finished = false
@@ -86,7 +86,7 @@ export function createSseTestFinish(
                 assert?.()
                 done()
             } catch (err) {
-                done(err)
+                done(err instanceof Error ? err : String(err))
             }
         })
     }
