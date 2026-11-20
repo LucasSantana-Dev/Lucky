@@ -209,11 +209,13 @@ require_running_containers() {
     # alertmanager-config is a one-shot renderer for the observability profile
     # (docker-compose.yml): it is expected to exit 0 and stay stopped, so it
     # must never be treated as a required long-running container.
-    local excluded_pattern="^(cloudflared|webhook|alertmanager-config)$"
+    # bgutil-pot (PO token sidecar) is best-effort: the bot runs without it, so
+    # a missing or stopped sidecar must never fail a deploy or trigger rollback.
+    local excluded_pattern="^(cloudflared|webhook|alertmanager-config|bgutil-pot)$"
     # render has no image for SHAs older than its introduction; a rollback that
     # could not pull it (ROLLBACK_SKIP_RENDER=1) must not be failed on it.
     if [[ "${ROLLBACK_SKIP_RENDER:-0}" == "1" ]]; then
-        excluded_pattern="^(cloudflared|webhook|alertmanager-config|render)$"
+        excluded_pattern="^(cloudflared|webhook|alertmanager-config|bgutil-pot|render)$"
     fi
     local expected_services
     expected_services=$(docker_compose config --services 2>/dev/null | grep -v -E "$excluded_pattern" || true)
@@ -999,9 +1001,14 @@ phase_end rollout
 # po_token sidecar (ADR 2026-06-18, amendment 2026-11-20). Best-effort and
 # no-deps: the bot extracts without a PO token when it is down, so a failure
 # here warns and never fails or rolls back the deploy. A no-op when the
-# running container already matches the compose definition.
-if ! docker_compose up -d --no-deps bgutil-pot >/dev/null 2>&1; then
-    log "WARN: Could not start bgutil-pot (PO token sidecar); yt-dlp runs without a PO token"
+# running container already matches the compose definition. Skipped when the
+# compose-resolved YTDLP_POT_PROVIDER_URL is empty (the opt-out).
+if docker_compose config 2>/dev/null | grep -qE '^[[:space:]]+YTDLP_POT_PROVIDER_URL: [^"]'; then
+    if ! docker_compose up -d --no-deps bgutil-pot >/dev/null 2>&1; then
+        log "WARN: Could not start bgutil-pot (PO token sidecar); yt-dlp runs without a PO token"
+    fi
+else
+    log "PO token provider disabled (YTDLP_POT_PROVIDER_URL empty); not starting bgutil-pot"
 fi
 
 # The webhook runs this script, so it is never recreated here; nginx proxies

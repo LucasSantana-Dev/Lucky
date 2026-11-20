@@ -1,7 +1,7 @@
 # YouTube extraction reliability: classify-and-measure first, weekly yt-dlp refresh, defer Lavalink behind a gate
 
 - Status: accepted-with-revisions (measurement made real + bounded; big bets data-gated)
-- Amended: 2026-10-21 (step 2 of the escalation ladder, bgutil po_token provider; see the end)
+- Amended: 2026-10-21 (step 2 of the escalation ladder, bgutil po_token provider), 2026-11-20 (sidecar on by default; see the end)
 - Date: 2026-06-18
 - Method: /research-and-decide (web research → decision-critic Opus artifact-only → plan → ADR)
 
@@ -160,7 +160,8 @@ above 5% exhaustion); this amendment does not touch it.
 - Success: over the 14 days after the sidecar is on, "Sign in to confirm you're not a bot" stays
   under about 10 a week and the 30d exhaustion rate trends back toward the 2.7% baseline. Same
   Loki queries as the 2026-08-03 re-evaluation.
-- Rollback: unset `YTDLP_POT_PROVIDER_URL` and recreate the bot (back to the exact previous
+- Rollback (as of the 2026-11-20 amendment, set it to empty; unset now enables): set
+  `YTDLP_POT_PROVIDER_URL=` and recreate the bot (back to the exact previous
   command line), then `docker compose stop bgutil-pot`. No data migrates.
 - Recreate the bot with `IMAGE_TAG` set to the tag it already runs. Without it the compose
   image falls back to `:latest`, a stale local image. On 2026-10-22 a manual
@@ -180,7 +181,8 @@ rebuilt box still defaulted to no provider and more 403s. Changes:
   value (set in the env file) turns the provider off.
 - `bgutil-pot` leaves the `pot` profile and starts with the stack. Same service, container name
   (`lucky-bgutil-pot`), network and digest-pinned image, so the running container is reused.
-- `scripts/deploy.sh` starts it best-effort after the rollout. A failure warns and never fails or
+- `scripts/deploy.sh` starts it best-effort after the rollout (skipped when the URL is empty). It
+  is excluded from `require_running_containers`, so a missing or stopped sidecar never fails or
   rolls back a deploy, and the bot still has no `depends_on` on it (point 4 of the decision).
 - Rollback: set `YTDLP_POT_PROVIDER_URL=` in the env file, recreate the bot, then
   `docker compose stop bgutil-pot`.
