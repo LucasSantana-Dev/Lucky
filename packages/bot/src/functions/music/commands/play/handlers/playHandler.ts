@@ -25,6 +25,7 @@ import {
     normalizeYouTubeUrl,
     expandSoundCloudShortUrl,
     replyYoutubeDisabledIfNeeded,
+    stampPlaylistTracks,
 } from '../queryUtils'
 import { parseYoutubeLink } from '../queryDetector'
 import { translatorForInteraction } from '../../../../../i18n/translatorForInteraction'
@@ -400,17 +401,7 @@ export async function executePlayHandler({
 
         const track = result.track
 
-        const isPlaylist = !!result.searchResult.playlist
-
-        if (isPlaylist) {
-            for (const t of result.searchResult.tracks) {
-                const existing =
-                    t.metadata && typeof t.metadata === 'object'
-                        ? (t.metadata as Record<string, unknown>)
-                        : {}
-                t.setMetadata({ ...existing, isPlaylist: true })
-            }
-        }
+        const isPlaylist = stampPlaylistTracks(result.searchResult)
 
         // discord-player does not throw to this caller when every stream
         // source fails: it skips the track and resolves play() as if it had
