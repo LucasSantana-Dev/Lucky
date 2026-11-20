@@ -492,36 +492,55 @@ export default function AutoModPage() {
 
     useEffect(() => {
         if (!selectedGuild?.id) return
+        let cancelled = false
         setTemplatesLoading(true)
         setTemplatesError(null)
         api.automod
             .listTemplates(selectedGuild.id)
-            .then((res) => setTemplates(res.data.templates))
+            .then((res) => {
+                if (!cancelled) setTemplates(res.data.templates)
+            })
             .catch(() => {
+                if (cancelled) return
                 setTemplatesError(t('autoMod.failedToLoadTemplates'))
                 setTemplates([])
             })
-            .finally(() => setTemplatesLoading(false))
+            .finally(() => {
+                if (!cancelled) setTemplatesLoading(false)
+            })
+        return () => {
+            cancelled = true
+        }
     }, [selectedGuild?.id])
 
     useEffect(() => {
         if (!selectedGuild?.id) return
+        let cancelled = false
         setChannelsError(null)
         setRolesError(null)
         api.guilds
             .getChannels(selectedGuild.id)
-            .then((res) => setChannels(res.data.channels))
+            .then((res) => {
+                if (!cancelled) setChannels(res.data.channels)
+            })
             .catch(() => {
+                if (cancelled) return
                 setChannelsError(t('autoMod.failedToLoadChannels'))
                 setChannels([])
             })
         api.guilds
             .getRbac(selectedGuild.id)
-            .then((res) => setRoles(res.data.roles))
+            .then((res) => {
+                if (!cancelled) setRoles(res.data.roles)
+            })
             .catch(() => {
+                if (cancelled) return
                 setRolesError(t('autoMod.failedToLoadRoles'))
                 setRoles([])
             })
+        return () => {
+            cancelled = true
+        }
     }, [selectedGuild?.id])
 
     const update = <K extends keyof AutoModSettings>(
