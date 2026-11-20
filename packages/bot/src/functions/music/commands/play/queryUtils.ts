@@ -286,6 +286,24 @@ type PlayAtTopOptions = {
     commandName: string
 }
 
+/**
+ * Marks every track of a resolved playlist, so `track_history` records
+ * `isPlaylist` whichever command queued it. Returns whether it was a playlist.
+ */
+export function stampPlaylistTracks(
+    searchResult: Pick<SearchResult, 'playlist' | 'tracks'> | undefined,
+): boolean {
+    if (!searchResult?.playlist) return false
+    for (const track of searchResult.tracks) {
+        const existing =
+            track.metadata && typeof track.metadata === 'object'
+                ? (track.metadata as Record<string, unknown>)
+                : {}
+        track.setMetadata({ ...existing, isPlaylist: true })
+    }
+    return true
+}
+
 export async function executePlayAtTop({
     client,
     interaction,
@@ -403,6 +421,7 @@ export async function executePlayAtTop({
             }
         }
         const track = result.track
+        stampPlaylistTracks(result.searchResult)
 
         const { queue } = resolveGuildQueue(client, interaction.guildId)
         if (!queue) {

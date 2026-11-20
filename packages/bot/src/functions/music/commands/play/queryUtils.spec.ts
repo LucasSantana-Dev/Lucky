@@ -530,6 +530,85 @@ describe('executePlayAtTop — fallback chain', () => {
     })
 })
 
+describe('executePlayAtTop: playlist analytics flag (#2811)', () => {
+    function makeTrack(id: string, metadata?: Record<string, unknown>) {
+        const track = {
+            id,
+            title: `Song ${id}`,
+            author: 'Artist',
+            metadata,
+            setMetadata: jest.fn((next: Record<string, unknown>) => {
+                track.metadata = next
+            }),
+        }
+        return track
+    }
+
+    function run(result: unknown) {
+        const queue = {
+            tracks: { toArray: () => [] },
+            node: { remove: jest.fn(), skip: jest.fn() },
+            insertTrack: jest.fn(),
+        }
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        return executePlayAtTop({
+            client: {
+                player: { play: jest.fn(() => Promise.resolve(result)) },
+            } as unknown as Parameters<typeof executePlayAtTop>[0]['client'],
+            interaction: {
+                guildId: 'guild-1',
+                user: { id: 'user-1' },
+                member: { voice: { channel: { id: 'vc-1' } } },
+                options: {
+                    getString: jest.fn(
+                        () => 'https://open.spotify.com/playlist/abc',
+                    ),
+                },
+                deferReply: jest.fn(),
+                reply: jest.fn(),
+            } as unknown as Parameters<
+                typeof executePlayAtTop
+            >[0]['interaction'],
+            skipCurrent: false,
+            commandName: 'playtop',
+        })
+    }
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        requireVoiceChannelMock.mockResolvedValue(true)
+        requireDJRoleMock.mockResolvedValue(true)
+        interactionReplyMock.mockResolvedValue(undefined)
+    })
+
+    it('stamps isPlaylist on every track of a playlist result, keeping other metadata', async () => {
+        const first = makeTrack('1', { requestedById: 'user-1' })
+        const second = makeTrack('2')
+
+        await run({
+            track: first,
+            searchResult: { playlist: { id: 'pl' }, tracks: [first, second] },
+        })
+
+        expect(first.metadata).toEqual({
+            requestedById: 'user-1',
+            isPlaylist: true,
+        })
+        expect(second.metadata).toEqual({ isPlaylist: true })
+    })
+
+    it('leaves a single-track result unstamped', async () => {
+        const only = makeTrack('1')
+
+        await run({
+            track: only,
+            searchResult: { playlist: null, tracks: [only] },
+        })
+
+        expect(only.setMetadata).not.toHaveBeenCalled()
+    })
+})
+
 describe('normalizeYouTubeUrl', () => {
     it('strips the Mix context that broke the production request', () => {
         // The exact URL from the 2026-08-26 16:09:07 NoResultError.
