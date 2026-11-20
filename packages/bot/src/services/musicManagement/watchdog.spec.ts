@@ -136,6 +136,50 @@ describe('MusicWatchdogService — orphan session monitor', () => {
         service.stopOrphanSessionMonitor()
     })
 
+    it('skips an orphan scan tick while the previous scan is still running (#2986)', async () => {
+        const service = new MusicWatchdogService()
+        let finish: () => void = () => {}
+        const scanSpy = jest
+            .spyOn(service, 'scanOrphanSessions')
+            .mockReturnValue(
+                new Promise<void>((resolve) => {
+                    finish = resolve
+                }),
+            )
+
+        service.startOrphanSessionMonitor({} as unknown as Player, 60_000)
+        await jest.advanceTimersByTimeAsync(180_000)
+        expect(scanSpy).toHaveBeenCalledTimes(1)
+
+        finish()
+        await jest.advanceTimersByTimeAsync(60_000)
+        expect(scanSpy).toHaveBeenCalledTimes(2)
+
+        service.stopOrphanSessionMonitor()
+    })
+
+    it('skips a periodic scan tick while the previous scan is still running (#2986)', async () => {
+        const service = new MusicWatchdogService()
+        let finish: () => void = () => {}
+        const scanSpy = jest
+            .spyOn(service, 'scanOrphanedSessions')
+            .mockReturnValue(
+                new Promise<string[]>((resolve) => {
+                    finish = () => resolve([])
+                }),
+            )
+
+        service.startPeriodicScan(() => null)
+        await jest.advanceTimersByTimeAsync(10 * 60_000)
+        expect(scanSpy).toHaveBeenCalledTimes(1)
+
+        finish()
+        await jest.advanceTimersByTimeAsync(10 * 60_000)
+        expect(scanSpy.mock.calls.length).toBeGreaterThanOrEqual(2)
+
+        service.stopPeriodicScan()
+    })
+
     it('scanOrphanSessions skips guild when snapshot is missing', async () => {
         listGuildIdsMock.mockResolvedValue(['guild-99'])
         getSnapshotMock.mockResolvedValue(null)
