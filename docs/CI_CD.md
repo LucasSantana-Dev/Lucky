@@ -148,9 +148,12 @@ Set `DISCORD_DEPLOY_WEBHOOK` on the homelab host to receive rich Discord embeds 
 echo 'DISCORD_DEPLOY_WEBHOOK=https://discord.com/api/webhooks/<id>/<token>' >> /home/luk-server/Lucky/.env
 ```
 
-4. Restart the webhook container to pick up the new variable:
+4. Restart the webhook container to pick up the new variable. Compose refuses
+   to run without `IMAGE_TAG` (so a stale `latest` is never picked up by
+   accident); on prod use the last good deployed tag:
 
 ```bash
+export IMAGE_TAG=$(cut -c1-7 .deploy-last-good-sha)
 docker compose up -d webhook
 ```
 
@@ -194,7 +197,8 @@ If deploy fails with curl exit code `6` (Could not resolve host):
 ### Deploy webhook stability troubleshooting
 
 If deploy trigger fails with `502` and nginx logs show `host not found in
-upstream "webhook"`:
+upstream "webhook"` (the commands below need `IMAGE_TAG` exported as in the
+previous step):
 
 1. Confirm webhook container is running:
     - `docker compose ps webhook`

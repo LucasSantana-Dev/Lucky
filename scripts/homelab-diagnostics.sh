@@ -24,7 +24,7 @@ echo \"== docker ps (Lucky) ==\"
 docker ps --filter 'name=lucky-' --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
 echo
 echo \"== compose ps (Lucky stack) ==\"
-docker compose --project-directory '$deploy_dir' -p lucky ps || true
+IMAGE_TAG=unused docker compose --project-directory '$deploy_dir' -p lucky ps || true
 echo
 echo \"== lucky-backend logs (tail 120) ==\"
 docker logs --tail 120 lucky-backend 2>&1 || true
