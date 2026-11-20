@@ -55,15 +55,15 @@ describe('twitch command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
 
-        mockUser = createMockInteraction({
+        mockUser = {
             id: 'user123',
-        })
+        }
 
-        mockGuild = createMockInteraction({
+        mockGuild = {
             id: 'guild123',
             name: 'Test Guild',
             ownerId: 'owner123',
-        })
+        }
 
         mockGetSubcommand = jest.fn()
 

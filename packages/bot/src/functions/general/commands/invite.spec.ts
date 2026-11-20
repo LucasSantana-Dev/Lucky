@@ -188,7 +188,7 @@ describe('/invite', () => {
     test('ignores a backend URL that is not http(s)', async () => {
         process.env.WEBAPP_BACKEND_URL = 'javascript:alert(1)'
         await inviteCommand.execute({
-            client: createMockInteraction({
+            client: createMockClient({
                 application: { id: '962198089161134131' },
                 user: null,
             }),
