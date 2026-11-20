@@ -20,6 +20,10 @@ jest.mock('../../../utils/general/interactionReply.js', () => ({
 }))
 
 import afkCommand from './afk.js'
+import {
+    createMockClient,
+    createMockInteraction,
+} from '../../../../tests/utils/command/fixtures.js'
 
 function makeInteraction(motivo?: string | null, withGuild = true) {
     return {
@@ -43,7 +47,7 @@ beforeEach(() => {
 describe('/afk', () => {
     test('rejects when used in DMs (no guild)', async () => {
         await afkCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: makeInteraction(undefined, false) as never,
         })
 
@@ -58,8 +62,8 @@ describe('/afk', () => {
 
     test('clears AFK when no reason provided', async () => {
         await afkCommand.execute({
-            client: {} as never,
-            interaction: makeInteraction(null) as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(makeInteraction(null)),
         })
 
         expect(afkServiceMock.clear).toHaveBeenCalledWith('guild-1', 'u1')
@@ -72,8 +76,8 @@ describe('/afk', () => {
 
     test('sets AFK with reason when provided', async () => {
         await afkCommand.execute({
-            client: {} as never,
-            interaction: makeInteraction('In a meeting') as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(makeInteraction('In a meeting')),
         })
 
         expect(afkServiceMock.set).toHaveBeenCalledWith(
@@ -90,8 +94,8 @@ describe('/afk', () => {
 
     test('marks response as ephemeral', async () => {
         await afkCommand.execute({
-            client: {} as never,
-            interaction: makeInteraction('Working') as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(makeInteraction('Working')),
         })
 
         const args = interactionReply.mock.calls[0][0] as {
@@ -104,8 +108,8 @@ describe('/afk', () => {
         afkServiceMock.set.mockRejectedValueOnce(new Error('db error'))
 
         await afkCommand.execute({
-            client: {} as never,
-            interaction: makeInteraction('Sleeping') as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(makeInteraction('Sleeping')),
         })
 
         const args = interactionReply.mock.calls[0][0] as {
@@ -118,8 +122,8 @@ describe('/afk', () => {
         afkServiceMock.clear.mockRejectedValueOnce(new Error('db error'))
 
         await afkCommand.execute({
-            client: {} as never,
-            interaction: makeInteraction(null) as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(makeInteraction(null)),
         })
 
         const args = interactionReply.mock.calls[0][0] as {
@@ -131,8 +135,8 @@ describe('/afk', () => {
     test('respects max reason length constraint', async () => {
         const longReason = 'x'.repeat(250)
         await afkCommand.execute({
-            client: {} as never,
-            interaction: makeInteraction(longReason) as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(makeInteraction(longReason)),
         })
 
         expect(afkServiceMock.set).toHaveBeenCalledWith(
@@ -149,8 +153,8 @@ describe('/afk', () => {
         infoLog.mockClear()
 
         await afkCommand.execute({
-            client: {} as never,
-            interaction: makeInteraction('Lunch break') as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(makeInteraction('Lunch break')),
         })
 
         expect(infoLog).toHaveBeenCalledWith(

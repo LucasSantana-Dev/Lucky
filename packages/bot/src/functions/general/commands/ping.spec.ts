@@ -10,6 +10,10 @@ jest.mock('../../../utils/general/interactionReply.js', () => ({
 }))
 
 import pingCommand from './ping.js'
+import {
+    createMockClient,
+    createMockInteraction,
+} from '../../../../tests/utils/command/fixtures.js'
 
 function makeInteraction() {
     return {
@@ -36,8 +40,8 @@ describe('/ping', () => {
         })
 
         await pingCommand.execute({
-            client: {} as never,
-            interaction: interaction as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(interaction),
         })
 
         expect(interactionReply).toHaveBeenCalledTimes(2)
@@ -54,8 +58,8 @@ describe('/ping', () => {
         })
 
         await pingCommand.execute({
-            client: {} as never,
-            interaction: interaction as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(interaction),
         })
 
         const secondCall = interactionReply.mock.calls[1][0] as {
@@ -73,8 +77,8 @@ describe('/ping', () => {
         })
 
         await pingCommand.execute({
-            client: {} as never,
-            interaction: interaction as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(interaction),
         })
 
         const secondCall = interactionReply.mock.calls[1][0] as {
@@ -94,8 +98,8 @@ describe('/ping', () => {
         })
 
         await pingCommand.execute({
-            client: {} as never,
-            interaction: interaction as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(interaction),
         })
 
         const secondCall = interactionReply.mock.calls[1][0] as {

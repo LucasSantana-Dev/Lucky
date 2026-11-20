@@ -31,6 +31,10 @@ jest.mock('../handlers/reactionroleHandlers.js', () => ({
 }))
 
 import reactionroleCommand from './reactionrole.js'
+import {
+    createMockClient,
+    createMockInteraction,
+} from '../../../../tests/utils/command/fixtures.js'
 
 function makeInteraction(
     subcommand: string,
@@ -67,8 +71,8 @@ describe('/reactionrole', () => {
         const interaction = makeInteraction('create', {}, false)
 
         await reactionroleCommand.execute({
-            client: {} as never,
-            interaction: interaction as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(interaction),
         })
 
         expect(requireGuild).toHaveBeenCalled()
@@ -85,8 +89,8 @@ describe('/reactionrole', () => {
             })
 
             await reactionroleCommand.execute({
-                client: {} as never,
-                interaction: interaction as never,
+                client: createMockClient({}),
+                interaction: createMockInteraction(interaction),
             })
 
             expect(handleCreate).toHaveBeenCalledWith(
@@ -103,8 +107,8 @@ describe('/reactionrole', () => {
             })
 
             await reactionroleCommand.execute({
-                client: {} as never,
-                interaction: interaction as never,
+                client: createMockClient({}),
+                interaction: createMockInteraction(interaction),
             })
 
             expect(handleDelete).toHaveBeenCalledWith(
@@ -119,8 +123,8 @@ describe('/reactionrole', () => {
             const interaction = makeInteraction('list')
 
             await reactionroleCommand.execute({
-                client: {} as never,
-                interaction: interaction as never,
+                client: createMockClient({}),
+                interaction: createMockInteraction(interaction),
             })
 
             expect(handleList).toHaveBeenCalledWith(
@@ -143,8 +147,8 @@ describe('/reactionrole', () => {
             })
 
             await reactionroleCommand.execute({
-                client: {} as never,
-                interaction: interaction as never,
+                client: createMockClient({}),
+                interaction: createMockInteraction(interaction),
             })
 
             const call = interactionReply.mock.calls[0][0] as {
@@ -164,8 +168,8 @@ describe('/reactionrole', () => {
             const interaction = makeInteraction('create', {}, false)
 
             await reactionroleCommand.execute({
-                client: {} as never,
-                interaction: interaction as never,
+                client: createMockClient({}),
+                interaction: createMockInteraction(interaction),
             })
 
             expect(requireGuild).toHaveBeenCalled()

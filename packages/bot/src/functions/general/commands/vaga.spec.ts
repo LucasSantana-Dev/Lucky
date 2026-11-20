@@ -50,6 +50,10 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 import vaga from './vaga'
+import {
+    createMockClient,
+    createMockInteraction,
+} from '../../../../tests/utils/command/fixtures.js'
 
 const MAPPINGS = [
     { label: 'Python', roleId: 'r-python' },
@@ -151,7 +155,7 @@ describe('/vaga command', () => {
                 reply,
                 options: { getString: () => null },
             } as never,
-            client: {} as never,
+            client: createMockClient({}),
         })
         expect(reply).toHaveBeenCalledWith(
             expect.objectContaining({ ephemeral: true }),
@@ -163,8 +167,8 @@ describe('/vaga command', () => {
             customId: 'vaga_cancel',
         })
         await vaga.execute({
-            interaction: interaction as never,
-            client: {} as never,
+            interaction: createMockInteraction(interaction),
+            client: createMockClient({}),
         })
         const call = reply.mock.calls[0][0] as unknown as {
             content: string
@@ -183,8 +187,8 @@ describe('/vaga command', () => {
             customId: 'vaga_publish',
         })
         await vaga.execute({
-            interaction: interaction as never,
-            client: {} as never,
+            interaction: createMockInteraction(interaction),
+            client: createMockClient({}),
         })
         expect(send).toHaveBeenCalledTimes(1)
         const sent = send.mock.calls[0][0] as {
@@ -202,8 +206,8 @@ describe('/vaga command', () => {
             customId: 'vaga_cancel',
         })
         await vaga.execute({
-            interaction: interaction as never,
-            client: {} as never,
+            interaction: createMockInteraction(interaction),
+            client: createMockClient({}),
         })
         expect(send).not.toHaveBeenCalled()
     })
@@ -213,8 +217,8 @@ describe('/vaga command', () => {
             customId: 'vaga_cancel',
         })
         await vaga.execute({
-            interaction: interaction as never,
-            client: {} as never,
+            interaction: createMockInteraction(interaction),
+            client: createMockClient({}),
         })
         expect(interaction.showModal).toHaveBeenCalledTimes(1)
         expect(interaction.awaitModalSubmit).toHaveBeenCalledTimes(1)
@@ -229,8 +233,8 @@ describe('/vaga command', () => {
             customId: 'vaga_publish',
         })
         await vaga.execute({
-            interaction: interaction as never,
-            client: {} as never,
+            interaction: createMockInteraction(interaction),
+            client: createMockClient({}),
         })
         const sent = send.mock.calls[0][0] as { content: string }
         expect(sent.content).toContain(
@@ -244,8 +248,8 @@ describe('/vaga command', () => {
             Promise.reject(new Error('time')),
         )
         await vaga.execute({
-            interaction: interaction as never,
-            client: {} as never,
+            interaction: createMockInteraction(interaction),
+            client: createMockClient({}),
         })
         expect(send).not.toHaveBeenCalled()
     })
@@ -255,8 +259,8 @@ describe('/vaga command', () => {
             customId: 'vaga_cancel',
         })
         await vaga.execute({
-            interaction: interaction as never,
-            client: {} as never,
+            interaction: createMockInteraction(interaction),
+            client: createMockClient({}),
         })
         const [{ filter }] = interaction.awaitModalSubmit.mock
             .calls[0] as unknown as [

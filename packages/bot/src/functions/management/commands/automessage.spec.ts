@@ -26,6 +26,7 @@ jest.mock('../../../utils/general/interactionReply.js', () => ({
 }))
 
 import automessageCommand from './automessage.js'
+import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
 
 function createInteraction(
     subcommand: string,
@@ -62,7 +63,10 @@ describe('automessage command', () => {
     it('rejects command when used outside of a guild', async () => {
         const interaction = createInteraction('welcome', false)
 
-        await automessageCommand.execute({ client: {} as never, interaction })
+        await automessageCommand.execute({
+            client: createMockClient({}),
+            interaction,
+        })
 
         expect(interactionReplyMock).toHaveBeenCalledWith({
             interaction,
@@ -96,7 +100,10 @@ describe('automessage command', () => {
         interaction.user = { tag: 'testuser#0001' } as any
         interaction.guild!.name = 'Test Guild'
 
-        await automessageCommand.execute({ client: {} as never, interaction })
+        await automessageCommand.execute({
+            client: createMockClient({}),
+            interaction,
+        })
 
         expect(autoMessageServiceMock.createMessage).toHaveBeenCalledWith(
             'guild-123',
@@ -128,7 +135,10 @@ describe('automessage command', () => {
 
         const interaction = createInteraction('list')
 
-        await automessageCommand.execute({ client: {} as never, interaction })
+        await automessageCommand.execute({
+            client: createMockClient({}),
+            interaction,
+        })
 
         expect(autoMessageServiceMock.getMessagesByType).toHaveBeenCalledWith(
             'guild-123',
@@ -164,7 +174,10 @@ describe('automessage command', () => {
         }
         interaction.options = mockOptions as unknown as any
 
-        await automessageCommand.execute({ client: {} as never, interaction })
+        await automessageCommand.execute({
+            client: createMockClient({}),
+            interaction,
+        })
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({

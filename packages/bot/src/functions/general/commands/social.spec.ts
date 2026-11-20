@@ -12,6 +12,10 @@ jest.mock('../../../utils/general/interactionReply.js', () => ({
 }))
 
 import socialCommand from './social.js'
+import {
+    createMockClient,
+    createMockInteraction,
+} from '../../../../tests/utils/command/fixtures.js'
 
 function makeInteraction(
     subcommand: string,
@@ -40,8 +44,8 @@ describe('/social', () => {
         'replies with an embed for %s (self-use)',
         async (action) => {
             await socialCommand.execute({
-                client: {} as never,
-                interaction: makeInteraction(action) as never,
+                client: createMockClient({}),
+                interaction: createMockInteraction(makeInteraction(action)),
             })
             expect(interactionReply).toHaveBeenCalledTimes(1)
             const args = interactionReply.mock.calls[0][0] as {
@@ -56,7 +60,7 @@ describe('/social', () => {
 
     test('uses target user in phrase when provided', async () => {
         await socialCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: makeInteraction('hug', {
                 id: 'target-1',
                 username: 'bob',
@@ -73,7 +77,7 @@ describe('/social', () => {
 
     test('self-targeting triggers self-phrase', async () => {
         await socialCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: makeInteraction('kiss', {
                 id: 'sender-1',
                 username: 'alice',
@@ -88,8 +92,8 @@ describe('/social', () => {
 
     test('rejects unknown subcommand', async () => {
         await socialCommand.execute({
-            client: {} as never,
-            interaction: makeInteraction('slap') as never,
+            client: createMockClient({}),
+            interaction: createMockInteraction(makeInteraction('slap')),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }

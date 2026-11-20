@@ -24,6 +24,7 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 import banCommand from './ban'
+import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
 
 function createMockUser(id = 'user-123', tag = 'TestUser#1234') {
     return {
@@ -91,7 +92,7 @@ describe('ban command', () => {
             name === 'user' ? targetUser : null,
         )
 
-        await banCommand.execute({ client: {} as never, interaction })
+        await banCommand.execute({ client: createMockClient({}), interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -114,7 +115,7 @@ describe('ban command', () => {
             silent: false,
         })
 
-        await banCommand.execute({ client: {} as never, interaction })
+        await banCommand.execute({ client: createMockClient({}), interaction })
 
         expect(targetUser.send).toHaveBeenCalled()
         expect(targetUser.send.mock.calls.length).toBeGreaterThan(0)
@@ -130,7 +131,7 @@ describe('ban command', () => {
             silent: true,
         })
 
-        await banCommand.execute({ client: {} as never, interaction })
+        await banCommand.execute({ client: createMockClient({}), interaction })
 
         expect(targetUser.send).not.toHaveBeenCalled()
     })
@@ -146,7 +147,7 @@ describe('ban command', () => {
             silent: true,
         })
 
-        await banCommand.execute({ client: {} as never, interaction })
+        await banCommand.execute({ client: createMockClient({}), interaction })
 
         expect(guild.members.ban).toHaveBeenCalledWith('target-123', {
             reason: 'flooding',
@@ -166,7 +167,7 @@ describe('ban command', () => {
             deleteMessages: '0',
         })
 
-        await banCommand.execute({ client: {} as never, interaction })
+        await banCommand.execute({ client: createMockClient({}), interaction })
 
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith({
             guildId: 'guild-456',
@@ -189,7 +190,7 @@ describe('ban command', () => {
             reason: null,
         })
 
-        await banCommand.execute({ client: {} as never, interaction })
+        await banCommand.execute({ client: createMockClient({}), interaction })
 
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -209,7 +210,7 @@ describe('ban command', () => {
             silent: true,
         })
 
-        await banCommand.execute({ client: {} as never, interaction })
+        await banCommand.execute({ client: createMockClient({}), interaction })
 
         expect(interactionReplyMock).toHaveBeenCalled()
         expect(guild.members.ban).toHaveBeenCalledWith('target-123', {
@@ -227,7 +228,7 @@ describe('ban command', () => {
             reason: 'spam',
         })
 
-        await banCommand.execute({ client: {} as never, interaction })
+        await banCommand.execute({ client: createMockClient({}), interaction })
 
         expect(postToModLogMock).toHaveBeenCalledWith(guild, expect.any(Object))
     })
@@ -243,7 +244,7 @@ describe('ban command', () => {
             reason: 'spam',
         })
 
-        await banCommand.execute({ client: {} as never, interaction })
+        await banCommand.execute({ client: createMockClient({}), interaction })
 
         expect(infoLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -263,7 +264,7 @@ describe('ban command', () => {
             silent: false,
         })
 
-        await banCommand.execute({ client: {} as never, interaction })
+        await banCommand.execute({ client: createMockClient({}), interaction })
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -283,7 +284,7 @@ describe('ban command', () => {
             reason: 'spam',
         })
 
-        await banCommand.execute({ client: {} as never, interaction })
+        await banCommand.execute({ client: createMockClient({}), interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({

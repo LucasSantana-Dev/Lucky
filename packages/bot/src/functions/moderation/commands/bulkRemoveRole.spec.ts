@@ -45,6 +45,7 @@ jest.mock('../batch/bulkRemoveRoleExecutor', () => {
 })
 
 import bulkRemoveRoleCommand from './bulkRemoveRole'
+import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
 
 function createMockUser(id = 'user-123', tag = 'TestUser#1234') {
     return {
@@ -128,7 +129,7 @@ describe('bulkRemoveRole command', () => {
     test('returns early if not in a guild', async () => {
         const interaction = createInteraction({ guild: null })
         await bulkRemoveRoleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction,
         })
 
@@ -151,7 +152,7 @@ describe('bulkRemoveRole command', () => {
         })
 
         await bulkRemoveRoleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction,
         })
 
@@ -170,7 +171,7 @@ describe('bulkRemoveRole command', () => {
         })
 
         await bulkRemoveRoleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction,
         })
 
@@ -191,7 +192,7 @@ describe('bulkRemoveRole command', () => {
         })
 
         await bulkRemoveRoleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction,
         })
 
@@ -210,7 +211,7 @@ describe('bulkRemoveRole command', () => {
         const interaction = createInteraction({ role })
 
         await bulkRemoveRoleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction,
         })
 
@@ -229,7 +230,7 @@ describe('bulkRemoveRole command', () => {
         const interaction = createInteraction({ role })
 
         await bulkRemoveRoleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction,
         })
 
@@ -260,7 +261,7 @@ describe('bulkRemoveRole command', () => {
         })
 
         await bulkRemoveRoleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction,
         })
 
@@ -299,7 +300,7 @@ describe('bulkRemoveRole command', () => {
         const interaction = createInteraction({ role })
 
         await bulkRemoveRoleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction,
         })
 
@@ -322,7 +323,7 @@ describe('bulkRemoveRole command', () => {
         })
 
         await bulkRemoveRoleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction,
         })
 

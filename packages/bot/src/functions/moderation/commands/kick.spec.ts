@@ -24,6 +24,7 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 import kickCommand from './kick'
+import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
 
 function createMockUser(id = 'user-123', tag = 'TestUser#1234') {
     return {
@@ -96,7 +97,7 @@ describe('kick command', () => {
             name === 'user' ? targetUser : null,
         )
 
-        await kickCommand.execute({ client: {} as never, interaction })
+        await kickCommand.execute({ client: createMockClient({}), interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -119,7 +120,7 @@ describe('kick command', () => {
             reason: 'disruptive',
         })
 
-        await kickCommand.execute({ client: {} as never, interaction })
+        await kickCommand.execute({ client: createMockClient({}), interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -143,7 +144,7 @@ describe('kick command', () => {
             silent: false,
         })
 
-        await kickCommand.execute({ client: {} as never, interaction })
+        await kickCommand.execute({ client: createMockClient({}), interaction })
 
         expect(targetUser.send).toHaveBeenCalled()
         expect(targetUser.send.mock.calls.length).toBeGreaterThan(0)
@@ -162,7 +163,7 @@ describe('kick command', () => {
             silent: true,
         })
 
-        await kickCommand.execute({ client: {} as never, interaction })
+        await kickCommand.execute({ client: createMockClient({}), interaction })
 
         expect(targetUser.send).not.toHaveBeenCalled()
     })
@@ -180,7 +181,7 @@ describe('kick command', () => {
             silent: true,
         })
 
-        await kickCommand.execute({ client: {} as never, interaction })
+        await kickCommand.execute({ client: createMockClient({}), interaction })
 
         expect(targetMember.kick).toHaveBeenCalledWith('spam')
     })
@@ -199,7 +200,7 @@ describe('kick command', () => {
             reason: 'harassment',
         })
 
-        await kickCommand.execute({ client: {} as never, interaction })
+        await kickCommand.execute({ client: createMockClient({}), interaction })
 
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith({
             guildId: 'guild-456',
@@ -225,7 +226,7 @@ describe('kick command', () => {
             reason: null,
         })
 
-        await kickCommand.execute({ client: {} as never, interaction })
+        await kickCommand.execute({ client: createMockClient({}), interaction })
 
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -251,7 +252,7 @@ describe('kick command', () => {
             caseNumber: 99,
         })
 
-        await kickCommand.execute({ client: {} as never, interaction })
+        await kickCommand.execute({ client: createMockClient({}), interaction })
 
         expect(interactionReplyMock).toHaveBeenCalled()
         expect(moderationServiceMock.createCase).toHaveBeenCalledWith(
@@ -273,7 +274,7 @@ describe('kick command', () => {
             reason: 'spam',
         })
 
-        await kickCommand.execute({ client: {} as never, interaction })
+        await kickCommand.execute({ client: createMockClient({}), interaction })
 
         expect(postToModLogMock).toHaveBeenCalledWith(guild, expect.any(Object))
     })
@@ -292,7 +293,7 @@ describe('kick command', () => {
             reason: 'spam',
         })
 
-        await kickCommand.execute({ client: {} as never, interaction })
+        await kickCommand.execute({ client: createMockClient({}), interaction })
 
         expect(infoLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -315,7 +316,7 @@ describe('kick command', () => {
             silent: false,
         })
 
-        await kickCommand.execute({ client: {} as never, interaction })
+        await kickCommand.execute({ client: createMockClient({}), interaction })
 
         expect(errorLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -338,7 +339,7 @@ describe('kick command', () => {
             reason: 'spam',
         })
 
-        await kickCommand.execute({ client: {} as never, interaction })
+        await kickCommand.execute({ client: createMockClient({}), interaction })
 
         expect(interactionReplyMock).toHaveBeenCalledWith(
             expect.objectContaining({
