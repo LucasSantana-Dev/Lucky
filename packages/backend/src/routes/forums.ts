@@ -42,6 +42,9 @@ export function setupForumsRoutes(app: Express): void {
             })
 
             if (!thread) {
+                // Expected for guias without a Discord thread: keep the
+                // request logger from warning on every such lookup (#2978).
+                res.locals.expectedNotFound = true
                 res.status(404).json({ error: 'Thread not found' })
                 return
             }
