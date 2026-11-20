@@ -1,3 +1,4 @@
+import { partial } from '../../fixtures/mock-types'
 import { describe, expect, test, jest } from '@jest/globals'
 import {
     REQUIRED_DATABASE_RELATIONS,
@@ -46,7 +47,7 @@ describe('verifyRequiredDatabaseRelations', () => {
         } = createPrismaStub()
 
         await expect(
-            verifyRequiredDatabaseRelations(prisma),
+            verifyRequiredDatabaseRelations(partial(prisma)),
         ).resolves.toBeUndefined()
 
         expect(REQUIRED_DATABASE_RELATIONS).toEqual([
@@ -68,12 +69,12 @@ describe('verifyRequiredDatabaseRelations', () => {
             meta: { table: 'guild_role_grants' },
         })
 
-        await expect(verifyRequiredDatabaseRelations(prisma)).rejects.toMatchObject(
-            {
-                code: 'ERR_DB_SCHEMA_MISSING',
-                message: missingRelationMessage('guild_role_grants'),
-            },
-        )
+        await expect(
+            verifyRequiredDatabaseRelations(partial(prisma)),
+        ).rejects.toMatchObject({
+            code: 'ERR_DB_SCHEMA_MISSING',
+            message: missingRelationMessage('guild_role_grants'),
+        })
     })
 
     test('maps missing guild_automation_manifests relation to migration guidance', async () => {
@@ -83,12 +84,12 @@ describe('verifyRequiredDatabaseRelations', () => {
             meta: { table: 'guild_automation_manifests' },
         })
 
-        await expect(verifyRequiredDatabaseRelations(prisma)).rejects.toMatchObject(
-            {
-                code: 'ERR_DB_SCHEMA_MISSING',
-                message: missingRelationMessage('guild_automation_manifests'),
-            },
-        )
+        await expect(
+            verifyRequiredDatabaseRelations(partial(prisma)),
+        ).rejects.toMatchObject({
+            code: 'ERR_DB_SCHEMA_MISSING',
+            message: missingRelationMessage('guild_automation_manifests'),
+        })
     })
 
     test('maps missing guild_automation_runs relation to migration guidance', async () => {
@@ -98,12 +99,12 @@ describe('verifyRequiredDatabaseRelations', () => {
             meta: { table: 'guild_automation_runs' },
         })
 
-        await expect(verifyRequiredDatabaseRelations(prisma)).rejects.toMatchObject(
-            {
-                code: 'ERR_DB_SCHEMA_MISSING',
-                message: missingRelationMessage('guild_automation_runs'),
-            },
-        )
+        await expect(
+            verifyRequiredDatabaseRelations(partial(prisma)),
+        ).rejects.toMatchObject({
+            code: 'ERR_DB_SCHEMA_MISSING',
+            message: missingRelationMessage('guild_automation_runs'),
+        })
     })
 
     test('maps missing guild_automation_drifts relation to migration guidance', async () => {
@@ -113,12 +114,12 @@ describe('verifyRequiredDatabaseRelations', () => {
             meta: { table: 'guild_automation_drifts' },
         })
 
-        await expect(verifyRequiredDatabaseRelations(prisma)).rejects.toMatchObject(
-            {
-                code: 'ERR_DB_SCHEMA_MISSING',
-                message: missingRelationMessage('guild_automation_drifts'),
-            },
-        )
+        await expect(
+            verifyRequiredDatabaseRelations(partial(prisma)),
+        ).rejects.toMatchObject({
+            code: 'ERR_DB_SCHEMA_MISSING',
+            message: missingRelationMessage('guild_automation_drifts'),
+        })
     })
 
     test('rethrows non-P2021 errors unchanged', async () => {
@@ -126,6 +127,8 @@ describe('verifyRequiredDatabaseRelations', () => {
         const error = new Error('database offline')
         guildRoleGrantCount.mockRejectedValueOnce(error)
 
-        await expect(verifyRequiredDatabaseRelations(prisma)).rejects.toBe(error)
+        await expect(
+            verifyRequiredDatabaseRelations(partial(prisma)),
+        ).rejects.toBe(error)
     })
 })
