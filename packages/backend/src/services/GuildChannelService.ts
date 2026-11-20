@@ -86,6 +86,7 @@ class GuildChannelService {
                     .map((channel) => ({
                         id: channel.id,
                         name: `#${channel.name}`,
+                        type: channel.type,
                     }))
             } catch (error) {
                 debugLog({
@@ -167,6 +168,7 @@ class GuildChannelService {
                     }) => ({
                         id: channel.id,
                         name: `#${channel.name}`,
+                        type: channel.type,
                     }),
                 )
         } catch (error) {
