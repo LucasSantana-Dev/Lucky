@@ -9,6 +9,7 @@ name: Fork CI Auto-Approve
 #
 # Trusted = author_association OWNER/MEMBER/COLLABORATOR/CONTRIBUTOR, or the
 # login appears in the repo variable CI_AUTO_APPROVE_AUTHORS (comma-separated).
+# A PR whose diff touches .github/ is never auto-approved, trusted or not.
 # True first-timers get a comment instead; the team is pinged on Discord by the
 # External PR Notify workflow.
 
@@ -58,6 +59,24 @@ jobs:
                               issue_number: pr.number,
                               body: 'Thanks for the PR! CI on PRs from first-time contributors needs a one-time maintainer approval. The team has been notified and will approve the runs shortly.',
                           });
+                          return;
+                      }
+
+                      // A fork PR runs the fork's own workflow files, so a diff
+                      // under .github/ can change what an approved run executes
+                      // and where (runs-on). Those always wait for a maintainer
+                      // click, whoever the author is (#2403).
+                      const files = await github.paginate(github.rest.pulls.listFiles, {
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          pull_number: pr.number,
+                          per_page: 100,
+                      });
+                      const touchesCi = files.some((f) =>
+                          [f.filename, f.previous_filename].some((name) => name?.startsWith('.github/')),
+                      );
+                      if (touchesCi) {
+                          core.notice(`PR #${pr.number} changes files under .github/; leaving its runs for manual approval`);
                           return;
                       }
 
