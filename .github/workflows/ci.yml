@@ -488,7 +488,7 @@ jobs:
                       elif echo "$CHANGED" | grep -qE '^(\.github/workflows/ci\.yml$|\.github/actions/docker-build-service/|\.dockerignore$)'; then
                           bot=true; backend=true; frontend=true; nginx=true; render=true
                       else
-                          if echo "$CHANGED" | grep -qE '^(packages/shared/|prisma/|package.*\.json$|Dockerfile$)'; then
+                          if echo "$CHANGED" | grep -qE '^(packages/shared/|prisma/|package\.json$|package-lock\.json$|Dockerfile$)'; then
                               bot=true; backend=true; frontend=true
                           fi
                           echo "$CHANGED" | grep -qE '^packages/bot/' && bot=true
