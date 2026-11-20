@@ -31,11 +31,14 @@ function assertDisposableDatabase(): void {
     }
 }
 
+// Checked at load time: a throw here fails the file before any hook, so
+// neither setup nor cleanup can reach a database that is not disposable.
+assertDisposableDatabase()
+
 describe('raw SQL against Postgres', () => {
     const prisma = getPrismaClient()
 
     beforeAll(async () => {
-        assertDisposableDatabase()
         await prisma.guild.create({
             data: { discordId: GUILD_ID, name: RUN_ID, ownerId: RUN_ID },
         })
