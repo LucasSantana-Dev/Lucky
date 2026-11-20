@@ -3,6 +3,7 @@ import request from 'supertest'
 import express from 'express'
 import { setupInternalNotifyRoutes } from '../../../src/routes/internalNotify'
 import { errorHandler } from '../../../src/middleware/errorHandler'
+import { type AsyncMockFn } from '../../fixtures/mock-types'
 
 const API_KEY = 'test-notify-api-key-12345'
 const DISCORD_TOKEN = 'test-bot-token'
@@ -21,18 +22,16 @@ describe('Internal Notify Routes Integration', () => {
         process.env.LUCKY_NOTIFY_API_KEY = API_KEY
         process.env.DISCORD_TOKEN = DISCORD_TOKEN
 
-        global.fetch = jest.fn()
+        global.fetch = jest.fn<typeof fetch>()
     })
 
     describe('POST /api/internal/notify', () => {
         test('should send message with content and return 204', async () => {
-            const mockFetch = global.fetch as jest.MockedFunction<
-                typeof fetch
-            >
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
             mockFetch.mockResolvedValue({
                 ok: true,
                 status: 200,
-                text: jest.fn().mockResolvedValue(''),
+                text: jest.fn<AsyncMockFn>().mockResolvedValue(''),
             } as any)
 
             const response = await request(app)
@@ -57,13 +56,11 @@ describe('Internal Notify Routes Integration', () => {
         })
 
         test('should send message with embeds and return 204', async () => {
-            const mockFetch = global.fetch as jest.MockedFunction<
-                typeof fetch
-            >
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
             mockFetch.mockResolvedValue({
                 ok: true,
                 status: 200,
-                text: jest.fn().mockResolvedValue(''),
+                text: jest.fn<AsyncMockFn>().mockResolvedValue(''),
             } as any)
 
             const embed = {
@@ -90,13 +87,11 @@ describe('Internal Notify Routes Integration', () => {
         })
 
         test('should truncate content to 1900 chars', async () => {
-            const mockFetch = global.fetch as jest.MockedFunction<
-                typeof fetch
-            >
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
             mockFetch.mockResolvedValue({
                 ok: true,
                 status: 200,
-                text: jest.fn().mockResolvedValue(''),
+                text: jest.fn<AsyncMockFn>().mockResolvedValue(''),
             } as any)
 
             const longContent = 'x'.repeat(2500)
@@ -177,9 +172,7 @@ describe('Internal Notify Routes Integration', () => {
                 })
 
             expect(response.status).toBe(400)
-            expect(response.body.error).toContain(
-                'content|embeds required',
-            )
+            expect(response.body.error).toContain('content|embeds required')
         })
 
         test('should accept empty body object', async () => {
@@ -208,13 +201,11 @@ describe('Internal Notify Routes Integration', () => {
         })
 
         test('should return 502 when Discord API returns error', async () => {
-            const mockFetch = global.fetch as jest.MockedFunction<
-                typeof fetch
-            >
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
             mockFetch.mockResolvedValue({
                 ok: false,
                 status: 403,
-                text: jest.fn().mockResolvedValue('Forbidden'),
+                text: jest.fn<AsyncMockFn>().mockResolvedValue('Forbidden'),
             } as any)
 
             const response = await request(app)
@@ -230,13 +221,11 @@ describe('Internal Notify Routes Integration', () => {
         })
 
         test('should handle Discord API 404 error', async () => {
-            const mockFetch = global.fetch as jest.MockedFunction<
-                typeof fetch
-            >
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
             mockFetch.mockResolvedValue({
                 ok: false,
                 status: 404,
-                text: jest.fn().mockResolvedValue('Not Found'),
+                text: jest.fn<AsyncMockFn>().mockResolvedValue('Not Found'),
             } as any)
 
             const response = await request(app)
@@ -252,13 +241,13 @@ describe('Internal Notify Routes Integration', () => {
         })
 
         test('should handle Discord API network error gracefully', async () => {
-            const mockFetch = global.fetch as jest.MockedFunction<
-                typeof fetch
-            >
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
             mockFetch.mockResolvedValue({
                 ok: false,
                 status: 500,
-                text: jest.fn().mockResolvedValue('Internal Server Error'),
+                text: jest
+                    .fn<AsyncMockFn>()
+                    .mockResolvedValue('Internal Server Error'),
             } as any)
 
             const response = await request(app)
@@ -274,14 +263,12 @@ describe('Internal Notify Routes Integration', () => {
         })
 
         test('should handle fetch text parsing error', async () => {
-            const mockFetch = global.fetch as jest.MockedFunction<
-                typeof fetch
-            >
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
             mockFetch.mockResolvedValue({
                 ok: false,
                 status: 500,
                 text: jest
-                    .fn()
+                    .fn<AsyncMockFn>()
                     .mockRejectedValue(new Error('Parse error')),
             } as any)
 
@@ -298,13 +285,11 @@ describe('Internal Notify Routes Integration', () => {
         })
 
         test('should send both content and embeds when provided', async () => {
-            const mockFetch = global.fetch as jest.MockedFunction<
-                typeof fetch
-            >
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
             mockFetch.mockResolvedValue({
                 ok: true,
                 status: 200,
-                text: jest.fn().mockResolvedValue(''),
+                text: jest.fn<AsyncMockFn>().mockResolvedValue(''),
             } as any)
 
             const embed = { title: 'Embed', color: 16711680 }
@@ -329,13 +314,11 @@ describe('Internal Notify Routes Integration', () => {
         })
 
         test('should use correct Discord API endpoint', async () => {
-            const mockFetch = global.fetch as jest.MockedFunction<
-                typeof fetch
-            >
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
             mockFetch.mockResolvedValue({
                 ok: true,
                 status: 200,
-                text: jest.fn().mockResolvedValue(''),
+                text: jest.fn<AsyncMockFn>().mockResolvedValue(''),
             } as any)
 
             await request(app)
@@ -353,13 +336,11 @@ describe('Internal Notify Routes Integration', () => {
         })
 
         test('should accept content with special characters', async () => {
-            const mockFetch = global.fetch as jest.MockedFunction<
-                typeof fetch
-            >
+            const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>
             mockFetch.mockResolvedValue({
                 ok: true,
                 status: 200,
-                text: jest.fn().mockResolvedValue(''),
+                text: jest.fn<AsyncMockFn>().mockResolvedValue(''),
             } as any)
 
             const specialContent = '🎵 Now playing: "Test" [Explicit] \n\n'

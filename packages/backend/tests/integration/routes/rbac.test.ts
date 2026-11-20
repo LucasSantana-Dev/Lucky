@@ -6,9 +6,10 @@ import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { errorHandler } from '../../../src/middleware/errorHandler'
 import { sessionService } from '../../../src/services/SessionService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
-const mockListRoleGrants = jest.fn<any>()
-const mockReplaceRoleGrants = jest.fn<any>()
+const mockListRoleGrants = jest.fn<AsyncMockFn>()
+const mockReplaceRoleGrants = jest.fn<AsyncMockFn>()
 
 jest.mock('@lucky/shared/services', () => ({
     GuildRoleGrantStorageError: class GuildRoleGrantStorageError extends Error {},
@@ -27,7 +28,7 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 import { GuildRoleGrantStorageError } from '@lucky/shared/services'
 
-const mockGetGuildRoleOptions = jest.fn<any>()
+const mockGetGuildRoleOptions = jest.fn<AsyncMockFn>()
 
 jest.mock('../../../src/services/GuildService', () => ({
     guildService: {
@@ -75,7 +76,9 @@ describe('RBAC Routes Integration', () => {
 
         jest.clearAllMocks()
         ;(sessionService as jest.Mocked<typeof sessionService>).getSession =
-            jest.fn().mockResolvedValue(MOCK_SESSION_DATA)
+            jest
+                .fn<typeof sessionService.getSession>()
+                .mockResolvedValue(MOCK_SESSION_DATA)
     })
 
     test('GET /api/guilds/:guildId/rbac returns policy payload for managers', async () => {

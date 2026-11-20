@@ -1,3 +1,4 @@
+import { partial } from '../../fixtures/mock-types'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
@@ -98,7 +99,9 @@ describe('Batch Jobs Routes', () => {
             const mockBatchJobService = batchJobService as jest.Mocked<
                 typeof batchJobService
             >
-            mockBatchJobService.listByGuild.mockResolvedValue([MOCK_BATCH_JOB])
+            mockBatchJobService.listByGuild.mockResolvedValue([
+                partial(MOCK_BATCH_JOB),
+            ])
 
             const response = await request(app)
                 .get(`/api/guilds/${MOCK_GUILD_ID}/batch-jobs`)
@@ -122,7 +125,9 @@ describe('Batch Jobs Routes', () => {
             const mockBatchJobService = batchJobService as jest.Mocked<
                 typeof batchJobService
             >
-            mockBatchJobService.listByGuild.mockResolvedValue([MOCK_BATCH_JOB])
+            mockBatchJobService.listByGuild.mockResolvedValue([
+                partial(MOCK_BATCH_JOB),
+            ])
             mockBatchJobService.countByGuild.mockResolvedValue(37)
 
             const response = await request(app)
@@ -143,7 +148,9 @@ describe('Batch Jobs Routes', () => {
             const mockBatchJobService = batchJobService as jest.Mocked<
                 typeof batchJobService
             >
-            mockBatchJobService.listByGuild.mockResolvedValue([MOCK_BATCH_JOB])
+            mockBatchJobService.listByGuild.mockResolvedValue([
+                partial(MOCK_BATCH_JOB),
+            ])
 
             await request(app)
                 .get(`/api/guilds/${MOCK_GUILD_ID}/batch-jobs`)
@@ -181,7 +188,9 @@ describe('Batch Jobs Routes', () => {
             const mockBatchJobService = batchJobService as jest.Mocked<
                 typeof batchJobService
             >
-            mockBatchJobService.getById.mockResolvedValue(MOCK_BATCH_JOB)
+            mockBatchJobService.getById.mockResolvedValue(
+                partial(MOCK_BATCH_JOB),
+            )
 
             const response = await request(app)
                 .get(`/api/guilds/${MOCK_GUILD_ID}/batch-jobs/${MOCK_JOB_ID}`)
@@ -218,7 +227,9 @@ describe('Batch Jobs Routes', () => {
                 ...MOCK_BATCH_JOB,
                 guildId: 'different-guild-id',
             }
-            mockBatchJobService.getById.mockResolvedValue(otherGuildJob)
+            mockBatchJobService.getById.mockResolvedValue(
+                partial(otherGuildJob),
+            )
 
             const response = await request(app)
                 .get(`/api/guilds/${MOCK_GUILD_ID}/batch-jobs/${MOCK_JOB_ID}`)
@@ -239,7 +250,9 @@ describe('Batch Jobs Routes', () => {
                 typeof redisClient
             >
 
-            mockBatchJobService.getById.mockResolvedValue(MOCK_BATCH_JOB)
+            mockBatchJobService.getById.mockResolvedValue(
+                partial(MOCK_BATCH_JOB),
+            )
             mockRedisClient.get.mockResolvedValue(
                 JSON.stringify(MOCK_BATCH_PROGRESS),
             )
@@ -268,7 +281,9 @@ describe('Batch Jobs Routes', () => {
                 typeof redisClient
             >
 
-            mockBatchJobService.getById.mockResolvedValue(MOCK_BATCH_JOB)
+            mockBatchJobService.getById.mockResolvedValue(
+                partial(MOCK_BATCH_JOB),
+            )
             mockRedisClient.get.mockResolvedValue(null)
 
             const response = await request(app)
@@ -313,8 +328,12 @@ describe('Batch Jobs Routes', () => {
                 ...MOCK_BATCH_JOB,
                 status: 'cancelled' as const,
             }
-            mockBatchJobService.getById.mockResolvedValue(MOCK_BATCH_JOB)
-            mockBatchJobService.markCancelled.mockResolvedValue(cancelledJob)
+            mockBatchJobService.getById.mockResolvedValue(
+                partial(MOCK_BATCH_JOB),
+            )
+            mockBatchJobService.markCancelled.mockResolvedValue(
+                partial(cancelledJob),
+            )
             mockServerLogService.createLog.mockResolvedValue({} as any)
 
             const response = await request(app)
@@ -341,7 +360,7 @@ describe('Batch Jobs Routes', () => {
                 ...MOCK_BATCH_JOB,
                 status: 'completed' as const,
             }
-            mockBatchJobService.getById.mockResolvedValue(completedJob)
+            mockBatchJobService.getById.mockResolvedValue(partial(completedJob))
 
             const response = await request(app)
                 .post(

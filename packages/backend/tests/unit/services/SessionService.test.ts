@@ -4,13 +4,14 @@ import {
     MOCK_SESSION_ID,
     MOCK_EXPIRED_SESSION_DATA,
 } from '../../fixtures/mock-data'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 const mockRedisClient = {
-    isHealthy: jest.fn<any>(() => true),
-    get: jest.fn<any>(),
-    set: jest.fn<any>(),
-    setex: jest.fn<any>(),
-    del: jest.fn<any>(),
+    isHealthy: jest.fn(() => true),
+    get: jest.fn<AsyncMockFn>(),
+    set: jest.fn(),
+    setex: jest.fn<AsyncMockFn>(),
+    del: jest.fn<AsyncMockFn>(),
 }
 
 jest.mock('@lucky/shared/services', () => ({

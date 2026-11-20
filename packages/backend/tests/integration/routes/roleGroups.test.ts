@@ -3,14 +3,15 @@ import request from 'supertest'
 import type { Express, Request, Response, NextFunction } from 'express'
 import express from 'express'
 import type { AuthenticatedRequest } from '../../../src/middleware/auth'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 // Mock the RoleGroupService before importing routes
-const mockCreateRoleGroup = jest.fn()
-const mockGetRoleGroup = jest.fn()
-const mockListRoleGroups = jest.fn()
-const mockUpdateRoleGroup = jest.fn()
-const mockDetachRoleFromGroup = jest.fn()
-const mockAddRoleToGroup = jest.fn()
+const mockCreateRoleGroup = jest.fn<AsyncMockFn>()
+const mockGetRoleGroup = jest.fn<AsyncMockFn>()
+const mockListRoleGroups = jest.fn<AsyncMockFn>()
+const mockUpdateRoleGroup = jest.fn<AsyncMockFn>()
+const mockDetachRoleFromGroup = jest.fn<AsyncMockFn>()
+const mockAddRoleToGroup = jest.fn<AsyncMockFn>()
 
 const mockService = {
     createRoleGroup: mockCreateRoleGroup,

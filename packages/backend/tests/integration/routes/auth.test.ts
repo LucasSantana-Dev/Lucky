@@ -46,7 +46,7 @@ describe('Auth Routes Integration', () => {
             MOCK_TOKEN_RESPONSE,
         )
         mockDiscordOAuth.getUserInfo.mockResolvedValue(MOCK_DISCORD_USER)
-        mockSessionService.setSession.mockResolvedValue()
+        mockSessionService.setSession.mockResolvedValue(undefined)
     }
 
     beforeEach(() => {
@@ -144,7 +144,7 @@ describe('Auth Routes Integration', () => {
                     .set('x-forwarded-host', 'lucky.lucassantana.tech')
                     .expect(302)
 
-                const cookies = response.headers['set-cookie'] as
+                const cookies = response.headers['set-cookie'] as unknown as
                     string[] | undefined
 
                 expect(cookies).toBeDefined()
@@ -209,10 +209,10 @@ describe('Auth Routes Integration', () => {
             // Monkey-patch save to simulate a transient store failure.
             brokenSaveApp.use((req, _res, next) => {
                 const orig = req.session.save.bind(req.session)
-                req.session.save = (cb?: (err?: unknown) => void) => {
+                req.session.save = ((cb?: (err?: unknown) => void) => {
                     if (cb) cb(new Error('simulated store failure'))
                     return orig
-                }
+                }) as unknown as typeof req.session.save
                 next()
             })
             setupAuthRoutes(brokenSaveApp)
@@ -254,7 +254,8 @@ describe('Auth Routes Integration', () => {
                 ),
             )
 
-            const cookies = response.headers['set-cookie'] ?? []
+            const cookies = (response.headers['set-cookie'] ??
+                []) as unknown as string[]
             expect(cookies.join(';')).toContain('Secure')
             expect(cookies.join(';')).toContain('HttpOnly')
             expect(cookies.join(';')).toContain('SameSite=None')
@@ -492,7 +493,7 @@ describe('Auth Routes Integration', () => {
         test('should logout successfully', async () => {
             const mockSessionService = getSessionServiceMock()
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
-            mockSessionService.deleteSession.mockResolvedValue()
+            mockSessionService.deleteSession.mockResolvedValue(undefined)
 
             const response = await request(app)
                 .get('/api/auth/logout')

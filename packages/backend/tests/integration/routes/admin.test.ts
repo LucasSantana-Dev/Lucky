@@ -8,6 +8,7 @@ import { sessionService } from '../../../src/services/SessionService'
 import { requireAuth } from '../../../src/middleware/auth'
 import { requireAdmin } from '../../../src/middleware/requireAdmin'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -15,7 +16,7 @@ jest.mock('../../../src/services/SessionService', () => ({
     },
 }))
 
-const mockGetAllBotGuilds = jest.fn<any>()
+const mockGetAllBotGuilds = jest.fn<AsyncMockFn>()
 
 jest.mock('../../../src/services/GuildService', () => ({
     guildService: {
@@ -25,7 +26,9 @@ jest.mock('../../../src/services/GuildService', () => ({
 
 jest.mock('../../../src/middleware/requireAdmin', () => ({
     isDeveloperUser: (userId?: string) => userId === '123456789',
-    requireAdmin: jest.requireActual('../../../src/middleware/requireAdmin').requireAdmin,
+    requireAdmin: jest.requireActual<
+        typeof import('../../../src/middleware/requireAdmin')
+    >('../../../src/middleware/requireAdmin').requireAdmin,
 }))
 
 const ADMIN_SESSION = { ...MOCK_SESSION_DATA, userId: '123456789' }
@@ -35,7 +38,8 @@ const MOCK_GUILDS = [
     {
         id: '111111111111111111',
         name: 'Test Server',
-        iconUrl: 'https://cdn.discordapp.com/icons/111111111111111111/abc.png?size=64',
+        iconUrl:
+            'https://cdn.discordapp.com/icons/111111111111111111/abc.png?size=64',
         memberCount: 42,
         textChannelCount: 5,
         voiceChannelCount: 2,
@@ -67,7 +71,9 @@ describe('Admin Routes Integration', () => {
 
     describe('GET /api/admin/guilds', () => {
         test('returns guild list for admin user', async () => {
-            const mockSessionService = sessionService as jest.Mocked<typeof sessionService>
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
             mockSessionService.getSession.mockResolvedValue(ADMIN_SESSION)
             mockGetAllBotGuilds.mockResolvedValue(MOCK_GUILDS)
 
@@ -81,7 +87,9 @@ describe('Admin Routes Integration', () => {
         })
 
         test('returns empty guild list when bot has no guilds', async () => {
-            const mockSessionService = sessionService as jest.Mocked<typeof sessionService>
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
             mockSessionService.getSession.mockResolvedValue(ADMIN_SESSION)
             mockGetAllBotGuilds.mockResolvedValue([])
 
@@ -94,7 +102,9 @@ describe('Admin Routes Integration', () => {
         })
 
         test('returns 403 for authenticated non-admin user', async () => {
-            const mockSessionService = sessionService as jest.Mocked<typeof sessionService>
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
             mockSessionService.getSession.mockResolvedValue(NON_ADMIN_SESSION)
 
             const response = await request(app)
@@ -107,7 +117,9 @@ describe('Admin Routes Integration', () => {
         })
 
         test('returns 401 when not authenticated', async () => {
-            const mockSessionService = sessionService as jest.Mocked<typeof sessionService>
+            const mockSessionService = sessionService as jest.Mocked<
+                typeof sessionService
+            >
             mockSessionService.getSession.mockResolvedValue(null)
 
             const response = await request(app)

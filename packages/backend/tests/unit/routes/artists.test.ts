@@ -19,6 +19,7 @@ import {
     createMockResponse,
     createMockNext,
 } from '../../fixtures/test-helpers'
+import { type AsyncMockFn, partial } from '../../fixtures/mock-types'
 
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
@@ -39,8 +40,8 @@ jest.mock('@lucky/shared/services', () => ({
         getValidAccessToken: jest.fn(),
     },
     redisClient: {
-        get: jest.fn().mockResolvedValue(null),
-        setex: jest.fn().mockResolvedValue('OK'),
+        get: jest.fn<AsyncMockFn>().mockResolvedValue(null),
+        setex: jest.fn<AsyncMockFn>().mockResolvedValue('OK'),
     },
 }))
 
@@ -102,16 +103,16 @@ describe('Artists Routes', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         artistSuggestionService.resetCachesForTests()
-        ;(isSpotifyAuthConfigured as jest.Mock).mockReturnValue(true)
-        ;(getSpotifyClientToken as jest.Mock).mockResolvedValue('client-token')
-        ;(
-            spotifyLinkService.getValidAccessToken as jest.Mock
-        ).mockResolvedValue(null)
+        jest.mocked(isSpotifyAuthConfigured).mockReturnValue(true)
+        jest.mocked(getSpotifyClientToken).mockResolvedValue('client-token')
+        jest.mocked(spotifyLinkService.getValidAccessToken).mockResolvedValue(
+            null,
+        )
         // Reset mockApp for each test to avoid accumulated route registrations
-        mockApp.get.mockClear()
-        mockApp.post.mockClear()
-        mockApp.put.mockClear()
-        mockApp.delete.mockClear()
+        jest.mocked(mockApp.get).mockClear()
+        jest.mocked(mockApp.post).mockClear()
+        jest.mocked(mockApp.put).mockClear()
+        jest.mocked(mockApp.delete).mockClear()
     })
 
     describe('GET /api/artists/suggestions', () => {
@@ -121,8 +122,8 @@ describe('Artists Routes', () => {
             }) as any
             const res = createMockResponse()
 
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue('user-token')
 
             const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue(
@@ -145,7 +146,7 @@ describe('Artists Routes', () => {
             )
 
             setupArtistsRoutes(mockApp)
-            const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
+            const handler = getRouteHandler(jest.mocked(mockApp.get), 0)
 
             const next = createMockNext()
             await handler(req, res, next)
@@ -155,7 +156,9 @@ describe('Artists Routes', () => {
                     artists: expect.any(Array),
                 }),
             )
-            expect(res.json.mock.calls[0][0].artists.length).toBeGreaterThan(0)
+            expect(
+                jest.mocked(res.json).mock.calls[0][0].artists.length,
+            ).toBeGreaterThan(0)
 
             fetchSpy.mockRestore()
         })
@@ -166,22 +169,22 @@ describe('Artists Routes', () => {
             }) as any
             const res = createMockResponse()
 
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue('user-token')
             const fetchSpy = jest
                 .spyOn(global, 'fetch')
                 .mockRejectedValueOnce(new Error('Network error'))
 
-            ;(searchSpotifyArtists as jest.Mock).mockResolvedValue([mockArtist])
+            jest.mocked(searchSpotifyArtists).mockResolvedValue([mockArtist])
 
             setupArtistsRoutes(mockApp)
-            const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
+            const handler = getRouteHandler(jest.mocked(mockApp.get), 0)
 
             const next = createMockNext()
             await handler(req, res, next)
 
-            expect(searchSpotifyArtists as jest.Mock).toHaveBeenCalled()
+            expect(jest.mocked(searchSpotifyArtists)).toHaveBeenCalled()
             expect(res.json).toHaveBeenCalledWith(
                 expect.objectContaining({
                     artists: expect.any(Array),
@@ -197,8 +200,8 @@ describe('Artists Routes', () => {
             }) as any
             const res = createMockResponse()
 
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue('user-token')
 
             const shortTermArtists = [
@@ -248,7 +251,7 @@ describe('Artists Routes', () => {
                 )
 
             setupArtistsRoutes(mockApp)
-            const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
+            const handler = getRouteHandler(jest.mocked(mockApp.get), 0)
 
             const next = createMockNext()
             await handler(req, res, next)
@@ -272,17 +275,17 @@ describe('Artists Routes', () => {
             }) as any
             const res = createMockResponse()
 
-            ;(
-                spotifyLinkService.getValidAccessToken as jest.Mock
+            jest.mocked(
+                spotifyLinkService.getValidAccessToken,
             ).mockResolvedValue('user-token')
             const fetchSpy = jest
                 .spyOn(global, 'fetch')
                 .mockRejectedValueOnce(new Error('Network error'))
 
-            ;(searchSpotifyArtists as jest.Mock).mockResolvedValue([mockArtist])
+            jest.mocked(searchSpotifyArtists).mockResolvedValue([mockArtist])
 
             setupArtistsRoutes(mockApp)
-            const handler = getRouteHandler(mockApp.get as jest.Mock, 0)
+            const handler = getRouteHandler(jest.mocked(mockApp.get), 0)
 
             const next = createMockNext()
             await handler(req, res, next)
@@ -306,15 +309,15 @@ describe('Artists Routes', () => {
             }) as any
             const res = createMockResponse()
 
-            ;(searchSpotifyArtists as jest.Mock).mockResolvedValue([mockArtist])
+            jest.mocked(searchSpotifyArtists).mockResolvedValue([mockArtist])
 
             setupArtistsRoutes(mockApp)
-            const handler = getRouteHandler(mockApp.get as jest.Mock, 1)
+            const handler = getRouteHandler(jest.mocked(mockApp.get), 1)
 
             const next = createMockNext()
             await handler(req, res, next)
 
-            expect(searchSpotifyArtists as jest.Mock).toHaveBeenCalledWith(
+            expect(jest.mocked(searchSpotifyArtists)).toHaveBeenCalledWith(
                 'client-token',
                 'Drake',
                 12,
@@ -333,17 +336,17 @@ describe('Artists Routes', () => {
             }) as any
             const res = createMockResponse()
 
-            ;(getSpotifyRelatedArtists as jest.Mock).mockResolvedValue([
+            jest.mocked(getSpotifyRelatedArtists).mockResolvedValue([
                 mockArtist,
             ])
 
             setupArtistsRoutes(mockApp)
-            const handler = getRouteHandler(mockApp.get as jest.Mock, 2)
+            const handler = getRouteHandler(jest.mocked(mockApp.get), 2)
 
             const next = createMockNext()
             await handler(req, res, next)
 
-            expect(getSpotifyRelatedArtists as jest.Mock).toHaveBeenCalledWith(
+            expect(jest.mocked(getSpotifyRelatedArtists)).toHaveBeenCalledWith(
                 'client-token',
                 'spotify-1',
             )
@@ -363,13 +366,15 @@ describe('Artists Routes', () => {
 
             const mockDb = {
                 userArtistPreference: {
-                    findMany: jest.fn().mockResolvedValue([mockPreference]),
+                    findMany: jest
+                        .fn<AsyncMockFn>()
+                        .mockResolvedValue([mockPreference]),
                 },
             }
-            ;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+            jest.mocked(getPrismaClient).mockReturnValue(partial(mockDb))
 
             setupArtistsRoutes(mockApp)
-            const handler = getRouteHandler(mockApp.get as jest.Mock, 3)
+            const handler = getRouteHandler(jest.mocked(mockApp.get), 3)
 
             const next = createMockNext()
             await handler(req, res, next)
@@ -404,15 +409,17 @@ describe('Artists Routes', () => {
                     Promise.all(ops),
                 ),
                 userArtistPreference: {
-                    findMany: jest.fn().mockResolvedValue([]),
+                    findMany: jest.fn<AsyncMockFn>().mockResolvedValue([]),
                     deleteMany: jest.fn(),
-                    upsert: jest.fn().mockResolvedValue(mockPreference),
+                    upsert: jest
+                        .fn<AsyncMockFn>()
+                        .mockResolvedValue(mockPreference),
                 },
             }
-            ;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+            jest.mocked(getPrismaClient).mockReturnValue(partial(mockDb))
 
             setupArtistsRoutes(mockApp)
-            const handler = getRouteHandler(mockApp.post as jest.Mock, 0)
+            const handler = getRouteHandler(jest.mocked(mockApp.post), 0)
 
             const next = createMockNext()
             await handler(req, res, next)
@@ -455,15 +462,17 @@ describe('Artists Routes', () => {
                     Promise.all(ops),
                 ),
                 userArtistPreference: {
-                    findMany: jest.fn().mockResolvedValue([]),
+                    findMany: jest.fn<AsyncMockFn>().mockResolvedValue([]),
                     deleteMany: jest.fn(),
-                    upsert: jest.fn().mockResolvedValue(mockPreference),
+                    upsert: jest
+                        .fn<AsyncMockFn>()
+                        .mockResolvedValue(mockPreference),
                 },
             }
-            ;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+            jest.mocked(getPrismaClient).mockReturnValue(partial(mockDb))
 
             setupArtistsRoutes(mockApp)
-            const handler = getRouteHandler(mockApp.put as jest.Mock, 0)
+            const handler = getRouteHandler(jest.mocked(mockApp.put), 0)
 
             const next = createMockNext()
             await handler(req, res, next)
@@ -489,15 +498,15 @@ describe('Artists Routes', () => {
                     Promise.all(ops),
                 ),
                 userArtistPreference: {
-                    findMany: jest.fn().mockResolvedValue([]),
+                    findMany: jest.fn<AsyncMockFn>().mockResolvedValue([]),
                     deleteMany: jest.fn(),
                     upsert: jest.fn(),
                 },
             }
-            ;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+            jest.mocked(getPrismaClient).mockReturnValue(partial(mockDb))
 
             setupArtistsRoutes(mockApp)
-            const handler = getRouteHandler(mockApp.put as jest.Mock, 0)
+            const handler = getRouteHandler(jest.mocked(mockApp.put), 0)
 
             const next = createMockNext()
             await handler(req, res, next)
@@ -520,13 +529,15 @@ describe('Artists Routes', () => {
 
             const mockDb = {
                 userArtistPreference: {
-                    delete: jest.fn().mockResolvedValue(mockPreference),
+                    delete: jest
+                        .fn<AsyncMockFn>()
+                        .mockResolvedValue(mockPreference),
                 },
             }
-            ;(getPrismaClient as jest.Mock).mockReturnValue(mockDb)
+            jest.mocked(getPrismaClient).mockReturnValue(partial(mockDb))
 
             setupArtistsRoutes(mockApp)
-            const handler = getRouteHandler(mockApp.delete as jest.Mock, 0)
+            const handler = getRouteHandler(jest.mocked(mockApp.delete), 0)
 
             const next = createMockNext()
             await handler(req, res, next)

@@ -1,3 +1,4 @@
+import { partial } from '../../fixtures/mock-types'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 
 const mockPrisma: any = {
@@ -126,8 +127,8 @@ describe('RoleGroupService', () => {
 
             const { guildService } =
                 await import('../../../src/services/GuildService')
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue(
-                mockRoles,
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue(
+                partial(mockRoles),
             )
 
             const result = await service.seedStyleFromMessage(MESSAGE_ID)
@@ -169,8 +170,8 @@ describe('RoleGroupService', () => {
 
             const { guildService } =
                 await import('../../../src/services/GuildService')
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue(
-                mockRoles,
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue(
+                partial(mockRoles),
             )
 
             const result = await service.seedStyleFromMessage(MESSAGE_ID)
@@ -210,8 +211,8 @@ describe('RoleGroupService', () => {
 
             const { guildService } =
                 await import('../../../src/services/GuildService')
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue(
-                mockRoles,
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue(
+                partial(mockRoles),
             )
 
             const result = await service.seedStyleFromMessage(MESSAGE_ID)
@@ -286,8 +287,8 @@ describe('RoleGroupService', () => {
 
             const { guildService } =
                 await import('../../../src/services/GuildService')
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue(
-                mockRoles,
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue(
+                partial(mockRoles),
             )
 
             const result = await service.createRoleGroup({
@@ -360,7 +361,7 @@ describe('RoleGroupService', () => {
 
             const { guildService } =
                 await import('../../../src/services/GuildService')
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue([])
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue([])
 
             const result = await service.addRoleToGroup(
                 GUILD_ID,
@@ -438,7 +439,7 @@ describe('RoleGroupService', () => {
                 position: i,
                 managed: false,
             }))
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue(
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue(
                 manyRoles,
             )
 
@@ -469,7 +470,7 @@ describe('RoleGroupService', () => {
 
             const { guildService } =
                 await import('../../../src/services/GuildService')
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue([])
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue([])
 
             const longLabel = 'a'.repeat(81)
             await expect(
@@ -506,7 +507,7 @@ describe('RoleGroupService', () => {
 
             const { guildService } =
                 await import('../../../src/services/GuildService')
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue([
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue([
                 {
                     id: 'role-existing',
                     name: 'ExistingRole',
@@ -546,8 +547,8 @@ describe('RoleGroupService', () => {
 
             const { guildService } =
                 await import('../../../src/services/GuildService')
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue([])
-            ;(guildService.createGuildRole as jest.Mock).mockResolvedValue({
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue([])
+            jest.mocked(guildService.createGuildRole).mockResolvedValue({
                 id: ROLE_ID_A,
                 name: 'NewRole',
                 color: 5793266,
@@ -560,16 +561,16 @@ describe('RoleGroupService', () => {
 
             const { reactionRolesService } =
                 await import('@lucky/shared/services/ReactionRolesService')
-            ;(
-                reactionRolesService.addRoleToMessage as jest.Mock
+            jest.mocked(
+                reactionRolesService.addRoleToMessage,
             ).mockResolvedValue({
                 status: 'ok',
-                mapping: {
+                mapping: partial({
                     id: 'map-1',
                     roleId: ROLE_ID_A,
                     label: 'NewRole',
                     style: 'Primary',
-                },
+                }),
             })
 
             const result = await service.addRoleToGroup(
@@ -610,8 +611,8 @@ describe('RoleGroupService', () => {
 
             const { guildService } =
                 await import('../../../src/services/GuildService')
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue([])
-            ;(guildService.createGuildRole as jest.Mock).mockResolvedValue({
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue([])
+            jest.mocked(guildService.createGuildRole).mockResolvedValue({
                 id: ROLE_ID_A,
                 name: 'NewRole',
                 color: 5793266,
@@ -624,10 +625,10 @@ describe('RoleGroupService', () => {
 
             const { reactionRolesService } =
                 await import('@lucky/shared/services/ReactionRolesService')
-            ;(
-                reactionRolesService.addRoleToMessage as jest.Mock
+            jest.mocked(
+                reactionRolesService.addRoleToMessage,
             ).mockRejectedValue(new Error('DB transaction failed'))
-            ;(guildService.deleteGuildRole as jest.Mock).mockResolvedValue(
+            jest.mocked(guildService.deleteGuildRole).mockResolvedValue(
                 undefined,
             )
 
@@ -663,8 +664,8 @@ describe('RoleGroupService', () => {
 
             const { guildService } =
                 await import('../../../src/services/GuildService')
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue([])
-            ;(guildService.createGuildRole as jest.Mock).mockResolvedValue({
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue([])
+            jest.mocked(guildService.createGuildRole).mockResolvedValue({
                 id: ROLE_ID_A,
                 name: 'NewRole',
                 color: 5793266,
@@ -677,10 +678,10 @@ describe('RoleGroupService', () => {
 
             const { reactionRolesService } =
                 await import('@lucky/shared/services/ReactionRolesService')
-            ;(
-                reactionRolesService.addRoleToMessage as jest.Mock
+            jest.mocked(
+                reactionRolesService.addRoleToMessage,
             ).mockRejectedValue(new Error('DB transaction failed'))
-            ;(guildService.deleteGuildRole as jest.Mock).mockRejectedValue(
+            jest.mocked(guildService.deleteGuildRole).mockRejectedValue(
                 new Error('Role not found (404)'),
             )
 
@@ -717,8 +718,8 @@ describe('RoleGroupService', () => {
 
             const { guildService } =
                 await import('../../../src/services/GuildService')
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue([])
-            ;(guildService.createGuildRole as jest.Mock).mockResolvedValue({
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue([])
+            jest.mocked(guildService.createGuildRole).mockResolvedValue({
                 id: ROLE_ID_A,
                 name: 'NewRole',
                 color: 5793266,
@@ -731,16 +732,16 @@ describe('RoleGroupService', () => {
 
             const { reactionRolesService } =
                 await import('@lucky/shared/services/ReactionRolesService')
-            ;(
-                reactionRolesService.addRoleToMessage as jest.Mock
+            jest.mocked(
+                reactionRolesService.addRoleToMessage,
             ).mockResolvedValue({
                 status: 'partial_success',
-                mapping: {
+                mapping: partial({
                     id: 'map-1',
                     roleId: ROLE_ID_A,
                     label: 'NewRole',
                     style: 'Primary',
-                },
+                }),
             })
 
             const { infoLog } = await import('@lucky/shared/utils/general/log')
@@ -775,8 +776,8 @@ describe('RoleGroupService', () => {
 
             const { guildService } =
                 await import('../../../src/services/GuildService')
-            ;(guildService.getFullGuildRoles as jest.Mock).mockResolvedValue([])
-            ;(guildService.createGuildRole as jest.Mock).mockResolvedValue({
+            jest.mocked(guildService.getFullGuildRoles).mockResolvedValue([])
+            jest.mocked(guildService.createGuildRole).mockResolvedValue({
                 id: ROLE_ID_A,
                 name: 'NewRole',
                 color: 16711680, // red
@@ -789,16 +790,16 @@ describe('RoleGroupService', () => {
 
             const { reactionRolesService } =
                 await import('@lucky/shared/services/ReactionRolesService')
-            ;(
-                reactionRolesService.addRoleToMessage as jest.Mock
+            jest.mocked(
+                reactionRolesService.addRoleToMessage,
             ).mockResolvedValue({
                 status: 'ok',
-                mapping: {
+                mapping: partial({
                     id: 'map-1',
                     roleId: ROLE_ID_A,
                     label: 'NewRole',
                     style: 'Primary',
-                },
+                }),
             })
 
             await service.addRoleToGroup(

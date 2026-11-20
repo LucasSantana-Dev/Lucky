@@ -1,3 +1,4 @@
+import { partial } from '../../fixtures/mock-types'
 import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
@@ -130,7 +131,7 @@ describe('Moderation Routes Integration', () => {
                 typeof moderationService
             >
             mockModerationService.getFilteredCases.mockResolvedValue({
-                cases: mockCases,
+                cases: partial(mockCases),
                 total: 1,
             })
 
@@ -368,7 +369,7 @@ describe('Moderation Routes Integration', () => {
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
             >
-            mockModerationService.getCase.mockResolvedValue(mockCase)
+            mockModerationService.getCase.mockResolvedValue(partial(mockCase))
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/moderation/cases/1')
@@ -450,7 +451,9 @@ describe('Moderation Routes Integration', () => {
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
             >
-            mockModerationService.getUserCases.mockResolvedValue(mockCases)
+            mockModerationService.getUserCases.mockResolvedValue(
+                partial(mockCases),
+            )
 
             const response = await request(app)
                 .get(
@@ -545,12 +548,14 @@ describe('Moderation Routes Integration', () => {
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
             >
-            mockModerationService.getCase.mockResolvedValue(mockCase)
+            mockModerationService.getCase.mockResolvedValue(partial(mockCase))
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logCaseUpdate.mockResolvedValue(undefined)
+            mockServerLogService.logCaseUpdate.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .patch(
@@ -673,13 +678,15 @@ describe('Moderation Routes Integration', () => {
                 typeof moderationService
             >
             mockModerationService.deactivateCase.mockResolvedValue(
-                mockUpdatedCase,
+                partial(mockUpdatedCase),
             )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logCaseUpdate.mockResolvedValue(undefined)
+            mockServerLogService.logCaseUpdate.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .post(
@@ -754,7 +761,9 @@ describe('Moderation Routes Integration', () => {
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
             >
-            mockModerationService.getSettings.mockResolvedValue(mockSettings)
+            mockModerationService.getSettings.mockResolvedValue(
+                partial(mockSettings),
+            )
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/moderation/settings')
@@ -815,12 +824,16 @@ describe('Moderation Routes Integration', () => {
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
             >
-            mockModerationService.updateSettings.mockResolvedValue(mockSettings)
+            mockModerationService.updateSettings.mockResolvedValue(
+                partial(mockSettings),
+            )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logSettingsChange.mockResolvedValue(undefined)
+            mockServerLogService.logSettingsChange.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .patch('/api/guilds/111111111111111111/moderation/settings')
@@ -1017,7 +1030,7 @@ describe('Moderation Routes Integration', () => {
             const mockModerationService = moderationService as jest.Mocked<
                 typeof moderationService
             >
-            mockModerationService.getStats.mockResolvedValue(mockStats)
+            mockModerationService.getStats.mockResolvedValue(partial(mockStats))
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/moderation/stats')

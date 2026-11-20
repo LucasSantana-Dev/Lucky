@@ -8,6 +8,7 @@ import {
 } from '@jest/globals'
 import { guildService, setBotClient } from '../../../src/services/GuildService'
 import type { Client, Guild } from 'discord.js'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 const originalFetch = global.fetch
 
@@ -86,7 +87,7 @@ describe('GuildService - getGuildEmojis', () => {
     test('should fallback to Discord API for emojis when bot client is unavailable', async () => {
         process.env.DISCORD_TOKEN = 'test-bot-token'
         setBotClient(null)
-        global.fetch = jest.fn().mockResolvedValue({
+        global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
             ok: true,
             json: async () => [
                 { id: 'emoji-a', name: 'cool', animated: false },
@@ -116,7 +117,7 @@ describe('GuildService - getGuildEmojis', () => {
     test('should filter out entries without id on REST fallback', async () => {
         process.env.DISCORD_TOKEN = 'test-bot-token'
         setBotClient(null)
-        global.fetch = jest.fn().mockResolvedValue({
+        global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
             ok: true,
             json: async () => [
                 { id: 'emoji-a', name: 'cool', animated: false },
@@ -136,7 +137,7 @@ describe('GuildService - getGuildEmojis', () => {
     test('should throw on REST API error', async () => {
         process.env.DISCORD_TOKEN = 'test-bot-token'
         setBotClient(null)
-        global.fetch = jest.fn().mockResolvedValue({
+        global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
             ok: false,
             status: 404,
             text: async () => 'Not Found',

@@ -2,10 +2,10 @@ import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 
 const mockPrisma: any = {
     autoMessage: {
-        create: jest.fn<any>(),
-        findMany: jest.fn<any>(),
-        update: jest.fn<any>(),
-        delete: jest.fn<any>(),
+        create: jest.fn(),
+        findMany: jest.fn(),
+        update: jest.fn(),
+        delete: jest.fn(),
     },
 }
 

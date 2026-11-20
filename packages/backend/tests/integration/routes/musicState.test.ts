@@ -11,6 +11,7 @@ import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
 import { sseClients } from '../../../src/routes/music/helpers'
 import { createSseTestFinish } from '../../fixtures/test-helpers'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -25,7 +26,7 @@ jest.mock('../../../src/services/GuildAccessService', () => ({
     },
 }))
 
-const mockGetState = jest.fn<any>()
+const mockGetState = jest.fn<AsyncMockFn>()
 
 jest.mock('@lucky/shared/services', () => ({
     musicControlService: {
@@ -430,8 +431,9 @@ describe('Music State Routes', () => {
                     },
                     (res) => {
                         expect(res.statusCode).toBe(200)
-                        // Simulate writableEnded by ending response early
-                        res.end()
+                        // Drop the connection from the client side; the server
+                        // must not throw on a later heartbeat.
+                        res.destroy()
                     },
                 )
 

@@ -134,7 +134,7 @@ describe('exchangeTokenForSession', () => {
 
         await exchangeTokenForSession('  token-with-spaces  ')
 
-        const callBody = (fetch as jest.Mock).mock.calls[0][1].body
+        const callBody = jest.mocked(fetch).mock.calls[0][1]?.body
         expect(callBody).toContain('token=token-with-spaces')
         expect(callBody).not.toContain('token=+')
     })

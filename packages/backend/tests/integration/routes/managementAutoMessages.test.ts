@@ -1,3 +1,4 @@
+import { partial } from '../../fixtures/mock-types'
 import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
@@ -81,9 +82,11 @@ describe('Auto Message Routes Integration', () => {
             }
             const leaveMsg = { id: '2', type: 'leave', message: 'Goodbye!' }
             mockAutoMessageService.getWelcomeMessage.mockResolvedValue(
-                welcomeMsg,
+                partial(welcomeMsg),
             )
-            mockAutoMessageService.getLeaveMessage.mockResolvedValue(leaveMsg)
+            mockAutoMessageService.getLeaveMessage.mockResolvedValue(
+                partial(leaveMsg),
+            )
             mockAutoMessageService.getAutoResponders.mockResolvedValue([])
 
             const response = await request(app)
@@ -117,10 +120,14 @@ describe('Auto Message Routes Integration', () => {
                 message: 'Pong!',
                 trigger: 'ping',
             }
-            mockAutoMessageService.getWelcomeMessage.mockResolvedValue(null)
-            mockAutoMessageService.getLeaveMessage.mockResolvedValue(null)
+            mockAutoMessageService.getWelcomeMessage.mockResolvedValue(
+                partial(null),
+            )
+            mockAutoMessageService.getLeaveMessage.mockResolvedValue(
+                partial(null),
+            )
             mockAutoMessageService.getAutoResponders.mockResolvedValue([
-                autoResponse,
+                partial(autoResponse),
             ])
 
             const response = await request(app)
@@ -158,7 +165,9 @@ describe('Auto Message Routes Integration', () => {
             const mockGuildAccessServiceSvc = guildAccessService as jest.Mocked<
                 typeof guildAccessService
             >
-            mockGuildAccessServiceSvc.resolveGuildContext.mockResolvedValue(null)
+            mockGuildAccessServiceSvc.resolveGuildContext.mockResolvedValue(
+                null,
+            )
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/automessages')
@@ -187,7 +196,7 @@ describe('Auto Message Routes Integration', () => {
                 message: 'Welcome!',
             }
             mockAutoMessageService.getMessagesByType.mockResolvedValue(
-                welcomeMsg,
+                partial(welcomeMsg),
             )
 
             const response = await request(app)
@@ -233,12 +242,16 @@ describe('Auto Message Routes Integration', () => {
             const mockAutoMessageService = autoMessageService as jest.Mocked<
                 typeof autoMessageService
             >
-            mockAutoMessageService.createMessage.mockResolvedValue(newMsg)
+            mockAutoMessageService.createMessage.mockResolvedValue(
+                partial(newMsg),
+            )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logAutoMessageChange.mockResolvedValue()
+            mockServerLogService.logAutoMessageChange.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .post('/api/guilds/111111111111111111/automessages')
@@ -249,7 +262,7 @@ describe('Auto Message Routes Integration', () => {
             expect(response.body).toEqual(newMsg)
             expect(mockAutoMessageService.createMessage).toHaveBeenCalledWith(
                 '111111111111111111',
-                newMsg.type,
+                partial<never>(newMsg.type),
                 { message: newMsg.message },
                 {
                     channelId: undefined,
@@ -258,9 +271,7 @@ describe('Auto Message Routes Integration', () => {
                     cronSchedule: undefined,
                 },
             )
-            expect(
-                mockServerLogService.logAutoMessageChange,
-            ).toHaveBeenCalled()
+            expect(mockServerLogService.logAutoMessageChange).toHaveBeenCalled()
         })
 
         test('should return 401 when not authenticated', async () => {
@@ -302,13 +313,15 @@ describe('Auto Message Routes Integration', () => {
                 typeof autoMessageService
             >
             mockAutoMessageService.updateMessage.mockResolvedValue(
-                mockResponseMsg,
+                partial(mockResponseMsg),
             )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logAutoMessageChange.mockResolvedValue()
+            mockServerLogService.logAutoMessageChange.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .patch('/api/guilds/111111111111111111/automessages/1')
@@ -321,9 +334,7 @@ describe('Auto Message Routes Integration', () => {
                 '1',
                 updatedMsg,
             )
-            expect(
-                mockServerLogService.logAutoMessageChange,
-            ).toHaveBeenCalled()
+            expect(mockServerLogService.logAutoMessageChange).toHaveBeenCalled()
         })
 
         test('should return 401 when not authenticated', async () => {
@@ -360,13 +371,15 @@ describe('Auto Message Routes Integration', () => {
                 typeof autoMessageService
             >
             mockAutoMessageService.toggleMessage.mockResolvedValue(
-                toggledMessage,
+                partial(toggledMessage),
             )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logAutoMessageChange.mockResolvedValue()
+            mockServerLogService.logAutoMessageChange.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .post('/api/guilds/111111111111111111/automessages/1/toggle')
@@ -379,9 +392,7 @@ describe('Auto Message Routes Integration', () => {
                 '1',
                 true,
             )
-            expect(
-                mockServerLogService.logAutoMessageChange,
-            ).toHaveBeenCalled()
+            expect(mockServerLogService.logAutoMessageChange).toHaveBeenCalled()
         })
 
         test('should return 401 when not authenticated', async () => {
@@ -411,14 +422,18 @@ describe('Auto Message Routes Integration', () => {
             const mockAutoMessageService = autoMessageService as jest.Mocked<
                 typeof autoMessageService
             >
-            mockAutoMessageService.deleteMessage.mockResolvedValue({
-                success: true,
-            })
+            mockAutoMessageService.deleteMessage.mockResolvedValue(
+                partial({
+                    success: true,
+                }),
+            )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logAutoMessageChange.mockResolvedValue()
+            mockServerLogService.logAutoMessageChange.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .delete('/api/guilds/111111111111111111/automessages/1')
@@ -429,9 +444,7 @@ describe('Auto Message Routes Integration', () => {
             expect(mockAutoMessageService.deleteMessage).toHaveBeenCalledWith(
                 '1',
             )
-            expect(
-                mockServerLogService.logAutoMessageChange,
-            ).toHaveBeenCalled()
+            expect(mockServerLogService.logAutoMessageChange).toHaveBeenCalled()
         })
 
         test('should return 401 when not authenticated', async () => {

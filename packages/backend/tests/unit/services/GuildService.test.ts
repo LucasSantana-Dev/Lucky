@@ -15,6 +15,7 @@ import {
     MOCK_TOKEN_RESPONSE,
 } from '../../fixtures/mock-data'
 import type { Client, Guild } from 'discord.js'
+import { type AsyncMockFn } from '../../fixtures/mock-types'
 
 interface MockRoleOption {
     id: string
@@ -181,7 +182,9 @@ describe('GuildService', () => {
             setBotClient({
                 guilds: {
                     cache: new Map(),
-                    fetch: jest.fn<any>().mockRejectedValue(new Error('boom')),
+                    fetch: jest
+                        .fn<AsyncMockFn>()
+                        .mockRejectedValue(new Error('boom')),
                 },
             } as unknown as Client)
             expect(
@@ -275,7 +278,7 @@ describe('GuildService', () => {
 
         test('should use Discord API fallback when bot client is unavailable', async () => {
             process.env.DISCORD_TOKEN = 'test-bot-token'
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => [{ id: '111111111111111111' }],
             } as never) as unknown as typeof fetch
@@ -299,7 +302,7 @@ describe('GuildService', () => {
 
         test('should keep processing guilds when Discord API fallback fails', async () => {
             process.env.DISCORD_TOKEN = 'test-bot-token'
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: false,
                 status: 500,
                 text: async () => 'discord api unavailable',
@@ -318,7 +321,7 @@ describe('GuildService', () => {
 
         test('should cache Discord API fallback guild ids for short periods', async () => {
             process.env.DISCORD_TOKEN = 'test-bot-token'
-            const fetchMock = jest.fn().mockResolvedValue({
+            const fetchMock = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => [{ id: '111111111111111111' }],
             } as never)
@@ -350,7 +353,7 @@ describe('GuildService', () => {
     describe('hasBotInGuild', () => {
         test('should use Discord API fallback guild ids when bot client misses', async () => {
             process.env.DISCORD_TOKEN = 'test-bot-token'
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => [{ id: '111111111111111111' }],
             } as never) as unknown as typeof fetch
@@ -414,7 +417,7 @@ describe('GuildService', () => {
             } as unknown as Client
 
             setBotClient(mockClient)
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => ({
                     nick: 'api-nick',
@@ -505,7 +508,7 @@ describe('GuildService', () => {
         test('should fallback to Discord API for roles when bot client is unavailable', async () => {
             process.env.DISCORD_TOKEN = 'test-bot-token'
             setBotClient(null)
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => [
                     {
@@ -614,7 +617,7 @@ describe('GuildService', () => {
                 },
             } as unknown as Client)
 
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => [
                     { id: '2', name: 'rules', type: 5, position: 10 },
@@ -781,7 +784,7 @@ describe('GuildService', () => {
             } as unknown as Client)
 
             global.fetch = jest
-                .fn()
+                .fn<AsyncMockFn>()
                 .mockResolvedValueOnce({
                     ok: true,
                     json: async () => ({
@@ -811,7 +814,7 @@ describe('GuildService', () => {
         test('returns empty metrics when Discord guild metrics endpoint fails', async () => {
             process.env.DISCORD_TOKEN = 'test-bot-token'
             setBotClient(null)
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: false,
             } as never) as unknown as typeof fetch
 
@@ -903,7 +906,7 @@ describe('GuildService', () => {
                 },
             } as unknown as Client)
 
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => ({
                     nick: 'Api Nick',
@@ -1019,7 +1022,7 @@ describe('GuildService', () => {
                 },
             } as unknown as Client)
 
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => [
                     { id: '2', name: 'Helpers', position: 2, color: 0 },
@@ -1038,7 +1041,7 @@ describe('GuildService', () => {
         test('returns empty role options when API request fails', async () => {
             process.env.DISCORD_TOKEN = 'test-bot-token'
             setBotClient(null)
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: false,
             } as never) as unknown as typeof fetch
 
@@ -1218,7 +1221,7 @@ describe('GuildService', () => {
                 },
             } as unknown as Client)
 
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => [
                     {
@@ -1279,7 +1282,7 @@ describe('GuildService', () => {
         test('returns empty array when API request fails', async () => {
             process.env.DISCORD_TOKEN = 'test-bot-token'
             setBotClient(null)
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: false,
                 status: 404,
             } as never) as unknown as typeof fetch
@@ -1359,7 +1362,7 @@ describe('GuildService', () => {
             const guildId = '111111111111111111'
 
             setBotClient(null)
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => ({
                     id: '555555555555555555',
@@ -1502,7 +1505,7 @@ describe('GuildService', () => {
             const roleId = '555555555555555555'
 
             setBotClient(null)
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
                 json: async () => ({
                     id: roleId,
@@ -1620,7 +1623,7 @@ describe('GuildService', () => {
             const roleId = '555555555555555555'
 
             setBotClient(null)
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: true,
             } as never) as unknown as typeof fetch
 
@@ -1654,7 +1657,7 @@ describe('GuildService', () => {
             const roleId = '999999999999999999'
 
             setBotClient(null)
-            global.fetch = jest.fn().mockResolvedValue({
+            global.fetch = jest.fn<AsyncMockFn>().mockResolvedValue({
                 ok: false,
                 status: 404,
                 text: async () => 'Role not found',

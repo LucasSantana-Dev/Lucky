@@ -29,7 +29,7 @@ jest.mock('../../../src/services/DiscordOAuthService', () => ({
 
 // `@lucky/shared/utils` is mocked globally in tests/setup.ts (incl.
 // `telemetryLog: jest.fn()`) — reuse that mock instead of overriding it here.
-const telemetryLogMock = telemetryLog as jest.Mock
+const telemetryLogMock = jest.mocked(telemetryLog)
 
 describe('OAuth Callback (handleOAuthCallback)', () => {
     let app: express.Express
@@ -48,7 +48,7 @@ describe('OAuth Callback (handleOAuthCallback)', () => {
             MOCK_TOKEN_RESPONSE,
         )
         mockDiscordOAuth.getUserInfo.mockResolvedValue(MOCK_DISCORD_USER)
-        mockSessionService.setSession.mockResolvedValue()
+        mockSessionService.setSession.mockResolvedValue(undefined)
     }
 
     beforeEach(() => {
@@ -312,7 +312,7 @@ describe('OAuth Callback (handleOAuthCallback)', () => {
                 MOCK_TOKEN_RESPONSE,
             )
             mockDiscordOAuth.getUserInfo.mockResolvedValue(MOCK_DISCORD_USER)
-            getSessionServiceMock().setSession.mockResolvedValue()
+            getSessionServiceMock().setSession.mockResolvedValue(undefined)
 
             const testApp = express()
             setupSessionMiddleware(testApp)
@@ -326,9 +326,11 @@ describe('OAuth Callback (handleOAuthCallback)', () => {
                             next(err)
                         } else {
                             // Override save to fail on the actual callback request
-                            req.session.save = jest.fn((callback) => {
-                                callback(new Error('Session save failed'))
-                            })
+                            req.session.save = jest.fn(
+                                (callback: (err: Error) => void) => {
+                                    callback(new Error('Session save failed'))
+                                },
+                            ) as unknown as typeof req.session.save
                             stateSet = false
                             next()
                         }

@@ -300,7 +300,7 @@ describe('DiscordOAuthService', () => {
         })
 
         test('fires cascade alert when recordWithCooldown threshold is crossed on 429', async () => {
-            ;(recordWithCooldown as jest.Mock).mockReturnValue(true)
+            jest.mocked(recordWithCooldown).mockReturnValue(true)
             const rateLimited = {
                 ok: false,
                 status: 429,

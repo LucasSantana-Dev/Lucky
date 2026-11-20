@@ -9,6 +9,7 @@ import { requireAdmin } from '../../../src/middleware/requireAdmin'
 import { sessionService } from '../../../src/services/SessionService'
 import { getFeatureToggleConfig } from '@lucky/shared/config'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -18,12 +19,17 @@ jest.mock('../../../src/services/SessionService', () => ({
 
 jest.mock('../../../src/middleware/requireAdmin', () => ({
     isDeveloperUser: (userId?: string) => userId === '123456789',
-    requireAdmin: jest.requireActual('../../../src/middleware/requireAdmin')
-        .requireAdmin,
+    requireAdmin: jest.requireActual<
+        typeof import('../../../src/middleware/requireAdmin')
+    >('../../../src/middleware/requireAdmin').requireAdmin,
 }))
 
-const mockSetGuildFeatureToggle = jest.fn<any>().mockResolvedValue(undefined)
-const mockSetGlobalFeatureToggle = jest.fn<any>().mockResolvedValue(undefined)
+const mockSetGuildFeatureToggle = jest
+    .fn<AsyncMockFn>()
+    .mockResolvedValue(undefined)
+const mockSetGlobalFeatureToggle = jest
+    .fn<AsyncMockFn>()
+    .mockResolvedValue(undefined)
 
 jest.mock('@lucky/shared/services', () => ({
     featureToggleService: {

@@ -9,6 +9,7 @@ import { requireGuildModuleAccess } from '../../../src/middleware/guildAccess'
 import { sessionService } from '../../../src/services/SessionService'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -23,12 +24,12 @@ jest.mock('../../../src/services/GuildAccessService', () => ({
     },
 }))
 
-const mockGetHistory = jest.fn<any>()
-const mockGetHistoryCount = jest.fn<any>().mockResolvedValue(1)
-const mockGenerateStats = jest.fn<any>()
-const mockGetTopTracks = jest.fn<any>()
-const mockGetTopArtists = jest.fn<any>()
-const mockClearHistory = jest.fn<any>()
+const mockGetHistory = jest.fn<AsyncMockFn>()
+const mockGetHistoryCount = jest.fn<AsyncMockFn>().mockResolvedValue(1)
+const mockGenerateStats = jest.fn<AsyncMockFn>()
+const mockGetTopTracks = jest.fn<AsyncMockFn>()
+const mockGetTopArtists = jest.fn<AsyncMockFn>()
+const mockClearHistory = jest.fn<AsyncMockFn>()
 
 jest.mock('@lucky/shared/services', () => ({
     trackHistoryService: {

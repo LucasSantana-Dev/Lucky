@@ -1,10 +1,11 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 const mockPrisma: any = {
     autoModSettings: {
-        findUnique: jest.fn<any>(),
-        create: jest.fn<any>(),
-        upsert: jest.fn<any>(),
+        findUnique: jest.fn(),
+        create: jest.fn(),
+        upsert: jest.fn(),
     },
 }
 
@@ -14,13 +15,13 @@ jest.mock('@lucky/shared/utils/database/prismaClient', () => {
 
 const mockRedis = {
     isHealthy: jest.fn<() => boolean>(() => false),
-    get: jest.fn<any>().mockResolvedValue(null),
-    setex: jest.fn<any>().mockResolvedValue(true),
-    del: jest.fn<any>().mockResolvedValue(true),
-    lpush: jest.fn<any>().mockResolvedValue(1),
-    ltrim: jest.fn<any>().mockResolvedValue(true),
-    expire: jest.fn<any>().mockResolvedValue(true),
-    lrange: jest.fn<any>().mockResolvedValue([]),
+    get: jest.fn<AsyncMockFn>().mockResolvedValue(null),
+    setex: jest.fn<AsyncMockFn>().mockResolvedValue(true),
+    del: jest.fn<AsyncMockFn>().mockResolvedValue(true),
+    lpush: jest.fn<AsyncMockFn>().mockResolvedValue(1),
+    ltrim: jest.fn<AsyncMockFn>().mockResolvedValue(true),
+    expire: jest.fn<AsyncMockFn>().mockResolvedValue(true),
+    lrange: jest.fn<AsyncMockFn>().mockResolvedValue([]),
 }
 
 jest.mock('@lucky/shared/services/redis', () => ({

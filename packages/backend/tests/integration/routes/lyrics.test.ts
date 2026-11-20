@@ -6,6 +6,7 @@ import { setupLyricsRoutes } from '../../../src/routes/lyrics'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -13,7 +14,7 @@ jest.mock('../../../src/services/SessionService', () => ({
     },
 }))
 
-const mockSearchLyrics = jest.fn<any>()
+const mockSearchLyrics = jest.fn<AsyncMockFn>()
 
 jest.mock('@lucky/shared/services', () => ({
     lyricsService: {

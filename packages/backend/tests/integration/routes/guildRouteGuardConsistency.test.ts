@@ -32,6 +32,7 @@ import { setupGuildRoutes } from '../../../src/routes/guilds'
 import { setupRoleGroupsRoutes } from '../../../src/routes/roleGroups'
 import { isRolesManagePath } from '../../../src/routes/rolesManageGuard'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -47,20 +48,20 @@ jest.mock('../../../src/services/GuildAccessService', () => ({
     },
 }))
 
-const mockListReactionRoles = jest.fn<any>()
-const mockCreateReactionRole = jest.fn<any>()
-const mockUpdateReactionRole = jest.fn<any>()
-const mockDeleteReactionRole = jest.fn<any>()
-const mockListExclusiveRoles = jest.fn<any>()
-const mockGetSettings = jest.fn<any>()
-const mockListTemplates = jest.fn<any>()
-const mockApplyTemplate = jest.fn<any>()
-const mockGetRecentLogs = jest.fn<any>()
-const mockCountRecentLogs = jest.fn<any>()
-const mockSearchLogs = jest.fn<any>()
-const mockCountSearchLogs = jest.fn<any>()
-const mockGetUserLogs = jest.fn<any>()
-const mockGetStats = jest.fn<any>()
+const mockListReactionRoles = jest.fn<AsyncMockFn>()
+const mockCreateReactionRole = jest.fn<AsyncMockFn>()
+const mockUpdateReactionRole = jest.fn<AsyncMockFn>()
+const mockDeleteReactionRole = jest.fn<AsyncMockFn>()
+const mockListExclusiveRoles = jest.fn<AsyncMockFn>()
+const mockGetSettings = jest.fn<AsyncMockFn>()
+const mockListTemplates = jest.fn<AsyncMockFn>()
+const mockApplyTemplate = jest.fn<AsyncMockFn>()
+const mockGetRecentLogs = jest.fn<AsyncMockFn>()
+const mockCountRecentLogs = jest.fn<AsyncMockFn>()
+const mockSearchLogs = jest.fn<AsyncMockFn>()
+const mockCountSearchLogs = jest.fn<AsyncMockFn>()
+const mockGetUserLogs = jest.fn<AsyncMockFn>()
+const mockGetStats = jest.fn<AsyncMockFn>()
 
 jest.mock('@lucky/shared/services', () => ({
     reactionRolesService: {
@@ -77,34 +78,38 @@ jest.mock('@lucky/shared/services', () => ({
     },
     autoModService: {
         getSettings: (...a: any[]) => mockGetSettings(...a),
-        updateSettings: jest.fn().mockResolvedValue({}),
+        updateSettings: jest.fn<AsyncMockFn>().mockResolvedValue({}),
         listTemplates: (...a: any[]) => mockListTemplates(...a),
         applyTemplate: (...a: any[]) => mockApplyTemplate(...a),
     },
     serverLogService: {
         getRecentLogs: (...a: any[]) => mockGetRecentLogs(...a),
         countRecentLogs: (...a: any[]) => mockCountRecentLogs(...a),
-        getLogsByType: jest.fn().mockResolvedValue([]),
-        countLogsByType: jest.fn().mockResolvedValue(0),
+        getLogsByType: jest.fn<AsyncMockFn>().mockResolvedValue([]),
+        countLogsByType: jest.fn<AsyncMockFn>().mockResolvedValue(0),
         searchLogs: (...a: any[]) => mockSearchLogs(...a),
         countSearchLogs: (...a: any[]) => mockCountSearchLogs(...a),
         getUserLogs: (...a: any[]) => mockGetUserLogs(...a),
         getStats: (...a: any[]) => mockGetStats(...a),
-        logAutoModSettingsChange: jest.fn().mockResolvedValue(undefined),
+        logAutoModSettingsChange: jest
+            .fn<AsyncMockFn>()
+            .mockResolvedValue(undefined),
     },
     serializeServerLog: (log: unknown) => log,
     featureToggleService: {
-        isEnabled: jest.fn().mockResolvedValue(true),
-        setGuildFeatureToggle: jest.fn().mockResolvedValue(undefined),
+        isEnabled: jest.fn<AsyncMockFn>().mockResolvedValue(true),
+        setGuildFeatureToggle: jest
+            .fn<AsyncMockFn>()
+            .mockResolvedValue(undefined),
     },
     AutoModTemplateNotFoundError: class AutoModTemplateNotFoundError extends Error {},
 }))
 
-const mockGetFullGuildRoles = jest.fn<any>()
-const mockCreateGuildRole = jest.fn<any>()
-const mockUpdateGuildRole = jest.fn<any>()
-const mockDeleteGuildRole = jest.fn<any>()
-const mockGetGuildRoleOptions = jest.fn<any>()
+const mockGetFullGuildRoles = jest.fn<AsyncMockFn>()
+const mockCreateGuildRole = jest.fn<AsyncMockFn>()
+const mockUpdateGuildRole = jest.fn<AsyncMockFn>()
+const mockDeleteGuildRole = jest.fn<AsyncMockFn>()
+const mockGetGuildRoleOptions = jest.fn<AsyncMockFn>()
 
 jest.mock('../../../src/services/GuildService', () => ({
     guildService: {
@@ -117,8 +122,8 @@ jest.mock('../../../src/services/GuildService', () => ({
     },
 }))
 
-const mockListRoleGroups = jest.fn<any>()
-const mockCreateRoleGroup = jest.fn<any>()
+const mockListRoleGroups = jest.fn<AsyncMockFn>()
+const mockCreateRoleGroup = jest.fn<AsyncMockFn>()
 
 jest.mock('../../../src/services/RoleGroupService', () => ({
     roleGroupService: {

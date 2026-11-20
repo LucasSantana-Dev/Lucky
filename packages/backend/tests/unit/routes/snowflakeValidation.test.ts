@@ -1,5 +1,6 @@
 import { describe, test, expect, jest } from '@jest/globals'
 import type { Request, Response, NextFunction } from 'express'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/middleware/auth', () => ({
     requireAuth: (req: Request, _res: Response, next: NextFunction) => {
@@ -18,22 +19,26 @@ jest.mock('../../../src/middleware/guildAccess', () => ({
 
 jest.mock('@lucky/shared/services', () => ({
     levelService: {
-        getConfig: jest.fn().mockResolvedValue(null),
-        upsertConfig: jest.fn().mockResolvedValue({ enabled: false }),
-        getLeaderboard: jest.fn().mockResolvedValue([]),
-        getMemberXP: jest.fn().mockResolvedValue(null),
-        getRank: jest.fn().mockResolvedValue(null),
-        getRewards: jest.fn().mockResolvedValue([]),
-        addReward: jest.fn().mockResolvedValue({}),
-        removeReward: jest.fn().mockResolvedValue({}),
+        getConfig: jest.fn<AsyncMockFn>().mockResolvedValue(null),
+        upsertConfig: jest
+            .fn<AsyncMockFn>()
+            .mockResolvedValue({ enabled: false }),
+        getLeaderboard: jest.fn<AsyncMockFn>().mockResolvedValue([]),
+        getMemberXP: jest.fn<AsyncMockFn>().mockResolvedValue(null),
+        getRank: jest.fn<AsyncMockFn>().mockResolvedValue(null),
+        getRewards: jest.fn<AsyncMockFn>().mockResolvedValue([]),
+        addReward: jest.fn<AsyncMockFn>().mockResolvedValue({}),
+        removeReward: jest.fn<AsyncMockFn>().mockResolvedValue({}),
     },
     musicControlService: {
-        getState: jest.fn().mockResolvedValue(null),
-        sendCommand: jest.fn().mockResolvedValue({ success: true }),
+        getState: jest.fn<AsyncMockFn>().mockResolvedValue(null),
+        sendCommand: jest
+            .fn<AsyncMockFn>()
+            .mockResolvedValue({ success: true }),
     },
     guildSettingsService: {
-        getGuildSettings: jest.fn().mockResolvedValue(null),
-        updateGuildSettings: jest.fn().mockResolvedValue({
+        getGuildSettings: jest.fn<AsyncMockFn>().mockResolvedValue(null),
+        updateGuildSettings: jest.fn<AsyncMockFn>().mockResolvedValue({
             autoplayGenres: [],
         }),
     },
@@ -44,14 +49,16 @@ jest.mock('../../../src/services/GuildService', () => ({
         generateBotInviteUrl: jest
             .fn()
             .mockReturnValue('https://discord.com/oauth2/authorize'),
-        getGuildTextChannelOptions: jest.fn().mockResolvedValue([]),
+        getGuildTextChannelOptions: jest
+            .fn<AsyncMockFn>()
+            .mockResolvedValue([]),
     },
 }))
 
 jest.mock('../../../src/services/GuildAccessService', () => ({
     guildAccessService: {
-        listAuthorizedGuilds: jest.fn().mockResolvedValue([]),
-        resolveGuildContext: jest.fn().mockResolvedValue({
+        listAuthorizedGuilds: jest.fn<AsyncMockFn>().mockResolvedValue([]),
+        resolveGuildContext: jest.fn<AsyncMockFn>().mockResolvedValue({
             nickname: 'test',
             roleIds: [],
             effectiveAccess: 'owner',
@@ -62,7 +69,7 @@ jest.mock('../../../src/services/GuildAccessService', () => ({
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
-        getSession: jest.fn().mockResolvedValue({
+        getSession: jest.fn<AsyncMockFn>().mockResolvedValue({
             user: { username: 'test', global_name: 'Test User' },
         }),
     },

@@ -8,23 +8,26 @@ import {
 } from '@jest/globals'
 import type { SessionData } from 'express-session'
 import { PrismaSessionStore } from '../../../src/middleware/prismaSessionStore'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 type SessionDelegate = {
-    findUnique: jest.Mock
-    upsert: jest.Mock
-    delete: jest.Mock
-    update: jest.Mock
-    deleteMany: jest.Mock
+    findUnique: jest.Mock<AsyncMockFn>
+    upsert: jest.Mock<AsyncMockFn>
+    delete: jest.Mock<AsyncMockFn>
+    update: jest.Mock<AsyncMockFn>
+    deleteMany: jest.Mock<AsyncMockFn>
 }
 
 function createFakeDb(): { session: SessionDelegate } {
     return {
         session: {
-            findUnique: jest.fn(),
-            upsert: jest.fn(() => Promise.resolve({})),
-            delete: jest.fn(() => Promise.resolve({})),
-            update: jest.fn(() => Promise.resolve({})),
-            deleteMany: jest.fn(() => Promise.resolve({ count: 0 })),
+            findUnique: jest.fn<AsyncMockFn>(),
+            upsert: jest.fn<AsyncMockFn>(() => Promise.resolve({})),
+            delete: jest.fn<AsyncMockFn>(() => Promise.resolve({})),
+            update: jest.fn<AsyncMockFn>(() => Promise.resolve({})),
+            deleteMany: jest.fn<AsyncMockFn>(() =>
+                Promise.resolve({ count: 0 }),
+            ),
         },
     }
 }

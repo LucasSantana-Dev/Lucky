@@ -8,6 +8,7 @@ import { setupLastFmRoutes } from '../../../src/routes/lastfm'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -17,7 +18,7 @@ jest.mock('../../../src/services/SessionService', () => ({
     },
 }))
 
-const mockExchangeToken = jest.fn()
+const mockExchangeToken = jest.fn<AsyncMockFn>()
 const mockIsConfigured = jest.fn()
 
 jest.mock('../../../src/services/LastFmAuthService', () => ({
@@ -25,9 +26,9 @@ jest.mock('../../../src/services/LastFmAuthService', () => ({
     isLastFmAuthConfigured: (...args: unknown[]) => mockIsConfigured(...args),
 }))
 
-const mockGetByDiscordId = jest.fn()
-const mockSetLink = jest.fn()
-const mockUnlink = jest.fn()
+const mockGetByDiscordId = jest.fn<AsyncMockFn>()
+const mockSetLink = jest.fn<AsyncMockFn>()
+const mockUnlink = jest.fn<AsyncMockFn>()
 
 jest.mock('@lucky/shared/services', () => ({
     redisClient: {

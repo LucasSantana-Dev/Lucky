@@ -1,3 +1,4 @@
+import { partial } from '../../fixtures/mock-types'
 import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
@@ -66,7 +67,7 @@ describe('Guilds Routes Integration', () => {
             typeof guildAccessService
         >
         mockGuildAccessService.resolveGuildContext.mockResolvedValue(
-            defaultAccess,
+            partial(defaultAccess),
         )
         mockGuildAccessService.hasAccess.mockReturnValue(true)
     })
@@ -95,7 +96,7 @@ describe('Guilds Routes Integration', () => {
                 typeof guildAccessService
             >
             mockGuildAccessService.listAuthorizedGuilds.mockResolvedValue(
-                enrichedGuilds,
+                partial(enrichedGuilds),
             )
 
             const response = await request(app)
@@ -169,7 +170,7 @@ describe('Guilds Routes Integration', () => {
                 typeof guildAccessService
             >
             mockGuildAccessService.listAuthorizedGuilds.mockResolvedValue([
-                guildDetails,
+                partial(guildDetails),
             ])
 
             const response = await request(app)
@@ -318,9 +319,9 @@ describe('Guilds Routes Integration', () => {
             >
             mockGuildService.getBotHighestRolePosition.mockResolvedValue(7)
             mockGuildService.getGuildRoleOptions.mockResolvedValue([
-                { id: '777777777777777777', name: '@Admin' },
-                { id: '888888888888888888', name: '@Moderator' },
-                { id: '999999999999999999', name: '@Member' },
+                partial({ id: '777777777777777777', name: '@Admin' }),
+                partial({ id: '888888888888888888', name: '@Moderator' }),
+                partial({ id: '999999999999999999', name: '@Member' }),
             ])
 
             const response = await request(app)
@@ -419,7 +420,7 @@ describe('Guilds Routes Integration', () => {
                 typeof guildAccessService
             >
             mockGuildAccessService.resolveGuildContext.mockResolvedValue(
-                nonOverviewAccess,
+                partial(nonOverviewAccess),
             )
 
             const response = await request(app)

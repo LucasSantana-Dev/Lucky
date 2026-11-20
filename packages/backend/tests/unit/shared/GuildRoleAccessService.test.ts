@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
-const mockFindMany = jest.fn<any>()
-const mockDeleteMany = jest.fn<any>()
-const mockCreateMany = jest.fn<any>()
-const mockTransaction = jest.fn<any>()
+const mockFindMany = jest.fn<AsyncMockFn>()
+const mockDeleteMany = jest.fn<AsyncMockFn>()
+const mockCreateMany = jest.fn<AsyncMockFn>()
+const mockTransaction = jest.fn<AsyncMockFn>()
 
 jest.mock('../../../../shared/src/utils/database/prismaClient.js', () => ({
     getPrismaClient: () => ({

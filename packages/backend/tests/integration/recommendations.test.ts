@@ -1,3 +1,4 @@
+import { partial } from '../fixtures/mock-types'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 
 jest.mock('../../src/services/SessionService', () => ({
@@ -9,7 +10,7 @@ jest.mock('../../src/services/SessionService', () => ({
 }))
 
 jest.mock('@lucky/shared/services', () => ({
-    ...jest.requireActual('@lucky/shared/services'),
+    ...jest.requireActual<Record<string, unknown>>('@lucky/shared/services'),
     getSummary: jest.fn(),
     getPerSourceAcceptance: jest.fn(),
 }))
@@ -70,9 +71,9 @@ describe('Recommendations Routes', () => {
                 },
             ]
 
-            ;(getSummary as jest.Mock).mockResolvedValue(mockSummary)
-            ;(getPerSourceAcceptance as jest.Mock).mockResolvedValue(
-                mockPerSource,
+            jest.mocked(getSummary).mockResolvedValue(mockSummary)
+            jest.mocked(getPerSourceAcceptance).mockResolvedValue(
+                partial(mockPerSource),
             )
 
             const res = await request(app)
@@ -103,12 +104,10 @@ describe('Recommendations Routes', () => {
                 globalAcceptanceRate: 0.6666666666666666,
             }
 
-            const mockPerSource = []
+            const mockPerSource: never[] = []
 
-            ;(getSummary as jest.Mock).mockResolvedValue(mockSummary)
-            ;(getPerSourceAcceptance as jest.Mock).mockResolvedValue(
-                mockPerSource,
-            )
+            jest.mocked(getSummary).mockResolvedValue(mockSummary)
+            jest.mocked(getPerSourceAcceptance).mockResolvedValue(mockPerSource)
 
             const res = await request(app)
                 .get(
@@ -151,7 +150,7 @@ describe('Recommendations Routes', () => {
         })
 
         test('should return 500 when service throws', async () => {
-            ;(getSummary as jest.Mock).mockRejectedValue(
+            jest.mocked(getSummary).mockRejectedValue(
                 new Error('Database error'),
             )
 

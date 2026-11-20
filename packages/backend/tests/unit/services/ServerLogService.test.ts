@@ -1,12 +1,13 @@
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 const mockPrisma: any = {
     serverLog: {
-        create: jest.fn<any>(),
-        findMany: jest.fn<any>(),
-        count: jest.fn<any>(),
-        deleteMany: jest.fn<any>(),
-        groupBy: jest.fn<any>(),
+        create: jest.fn(),
+        findMany: jest.fn(),
+        count: jest.fn(),
+        deleteMany: jest.fn(),
+        groupBy: jest.fn(),
     },
 }
 
@@ -15,19 +16,19 @@ jest.mock('@lucky/shared/utils/database/prismaClient', () => ({
 }))
 
 const mockHelpers = {
-    logMessageDelete: jest.fn<any>(),
-    logMessageEdit: jest.fn<any>(),
-    logMemberJoin: jest.fn<any>(),
-    logMemberLeave: jest.fn<any>(),
-    logRoleUpdate: jest.fn<any>(),
-    logVoiceState: jest.fn<any>(),
-    logModerationAction: jest.fn<any>(),
-    logCaseUpdate: jest.fn<any>(),
-    logAutoModTrigger: jest.fn<any>(),
-    logAutoModSettingsChange: jest.fn<any>(),
-    logEmbedTemplateChange: jest.fn<any>(),
-    logAutoMessageChange: jest.fn<any>(),
-    logSettingsChange: jest.fn<any>(),
+    logMessageDelete: jest.fn<AsyncMockFn>(),
+    logMessageEdit: jest.fn<AsyncMockFn>(),
+    logMemberJoin: jest.fn<AsyncMockFn>(),
+    logMemberLeave: jest.fn<AsyncMockFn>(),
+    logRoleUpdate: jest.fn(),
+    logVoiceState: jest.fn<AsyncMockFn>(),
+    logModerationAction: jest.fn<AsyncMockFn>(),
+    logCaseUpdate: jest.fn<AsyncMockFn>(),
+    logAutoModTrigger: jest.fn<AsyncMockFn>(),
+    logAutoModSettingsChange: jest.fn<AsyncMockFn>(),
+    logEmbedTemplateChange: jest.fn<AsyncMockFn>(),
+    logAutoMessageChange: jest.fn<AsyncMockFn>(),
+    logSettingsChange: jest.fn<AsyncMockFn>(),
 }
 
 jest.mock('@lucky/shared/services/serverLogHelpers', () => mockHelpers)
