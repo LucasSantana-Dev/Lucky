@@ -182,6 +182,27 @@ describe('nowPlayingDisplay', () => {
             )
         })
 
+        it('adds the album and track number to the footer of an album track', async () => {
+            mockTrack.requestedBy = {
+                username: 'alice',
+            } as Track['requestedBy']
+            mockTrack.playlist = {
+                type: 'album',
+                title: 'Abbey Road',
+                tracks: [{ url: 'https://example.com/other' }, mockTrack],
+            } as never
+
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                false,
+            )
+
+            expect(sentPayload().embeds[0].data.footer?.text).toBe(
+                'Requested by alice · 💿 Abbey Road · track 2/2',
+            )
+        })
+
         it('has no footer for a requested track without a requester', async () => {
             await sendNowPlayingEmbed(
                 mockQueue as GuildQueue,

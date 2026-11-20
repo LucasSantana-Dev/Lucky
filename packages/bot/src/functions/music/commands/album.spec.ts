@@ -247,6 +247,33 @@ describe('album command album resolution', () => {
         expect(search.mock.calls[0][0]).toBe(ALBUM_URL)
     })
 
+    it('links the first track back to the album before it starts', async () => {
+        const playlist = { title: 'Abbey Road' }
+        const playedTrack = { ...createTrack('Come Together'), playlist: null }
+        let linkedBeforeStart: unknown
+
+        await albumCommand.execute({
+            client: {
+                player: {
+                    search: jest.fn(async () => ({
+                        tracks: [createTrack('Come Together')],
+                        playlist,
+                    })),
+                    // discord-player runs afterSearch, then starts the track
+                    // (and now playing) before play() resolves.
+                    play: jest.fn(async (_channel, _query, options) => {
+                        await options.afterSearch({ tracks: [playedTrack] })
+                        linkedBeforeStart = playedTrack.playlist
+                        return { track: playedTrack }
+                    }),
+                },
+            },
+            interaction: createInteraction(ALBUM_URL),
+        } as never)
+
+        expect(linkedBeforeStart).toBe(playlist)
+    })
+
     it('turns on autocomplete for the query option', () => {
         const query = albumCommand.data
             .toJSON()

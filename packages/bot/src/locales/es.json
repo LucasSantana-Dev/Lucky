@@ -138,6 +138,7 @@
             "requestedBy": "pedido por {{user}}",
             "autoplay": "✨ Autoplay según el historial de la sesión",
             "accepted": "{{rate}}% aceptadas",
+            "albumTrack": "💿 {{album}} · pista {{position}}/{{total}}",
             "viaFallback": "vía fallback: {{label}}",
             "unknownTrack": "Pista desconocida",
             "unknownArtist": "Artista desconocido",
