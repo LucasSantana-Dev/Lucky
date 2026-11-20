@@ -2,6 +2,7 @@ import { randomInt } from 'node:crypto'
 import type { Track, GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
+import { withTimeout } from '../../../handlers/player/withTimeout'
 import type { AutoplayContext } from './autoplayContext'
 import { AutoplayAuditCollector } from './autoplayAudit'
 import type { SourceCount } from './autoplayAudit'
@@ -49,7 +50,10 @@ import { collectRelatedArtistCandidates } from './relatedArtistCollector'
 import { isAnchorTrack, selectAnchorSeeds } from './anchorSeeds'
 import { serializeBasis } from './recommendationBasis'
 import { cleanAuthor } from '../../../utils/music/searchQueryCleaner'
-import { primaryArtistKey } from '../../../utils/music/trackNormalization'
+import {
+    normalizeTrackKey,
+    primaryArtistKey,
+} from '../../../utils/music/trackNormalization'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
 import {
     collectBroadFallbackCandidates,
@@ -58,6 +62,7 @@ import {
 } from '../candidateFallback'
 import { buildVcContributionWeights } from './vcWeights'
 import { getRejectionCounts } from './candidateContracts'
+import { getAllHistoryTracks } from '../../../utils/music/historyTracks'
 
 // Autoplay backfill target. Reduced from 8→2 to prevent over-queueing: when
 // too many songs are queued ahead, most get evicted before playerStart without
@@ -105,6 +110,7 @@ export function popularityBoost(
 // Concurrency lock: prevents duplicate queue insertions when playerStart and
 // playerFinish events fire within milliseconds (playerStart + playerFinish) cannot both read
 // the same exclusion sets and independently select the same track.
+export const REPLENISH_DEADLINE_MS = 30_000
 const replenishLocks = new Map<string, Promise<boolean>>()
 
 // Per-guild counter for query diversity across multiple replenish calls.
@@ -167,9 +173,27 @@ export function replenishQueue(
 ): Promise<boolean> {
     const guildId = queue.guild.id
     const prev = replenishLocks.get(guildId) ?? Promise.resolve()
-    const next = prev.then(() =>
-        _replenishQueue(queue, finishedTrack, skipStateProvider),
-    )
+    // Bounded so one hung DB or Redis call cannot hold the guild's chain, and
+    // with it waitForReplenish, forever (#2981). The orphaned run may still
+    // finish later; the next refill re-derives its state from the queue.
+    const next = prev.then(() => {
+        // Flipped on timeout so the orphaned run skips its queue write and
+        // cannot enqueue against stale state next to the retry.
+        const run = { cancelled: false }
+        return withTimeout(
+            _replenishQueue(queue, finishedTrack, skipStateProvider, run),
+            REPLENISH_DEADLINE_MS,
+            'replenishQueue',
+        ).catch((error) => {
+            run.cancelled = true
+            errorLog({
+                message: 'Autoplay refill exceeded its deadline',
+                error,
+                data: { guildId },
+            })
+            return false
+        })
+    })
     replenishLocks.set(
         guildId,
         next.catch(() => false),
@@ -196,6 +220,7 @@ async function _replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
     skipStateProvider?: SkipStateProvider,
+    run: { cancelled: boolean } = { cancelled: false },
 ): Promise<boolean> {
     const startTime = Date.now()
     const guildId = queue.guild.id
@@ -356,6 +381,14 @@ async function _replenishQueue(
             requestedBy,
             !hasQueuedSeedSimilarPick(queue),
         )
+
+        if (run.cancelled) {
+            debugLog({
+                message: 'Autoplay: refill passed its deadline, not enqueueing',
+                data: { guildId },
+            })
+            return false
+        }
 
         await enqueueAndFinalize(
             autoplayContext,
@@ -1184,9 +1217,25 @@ export async function enqueueAndFinalize(
                 ...queue.tracks.toArray().map((t) => t.url),
             ].filter((u): u is string => Boolean(u)),
         )
-        const historyPool = allHistoryTracks.filter(
-            (t) => t.url && !replayExcluded.has(t.url),
+        // History holds a replayed song once per play, so dedupe by URL and
+        // by normalized title/artist key: otherwise one song can fill both
+        // replay slots and repeat songs get picked more often (#3077).
+        const replayKeys = new Set<string>(
+            [currentTrack, ...queue.tracks.toArray()]
+                .filter((t): t is Track => Boolean(t))
+                .map((t) => normalizeTrackKey(t.title, t.author)),
         )
+        const seenReplay = new Set<string>()
+        const seenReplayUrls = new Set<string>()
+        const historyPool = allHistoryTracks.filter((t) => {
+            if (!t.url || replayExcluded.has(t.url)) return false
+            if (seenReplayUrls.has(t.url)) return false
+            seenReplayUrls.add(t.url)
+            const key = normalizeTrackKey(t.title, t.author)
+            if (replayKeys.has(key) || seenReplay.has(key)) return false
+            seenReplay.add(key)
+            return true
+        })
         // Shuffle so successive empty passes don't always replay the same track.
         for (let i = historyPool.length - 1; i > 0; i--) {
             const j = randomInt(i + 1)
@@ -1384,17 +1433,6 @@ function buildArtistFrequency(
         }
     }
     return freq
-}
-
-function getAllHistoryTracks(queue: GuildQueue): Track[] {
-    const history = queue.history as
-        { tracks?: { toArray?: () => Track[]; data?: Track[] } } | undefined
-
-    if (!history?.tracks) return []
-    if (typeof history.tracks.toArray === 'function')
-        return history.tracks.toArray()
-    if (Array.isArray(history.tracks.data)) return history.tracks.data
-    return []
 }
 
 export function clearSessionMoodCache(guildId: string): void {

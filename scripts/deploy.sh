@@ -349,8 +349,10 @@ wait_for_postgres_ready() {
         # pg_isready exits 0 only when postgres is accepting connections.
         # Run inside the postgres container since the database host is only
         # resolvable from within the compose network.
-        if docker_compose exec -T postgres pg_isready \
-            -U postgres >/dev/null 2>&1; then
+        # The role comes from the container env: prod has no "postgres" role,
+        # and probing as one logs FATAL on every deploy (#3068).
+        if docker_compose exec -T postgres sh -c \
+            'pg_isready -U "$POSTGRES_USER"' >/dev/null 2>&1; then
             log "$label ready"
             return 0
         fi
@@ -743,6 +745,10 @@ fi
 if [[ -n "$DEPLOY_SHA" ]]; then
     export IMAGE_TAG="${DEPLOY_SHA:0:7}"
     log "Deploying pinned image tag: $IMAGE_TAG (from $DEPLOY_SHA)"
+else
+    # docker-compose.yml has no IMAGE_TAG default (#3017); an unpinned deploy
+    # asks for :latest explicitly.
+    export IMAGE_TAG="${IMAGE_TAG:-latest}"
 fi
 
 incoming_sha=""
@@ -784,6 +790,30 @@ cd "$DEPLOY_DIR"
 git config --global --add safe.directory "$DEPLOY_DIR"
 
 notify 16776960 "Deploy Started" "Pulling latest changes and rebuilding..."
+
+# Resolve the image tag BEFORE the checkout is reset (#3073): an infra-only
+# commit has no :<sha> images, so reuse the newest ancestor tag when no image
+# input changed, and abort while the prod checkout is still untouched otherwise.
+if [[ -n "$DEPLOY_SHA" ]]; then
+    if [[ -f "$SCRIPT_DIR/deploy/resolve-image-tag.sh" ]]; then
+        # shellcheck source=deploy/resolve-image-tag.sh
+        source "$SCRIPT_DIR/deploy/resolve-image-tag.sh"
+        git fetch origin main >/dev/null 2>&1 || log "WARN: git fetch origin main failed before tag resolution"
+        if ! _resolved_tag="$(resolve_image_tag "$DEPLOY_DIR" "$DEPLOY_SHA")"; then
+            log "ERROR: no usable image tag for $DEPLOY_SHA; checkout left untouched"
+            # Let the EXIT trap post the failed homelab-deploy commit status.
+            DEPLOYED_SHA="$DEPLOY_SHA"
+            notify 16711680 "Deploy Failed" "No image tag found for ${DEPLOY_SHA:0:7} or a safe ancestor"
+            exit 1
+        fi
+        if [[ "$_resolved_tag" != "$IMAGE_TAG" ]]; then
+            log "No images for $IMAGE_TAG (infra-only commit); deploying ancestor image tag $_resolved_tag"
+            export IMAGE_TAG="$_resolved_tag"
+        fi
+    else
+        log "WARN: resolve-image-tag.sh missing; skipping image tag resolution"
+    fi
+fi
 
 log "Synchronizing checkout with origin/main..."
 phase_start checkout_sync

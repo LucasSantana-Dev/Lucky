@@ -268,6 +268,29 @@ export function cleanSearchQuery(title: string, author: string): string {
     return `${cleanedTitle} ${cleanedAuthor}`.trim()
 }
 
+// A release suffix after the dash: Spotify writes "Song - Live at X",
+// "Song - 2011 Remaster", "Song - From \"Film\" / Soundtrack Version" and
+// never puts the artist there. Tested against the right side up to its first
+// inner dash, so a song title like "Live Forever" or "Club Mix" stays a song.
+const RELEASE_TAG_PATTERNS: readonly RegExp[] = [
+    /^from ["“'(]/i,
+    /^live (?:at|in|from)\b/i,
+    /^live$/i,
+    /^(?:ao|en) vivo\b/i,
+    /^(?:\d{4} )?remaster(?:ed)?\b/i,
+    /^(?:soundtrack|acoustic|instrumental|commentary|demo|mono)\b/i,
+    /^karaok/i,
+    /^coment[aá]rio\b/i,
+    /^(?:bonus track|radio edit)\b/i,
+    /\bversion$/i,
+    /\bremaster(?:ed)?(?: \d{4})?$/i,
+]
+
+function isReleaseSuffix(text: string): boolean {
+    const head = text.split(/\s[-–—]\s/, 1)[0]?.trim() ?? ''
+    return RELEASE_TAG_PATTERNS.some((pattern) => pattern.test(head))
+}
+
 /**
  * Extract the song-title core from a YouTube-style "Artist - Song" title.
  * Uses the author field to determine which side of the separator is the artist
@@ -299,10 +322,10 @@ export function extractSongCore(title: string, author?: string): string | null {
             } else if (overlaps(authNorm, norm(right))) {
                 songPart = left
             } else {
-                songPart = right
+                songPart = isReleaseSuffix(right) ? left : right
             }
         } else {
-            songPart = right
+            songPart = isReleaseSuffix(right) ? left : right
         }
 
         const firstParen = Math.min(
@@ -432,7 +455,11 @@ export function splitArtistAndSong(
         const left = cleaned.slice(0, idx).trim()
         if (/[()[\]]/.test(left)) continue
         const right = cleaned.slice(idx + sep.length).trim()
-        const artist = right.startsWith(song) ? left : right
+        // "Song - <release tag>" (Spotify) names no artist in the title:
+        // the tag on the right is not one, so only the author can be.
+        const releaseTagged = song === left && isReleaseSuffix(right)
+        const fromTitle = right.startsWith(song) ? left : right
+        const artist = releaseTagged ? cleanAuthor(author ?? '') : fromTitle
         if (artist.length < 2) return null
         // Upload decorations cleanTitle keeps ("Ben 1972 (4K Remastered)"):
         // Last.fm track names carry neither the tag nor the year.

@@ -11,7 +11,11 @@ jest.mock('lru-cache', () => ({
     }),
 }))
 
-import { replenishQueue, popularityBoost } from './replenisher'
+import {
+    replenishQueue,
+    popularityBoost,
+    REPLENISH_DEADLINE_MS,
+} from './replenisher'
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
@@ -345,10 +349,65 @@ describe('replenishQueue', () => {
         expect(addSelectedTracks.mock.calls[0][1][0].track).toBe(historyTrack)
     })
 
+    async function replayedTitles(history: Track[]): Promise<string[]> {
+        mockProductionExclusions(history.map((t) => t.url))
+        const queue = createGuildQueue({
+            history: { tracks: { toArray: () => history } },
+        } as Partial<GuildQueue>)
+        await replenishQueue(queue)
+        return (queue.addTrack as jest.Mock).mock.calls.map(
+            ([t]: [Track]) => t.title,
+        )
+    }
+
+    it('replays one of two entries with the same title and artist (#3077)', async () => {
+        const a1 = createTrack({
+            id: 'a1',
+            url: 'https://x/a1',
+            title: 'No',
+            author: 'Artist',
+        })
+        const a2 = createTrack({
+            id: 'a2',
+            url: 'https://y/a2',
+            title: 'No',
+            author: 'Artist',
+        })
+        expect(await replayedTitles([a1, a2])).toEqual(['No'])
+    })
+
+    it('replays one of two entries with the same url (#3077)', async () => {
+        const c1 = createTrack({
+            id: 'c1',
+            url: 'https://x/c',
+            title: 'Foo',
+            author: 'Left',
+        })
+        const c2 = createTrack({
+            id: 'c2',
+            url: 'https://x/c',
+            title: 'Bar',
+            author: 'Right',
+        })
+        expect(await replayedTitles([c1, c2])).toHaveLength(1)
+    })
+
     it('does not replay the current track or already queued tracks', async () => {
-        const current = createTrack({ id: 'cur', url: 'https://x/cur' })
-        const queued = createTrack({ id: 'q1', url: 'https://x/q1' })
-        const fresh = createTrack({ id: 'h1', url: 'https://x/h1' })
+        const current = createTrack({
+            id: 'cur',
+            url: 'https://x/cur',
+            title: 'Cur',
+        })
+        const queued = createTrack({
+            id: 'q1',
+            url: 'https://x/q1',
+            title: 'Q1',
+        })
+        const fresh = createTrack({
+            id: 'h1',
+            url: 'https://x/h1',
+            title: 'H1',
+        })
         mockProductionExclusions([current.url, queued.url, fresh.url])
         const queue = createGuildQueue({
             currentTrack: current,
@@ -369,6 +428,7 @@ describe('replenishQueue', () => {
         const historyTrack = createTrack({
             id: 'hist1',
             url: 'https://open.spotify.com/track/hist1',
+            title: 'History Song',
         })
         mockProductionExclusions([historyTrack.url])
         const queue = createGuildQueue({
@@ -980,6 +1040,42 @@ describe('replenishQueue', () => {
         expect(indices.get('f9')).toBe(9)
         expect(indices.has('')).toBe(false) // missing author skipped
         expect(indices.has('outofwindow')).toBe(false) // window-bounded
+    })
+    it('does not enqueue when the refill finishes after its deadline (#2981)', async () => {
+        const {
+            collectRecommendationCandidates,
+        } = require('./candidateCollector')
+        const { addSelectedTracks } = require('./diversitySelector')
+        const { debugLog } = require('@lucky/shared/utils')
+        let release!: () => void
+        collectRecommendationCandidates.mockImplementationOnce(
+            () =>
+                new Promise<Map<string, Track>>((resolve) => {
+                    release = () => resolve(new Map())
+                }),
+        )
+        const queue = createGuildQueue({
+            guild: { id: 'deadline-guild' },
+        } as Partial<GuildQueue>)
+
+        jest.useFakeTimers()
+        try {
+            const refill = replenishQueue(queue)
+            await jest.advanceTimersByTimeAsync(REPLENISH_DEADLINE_MS + 1)
+            await expect(refill).resolves.toBe(false)
+
+            release()
+            await jest.advanceTimersByTimeAsync(10)
+        } finally {
+            jest.useRealTimers()
+        }
+
+        expect(addSelectedTracks).not.toHaveBeenCalled()
+        expect(debugLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Autoplay: refill passed its deadline, not enqueueing',
+            }),
+        )
     })
 })
 

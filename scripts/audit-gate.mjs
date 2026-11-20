@@ -104,7 +104,13 @@ const runAudit = () => {
         maxBuffer: 32 * 1024 * 1024,
     };
     try {
-        return execFileSync('npm', ['audit', '--omit=dev', '--json'], opts);
+        // On Windows npm is npm.cmd, which Node (CVE-2024-27980 hardening)
+        // only spawns through a shell. The command is a fixed constant; it is
+        // passed as one string because an args array plus shell:true is
+        // deprecated (DEP0190).
+        return process.platform === 'win32'
+            ? execFileSync('npm audit --omit=dev --json', { ...opts, shell: true })
+            : execFileSync('npm', ['audit', '--omit=dev', '--json'], opts);
     } catch (error) {
         if (typeof error.stdout === 'string' && error.stdout.length > 0) return error.stdout;
         throw error;

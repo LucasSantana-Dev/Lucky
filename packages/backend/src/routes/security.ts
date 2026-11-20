@@ -7,6 +7,7 @@ import express, {
 import rateLimit from 'express-rate-limit'
 import { warnLog } from '@lucky/shared/utils'
 import { captureMessageThrottled } from '@lucky/shared/utils/monitoring'
+import { cspViolationsTotal } from '../utils/prometheus'
 
 /**
  * Same-origin sink for CSP violation reports (#1283).
@@ -101,6 +102,65 @@ const pickReportFields = (report: Record<string, unknown>) => ({
     disposition: str(report['disposition']),
 })
 
+const KNOWN_DIRECTIVES = new Set([
+    'default-src',
+    'script-src',
+    'script-src-elem',
+    'script-src-attr',
+    'style-src',
+    'style-src-elem',
+    'style-src-attr',
+    'img-src',
+    'font-src',
+    'connect-src',
+    'media-src',
+    'frame-src',
+    'worker-src',
+    'object-src',
+    'base-uri',
+    'form-action',
+    'frame-ancestors',
+])
+// A blocked third-party script, frame or form target can be a real injection
+// attempt, so these always reach Sentry. For the rest (fonts, images, styles,
+// connections) a foreign URL the app never loads is a browser extension.
+const ALWAYS_REPORT_DIRECTIVES = new Set([
+    'script-src',
+    'script-src-elem',
+    'script-src-attr',
+    'object-src',
+    'frame-src',
+    'base-uri',
+    'form-action',
+    'frame-ancestors',
+])
+
+// Normalised origin (scheme + host + port) of a URL; ws/wss count as http/https
+// and blob: URLs resolve to the origin they embed. Opaque CSP tokens (inline,
+// eval, data, self...) have no origin.
+const originOf = (value: string | undefined): string | undefined => {
+    if (!value) return undefined
+    try {
+        let url = new URL(value)
+        if (url.protocol === 'blob:') url = new URL(url.pathname)
+        const protocol = { 'ws:': 'http:', 'wss:': 'https:' }[url.protocol]
+        if (protocol) url.protocol = protocol
+        return url.protocol === 'http:' || url.protocol === 'https:'
+            ? url.origin
+            : undefined
+    } catch {
+        return undefined
+    }
+}
+
+// Own origin = same origin as the page, or an opaque token (inline, eval,
+// data, self) which can only come from the page itself.
+const isOwnOrigin = (fields: ReturnType<typeof pickReportFields>): boolean => {
+    const blockedOrigin = originOf(fields.blockedUri)
+    if (!blockedOrigin) return true
+    return blockedOrigin === originOf(fields.documentUri)
+}
+
 export function setupSecurityRoutes(app: Express): void {
     app.post(
         '/api/security/csp-report',
@@ -111,9 +171,25 @@ export function setupSecurityRoutes(app: Express): void {
                 for (const raw of extractReports(req.body)) {
                     const fields = pickReportFields(raw)
                     // Ignore empty/garbage payloads — only act on a real violation.
-                    if (!fields.violatedDirective && !fields.blockedUri) continue
+                    if (!fields.violatedDirective && !fields.blockedUri)
+                        continue
 
+                    const directive = (fields.violatedDirective ?? '').split(
+                        ' ',
+                    )[0]
+                    const own = isOwnOrigin(fields)
+                    cspViolationsTotal
+                        .labels(
+                            KNOWN_DIRECTIVES.has(directive)
+                                ? directive
+                                : 'other',
+                            own ? 'own' : 'third_party',
+                        )
+                        .inc()
                     warnLog({ message: 'csp-violation', data: fields })
+                    if (!own && !ALWAYS_REPORT_DIRECTIVES.has(directive)) {
+                        continue
+                    }
                     captureMessageThrottled(
                         `csp:${fields.violatedDirective ?? 'unknown'}`,
                         `CSP violation: ${

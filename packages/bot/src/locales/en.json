@@ -70,7 +70,9 @@
             "startedTitle": "Station started",
             "startedDescription": "Playing {{genre}} now. Skip, check the queue, or explore more with /play.",
             "failedTitle": "Couldn't start the station",
-            "failedDescription": "Something went wrong starting the station. Try /play instead."
+            "failedDescription": "Something went wrong starting the station. Try /play instead.",
+            "alreadyStartingTitle": "Station already starting",
+            "alreadyStartingDescription": "A station is already starting here. Give it a few seconds."
         },
         "queue": {
             "nowPlaying": "🎵 Now Playing",
@@ -137,17 +139,28 @@
             "requestedBy": "requested by {{user}}",
             "autoplay": "✨ Autoplay from your session listening history",
             "accepted": "{{rate}}% accepted",
+            "albumTrack": "💿 {{album}} · track {{position}}/{{total}}",
             "viaFallback": "via fallback: {{label}}",
             "unknownTrack": "Unknown track",
             "unknownArtist": "Unknown artist",
             "moreControls": "More",
+
+            "nowPlayingNoAccess": "I can't post the now playing message in that channel: I'm missing the View Channel and Send Messages permissions there. Music keeps playing, but without the controls message.",
             "controlsTitle": "🎛️ Music controls",
             "streamFailed": "Couldn't find the original of **{{title}}** right now, so I'm not playing a cover. Try again shortly or paste a link.",
             "streamFailedMany_one": "{{count}} track couldn't be played. Try again shortly or paste a link.",
             "streamFailedMany_other": "{{count}} tracks couldn't be played. Try again shortly or paste a link.",
             "autoplayCount": "{{count}}/{{max}} songs",
             "autoplayStopped_one": "The last autoplay track couldn't be streamed, so autoplay stopped. Use /play to start again.",
-            "autoplayStopped_other": "The last {{count}} autoplay tracks couldn't be streamed, so autoplay stopped. Use /play to start again."
+            "autoplayStopped_other": "The last {{count}} autoplay tracks couldn't be streamed, so autoplay stopped. Use /play to start again.",
+            "statusSkipped": "⏭️ Song skipped - Now playing",
+            "statusPaused": "⏸️ Paused",
+            "statusResumed": "▶️ Resumed",
+            "statusPrevious": "⏮️ Playing previous track",
+            "statusRestarting": "⏮️ Restarting track",
+            "statusReplayed": "🔄 Replayed",
+            "statusSeeked": "⏩ Seeked to {{time}}",
+            "statusJumped": "🎯 Now playing (position {{position}})"
         }
     }
 }

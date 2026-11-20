@@ -624,8 +624,11 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         const promise = streamViaYtDlp(validUrl, timeoutMs)
         let settled = false
         promise.catch(() => undefined).finally(() => (settled = true))
-        await new Promise((resolve) => setImmediate(resolve))
-        await new Promise((resolve) => setImmediate(resolve))
+        // Wait for the retry spawn itself rather than a fixed number of
+        // ticks: under parallel jest load the async chain needs more turns.
+        for (let i = 0; i < 1_000 && mockSpawn.mock.calls.length < 2; i++) {
+            await new Promise((resolve) => setImmediate(resolve))
+        }
         expect(mockSpawn).toHaveBeenCalledTimes(2)
         return { promise, cookiesProc, isSettled: () => settled }
     }
@@ -1083,5 +1086,64 @@ describe('HOSTED_YOUTUBE_ENABLED = false', () => {
             streamViaYtDlp('https://soundcloud.com/artist/track'),
         ).resolves.toBeDefined()
         expect(mockSpawn).toHaveBeenCalled()
+    })
+})
+
+describe('streamViaYtDlp: stream start budget (#2927)', () => {
+    const youtubeUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
+
+    afterEach(() => {
+        if (originalEnv === undefined) {
+            delete process.env.HOSTED_YOUTUBE_ENABLED
+        } else {
+            process.env.HOSTED_YOUTUBE_ENABLED = originalEnv
+        }
+    })
+
+    beforeEach(() => {
+        process.env.HOSTED_YOUTUBE_ENABLED = 'true'
+        mockSpawn.mockReset()
+        mockInfoLog.mockReset()
+        __resetPlainBotCheckStateForTests()
+        recordYtDlpSuccess()
+    })
+
+    it('counts a slow spawn against the budget and logs spawn time and timer lag', async () => {
+        jest.useFakeTimers({ doNotFake: ['setImmediate'] })
+        try {
+            const proc = makeFakeProc()
+            mockSpawn.mockImplementationOnce(() => {
+                // spawn() is synchronous: a loaded host blocked it ~1.9 s.
+                // No timer is armed yet, so this only moves both clocks.
+                jest.advanceTimersByTime(1_900)
+                return proc
+            })
+
+            const attempt = streamViaYtDlp(youtubeUrl)
+            const settled = attempt.catch((error: unknown) => error)
+
+            await jest.advanceTimersByTimeAsync(
+                YTDLP_STREAM_START_TIMEOUT_MS - 1_900,
+            )
+
+            const error = await settled
+            expect(error).toBeInstanceOf(Error)
+            expect((error as Error).message).toContain('timed out')
+            expect(proc.kill).toHaveBeenCalled()
+            expect(mockInfoLog).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: 'Bridge: yt-dlp attempt',
+                    data: expect.objectContaining({
+                        outcome: 'timeout',
+                        ms: YTDLP_STREAM_START_TIMEOUT_MS,
+                        spawnMs: 1_900,
+                        timerLagMs: 0,
+                    }),
+                }),
+            )
+        } finally {
+            jest.useRealTimers()
+        }
     })
 })

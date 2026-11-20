@@ -192,6 +192,47 @@ describe('artist command search fallback', () => {
         })
     })
 
+    it('counts only the tracks left after the ASMR filter (#3001)', async () => {
+        const asmr = createTrack('Queen ASMR whispers', 'Queen')
+        const addTrack = jest.fn()
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({
+            queue: { addTrack },
+        })
+        const tracks = [
+            createTrack('Bohemian Rhapsody', 'Queen'),
+            asmr,
+            createTrack('We Will Rock You', 'Queen'),
+        ]
+        const search = jest.fn().mockResolvedValueOnce({ tracks })
+        const play = jest.fn(async () => ({ track: tracks[0] }))
+
+        await artistCommand.execute({
+            client: { player: { search, play } },
+            interaction: createInteraction(),
+        } as never)
+
+        expect(addTrack).toHaveBeenCalledTimes(1)
+        expect(addTrack).not.toHaveBeenCalledWith(asmr)
+        const reply = (interactionReply as jest.Mock).mock.calls.at(-1)?.[0]
+        expect(reply.content.embeds[0].description).toContain('**2**')
+    })
+
+    it('says ASMR is blocked when every track is ASMR (#3001)', async () => {
+        const search = jest.fn().mockResolvedValueOnce({
+            tracks: [createTrack('Queen ASMR whispers', 'Queen')],
+        })
+        const play = jest.fn()
+
+        await artistCommand.execute({
+            client: { player: { search, play } },
+            interaction: createInteraction(),
+        } as never)
+
+        expect(play).not.toHaveBeenCalled()
+        const reply = (interactionReply as jest.Mock).mock.calls.at(-1)?.[0]
+        expect(reply.content.embeds[0].description).toContain('ASMR')
+    })
+
     it('keeps only the artist match even when fewer than three tracks match', async () => {
         // Production 2026-08-21: Spotify's results for "queen" included
         // "Queencard" by i-dle. The old `>= 3` threshold dropped the author

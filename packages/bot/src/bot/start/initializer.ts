@@ -26,9 +26,11 @@ import type { CustomClient } from '../../types'
 import { ConfigurationError } from '@lucky/shared/types'
 import { redisClient } from '@lucky/shared/services'
 import { initProviderHealth } from '../../services/musicManagement/search/providerHealth'
+import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
 import { musicWatchdogService } from '../../services/musicManagement/watchdog'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { recapScheduler } from '../../services/recap/recapScheduler'
+import { playProbeScheduler } from '../../services/playProbe/playProbe'
 import { reminderScheduler } from '../../utils/general/reminderScheduler'
 import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'
 import { giveawayScheduler } from '../../utils/general/giveawayScheduler'
@@ -58,6 +60,8 @@ import type {
 /**
  * Bot initialization manager
  */
+const SHUTDOWN_SNAPSHOT_TIMEOUT_MS = 5_000
+
 export class BotInitializer {
     private client: CustomClient | null = null
     private isInitialized = false
@@ -221,6 +225,36 @@ export class BotInitializer {
         }
     }
 
+    /**
+     * Persist every live queue before the client is destroyed. The voice
+     * teardown handlers save asynchronously and process.exit(0) can cut them
+     * off, so shutdown awaits the saves itself, bounded so a slow DB cannot
+     * block exit.
+     */
+    private async saveMusicSnapshots(): Promise<void> {
+        const queues = Array.from(
+            this.client?.player?.nodes?.cache?.values() ?? [],
+        )
+        if (queues.length === 0) return
+        let timer: NodeJS.Timeout | undefined
+        const timeout = new Promise<void>((resolve) => {
+            timer = setTimeout(() => {
+                warnLog({ message: 'Snapshot save on shutdown timed out' })
+                resolve()
+            }, SHUTDOWN_SNAPSHOT_TIMEOUT_MS)
+        })
+        const saves = Promise.allSettled(
+            queues.map((queue) =>
+                musicSessionSnapshotService.saveSnapshot(queue),
+            ),
+        ).then(() => undefined)
+        try {
+            await Promise.race([saves, timeout])
+        } finally {
+            if (timer) clearTimeout(timer)
+        }
+    }
+
     async shutdown(): Promise<void> {
         // Stop presence rotation first (following #1157 pattern), then all
         // long-lived timers/intervals, in this exact order.
@@ -232,6 +266,7 @@ export class BotInitializer {
                 () => birthdayScheduler.stop(),
             ],
             ['Error stopping recap scheduler:', () => recapScheduler.stop()],
+            ['Error stopping play probe:', () => playProbeScheduler.stop()],
             [
                 'Error stopping support session scheduler:',
                 () => supportSessionScheduler.stop(),
@@ -310,6 +345,8 @@ export class BotInitializer {
         for (const [message, step] of stepsAfterBatchWorker) {
             this.runShutdownStep(message, step)
         }
+
+        await this.saveMusicSnapshots()
 
         if (this.client) {
             try {

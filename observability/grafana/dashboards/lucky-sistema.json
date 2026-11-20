@@ -1212,6 +1212,126 @@
                 }
             },
             "id": 20
+        },
+        {
+            "type": "row",
+            "title": "Sonda de play",
+            "collapsed": false,
+            "panels": [],
+            "gridPos": {
+                "x": 0,
+                "y": 53,
+                "w": 24,
+                "h": 1
+            },
+            "id": 21
+        },
+        {
+            "type": "state-timeline",
+            "title": "Sonda de play por caso",
+            "description": "A cada 15 min (e 2 min depois de cada deploy) o bot resolve e abre o stream de casos fixos, sem entrar em canal de voz. Duas falhas seguidas no mesmo caso disparam LuckyPlayProbeFailing (#2920).",
+            "gridPos": {
+                "x": 0,
+                "y": 54,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "max by (case) (lucky_bot_probe_success)",
+                    "legendFormat": "{{case}}",
+                    "instant": false,
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "mappings": [
+                        {
+                            "type": "value",
+                            "options": {
+                                "0": {
+                                    "text": "falhou",
+                                    "color": "red"
+                                },
+                                "1": {
+                                    "text": "ok",
+                                    "color": "green"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "overrides": []
+            },
+            "options": {
+                "showValue": "never",
+                "legend": {
+                    "showLegend": false
+                }
+            },
+            "id": 22
+        },
+        {
+            "type": "timeseries",
+            "title": "Sonda: tempo por etapa",
+            "description": "Última vez que cada etapa rodou: resolve (busca) e first_byte (primeiros bytes do stream). Um caso que falha no resolve fica sem first_byte.",
+            "gridPos": {
+                "x": 12,
+                "y": 54,
+                "w": 12,
+                "h": 8
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "max by (case, stage) (lucky_bot_probe_duration_seconds)",
+                    "legendFormat": "{{case}} {{stage}}",
+                    "instant": false,
+                    "range": true,
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "s",
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "lineWidth": 2,
+                        "showPoints": "never"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "id": 23
         }
     ]
 }

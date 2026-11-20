@@ -45,6 +45,10 @@ export type PlayerEvents = {
 export const setupErrorHandlers = (player: PlayerEvents): void => {
     player.events.on('error', (queue: GuildQueue, error: Error) => {
         runSafely('Queue error handler failed:', () => {
+            if (isNothingToPlayError(error)) {
+                handleNothingToPlay(queue)
+                return
+            }
             const details = toErrorDetails(error)
             errorLog({
                 message: `Error in queue ${queue?.guild?.name || 'unknown'}:`,
@@ -167,6 +171,41 @@ function logPlayerError(
 const AUTOPLAY_STOP_SUPPRESSION_MS = 60 * 60 * 1_000
 
 // discord-player has already moved to the next track when it emits
+const NOTHING_TO_PLAY_MESSAGE =
+    'Play request received but track was not provided'
+
+function isNothingToPlayError(error: unknown): boolean {
+    return (
+        error instanceof Error &&
+        error.name === 'NoResultError' &&
+        error.message === NOTHING_TO_PLAY_MESSAGE
+    )
+}
+
+// discord-player 7.2 emits this when play() finds nothing to play. The common
+// source is its own code: a stream that fails with the queue empty makes
+// #throw emit finish(null), and in autoplay or repeat-queue mode
+// #performFinish then calls play(undefined) instead of #emitEnd. The queue is
+// left with no current track, no emptyQueue event and nothing that resumes
+// it (LUCKY-7V, 5G, 5W, #3081). Finish what #emitEnd would have done so the
+// emptyQueue handlers (late refill, idle disconnect) take over.
+function handleNothingToPlay(queue: GuildQueue): void {
+    const ended = !queue?.currentTrack && (queue?.tracks?.size ?? 0) === 0
+    warnLog({
+        message: ended
+            ? 'Play request found nothing to play, ending the queue'
+            : 'Play request found nothing to play, queue still has a track',
+        data: {
+            guildId: queue?.guild?.id ?? 'unknown',
+            hasCurrentTrack: Boolean(queue?.currentTrack),
+            queuedTracks: queue?.tracks?.size ?? 0,
+        },
+    })
+    if (ended) {
+        queue.emit('emptyQueue', queue)
+    }
+}
+
 // playerError for a stream failure (GuildQueuePlayerNode #throw dispatches it
 // right after the emit), so an autoplay failure needs no recovery and no skip
 // here. Runs before the handler's first await, so the clear below lands

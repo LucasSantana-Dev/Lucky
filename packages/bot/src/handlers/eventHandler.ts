@@ -20,6 +20,7 @@ import {
     captureException,
     runWithLogContext,
     withSentryRequestScope,
+    searchSpotifyAlbums,
 } from '@lucky/shared/utils'
 import { interactionReply } from '../utils/general/interactionReply'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
@@ -316,6 +317,16 @@ async function handleInteractionError(
     })
 }
 
+// Autocomplete fires on every keystroke; a short memory keeps the same text
+// from being sent to Spotify again.
+type AlbumSuggestions = Awaited<ReturnType<typeof searchSpotifyAlbums>>
+const ALBUM_SUGGESTION_CACHE_TTL_MS = 60_000
+const ALBUM_SUGGESTION_CACHE_MAX = 200
+const albumSuggestionCache = new Map<
+    string,
+    { albums: AlbumSuggestions; expiresAt: number }
+>()
+
 async function handleAutocomplete(interaction: Interaction): Promise<void> {
     try {
         if (!interaction.isAutocomplete()) return
@@ -339,6 +350,58 @@ async function handleAutocomplete(interaction: Interaction): Promise<void> {
                 .slice(0, 25)
 
             await interaction.respond(choices)
+            return
+        }
+
+        if (command === 'album' && focusedOption.name === 'query') {
+            const typed = focusedOption.value.trim()
+            // A pasted URL already names the album; one letter is too vague.
+            if (typed.length < 2 || /^https?:\/\//i.test(typed)) {
+                await interaction.respond([])
+                return
+            }
+            const artist = interaction.options.getString('artist')
+            // Discord drops an autocomplete answer after 3 seconds, so a slow
+            // lookup answers with nothing instead of failing the interaction.
+            const search = artist ? `${typed} ${artist}` : typed
+            const cacheKey = search.toLowerCase().replace(/\s+/g, ' ')
+            const cached = albumSuggestionCache.get(cacheKey)
+            let albums: AlbumSuggestions
+            if (cached && cached.expiresAt > Date.now()) {
+                albums = cached.albums
+            } else {
+                let timer: NodeJS.Timeout | undefined
+                albums = await Promise.race([
+                    searchSpotifyAlbums(search, 10),
+                    new Promise<[]>((resolve) => {
+                        timer = setTimeout(() => resolve([]), 2500)
+                    }),
+                ]).finally(() => clearTimeout(timer))
+                // An empty answer may be a timeout or a failed lookup, so it
+                // is asked again next time.
+                if (albums.length > 0) {
+                    albumSuggestionCache.delete(cacheKey)
+                    if (
+                        albumSuggestionCache.size >= ALBUM_SUGGESTION_CACHE_MAX
+                    ) {
+                        const oldest = albumSuggestionCache.keys().next().value
+                        if (oldest !== undefined) {
+                            albumSuggestionCache.delete(oldest)
+                        }
+                    }
+                    albumSuggestionCache.set(cacheKey, {
+                        albums,
+                        expiresAt: Date.now() + ALBUM_SUGGESTION_CACHE_TTL_MS,
+                    })
+                }
+            }
+            // The value is the album URL, which /album plays as is.
+            await interaction.respond(
+                albums.map((album) => ({
+                    name: `${album.name}, ${album.artist}`.slice(0, 100),
+                    value: album.url,
+                })),
+            )
             return
         }
 
@@ -607,6 +670,9 @@ function handleGuildDelete(client: Client): void {
                 totalGuilds,
             },
         })
+        // available === false means a Discord outage, not a real leave:
+        // keep metrics, DB state and in-memory caches untouched.
+        if (guild.available === false) return
         guildLeavesTotal.inc()
         await recordGuildLeave(guild.id, guild.name).catch((error) => {
             errorLog({

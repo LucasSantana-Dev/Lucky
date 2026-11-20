@@ -14,6 +14,7 @@ import { markAndRecordAutoplayTrack } from './queueMarkers'
 import { extractYouTubeVideoId } from './scoringUtils'
 import { trackSource, trackAlbumName } from '../../../utils/music/trackFields'
 import type { RecommendationBasis } from './recommendationBasis.js'
+import { getAllHistoryTracks } from '../../../utils/music/historyTracks'
 
 interface ScoredTrack {
     track: Track
@@ -219,17 +220,6 @@ function stripVariantSuffix(title: string): string {
         }
     }
     return title
-}
-
-function getAllHistoryTracks(queue: GuildQueue): Track[] {
-    const history = queue.history as
-        { tracks?: { toArray?: () => Track[]; data?: Track[] } } | undefined
-
-    if (!history?.tracks) return []
-    if (typeof history.tracks.toArray === 'function')
-        return history.tracks.toArray()
-    if (Array.isArray(history.tracks.data)) return history.tracks.data
-    return []
 }
 
 export function buildExcludedUrls(

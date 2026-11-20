@@ -31,6 +31,10 @@ export function requestLogger(
 
         if (status >= 500) {
             errorLog(logParams)
+        } else if (status === 404 && res.locals?.expectedNotFound === true) {
+            // A lookup route whose normal "nothing mapped" answer is 404
+            // (e.g. forum thread slugs, #2978) is not a warning.
+            infoLog(logParams)
         } else if (status >= 400) {
             warnLog(logParams)
         } else {

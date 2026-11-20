@@ -230,6 +230,33 @@ export const guildLeavesTotal = new Counter({
 })
 
 /**
+ * Synthetic play probe (#2920). `case` is one of the fixed probe cases
+ * (youtube_watch|youtube_music|youtu_be|youtube_playlist|soundcloud_text),
+ * `stage` is resolve|first_byte. Gauges, not counters: each run overwrites
+ * the last result, and the probe never touches the play metrics above.
+ */
+export const playProbeSuccess = new Gauge<'case'>({
+    name: 'lucky_bot_probe_success',
+    help: 'Last synthetic play probe result per case: 1 resolved and streamed, 0 failed (#2920).',
+    labelNames: ['case'],
+    registers: [registry],
+})
+
+export const playProbeDurationSeconds = new Gauge<'case' | 'stage'>({
+    name: 'lucky_bot_probe_duration_seconds',
+    help: 'Duration in seconds of each stage in the last synthetic play probe run of a case (resolve|first_byte); first_byte is absent when that run failed at resolve.',
+    labelNames: ['case', 'stage'],
+    registers: [registry],
+})
+
+export const playProbeConsecutiveFailures = new Gauge<'case'>({
+    name: 'lucky_bot_probe_consecutive_failures',
+    help: 'Synthetic play probe runs in a row that failed, per case; 0 after a success (#2920).',
+    labelNames: ['case'],
+    registers: [registry],
+})
+
+/**
  * Gauge: whether a music extractor is currently known-degraded (1) or
  * healthy (0), labelled by extractor name. Pushed directly by
  * `extractorHealth.ts` on registration success/failure — not lazily
@@ -246,23 +273,42 @@ export const musicExtractorDegradedGauge = new Gauge<'extractor'>({
 
 /**
  * Counter: yt-dlp stream extraction failures by type
- * (forbidden|botcheck|empty|timeout|other). `forbidden` is YouTube's HTTP 403
+ * (forbidden|botcheck|empty|timeout|other|breaker_open). `breaker_open` counts a play that
+ * exhausted every stage while the breaker was open. `forbidden` is YouTube's HTTP 403
  * on the media download and `botcheck` is its "not a bot" sign-in challenge;
  * both open the bridge's yt-dlp block breaker (#2653, #2744).
  * This is the counter the 2026-08-03 Lavalink re-evaluation ADR asked for.
  */
 export const extractionFailuresTotal = new Counter<'type'>({
     name: 'lucky_bot_extraction_failures_total',
-    help: 'yt-dlp stream extraction failures, by type (forbidden|botcheck|empty|timeout|other).',
+    help: 'yt-dlp stream extraction failures, by type (forbidden|botcheck|empty|timeout|other|breaker_open).',
     labelNames: ['type'],
     registers: [registry],
 })
 // Seed all types at 0 on boot so rate()/increase() queries (dashboards, future
 // alert rules) have a baseline from the first scrape, even before the first
 // failure (#2864).
-for (const type of ['forbidden', 'botcheck', 'empty', 'timeout', 'other']) {
+for (const type of [
+    'forbidden',
+    'botcheck',
+    'empty',
+    'timeout',
+    'other',
+    'breaker_open',
+]) {
     extractionFailuresTotal.labels(type).inc(0)
 }
+
+/**
+ * Counter: interactions that expired before the bot acknowledged them
+ * (Discord 10062), by command or button family (#3085).
+ */
+export const interactionExpiredTotal = new Counter<'source'>({
+    name: 'lucky_bot_interaction_expired_total',
+    help: 'Interactions that expired before the bot acknowledged them, by command or button.',
+    labelNames: ['source'],
+    registers: [registry],
+})
 
 /**
  * Counter: Spotify source cache lookups by result (hit|miss|negative).

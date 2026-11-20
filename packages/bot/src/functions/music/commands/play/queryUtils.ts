@@ -11,6 +11,7 @@ import {
 import { ensureTrackMetadata } from './handlers/trackMetadataHydration'
 import {
     classifyPlayFailure,
+    logPlayFailure,
     resolvePlayErrorMessage,
 } from './handlers/playErrorMessage'
 import { markCommandOutcome } from '../../../../utils/monitoring/commandOutcome'
@@ -30,7 +31,7 @@ import {
     createWarningEmbed,
 } from '../../../../utils/general/embeds'
 import { interactionReply } from '../../../../utils/general/interactionReply'
-import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
+import { debugLog, warnLog } from '@lucky/shared/utils'
 import { withTimeout } from '@lucky/shared/utils/async'
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { isHost } from '../../../../utils/general/urlHost'
@@ -457,10 +458,9 @@ export async function executePlayAtTop({
             return
         }
 
-        errorLog({
-            message: `${commandName} error:`,
-            error,
-            data: { query, guildId: interaction.guildId },
+        logPlayFailure(`${commandName} error:`, error, {
+            query,
+            guildId: interaction.guildId,
         })
         markCommandOutcome(interaction, classifyPlayFailure(error))
 

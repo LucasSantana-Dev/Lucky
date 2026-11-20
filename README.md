@@ -129,7 +129,10 @@ echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
 #   - DATABASE_URL (postgres://...)
 #   - REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_DB (defaults work for the bundled Redis container)
 
-# Start everything
+# Start everything. docker-compose.yml has no default image tag (a bare run
+# fails instead of silently using a stale :latest on a server). This snippet
+# opts into :latest and saves it to .env so later compose commands work too:
+echo "IMAGE_TAG=latest" >> .env
 docker compose up -d
 
 # Watch the bot come online
@@ -314,7 +317,7 @@ DEVELOPER_USER_IDS=your_discord_user_id
 # 2. Apply database migrations
 npx prisma migrate deploy
 
-# 3. Restart the backend
+# 3. Restart the backend (IMAGE_TAG must be set, in .env or exported)
 docker compose restart backend
 
 # 4. Sign in via Discord at /admin

@@ -23,8 +23,15 @@ describe('normalizeText', () => {
         ['Hello, World!', 'helloworld'],
         [undefined, ''],
         ['Track 42', 'track42'],
+        // Combining marks are letters in some scripts (#2951): the key must
+        // keep them so different artists do not collapse into one.
+        ['कु', 'कु'],
     ])('normalizes %p → %p', (input, expected) => {
         expect(normalizeText(input)).toBe(expected)
+    })
+
+    it('keeps two Devanagari names that differ only by a vowel sign apart', () => {
+        expect(normalizeText('कु')).not.toBe(normalizeText('क'))
     })
 })
 

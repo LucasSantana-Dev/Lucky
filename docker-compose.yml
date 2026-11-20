@@ -29,7 +29,6 @@ x-common-app-env: &common-app-env
     SENTRY_SERVER_NAME: ${SENTRY_SERVER_NAME:-}
     SENTRY_APP_NAME: ${SENTRY_APP_NAME:-lucky}
     SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-}
-    SENTRY_PROFILES_SAMPLE_RATE: ${SENTRY_PROFILES_SAMPLE_RATE:-}
     DATABASE_URL: postgresql://discordbot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD_required}@postgres:5432/discordbot
     # The Prisma CLI (migrate deploy on startup) reads DIRECT_URL, not
     # DATABASE_URL. Without this override it falls back to the .env value,
@@ -99,7 +98,7 @@ services:
 
     bot:
         <<: *large-svc
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-bot:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-bot:${IMAGE_TAG:?IMAGE_TAG is required. A bare compose run would use a stale latest image. On prod set it to the 7 char sha in .deploy-last-good-sha}
         build:
             context: .
             dockerfile: Dockerfile
@@ -108,6 +107,11 @@ services:
                 SERVICE: bot
                 NODE_ENV: production
         container_name: lucky-bot
+        # PID 1 reaps the yt-dlp/ffmpeg children (#2983); the pid cap bounds a
+        # runaway spawn loop; 30s lets the SIGTERM handler drain before SIGKILL.
+        init: true
+        pids_limit: 256
+        stop_grace_period: 30s
         env_file:
             - .env
         depends_on:
@@ -190,7 +194,7 @@ services:
 
     backend:
         <<: *medium-svc
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-backend:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-backend:${IMAGE_TAG:?IMAGE_TAG is required. A bare compose run would use a stale latest image. On prod set it to the 7 char sha in .deploy-last-good-sha}
         build:
             context: .
             dockerfile: Dockerfile
@@ -239,7 +243,7 @@ services:
 
     frontend:
         <<: *small-svc
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-frontend:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-frontend:${IMAGE_TAG:?IMAGE_TAG is required. A bare compose run would use a stale latest image. On prod set it to the 7 char sha in .deploy-last-good-sha}
         build:
             context: .
             dockerfile: Dockerfile
@@ -256,7 +260,7 @@ services:
 
     nginx:
         <<: *small-svc
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-nginx:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-nginx:${IMAGE_TAG:?IMAGE_TAG is required. A bare compose run would use a stale latest image. On prod set it to the 7 char sha in .deploy-last-good-sha}
         build:
             context: .
             dockerfile: Dockerfile.nginx
@@ -289,7 +293,7 @@ services:
     # joins lucky-network and publishes no ports. 128m/0.5 matches neither
     # x-small-svc nor x-medium-svc, so limits are explicit.
     render:
-        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-render:${IMAGE_TAG:-latest}
+        image: ${IMAGE_PREFIX:-ghcr.io/lucassantana-dev/lucky}-render:${IMAGE_TAG:?IMAGE_TAG is required. A bare compose run would use a stale latest image. On prod set it to the 7 char sha in .deploy-last-good-sha}
         build:
             context: ./packages/render
             dockerfile: Dockerfile

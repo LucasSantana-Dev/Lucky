@@ -21,7 +21,11 @@ jest.mock('@lucky/shared/services', () => ({
 }))
 
 import { premiumService } from '@lucky/shared/services'
-import { replenishQueue, waitForReplenish } from './replenisher'
+import {
+    REPLENISH_DEADLINE_MS,
+    replenishQueue,
+    waitForReplenish,
+} from './replenisher'
 
 function deferred() {
     let resolve!: (v: boolean) => void
@@ -80,5 +84,33 @@ describe('waitForReplenish', () => {
 
     it('reports success when no refill is in flight', async () => {
         await expect(waitForReplenish('idle-guild')).resolves.toBe(true)
+    })
+    it('releases the chain when a refill hangs past the deadline (#2981)', async () => {
+        jest.useFakeTimers()
+        try {
+            jest.mocked(premiumService.isPremium)
+                .mockReturnValueOnce(new Promise<boolean>(() => {}))
+                .mockResolvedValueOnce(false)
+            const queue = {
+                guild: { id: 'hang-guild' },
+                currentTrack: { title: 'Song', author: 'Band', url: 'u' },
+                tracks: { size: 0, toArray: () => [] },
+            } as unknown as GuildQueue
+
+            const hung = replenishQueue(queue)
+            let settled = false
+            void hung.then(() => {
+                settled = true
+            })
+            const wait = waitForReplenish('hang-guild')
+            await jest.advanceTimersByTimeAsync(REPLENISH_DEADLINE_MS - 1)
+            expect(settled).toBe(false)
+            await jest.advanceTimersByTimeAsync(2)
+
+            await expect(hung).resolves.toBe(false)
+            await expect(wait).resolves.toBe(false)
+        } finally {
+            jest.useRealTimers()
+        }
     })
 })

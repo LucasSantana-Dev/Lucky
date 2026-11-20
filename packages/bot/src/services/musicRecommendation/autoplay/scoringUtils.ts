@@ -5,14 +5,16 @@ import {
 } from '../../../utils/music/searchQueryCleaner'
 
 /**
- * Normalize text by removing accents, lowercasing, and stripping non-alphanumeric.
+ * Normalize text by NFKC-folding, lowercasing, and stripping everything that is
+ * not a letter, combining mark or digit. Marks are kept: dropping them merged
+ * distinct titles in scripts where a vowel sign is a mark (#2951).
  * Used for fuzzy matching and normalization in scoring and deduplication.
  */
 export function normalizeText(value?: string): string {
     return (value ?? '')
         .normalize('NFKC')
         .toLowerCase()
-        .replaceAll(/[^\p{L}\p{N}]+/gu, '')
+        .replaceAll(/[^\p{L}\p{M}\p{N}]+/gu, '')
         .trim()
 }
 

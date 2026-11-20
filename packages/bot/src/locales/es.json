@@ -70,7 +70,9 @@
             "startedTitle": "Estación iniciada",
             "startedDescription": "Reproduciendo {{genre}} ahora. Salta, mira la cola o explora más con /play.",
             "failedTitle": "No se pudo iniciar la estación",
-            "failedDescription": "Algo salió mal al iniciar la estación. Prueba con /play."
+            "failedDescription": "Algo salió mal al iniciar la estación. Prueba con /play.",
+            "alreadyStartingTitle": "La estación ya está iniciando",
+            "alreadyStartingDescription": "Ya se está iniciando una estación aquí. Dale unos segundos."
         },
         "queue": {
             "nowPlaying": "🎵 Reproduciendo ahora",
@@ -136,17 +138,28 @@
             "requestedBy": "pedido por {{user}}",
             "autoplay": "✨ Autoplay según el historial de la sesión",
             "accepted": "{{rate}}% aceptadas",
+            "albumTrack": "💿 {{album}} · pista {{position}}/{{total}}",
             "viaFallback": "vía fallback: {{label}}",
             "unknownTrack": "Pista desconocida",
             "unknownArtist": "Artista desconocido",
             "moreControls": "Más",
+
+            "nowPlayingNoAccess": "No puedo enviar el mensaje de reproducción actual en ese canal: me faltan los permisos Ver Canal y Enviar Mensajes. La música sigue sonando, pero sin el mensaje de controles.",
             "controlsTitle": "🎛️ Controles de música",
             "streamFailed": "No encontré la versión original de **{{title}}** ahora, así que no voy a poner un cover. Inténtalo de nuevo en un momento o pega un enlace.",
             "streamFailedMany_one": "No se pudo reproducir {{count}} canción. Inténtalo de nuevo en un momento o pega un enlace.",
             "streamFailedMany_other": "No se pudieron reproducir {{count}} canciones. Inténtalo de nuevo en un momento o pega un enlace.",
             "autoplayCount": "{{count}}/{{max}} canciones",
             "autoplayStopped_one": "La última canción del autoplay no se pudo reproducir, así que el autoplay se detuvo. Usa /play para empezar de nuevo.",
-            "autoplayStopped_other": "Las últimas {{count}} canciones del autoplay no se pudieron reproducir, así que el autoplay se detuvo. Usa /play para empezar de nuevo."
+            "autoplayStopped_other": "Las últimas {{count}} canciones del autoplay no se pudieron reproducir, así que el autoplay se detuvo. Usa /play para empezar de nuevo.",
+            "statusSkipped": "⏭️ Canción omitida - Reproduciendo",
+            "statusPaused": "⏸️ Pausado",
+            "statusResumed": "▶️ Reanudado",
+            "statusPrevious": "⏮️ Reproduciendo la pista anterior",
+            "statusRestarting": "⏮️ Reiniciando la pista",
+            "statusReplayed": "🔄 Repetida",
+            "statusSeeked": "⏩ Saltó a {{time}}",
+            "statusJumped": "🎯 Reproduciendo (posición {{position}})"
         }
     }
 }

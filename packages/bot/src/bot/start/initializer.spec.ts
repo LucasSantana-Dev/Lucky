@@ -31,6 +31,7 @@ const setupWebMusicHandlerMock = jest.fn().mockResolvedValue(undefined)
 const stopWebMusicHandlerMock = jest.fn()
 const birthdaySchedulerStopMock = jest.fn()
 const recapSchedulerStopMock = jest.fn()
+const playProbeStopMock = jest.fn()
 const modDigestSchedulerStopMock = jest.fn()
 const aiDevToolkitStopMock = jest.fn()
 const dependencyCheckStopMock = jest.fn()
@@ -62,6 +63,13 @@ jest.mock('../../handlers/clientHandler/service', () => ({
 jest.mock('../../utils/monitoring/commandEventBuffer', () => ({
     startCommandEventBuffer: jest.fn(),
     stopCommandEventBuffer: jest.fn().mockResolvedValue(undefined),
+}))
+
+const saveSnapshotMock = jest.fn()
+jest.mock('../../services/musicRecommendation/sessionSnapshots', () => ({
+    musicSessionSnapshotService: {
+        saveSnapshot: (...args: unknown[]) => saveSnapshotMock(...args),
+    },
 }))
 
 jest.mock('../../handlers/player', () => ({
@@ -119,6 +127,12 @@ jest.mock('../../handlers/webMusic', () => ({
 jest.mock('../../utils/general/birthdayScheduler', () => ({
     birthdayScheduler: {
         stop: (...args: unknown[]) => birthdaySchedulerStopMock(...args),
+    },
+}))
+
+jest.mock('../../services/playProbe/playProbe', () => ({
+    playProbeScheduler: {
+        stop: (...args: unknown[]) => playProbeStopMock(...args),
     },
 }))
 
@@ -452,6 +466,54 @@ describe('BotInitializer', () => {
             expect(initializer.isBotInitialized()).toBe(false)
         })
 
+        it('awaits a snapshot save for every queue before client.destroy()', async () => {
+            const queueA = { guild: { id: 'a' } }
+            const queueB = { guild: { id: 'b' } }
+            let resolveB: () => void = () => {}
+            saveSnapshotMock.mockImplementation((q: unknown) =>
+                q === queueB
+                    ? new Promise<void>((r) => {
+                          resolveB = r
+                      })
+                    : Promise.resolve(),
+            )
+            createPlayerMock.mockResolvedValue({
+                nodes: {
+                    cache: new Map([
+                        ['a', queueA],
+                        ['b', queueB],
+                    ]),
+                },
+            })
+            await initializer.initializeBot()
+            const client = initializer.getClient()
+            const done = initializer.shutdown()
+            await new Promise((r) => setImmediate(r))
+            expect(saveSnapshotMock).toHaveBeenCalledTimes(2)
+            expect(client?.destroy).not.toHaveBeenCalled()
+            resolveB()
+            await done
+            expect(client?.destroy).toHaveBeenCalled()
+        })
+
+        it('does not hang shutdown when a snapshot save never settles', async () => {
+            jest.useFakeTimers()
+            try {
+                saveSnapshotMock.mockReturnValue(new Promise(() => {}))
+                createPlayerMock.mockResolvedValue({
+                    nodes: { cache: new Map([['a', { guild: { id: 'a' } }]]) },
+                })
+                await initializer.initializeBot()
+                const client = initializer.getClient()
+                const done = initializer.shutdown()
+                await jest.advanceTimersByTimeAsync(10_000)
+                await done
+                expect(client?.destroy).toHaveBeenCalled()
+            } finally {
+                jest.useRealTimers()
+            }
+        })
+
         it('resets bot state after shutdown', async () => {
             const initResult = await initializer.initializeBot()
             expect(initResult.success).toBe(true)
@@ -536,6 +598,7 @@ describe('BotInitializer', () => {
             expect(stopWebMusicHandlerMock).toHaveBeenCalled()
             expect(birthdaySchedulerStopMock).toHaveBeenCalled()
             expect(recapSchedulerStopMock).toHaveBeenCalled()
+            expect(playProbeStopMock).toHaveBeenCalled()
             expect(modDigestSchedulerStopMock).toHaveBeenCalled()
             expect(aiDevToolkitStopMock).toHaveBeenCalled()
             expect(dependencyCheckStopMock).toHaveBeenCalled()

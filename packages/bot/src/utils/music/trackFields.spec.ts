@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals'
 import type { Track } from 'discord-player'
-import { trackSource, trackAlbumName } from './trackFields'
+import { trackSource, trackAlbumName, trackAlbumPosition } from './trackFields'
 
 const asTrack = (partial: Partial<Track>): Track => partial as Track
 
@@ -34,5 +34,39 @@ describe('trackAlbumName', () => {
     it('returns undefined when name is not a string', () => {
         const track = asTrack({ raw: { album: { name: 42 as never } } })
         expect(trackAlbumName(track)).toBeUndefined()
+    })
+})
+
+describe('trackAlbumPosition', () => {
+    const album = (type: string) => ({
+        type,
+        title: 'Abbey Road',
+        tracks: [{ url: 'u1' }, { url: 'u2' }, { url: 'u3' }],
+    })
+
+    it('reads the album title and track number from the playlist', () => {
+        const track = asTrack({
+            url: 'u2',
+            playlist: album('album') as never,
+        })
+        expect(trackAlbumPosition(track)).toEqual({
+            album: 'Abbey Road',
+            position: 2,
+            total: 3,
+        })
+    })
+
+    it('returns undefined for a loose track or a regular playlist', () => {
+        expect(trackAlbumPosition(asTrack({ url: 'u2' }))).toBeUndefined()
+        expect(
+            trackAlbumPosition(
+                asTrack({ url: 'u2', playlist: album('playlist') as never }),
+            ),
+        ).toBeUndefined()
+    })
+
+    it('returns undefined when the track is not in the album listing', () => {
+        const track = asTrack({ url: 'u9', playlist: album('album') as never })
+        expect(trackAlbumPosition(track)).toBeUndefined()
     })
 })

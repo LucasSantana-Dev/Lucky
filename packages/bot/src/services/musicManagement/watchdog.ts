@@ -6,6 +6,7 @@ import { parseIntEnv } from '@lucky/shared/utils/env'
 import { musicSessionSnapshotService } from '../../services/musicRecommendation/sessionSnapshots'
 import { isReplenishSuppressed } from './replenishSuppressionStore'
 import { QUEUE_LEAVE_OPTIONS } from './queueLeaveOptions'
+import { isBridgeStreamInFlight } from '../../handlers/player/bridgeStreamsInFlight'
 
 export type RecoveryAction =
     'none' | 'rejoin' | 'requeue_current' | 'play_next' | 'failed'
@@ -268,6 +269,7 @@ export class MusicWatchdogService {
         let action: RecoveryAction = 'none'
         let detail = 'nothing_to_recover'
         let didRejoin = false
+        let rearm = false
         try {
             if (queue.connection?.state?.status !== 'ready') {
                 queue.connection?.rejoin?.()
@@ -303,6 +305,13 @@ export class MusicWatchdogService {
             if (this.intentionalStops.has(guildId)) {
                 action = 'none'
                 detail = 'intentional_stop'
+            } else if (isBridgeStreamInFlight(queue.currentTrack)) {
+                // Not stalled: the current track's stream is still resolving
+                // (seconds through the bridge after a skip). Replaying it
+                // started a second, parallel resolve of the same track
+                // (#3064). Check again later instead.
+                detail = 'stream_resolving'
+                rearm = true
             } else if (queue.currentTrack) {
                 // play() with no argument dispatches the NEXT queued track, so
                 // replay the stalled track explicitly without re-enqueueing it.
@@ -346,14 +355,23 @@ export class MusicWatchdogService {
             data: { guildId, action, detail },
         })
 
+        if (rearm) this.arm(queue)
+
         return action
     }
 
     startOrphanSessionMonitor(player: Player, intervalMs = 60_000): void {
         if (this.orphanMonitorInterval) return
 
+        // Skip a tick while the previous scan is still running, so a slow
+        // snapshot store cannot stack scans every interval (#2986).
+        let inFlight = false
         this.orphanMonitorInterval = setInterval(() => {
-            void this.scanOrphanSessions(player)
+            if (inFlight) return
+            inFlight = true
+            void this.scanOrphanSessions(player).finally(() => {
+                inFlight = false
+            })
         }, intervalMs)
 
         debugLog({ message: 'Music watchdog orphan session monitor started' })
@@ -569,8 +587,13 @@ export class MusicWatchdogService {
             message: `Music watchdog periodic scan started (interval: ${this.scanIntervalMs}ms)`,
         })
 
+        let inFlight = false
         this.scanTimer = setInterval(() => {
-            void this.scanOrphanedSessions(getQueue)
+            if (inFlight) return
+            inFlight = true
+            void this.scanOrphanedSessions(getQueue).finally(() => {
+                inFlight = false
+            })
         }, this.scanIntervalMs)
     }
 
