@@ -1088,8 +1088,18 @@ describe('HOSTED_YOUTUBE_ENABLED = false', () => {
 
 describe('streamViaYtDlp: stream start budget (#2927)', () => {
     const youtubeUrl = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+    const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
+
+    afterEach(() => {
+        if (originalEnv === undefined) {
+            delete process.env.HOSTED_YOUTUBE_ENABLED
+        } else {
+            process.env.HOSTED_YOUTUBE_ENABLED = originalEnv
+        }
+    })
 
     beforeEach(() => {
+        process.env.HOSTED_YOUTUBE_ENABLED = 'true'
         mockSpawn.mockReset()
         mockInfoLog.mockReset()
         __resetPlainBotCheckStateForTests()
@@ -1102,7 +1112,8 @@ describe('streamViaYtDlp: stream start budget (#2927)', () => {
             const proc = makeFakeProc()
             mockSpawn.mockImplementationOnce(() => {
                 // spawn() is synchronous: a loaded host blocked it ~1.9 s.
-                jest.setSystemTime(Date.now() + 1_900)
+                // No timer is armed yet, so this only moves both clocks.
+                jest.advanceTimersByTime(1_900)
                 return proc
             })
 

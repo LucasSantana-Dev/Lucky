@@ -435,7 +435,8 @@ function spawnYtDlp(
     timeoutMs = YTDLP_STREAM_START_TIMEOUT_MS,
 ): Promise<Readable> {
     return new Promise<Readable>((resolve, reject) => {
-        const startedAt = Date.now()
+        // Monotonic: a wall-clock step must not stretch or cut the budget.
+        const startedAt = performance.now()
         // HLS sources (SoundCloud AAC) make yt-dlp write fragment .part
         // files (`--Frag1.part`) to the cwd even with `-o -`. The container's
         // cwd (/app) is root-owned, and concurrent streams would clobber each
@@ -479,9 +480,9 @@ function spawnYtDlp(
         // degraded (rate-limited/blocked) rather than erroring fast. See the
         // constants above for why these aren't shorter. The 403 retry adds one
         // more attempt only after a fast failure, never after a timeout.
-        const spawnMs = Date.now() - startedAt
+        const spawnMs = Math.round(performance.now() - startedAt)
         const delayMs = Math.max(0, timeoutMs - spawnMs)
-        const dueAt = Date.now() + delayMs
+        const dueAt = performance.now() + delayMs
         const timeout = setTimeout(() => {
             proc.kill()
             reject(
@@ -490,7 +491,7 @@ function spawnYtDlp(
                     {
                         startTiming: {
                             spawnMs,
-                            timerLagMs: Date.now() - dueAt,
+                            timerLagMs: Math.round(performance.now() - dueAt),
                         },
                     },
                 ),
