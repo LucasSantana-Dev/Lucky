@@ -345,7 +345,18 @@ describe('replenishQueue', () => {
         expect(addSelectedTracks.mock.calls[0][1][0].track).toBe(historyTrack)
     })
 
-    it('never replays the same song twice in one pass (#3077)', async () => {
+    async function replayedTitles(history: Track[]): Promise<string[]> {
+        mockProductionExclusions(history.map((t) => t.url))
+        const queue = createGuildQueue({
+            history: { tracks: { toArray: () => history } },
+        } as Partial<GuildQueue>)
+        await replenishQueue(queue)
+        return (queue.addTrack as jest.Mock).mock.calls.map(
+            ([t]: [Track]) => t.title,
+        )
+    }
+
+    it('replays one of two entries with the same title and artist (#3077)', async () => {
         const a1 = createTrack({
             id: 'a1',
             url: 'https://x/a1',
@@ -358,29 +369,23 @@ describe('replenishQueue', () => {
             title: 'No',
             author: 'Artist',
         })
-        const a3 = createTrack({
-            id: 'a3',
-            url: 'https://x/a1',
-            title: 'No',
-            author: 'Artist',
-        })
-        const b = createTrack({
-            id: 'b',
-            url: 'https://x/b',
-            title: 'Viva',
-            author: 'Other',
-        })
-        mockProductionExclusions([a1.url, a2.url, b.url])
-        const queue = createGuildQueue({
-            history: { tracks: { toArray: () => [a1, a2, a3, b] } },
-        } as Partial<GuildQueue>)
+        expect(await replayedTitles([a1, a2])).toEqual(['No'])
+    })
 
-        await replenishQueue(queue)
-
-        const titles = (queue.addTrack as jest.Mock).mock.calls.map(
-            ([t]: [Track]) => t.title,
-        )
-        expect(titles.sort()).toEqual(['No', 'Viva'])
+    it('replays one of two entries with the same url (#3077)', async () => {
+        const c1 = createTrack({
+            id: 'c1',
+            url: 'https://x/c',
+            title: 'Foo',
+            author: 'Left',
+        })
+        const c2 = createTrack({
+            id: 'c2',
+            url: 'https://x/c',
+            title: 'Bar',
+            author: 'Right',
+        })
+        expect(await replayedTitles([c1, c2])).toHaveLength(1)
     })
 
     it('does not replay the current track or already queued tracks', async () => {

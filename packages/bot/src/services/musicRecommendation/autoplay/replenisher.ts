@@ -1196,8 +1196,11 @@ export async function enqueueAndFinalize(
                 .map((t) => normalizeTrackKey(t.title, t.author)),
         )
         const seenReplay = new Set<string>()
+        const seenReplayUrls = new Set<string>()
         const historyPool = allHistoryTracks.filter((t) => {
             if (!t.url || replayExcluded.has(t.url)) return false
+            if (seenReplayUrls.has(t.url)) return false
+            seenReplayUrls.add(t.url)
             const key = normalizeTrackKey(t.title, t.author)
             if (replayKeys.has(key) || seenReplay.has(key)) return false
             seenReplay.add(key)
