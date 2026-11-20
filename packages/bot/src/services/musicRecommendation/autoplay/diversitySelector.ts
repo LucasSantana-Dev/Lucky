@@ -47,6 +47,69 @@ function songHalfOf(track: { title?: string; source?: unknown }): string[] {
     return []
 }
 
+// #3152: "Chama os Mulekes" (Spotify) and "Chama os Muleke - ConeCrewDiretoria"
+// (a YouTube re-upload) share no exact key, so each half of a title is also
+// recorded as "half::<key>::<seconds>" and compared fuzzily, with duration as
+// the tiebreak. Halves under 5 chars are too generic to compare.
+const MIN_HALF_LENGTH = 5
+const HALF_DURATION_TOLERANCE_MS = 5000
+const HALF_DURATION_TOLERANCE_RATIO = 0.05
+
+function durationKeyPart(track: { durationMS?: number }): string {
+    const ms = track.durationMS
+    return typeof ms === 'number' && ms > 0
+        ? String(Math.round(ms / 1000))
+        : '?'
+}
+
+function titleHalfKeys(track: {
+    title?: string
+    durationMS?: number
+}): string[] {
+    const duration = durationKeyPart(track)
+    return songTitleHalves(track.title ?? '')
+        .filter((half) => half.length >= MIN_HALF_LENGTH)
+        .map((half) => `half::${half}::${duration}`)
+}
+
+// Two uploads of one song differ by an intro or trimmed silence, not by
+// minutes: allow 5s or 5% of the longer one. An unknown duration on either
+// side is not a match, so a missing value never hides a distinct song.
+function durationsClose(historySeconds: string, candidateMs?: number): boolean {
+    if (historySeconds === '?' || !candidateMs || candidateMs <= 0) return false
+    const historyMs = Number(historySeconds) * 1000
+    const tolerance = Math.max(
+        HALF_DURATION_TOLERANCE_MS,
+        Math.max(historyMs, candidateMs) * HALF_DURATION_TOLERANCE_RATIO,
+    )
+    return Math.abs(historyMs - candidateMs) <= tolerance
+}
+
+function matchesPlayedHalf(
+    track: { title?: string; durationMS?: number },
+    excludedKeys: Set<string>,
+): boolean {
+    const halves = songTitleHalves(track.title ?? '').filter(
+        (half) => half.length >= MIN_HALF_LENGTH,
+    )
+    if (halves.length === 0) return false
+    for (const key of excludedKeys) {
+        if (!key.startsWith('half::')) continue
+        const [, playedHalf, seconds] = key.split('::')
+        if (
+            halves.some(
+                (half) =>
+                    calculateStringSimilarity(half, playedHalf) >=
+                    FUZZY_TITLE_THRESHOLD,
+            ) &&
+            durationsClose(seconds, track.durationMS)
+        ) {
+            return true
+        }
+    }
+    return false
+}
+
 function songKeysOf(track: { title?: string; author?: string }): string[] {
     return songIdentityKeys(track.title ?? '', track.author).map(
         (key) => `song::${key}`,
@@ -257,7 +320,11 @@ export function buildExcludedKeys(
     historyTracks: Track[],
     persistentHistory: { title: string; author: string }[] = [],
 ): Set<string> {
-    const allTracks: { title?: string; author?: string }[] = [
+    const allTracks: {
+        title?: string
+        author?: string
+        durationMS?: number
+    }[] = [
         currentTrack,
         ...historyTracks,
         ...queue.tracks.toArray(),
@@ -273,6 +340,7 @@ export function buildExcludedKeys(
         const core = extractSongCore(t.title ?? '', t.author)
         if (core) keys.push(normalizeText(core))
         keys.push(...songKeysOf(t))
+        keys.push(...titleHalfKeys(t))
     }
     return new Set(keys)
 }
@@ -297,6 +365,8 @@ export function isDuplicateCandidate(
         return true
     const core = extractSongCore(track.title ?? '', track.author)
     if (core !== null && excludedKeys.has(normalizeText(core))) return true
+
+    if (matchesPlayedHalf(track, excludedKeys)) return true
 
     const candidateTitle = normalizeTitleOnly(track.title)
     const candidateTitleStripped = normalizeTitleOnly(
