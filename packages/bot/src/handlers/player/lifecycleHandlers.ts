@@ -233,39 +233,75 @@ export const setupLifecycleHandlers = (player: {
                 controller: restoreController,
                 release: releaseRestoreController,
             } = musicWatchdogService.registerRecoveryController(queue.guild.id)
+            let deadlineHit = false
             const restoreDeadline = new Promise<never>((_, reject) =>
-                setTimeout(
-                    () =>
-                        reject(
-                            new Error(
-                                `Session restore timed out in ${queue.guild.name}`,
-                            ),
+                setTimeout(() => {
+                    deadlineHit = true
+                    reject(
+                        new Error(
+                            `Session restore timed out in ${queue.guild.name}`,
                         ),
-                    2000,
-                ),
+                    )
+                }, 2000),
+            )
+            const restore = musicSessionSnapshotService.restoreSnapshot(
+                queue,
+                metadata?.requestedBy ?? undefined,
+                { signal: restoreController.signal },
             )
 
             try {
-                await Promise.race([
-                    musicSessionSnapshotService.restoreSnapshot(
-                        queue,
-                        metadata?.requestedBy ?? undefined,
-                        { signal: restoreController.signal },
-                    ),
-                    restoreDeadline,
-                ])
+                await Promise.race([restore, restoreDeadline])
             } catch (error) {
                 // Cancel the still-running restore so it stops before enqueuing more.
                 restoreController.abort()
-                infoLog({
-                    message: `Snapshot restore failed, continuing with empty queue`,
-                    data: {
-                        error:
-                            error instanceof Error
-                                ? error.message
-                                : String(error),
-                    },
-                })
+                if (deadlineHit) {
+                    // The abort is only honoured before play(), which then waits
+                    // on the stream bridge for seconds, so a slow restore usually
+                    // still completes. Do not call it a failure; report how it
+                    // ends (#3076).
+                    infoLog({
+                        message:
+                            'Snapshot restore still running past the deadline, not waiting for it',
+                        data: { guildId: queue.guild.id },
+                    })
+                    void restore.then(
+                        (result) =>
+                            infoLog({
+                                message:
+                                    'Snapshot restore finished after the deadline',
+                                data: {
+                                    guildId: queue.guild.id,
+                                    restoredCount: result.restoredCount,
+                                    // The deadline already aborted this restore, so a
+                                    // count of 0 can be a rollback, not an empty snapshot.
+                                    aborted: restoreController.signal.aborted,
+                                },
+                            }),
+                        (restoreError: unknown) =>
+                            infoLog({
+                                message:
+                                    'Snapshot restore failed after the deadline',
+                                data: {
+                                    guildId: queue.guild.id,
+                                    error:
+                                        restoreError instanceof Error
+                                            ? restoreError.message
+                                            : String(restoreError),
+                                },
+                            }),
+                    )
+                } else {
+                    infoLog({
+                        message: `Snapshot restore failed, continuing with empty queue`,
+                        data: {
+                            error:
+                                error instanceof Error
+                                    ? error.message
+                                    : String(error),
+                        },
+                    })
+                }
             } finally {
                 releaseRestoreController()
             }

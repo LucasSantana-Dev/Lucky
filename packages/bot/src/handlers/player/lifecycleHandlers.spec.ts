@@ -228,7 +228,14 @@ describe('setupLifecycleHandlers', () => {
         await jest.advanceTimersByTimeAsync(2000)
         await pending
 
+        // A deadline is not a failure: the restore may still complete (#3076).
         expect(infoLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message:
+                    'Snapshot restore still running past the deadline, not waiting for it',
+            }),
+        )
+        expect(infoLogMock).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Snapshot restore failed, continuing with empty queue',
             }),
@@ -238,6 +245,110 @@ describe('setupLifecycleHandlers', () => {
         // Service stays armed despite the failed restore.
         expect(watchdogArmMock).toHaveBeenCalledWith(queue)
         jest.useRealTimers()
+    })
+
+    it('logs the real outcome when a restore completes after the deadline (#3076)', async () => {
+        jest.useFakeTimers()
+        let finish: (v: unknown) => void = () => {}
+        restoreSnapshotMock.mockImplementation(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve
+                }),
+        )
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+        setupLifecycleHandlers(player)
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            metadata: { requestedBy: { id: 'user-1' } },
+            connection: { state: { status: 'ready' }, joinConfig: {} },
+        } as unknown as GuildQueue
+
+        const pending = handlers.connection(queue)
+        await jest.advanceTimersByTimeAsync(2000)
+        await pending
+        finish({ restoredCount: 9, sessionSnapshotId: 's' })
+        await jest.advanceTimersByTimeAsync(0)
+
+        expect(infoLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Snapshot restore finished after the deadline',
+                data: { guildId: 'guild-1', restoredCount: 9, aborted: true },
+            }),
+        )
+        jest.useRealTimers()
+    })
+
+    it('logs a restore that rejects after the deadline with its error (#3076)', async () => {
+        jest.useFakeTimers()
+        let fail: (e: Error) => void = () => {}
+        restoreSnapshotMock.mockImplementation(
+            () =>
+                new Promise((_, reject) => {
+                    fail = reject
+                }),
+        )
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+        setupLifecycleHandlers(player)
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            metadata: { requestedBy: { id: 'user-1' } },
+            connection: { state: { status: 'ready' }, joinConfig: {} },
+        } as unknown as GuildQueue
+
+        const pending = handlers.connection(queue)
+        await jest.advanceTimersByTimeAsync(2000)
+        await pending
+        fail(new Error('stream bridge died'))
+        await jest.advanceTimersByTimeAsync(0)
+
+        expect(infoLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Snapshot restore failed after the deadline',
+                data: { guildId: 'guild-1', error: 'stream bridge died' },
+            }),
+        )
+        jest.useRealTimers()
+    })
+
+    it('still logs a restore that rejects before the deadline as failed', async () => {
+        restoreSnapshotMock.mockRejectedValueOnce(new Error('db down'))
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+        setupLifecycleHandlers(player)
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            metadata: { requestedBy: { id: 'user-1' } },
+            connection: { state: { status: 'ready' }, joinConfig: {} },
+        } as unknown as GuildQueue
+
+        await handlers.connection(queue)
+
+        expect(infoLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Snapshot restore failed, continuing with empty queue',
+            }),
+        )
     })
 
     it('does NOT restore snapshot on connection when intentional stop is set (#1948)', async () => {
