@@ -133,7 +133,7 @@ describe('PrivacyPolicy', () => {
         )
         expect(
             screen.getByRole('link', {
-                name: /github.com\/LucasSantana-Dev\/Lucky\/issues/i,
+                name: 'github.com/LucasSantana-Dev/Lucky/issues',
             }),
         ).toHaveAttribute(
             'href',
