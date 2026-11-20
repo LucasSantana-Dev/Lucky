@@ -202,7 +202,10 @@ async function readVoteState(
     }
 }
 
-async function recordVote(userId: string): Promise<'recorded' | 'duplicate'> {
+async function recordVote(
+    userId: string,
+    isWeekend: boolean,
+): Promise<'recorded' | 'duplicate'> {
     const prisma = getPrismaClient()
     const now = new Date()
     const nowMs = now.getTime()
@@ -243,6 +246,17 @@ async function recordVote(userId: string): Promise<'recorded' | 'duplicate'> {
             update: {
                 lastVoteAt: now,
                 streak: newStreak,
+            },
+        })
+
+        // Append-only history (obs P4, #2395). Same transaction as the
+        // summary row, so history and summary never disagree.
+        await tx.topggVoteEvent.create({
+            data: {
+                userId,
+                occurredAt: now,
+                streak: newStreak,
+                isWeekend,
             },
         })
 
@@ -333,7 +347,7 @@ export function setupWebhookPublicRoutes(app: Express): void {
             const userId = validateVoteUserId(event.userId)
 
             try {
-                const recordResult = await recordVote(userId)
+                const recordResult = await recordVote(userId, event.isWeekend)
 
                 if (recordResult === 'duplicate') {
                     debugLog({

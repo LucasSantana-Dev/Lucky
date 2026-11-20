@@ -89,6 +89,8 @@ export class DatabaseService {
                 userFeedback,
                 commandEvents,
                 activationEvents,
+                inviteClicks,
+                topggVoteEvents,
             ] = await Promise.all([
                 this.prisma.trackHistory.deleteMany({
                     where: { playedAt: { lt: thirtyDaysAgo } },
@@ -108,6 +110,18 @@ export class DatabaseService {
                 this.prisma.activationEvent.deleteMany({
                     where: { occurredAt: { lt: oneHundredEightyDaysAgo } },
                 }),
+                this.prisma.inviteClick.deleteMany({
+                    where: { occurredAt: { lt: oneHundredEightyDaysAgo } },
+                }),
+                this.prisma.topggVoteEvent.deleteMany({
+                    where: {
+                        occurredAt: {
+                            lt: new Date(
+                                Date.now() - 400 * 24 * 60 * 60 * 1000,
+                            ),
+                        },
+                    },
+                }),
             ])
 
             return (
@@ -116,7 +130,9 @@ export class DatabaseService {
                 serverLogs.count +
                 userFeedback.count +
                 commandEvents.count +
-                activationEvents.count
+                activationEvents.count +
+                inviteClicks.count +
+                topggVoteEvents.count
             )
         }, 'cleanup_old_data')
     }

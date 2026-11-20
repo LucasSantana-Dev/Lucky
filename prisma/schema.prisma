@@ -141,6 +141,23 @@ model GuildJoinSource {
   @@map("guild_join_sources")
 }
 
+/// One row per GET /invite (obs P4, #2395). Written fire-and-forget by the
+/// backend route; the redirect never waits on it. No user or IP data: only the
+/// UTM fields and the referrer host. Joined to guild_membership_events by time
+/// window in the dashboards (approximate attribution). Retention 180d.
+model InviteClick {
+  id           String   @id @default(cuid())
+  occurredAt   DateTime @default(now())
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  utmContent   String?
+  referrerHost String?
+
+  @@index([occurredAt])
+  @@map("invite_clicks")
+}
+
 /// Activation funnel events (onboarding delivery, station clicks, recap
 /// auto-enable). Append-only, no relation to Guild: rows must survive a guild
 /// removal so the funnel keeps counting guilds that left.
@@ -1185,6 +1202,22 @@ model TopggVote {
   updatedAt  DateTime @updatedAt
 
   @@map("topgg_votes")
+}
+
+/// Append-only top.gg vote history (obs P4, #2395). One row per accepted vote,
+/// written in the same transaction as the TopggVote upsert; duplicates inside
+/// the 12h window are not recorded. TopggVote stays the per-user summary.
+/// Retention 400d.
+model TopggVoteEvent {
+  id         String   @id @default(cuid())
+  userId     String // Discord user snowflake
+  occurredAt DateTime @default(now())
+  streak     Int
+  isWeekend  Boolean  @default(false)
+
+  @@index([occurredAt])
+  @@index([userId, occurredAt])
+  @@map("topgg_vote_events")
 }
 
 model TwitchFollowerRole {
