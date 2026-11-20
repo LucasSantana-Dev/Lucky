@@ -351,10 +351,15 @@ async function handleAutocomplete(interaction: Interaction): Promise<void> {
                 return
             }
             const artist = interaction.options.getString('artist')
-            const albums = await searchSpotifyAlbums(
-                artist ? `${typed} ${artist}` : typed,
-                10,
-            )
+            // Discord drops an autocomplete answer after 3 seconds, so a slow
+            // lookup answers with nothing instead of failing the interaction.
+            let timer: NodeJS.Timeout | undefined
+            const albums = await Promise.race([
+                searchSpotifyAlbums(artist ? `${typed} ${artist}` : typed, 10),
+                new Promise<[]>((resolve) => {
+                    timer = setTimeout(() => resolve([]), 2500)
+                }),
+            ]).finally(() => clearTimeout(timer))
             // The value is the album URL, which /album plays as is.
             await interaction.respond(
                 albums.map((album) => ({

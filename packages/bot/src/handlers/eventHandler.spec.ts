@@ -721,6 +721,30 @@ describe('eventHandler', () => {
             },
         )
 
+        it('answers with no album suggestions when the lookup is too slow', async () => {
+            jest.useFakeTimers()
+            try {
+                searchSpotifyAlbumsMock.mockReturnValue(new Promise(() => {}))
+                const respondMock = jest.fn()
+
+                const pending = dispatchAutocomplete(
+                    createAutocompleteInteraction({
+                        commandName: 'album',
+                        subcommand: null,
+                        focusedName: 'query',
+                        focusedValue: 'abbey road',
+                        respondMock,
+                    }),
+                )
+                await jest.advanceTimersByTimeAsync(2500)
+                await pending
+
+                expect(respondMock).toHaveBeenCalledWith([])
+            } finally {
+                jest.useRealTimers()
+            }
+        })
+
         it('logs and swallows errors raised by the session service', async () => {
             namedSessionListMock.mockRejectedValue(new Error('redis down'))
             const respondMock = jest.fn()
