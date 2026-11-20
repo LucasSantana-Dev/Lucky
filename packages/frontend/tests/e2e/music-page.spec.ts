@@ -8,17 +8,19 @@ test.describe('Music Page', () => {
     })
 
     test('shows select server prompt when no guild', async ({ page }) => {
+        await page.route('**/api/guilds', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ guilds: [] }),
+            })
+        })
+
         await page.goto('/music')
         await page.waitForLoadState('domcontentloaded')
 
         const prompt = page.locator('text=/Select a server to control music/i')
-        const isVisible = await prompt
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(prompt).toBeVisible()
-        }
+        await expect(prompt).toBeVisible({ timeout: 5000 })
     })
 
     test('displays music player heading with guild selected', async ({
@@ -32,14 +34,10 @@ test.describe('Music Page', () => {
         await page.goto('/music')
         await page.waitForLoadState('domcontentloaded')
 
-        const heading = page.locator('text=/Music Player/i')
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-        }
+        const heading = page
+            .getByRole('main')
+            .getByText('Music Player', { exact: true })
+        await expect(heading).toBeVisible({ timeout: 5000 })
     })
 
     test('shows connection status badge', async ({ page }) => {
@@ -51,23 +49,10 @@ test.describe('Music Page', () => {
         await page.goto('/music')
         await page.waitForLoadState('domcontentloaded')
 
-        const reconnectingStatus = page
-            .getByRole('status', { name: /Reconnecting to live updates/i })
-            .first()
-        const noTrackStatus = page
+        const status = page
             .getByRole('status', { name: /live updates/i })
             .first()
-
-        const isVisible = await reconnectingStatus
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(reconnectingStatus).toBeVisible()
-            return
-        }
-
-        await expect(noTrackStatus).toBeVisible()
+        await expect(status).toBeVisible({ timeout: 5000 })
     })
 
     test('shows not connected message when no voice channel', async ({
@@ -84,12 +69,6 @@ test.describe('Music Page', () => {
         const notConnected = page.locator(
             'text=/Not connected to a voice channel/i',
         )
-        const isVisible = await notConnected
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(notConnected).toBeVisible()
-        }
+        await expect(notConnected).toBeVisible({ timeout: 5000 })
     })
 })

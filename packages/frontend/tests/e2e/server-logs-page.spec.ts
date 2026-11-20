@@ -49,17 +49,19 @@ test.describe('Server Logs Page', () => {
     })
 
     test('shows no server selected when no guild', async ({ page }) => {
+        await page.route('**/api/guilds', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ guilds: [] }),
+            })
+        })
+
         await page.goto('/logs')
         await page.waitForLoadState('domcontentloaded')
 
         const heading = page.locator('text=/No Server Selected/i')
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-        }
+        await expect(heading).toBeVisible({ timeout: 5000 })
     })
 
     test('displays server logs heading with guild', async ({ page }) => {
@@ -75,13 +77,7 @@ test.describe('Server Logs Page', () => {
             name: 'Server Logs',
             exact: true,
         })
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-        }
+        await expect(heading).toBeVisible({ timeout: 5000 })
     })
 
     test('displays search and filter controls', async ({ page }) => {
@@ -94,13 +90,7 @@ test.describe('Server Logs Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const searchInput = page.locator('input[placeholder*="Search"]')
-        const isVisible = await searchInput
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(searchInput).toBeVisible()
-        }
+        await expect(searchInput).toBeVisible({ timeout: 5000 })
     })
 
     test('shows empty state when no logs', async ({ page }) => {
@@ -113,12 +103,6 @@ test.describe('Server Logs Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const emptyMsg = page.locator('text=/No logs found/i')
-        const isVisible = await emptyMsg
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(emptyMsg).toBeVisible()
-        }
+        await expect(emptyMsg).toBeVisible({ timeout: 5000 })
     })
 })

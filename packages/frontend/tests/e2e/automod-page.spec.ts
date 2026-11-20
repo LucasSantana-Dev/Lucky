@@ -51,21 +51,23 @@ test.describe('Auto-Moderation Page', () => {
     })
 
     test('shows no server selected when no guild', async ({ page }) => {
+        await page.route('**/api/guilds', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ guilds: [] }),
+            })
+        })
+
         await page.goto('/automod')
         await page.waitForLoadState('domcontentloaded')
 
         const heading = page.locator('text=/No Server Selected/i')
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-            const subtext = page.locator(
-                'text=/Select a server to configure auto-moderation/i',
-            )
-            await expect(subtext).toBeVisible()
-        }
+        await expect(heading).toBeVisible({ timeout: 5000 })
+        const subtext = page.locator(
+            'text=/Select a server to configure auto-moderation/i',
+        )
+        await expect(subtext).toBeVisible()
     })
 
     test('displays auto-moderation heading with guild', async ({ page }) => {
@@ -77,17 +79,14 @@ test.describe('Auto-Moderation Page', () => {
         await page.goto('/automod')
         await page.waitForLoadState('domcontentloaded')
 
-        const heading = page.locator('text=/Auto-Moderation/i')
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-        }
+        const heading = page.getByRole('heading', {
+            name: 'Auto-Moderation',
+            exact: true,
+        })
+        await expect(heading).toBeVisible({ timeout: 5000 })
     })
 
-    test('renders filter cards for each module', async ({ page }) => {
+    test('renders the spam detection filter card', async ({ page }) => {
         await mockAutoModSettings(page)
         await page.addInitScript((guild) => {
             localStorage.setItem('selectedGuild', guild)
@@ -97,23 +96,10 @@ test.describe('Auto-Moderation Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const spamCard = page.locator('text=/Spam Detection/i')
-        const isVisible = await spamCard
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(spamCard).toBeVisible()
-            await expect(
-                page.locator('text=/Caps Lock Detection/i'),
-            ).toBeVisible()
-            await expect(
-                page.getByRole('heading', {
-                    name: 'Link Filtering',
-                    exact: true,
-                }),
-            ).toBeVisible()
-            await expect(page.locator('text=/Banned Words/i')).toBeVisible()
-        }
+        await expect(spamCard).toBeVisible({ timeout: 5000 })
+        await expect(
+            page.getByText('Detect and act on message spam'),
+        ).toBeVisible()
     })
 
     test('displays save button', async ({ page }) => {
@@ -126,13 +112,7 @@ test.describe('Auto-Moderation Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const saveBtn = page.locator('button:has-text("Save Changes")').first()
-        const isVisible = await saveBtn
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(saveBtn).toBeVisible()
-        }
+        await expect(saveBtn).toBeVisible({ timeout: 5000 })
     })
 
     test('shows exemptions section', async ({ page }) => {
@@ -145,12 +125,6 @@ test.describe('Auto-Moderation Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const exemptions = page.locator('text=/Exemptions/i')
-        const isVisible = await exemptions
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(exemptions).toBeVisible()
-        }
+        await expect(exemptions).toBeVisible({ timeout: 5000 })
     })
 })

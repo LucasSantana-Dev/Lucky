@@ -118,16 +118,9 @@ test.describe('Twitch Notifications Page', () => {
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
 
-        const prompt = page.locator(
-            'text=/Select a server to manage Twitch notifications/i',
-        )
-        const isVisible = await prompt
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(prompt).toBeVisible()
-        }
+        await expect(
+            page.getByText('Select a server to manage Twitch notifications'),
+        ).toBeVisible({ timeout: 10000 })
     })
 
     test('displays notification list with count', async ({ page }) => {
@@ -145,32 +138,11 @@ test.describe('Twitch Notifications Page', () => {
         ).toBeVisible({ timeout: 10000 })
         await waitForAppLoaderToSettle(page)
 
-        const heading = page.locator('text=/Twitch Notifications/i')
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-
-            const count = page.locator('text=/(2)/').first()
-            await expect(count).toBeVisible({ timeout: 3000 })
-
-            const streamer1 = page.locator('text=/shroud/i')
-            await expect(streamer1).toBeVisible({ timeout: 3000 })
-
-            const streamer2 = page.locator('text=/pokimane/i')
-            const streamer2Visible = await streamer2
-                .isVisible({ timeout: 3000 })
-                .catch(() => false)
-            if (streamer2Visible) {
-                await expect(streamer2).toBeVisible({ timeout: 3000 })
-            } else {
-                await expect(page.getByText('Loading...').first()).toBeVisible({
-                    timeout: 5000,
-                })
-            }
-        }
+        await expect(page.getByText('(2)').first()).toBeVisible({
+            timeout: 5000,
+        })
+        await expect(page.getByText('shroud')).toBeVisible({ timeout: 5000 })
+        await expect(page.getByText('pokimane')).toBeVisible({ timeout: 5000 })
     })
 
     test('shows empty state when no notifications', async ({ page }) => {
@@ -188,19 +160,9 @@ test.describe('Twitch Notifications Page', () => {
         ).toBeVisible({ timeout: 10000 })
         await waitForAppLoaderToSettle(page)
 
-        const emptyState = page.locator(
-            'text=/No Twitch notifications configured/i',
-        )
-        const emptyVisible = await emptyState
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-        if (emptyVisible) {
-            await expect(emptyState).toBeVisible({ timeout: 5000 })
-        } else {
-            await expect(page.getByText('Loading...').first()).toBeVisible({
-                timeout: 5000,
-            })
-        }
+        await expect(
+            page.getByText('No Twitch notifications configured'),
+        ).toBeVisible({ timeout: 5000 })
     })
 
     test('opens add notification form', async ({ page }) => {
@@ -211,30 +173,29 @@ test.describe('Twitch Notifications Page', () => {
 
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
+        await expect(
+            page
+                .locator('#lucky-main-content')
+                .getByRole('heading', { name: /Twitch Notifications/i }),
+        ).toBeVisible({ timeout: 10000 })
         await waitForAppLoaderToSettle(page)
 
-        const addButton = page.locator('button:has-text("Add")')
-        const isVisible = await addButton
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
+        await page.getByRole('button', { name: /Add/ }).first().click()
 
-        if (isVisible) {
-            await addButton.click()
+        await expect(page.getByText('Add Twitch Notification')).toBeVisible({
+            timeout: 3000,
+        })
+        await expect(
+            page.locator('input[placeholder^="Twitch URL or login"]'),
+        ).toBeVisible()
 
-            const formTitle = page.locator('text=/Add Twitch Notification/i')
-            await expect(formTitle).toBeVisible({ timeout: 3000 })
-
-            const usernameInput = page.locator(
-                'input[placeholder^="Twitch URL or login"]',
-            )
-            await expect(usernameInput).toBeVisible()
-
-            // The channel is picked from a select, not typed as an ID.
-            const channelSelect = page
+        // The channel is picked from a select, not typed as an ID.
+        await expect(
+            page
                 .getByRole('combobox')
                 .filter({ hasText: 'Select Discord channel' })
-            await expect(channelSelect.first()).toBeVisible()
-        }
+                .first(),
+        ).toBeVisible()
     })
 
     test('save button disabled when form incomplete', async ({ page }) => {
@@ -245,19 +206,16 @@ test.describe('Twitch Notifications Page', () => {
 
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
+        await expect(
+            page
+                .locator('#lucky-main-content')
+                .getByRole('heading', { name: /Twitch Notifications/i }),
+        ).toBeVisible({ timeout: 10000 })
         await waitForAppLoaderToSettle(page)
 
-        const addButton = page.locator('button:has-text("Add")')
-        const isVisible = await addButton
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
+        await page.getByRole('button', { name: /Add/ }).first().click()
 
-        if (isVisible) {
-            await addButton.click()
-
-            const saveButton = page.locator('button:has-text("Save")')
-            await expect(saveButton).toBeDisabled()
-        }
+        await expect(page.getByRole('button', { name: /Save/ })).toBeDisabled()
     })
 
     test('cancel button hides the form', async ({ page }) => {
@@ -268,25 +226,23 @@ test.describe('Twitch Notifications Page', () => {
 
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
+        await expect(
+            page
+                .locator('#lucky-main-content')
+                .getByRole('heading', { name: /Twitch Notifications/i }),
+        ).toBeVisible({ timeout: 10000 })
         await waitForAppLoaderToSettle(page)
 
-        const addButton = page.locator('button:has-text("Add")')
-        const isVisible = await addButton
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
+        await page.getByRole('button', { name: /Add/ }).first().click()
+        await expect(page.getByText('Add Twitch Notification')).toBeVisible()
 
-        if (isVisible) {
-            await addButton.click()
+        await page.getByRole('button', { name: 'Cancel' }).click()
 
-            const cancelButton = page.locator('button:has-text("Cancel")')
-            await expect(cancelButton).toBeVisible()
-            await cancelButton.click()
-
-            const formTitle = page.locator('text=/Add Twitch Notification/i')
-            await expect(formTitle).not.toBeVisible({
+        await expect(page.getByText('Add Twitch Notification')).not.toBeVisible(
+            {
                 timeout: 3000,
-            })
-        }
+            },
+        )
     })
 
     test('displays channel IDs for each notification', async ({ page }) => {
@@ -297,20 +253,19 @@ test.describe('Twitch Notifications Page', () => {
 
         await page.goto('/twitch')
         await page.waitForLoadState('domcontentloaded')
+        await expect(
+            page
+                .locator('#lucky-main-content')
+                .getByRole('heading', { name: /Twitch Notifications/i }),
+        ).toBeVisible({ timeout: 10000 })
         await waitForAppLoaderToSettle(page)
 
-        const channelId = page.locator('text=/999888777666555444/')
-        const isVisible = await channelId
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(channelId).toBeVisible()
-        } else {
-            await expect(page.getByText('Loading...').first()).toBeVisible({
-                timeout: 5000,
-            })
-        }
+        await expect(page.getByText('999888777666555444')).toBeVisible({
+            timeout: 5000,
+        })
+        await expect(page.getByText('999888777666555443')).toBeVisible({
+            timeout: 5000,
+        })
     })
 
     test('shows error state on API failure', async ({ page }) => {
@@ -333,18 +288,8 @@ test.describe('Twitch Notifications Page', () => {
         ).toBeVisible({ timeout: 10000 })
         await waitForAppLoaderToSettle(page)
 
-        const errorMsg = page.locator(
-            'text=/Failed to load Twitch notifications/i',
-        )
-        const errorVisible = await errorMsg
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-        if (errorVisible) {
-            await expect(errorMsg).toBeVisible({ timeout: 5000 })
-        } else {
-            await expect(page.getByText('Loading...').first()).toBeVisible({
-                timeout: 5000,
-            })
-        }
+        await expect(
+            page.getByText('Failed to load Twitch notifications'),
+        ).toBeVisible({ timeout: 5000 })
     })
 })
