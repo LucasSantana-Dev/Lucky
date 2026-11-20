@@ -31,6 +31,15 @@ type SettingsIds = {
 
 // Discord lookups swallow API failures and return []. For ids we must verify,
 // an empty list is therefore "could not verify", never "nothing matches".
+// Forum (15) and media (16) channels are listed for pickers but cannot take
+// plain messages, so a mod-log pointed at one would fail every post (#2631).
+const SENDABLE_CHANNEL_TYPES = new Set([0, 5])
+function isSendableChannel(channel: { type?: number }): boolean {
+    return (
+        channel.type === undefined || SENDABLE_CHANNEL_TYPES.has(channel.type)
+    )
+}
+
 async function lookupGuildIds<T extends { id: string }>(
     guildId: string,
     fetchOptions: () => Promise<T[]>,
@@ -80,7 +89,10 @@ async function assertSettingsIdsBelongToGuild(
         needsChannel
             ? lookupGuildIds(
                   guildId,
-                  () => guildService.getGuildTextChannelOptions(guildId),
+                  async () =>
+                      (
+                          await guildService.getGuildTextChannelOptions(guildId)
+                      ).filter(isSendableChannel),
                   'channels',
               )
             : undefined,
