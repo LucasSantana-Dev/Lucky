@@ -21,11 +21,13 @@ const embedDataSchema = z
         footer: z.string().max(2048).optional(),
         fields: z
             .array(
-                z.object({
-                    name: z.string().min(1).max(256),
-                    value: z.string().min(1).max(1024),
-                    inline: z.boolean().optional(),
-                }),
+                z
+                    .object({
+                        name: z.string().min(1).max(256),
+                        value: z.string().min(1).max(1024),
+                        inline: z.boolean().optional(),
+                    })
+                    .strict(),
             )
             .max(25)
             .optional(),

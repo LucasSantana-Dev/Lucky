@@ -110,7 +110,7 @@ describe('embed builder frontend/backend contract', () => {
         expect(result.data).toEqual(payload)
     })
 
-    test('strips unknown keys inside fields, which the deep comparison catches', () => {
+    test('rejects unknown keys inside a field entry', () => {
         const payload = buildCreateEmbedInput(fullForm)
         const tampered = {
             ...payload,
@@ -122,9 +122,7 @@ describe('embed builder frontend/backend contract', () => {
 
         const result = embedSchemas.createEmbedBody.safeParse(tampered)
 
-        expect(result.success).toBe(true)
-        if (!result.success) return
-        expect(result.data).not.toEqual(tampered)
+        expect(result.success).toBe(false)
     })
 
     test('a create payload missing the required embedData key (renamed to data) is rejected', () => {
