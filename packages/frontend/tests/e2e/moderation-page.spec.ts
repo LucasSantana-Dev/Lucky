@@ -13,7 +13,7 @@ const MOCK_CASES = {
             caseNumber: 1,
             type: 'warn',
             userId: '999999999999999999',
-            userName: 'BadUser',
+            username: 'BadUser',
             moderatorId: '123456789012345678',
             moderatorName: 'ModeratorBot',
             reason: 'Spamming in general',
@@ -26,7 +26,7 @@ const MOCK_CASES = {
             caseNumber: 2,
             type: 'ban',
             userId: '888888888888888888',
-            userName: 'ToxicUser',
+            username: 'ToxicUser',
             moderatorId: '123456789012345678',
             moderatorName: 'ModeratorBot',
             reason: 'Repeated violations',
@@ -61,21 +61,23 @@ test.describe('Moderation Page', () => {
     })
 
     test('shows no server selected when no guild', async ({ page }) => {
+        await page.route('**/api/guilds', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ guilds: [] }),
+            })
+        })
+
         await page.goto('/moderation')
         await page.waitForLoadState('domcontentloaded')
 
         const heading = page.locator('text=/No Server Selected/i')
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-            const subtext = page.locator(
-                'text=/Select a server to view moderation cases/i',
-            )
-            await expect(subtext).toBeVisible()
-        }
+        await expect(heading).toBeVisible({ timeout: 5000 })
+        const subtext = page.locator(
+            'text=/Select a server to view moderation cases/i',
+        )
+        await expect(subtext).toBeVisible()
     })
 
     test('displays moderation cases heading with guild selected', async ({
@@ -90,17 +92,11 @@ test.describe('Moderation Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const heading = page.locator('text=/Moderation Cases/i')
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-            const subtitle = page.locator(
-                'text=/Manage warnings, mutes, kicks, and bans/i',
-            )
-            await expect(subtitle).toBeVisible()
-        }
+        await expect(heading).toBeVisible({ timeout: 5000 })
+        const subtitle = page.locator(
+            'text=/Manage warnings, mutes, kicks, and bans/i',
+        )
+        await expect(subtitle).toBeVisible()
     })
 
     test('displays search and filter controls', async ({ page }) => {
@@ -113,13 +109,7 @@ test.describe('Moderation Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const searchInput = page.locator('input[placeholder*="Search by user"]')
-        const isVisible = await searchInput
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(searchInput).toBeVisible()
-        }
+        await expect(searchInput).toBeVisible({ timeout: 5000 })
     })
 
     test('renders case rows from API data', async ({ page }) => {
@@ -132,15 +122,9 @@ test.describe('Moderation Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const userName = page.locator('text=/BadUser/i')
-        const isVisible = await userName
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(userName).toBeVisible()
-            const banUser = page.locator('text=/ToxicUser/i')
-            await expect(banUser).toBeVisible()
-        }
+        await expect(userName).toBeVisible({ timeout: 5000 })
+        const banUser = page.locator('text=/ToxicUser/i')
+        await expect(banUser).toBeVisible()
     })
 
     test('shows empty state when no cases', async ({ page }) => {
@@ -153,12 +137,6 @@ test.describe('Moderation Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const emptyMsg = page.locator('text=/No cases found/i')
-        const isVisible = await emptyMsg
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(emptyMsg).toBeVisible()
-        }
+        await expect(emptyMsg).toBeVisible({ timeout: 5000 })
     })
 })

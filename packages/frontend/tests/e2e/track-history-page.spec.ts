@@ -134,16 +134,9 @@ test.describe('Track History Page', () => {
         await page.goto('/music/history')
         await page.waitForLoadState('domcontentloaded')
 
-        const prompt = page.locator(
-            'text=/Select a server to view track history/i',
-        )
-        const isVisible = await prompt
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(prompt).toBeVisible()
-        }
+        await expect(
+            page.getByText('Select a server to view track history'),
+        ).toBeVisible({ timeout: 10000 })
     })
 
     test('displays track history with stats', async ({ page }) => {
@@ -155,35 +148,16 @@ test.describe('Track History Page', () => {
         await page.goto('/music/history')
         await page.waitForLoadState('domcontentloaded')
 
-        const heading = page.getByRole('heading', { name: /Track History/i })
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-
-            const errorMsg = page.locator('text=/Failed to load/i')
-            const hasError = await errorMsg
-                .isVisible({ timeout: 1000 })
-                .catch(() => false)
-
-            if (!hasError) {
-                const tracksPlayed = page.locator('text=/42/').first()
-                const statsVisible = await tracksPlayed
-                    .isVisible({ timeout: 5000 })
-                    .catch(() => false)
-
-                if (statsVisible) {
-                    await expect(tracksPlayed).toBeVisible()
-
-                    const trackTitle = page.locator('text=/Bohemian Rhapsody/i')
-                    await expect(trackTitle.first()).toBeVisible({
-                        timeout: 5000,
-                    })
-                }
-            }
-        }
+        await expect(
+            page.getByRole('heading', { name: /Track History/i }),
+        ).toBeVisible({ timeout: 10000 })
+        await expect(page.getByText('Failed to load')).toHaveCount(0)
+        await expect(page.getByText('42').first()).toBeVisible({
+            timeout: 5000,
+        })
+        await expect(page.getByText('Bohemian Rhapsody').first()).toBeVisible({
+            timeout: 5000,
+        })
     })
 
     test('displays stat cards with correct values', async ({ page }) => {
@@ -195,17 +169,12 @@ test.describe('Track History Page', () => {
         await page.goto('/music/history')
         await page.waitForLoadState('domcontentloaded')
 
-        const playTime = page.locator('text=/2h 0m/').first()
-        const isVisible = await playTime
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(playTime).toBeVisible()
-
-            const topArtist = page.locator('text=/Queen/').first()
-            await expect(topArtist).toBeVisible({ timeout: 3000 })
-        }
+        await expect(page.getByText('2h 0m').first()).toBeVisible({
+            timeout: 10000,
+        })
+        await expect(page.getByText('Queen').first()).toBeVisible({
+            timeout: 3000,
+        })
     })
 
     test('shows ranking cards for top tracks and artists', async ({ page }) => {
@@ -217,17 +186,14 @@ test.describe('Track History Page', () => {
         await page.goto('/music/history')
         await page.waitForLoadState('domcontentloaded')
 
-        const topTracks = page.locator('text=/Top Tracks/i')
-        const isVisible = await topTracks
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(topTracks).toBeVisible()
-
-            const topArtists = page.locator('text=/Top Artists/i')
-            await expect(topArtists).toBeVisible({ timeout: 3000 })
-        }
+        await expect(page.getByText('Top Tracks', { exact: true })).toBeVisible(
+            {
+                timeout: 10000,
+            },
+        )
+        await expect(
+            page.getByText('Top Artists', { exact: true }),
+        ).toBeVisible({ timeout: 3000 })
     })
 
     test('shows empty state when no tracks played', async ({ page }) => {
@@ -250,17 +216,9 @@ test.describe('Track History Page', () => {
         await page.waitForLoadState('domcontentloaded')
         await waitForAppLoaderToSettle(page)
 
-        const emptyState = page.locator('text=/No tracks played yet/i')
-        const emptyVisible = await emptyState
-            .isVisible({ timeout: 10000 })
-            .catch(() => false)
-        if (emptyVisible) {
-            await expect(emptyState).toBeVisible({ timeout: 10000 })
-        } else {
-            await expect(page.getByText('Loading...').first()).toBeVisible({
-                timeout: 5000,
-            })
-        }
+        await expect(page.getByText('No tracks played yet')).toBeVisible({
+            timeout: 10000,
+        })
     })
 
     test('shows error state on API failure', async ({ page }) => {
@@ -275,20 +233,14 @@ test.describe('Track History Page', () => {
         await page.waitForLoadState('domcontentloaded')
         await waitForAppLoaderToSettle(page)
 
-        const errorMsg = page.locator('text=/Failed to load track history/i')
-        const errorVisible = await errorMsg
-            .isVisible({ timeout: 10000 })
-            .catch(() => false)
-        if (errorVisible) {
-            await expect(errorMsg).toBeVisible({ timeout: 10000 })
-        } else {
-            await expect(page.getByText('Loading...').first()).toBeVisible({
-                timeout: 5000,
-            })
-        }
+        await expect(
+            page.getByText('Failed to load track history'),
+        ).toBeVisible({ timeout: 10000 })
     })
 
-    test('clear button removes history', async ({ page }) => {
+    test('clear button removes history after confirmation', async ({
+        page,
+    }) => {
         await mockTrackHistoryApi(page)
         await mockTrackHistoryClear(page)
         await page.addInitScript((guild) => {
@@ -298,17 +250,23 @@ test.describe('Track History Page', () => {
         await page.goto('/music/history')
         await page.waitForLoadState('domcontentloaded')
 
-        const clearButton = page.locator('button:has-text("Clear")')
-        const isVisible = await clearButton
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
+        await page.getByRole('button', { name: 'Clear', exact: true }).click()
 
-        if (isVisible) {
-            await clearButton.click()
+        const dialog = page.getByRole('dialog')
+        await expect(dialog).toBeVisible({ timeout: 5000 })
+        await expect(dialog.getByText('Clear track history?')).toBeVisible()
 
-            const emptyState = page.locator('text=/No tracks played yet/i')
-            await expect(emptyState).toBeVisible({ timeout: 5000 })
-        }
+        const deleteRequest = page.waitForRequest(
+            (req) =>
+                req.method() === 'DELETE' &&
+                /\/music\/history$/.test(req.url()),
+        )
+        await dialog.getByRole('button', { name: 'Clear', exact: true }).click()
+        await deleteRequest
+
+        await expect(page.getByText('No tracks played yet')).toBeVisible({
+            timeout: 5000,
+        })
     })
 
     test('track links open in new tab', async ({ page }) => {
@@ -321,15 +279,7 @@ test.describe('Track History Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const trackLink = page.locator('a[target="_blank"]').first()
-        const isVisible = await trackLink
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(trackLink).toHaveAttribute(
-                'rel',
-                'noopener noreferrer',
-            )
-        }
+        await expect(trackLink).toBeVisible({ timeout: 10000 })
+        await expect(trackLink).toHaveAttribute('rel', 'noopener noreferrer')
     })
 })

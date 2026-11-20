@@ -12,17 +12,19 @@ test.describe('Auto Messages Page', () => {
     })
 
     test('shows no server selected when no guild', async ({ page }) => {
+        await page.route('**/api/guilds', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({ guilds: [] }),
+            })
+        })
+
         await page.goto('/automessages')
         await page.waitForLoadState('domcontentloaded')
 
         const heading = page.locator('text=/No Server Selected/i')
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-        }
+        await expect(heading).toBeVisible({ timeout: 5000 })
     })
 
     test('displays auto messages heading with guild', async ({ page }) => {
@@ -37,13 +39,7 @@ test.describe('Auto Messages Page', () => {
             name: 'Auto Messages',
             exact: true,
         })
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(heading).toBeVisible()
-        }
+        await expect(heading).toBeVisible({ timeout: 5000 })
     })
 
     test('shows create button with guild selected', async ({ page }) => {
@@ -57,13 +53,7 @@ test.describe('Auto Messages Page', () => {
         const createBtn = page
             .locator('button:has-text("Create"), button:has-text("New")')
             .first()
-        const isVisible = await createBtn
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(createBtn).toBeVisible()
-        }
+        await expect(createBtn).toBeVisible({ timeout: 5000 })
     })
 
     test('shows empty state when no messages configured', async ({ page }) => {
@@ -77,12 +67,6 @@ test.describe('Auto Messages Page', () => {
         const emptyMsg = page.locator(
             'text=/No auto messages|no messages configured/i',
         )
-        const isVisible = await emptyMsg
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(emptyMsg).toBeVisible()
-        }
+        await expect(emptyMsg).toBeVisible({ timeout: 5000 })
     })
 })

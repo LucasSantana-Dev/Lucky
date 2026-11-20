@@ -50,13 +50,7 @@ test.describe('Lyrics Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const prompt = page.locator('text=/Select a server to search lyrics/i')
-        const isVisible = await prompt
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(prompt).toBeVisible()
-        }
+        await expect(prompt).toBeVisible({ timeout: 5000 })
     })
 
     test('displays search form with title and artist fields', async ({
@@ -70,19 +64,13 @@ test.describe('Lyrics Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const heading = page.locator('text=/Lyrics Search/i')
-        const isVisible = await heading
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
+        await expect(heading).toBeVisible({ timeout: 5000 })
 
-        if (isVisible) {
-            await expect(heading).toBeVisible()
+        const titleInput = page.locator('#title')
+        const artistInput = page.locator('#artist')
 
-            const titleInput = page.locator('#title')
-            const artistInput = page.locator('#artist')
-
-            await expect(titleInput).toBeVisible()
-            await expect(artistInput).toBeVisible()
-        }
+        await expect(titleInput).toBeVisible()
+        await expect(artistInput).toBeVisible()
     })
 
     test('search button disabled when title is empty', async ({ page }) => {
@@ -94,13 +82,8 @@ test.describe('Lyrics Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const searchButton = page.locator('button[type="submit"]')
-        const isVisible = await searchButton
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(searchButton).toBeDisabled()
-        }
+        await expect(searchButton).toBeVisible({ timeout: 5000 })
+        await expect(searchButton).toBeDisabled()
     })
 
     test('performs lyrics search and displays results', async ({ page }) => {
@@ -113,23 +96,18 @@ test.describe('Lyrics Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const titleInput = page.locator('#title')
-        const isVisible = await titleInput
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
+        await expect(titleInput).toBeVisible({ timeout: 5000 })
+        await titleInput.fill('Bohemian Rhapsody')
+        await page.locator('#artist').fill('Queen')
+        await page.locator('button[type="submit"]').click()
 
-        if (isVisible) {
-            await titleInput.fill('Bohemian Rhapsody')
-            await page.locator('#artist').fill('Queen')
-            await page.locator('button[type="submit"]').click()
+        const resultTitle = page.locator('text=/Bohemian Rhapsody/i')
+        await expect(resultTitle.first()).toBeVisible({
+            timeout: 5000,
+        })
 
-            const resultTitle = page.locator('text=/Bohemian Rhapsody/i')
-            await expect(resultTitle.first()).toBeVisible({
-                timeout: 5000,
-            })
-
-            const lyricsText = page.locator('text=/Is this the real life/i')
-            await expect(lyricsText).toBeVisible({ timeout: 5000 })
-        }
+        const lyricsText = page.locator('text=/Is this the real life/i')
+        await expect(lyricsText).toBeVisible({ timeout: 5000 })
     })
 
     test('shows error when lyrics search fails', async ({ page }) => {
@@ -142,17 +120,12 @@ test.describe('Lyrics Page', () => {
         await page.waitForLoadState('domcontentloaded')
 
         const titleInput = page.locator('#title')
-        const isVisible = await titleInput
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
+        await expect(titleInput).toBeVisible({ timeout: 5000 })
+        await titleInput.fill('Nonexistent Song')
+        await page.locator('button[type="submit"]').click()
 
-        if (isVisible) {
-            await titleInput.fill('Nonexistent Song')
-            await page.locator('button[type="submit"]').click()
-
-            const errorMsg = page.locator('text=/Failed to fetch lyrics/i')
-            await expect(errorMsg).toBeVisible({ timeout: 5000 })
-        }
+        const errorMsg = page.locator('text=/Failed to fetch lyrics/i')
+        await expect(errorMsg).toBeVisible({ timeout: 5000 })
     })
 
     test('shows initial placeholder before search', async ({ page }) => {
@@ -166,12 +139,6 @@ test.describe('Lyrics Page', () => {
         const placeholder = page.locator(
             'text=/Search for lyrics by entering a song title/i',
         )
-        const isVisible = await placeholder
-            .isVisible({ timeout: 5000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(placeholder).toBeVisible()
-        }
+        await expect(placeholder).toBeVisible({ timeout: 5000 })
     })
 })
