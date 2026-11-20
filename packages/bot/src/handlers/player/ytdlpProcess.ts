@@ -576,6 +576,9 @@ function trackYtDlpChild(proc: ChildProcess): () => void {
         if (gone || killed) return
         killed = true
         proc.kill()
+        // Closes our end of the pipe, so a downloader yt-dlp spawned (ffmpeg
+        // for HLS) that outlives it fails its next write instead of blocking.
+        proc.stdout?.destroy()
         force = setTimeout(() => proc.kill('SIGKILL'), YTDLP_KILL_ESCALATION_MS)
         force.unref()
     }
