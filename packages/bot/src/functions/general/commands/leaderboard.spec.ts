@@ -51,7 +51,9 @@ describe('/leaderboard', () => {
     test('rejects when not in a guild', async () => {
         await leaderboardCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction('tracks', undefined, false) as never,
+            interaction: createMockInteraction(
+                makeInteraction('tracks', undefined, false),
+            ),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { content: string }
@@ -113,7 +115,7 @@ describe('/leaderboard', () => {
         getTopTracks.mockResolvedValue([])
         await leaderboardCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction('tracks', 999) as never,
+            interaction: createMockInteraction(makeInteraction('tracks', 999)),
         })
         expect(getTopTracks).toHaveBeenCalledWith('guild-1', 10)
     })

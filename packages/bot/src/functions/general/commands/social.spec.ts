@@ -61,11 +61,13 @@ describe('/social', () => {
     test('uses target user in phrase when provided', async () => {
         await socialCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction('hug', {
-                id: 'target-1',
-                username: 'bob',
-                displayName: 'Bob',
-            }) as never,
+            interaction: createMockInteraction(
+                makeInteraction('hug', {
+                    id: 'target-1',
+                    username: 'bob',
+                    displayName: 'Bob',
+                }),
+            ),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { embeds: Array<{ description: string }> }
@@ -78,11 +80,13 @@ describe('/social', () => {
     test('self-targeting triggers self-phrase', async () => {
         await socialCommand.execute({
             client: createMockClient({}),
-            interaction: makeInteraction('kiss', {
-                id: 'sender-1',
-                username: 'alice',
-                displayName: 'Alice',
-            }) as never,
+            interaction: createMockInteraction(
+                makeInteraction('kiss', {
+                    id: 'sender-1',
+                    username: 'alice',
+                    displayName: 'Alice',
+                }),
+            ),
         })
         const args = interactionReply.mock.calls[0][0] as {
             content: { embeds: Array<{ description: string }> }

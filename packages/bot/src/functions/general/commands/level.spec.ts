@@ -62,7 +62,10 @@ jest.mock('../../../utils/music/buttonComponents.js', () => ({
 }))
 
 import levelCommand from './level.js'
-import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
+import {
+    createMockClient,
+    createMockInteraction,
+} from '../../../../tests/utils/command/fixtures.js'
 
 function makeInteraction(
     subcommandGroup: string | null,
@@ -99,10 +102,12 @@ beforeEach(() => {
 describe('/level', () => {
     describe('reward add subcommand', () => {
         test('adds reward for level', async () => {
-            const interaction = makeInteraction('reward', 'add', {
-                level: 10,
-                role: { id: 'role-123' },
-            }) as never
+            const interaction = createMockInteraction(
+                makeInteraction('reward', 'add', {
+                    level: 10,
+                    role: { id: 'role-123' },
+                }),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -121,10 +126,12 @@ describe('/level', () => {
         })
 
         test('displays role mention in success message', async () => {
-            const interaction = makeInteraction('reward', 'add', {
-                level: 5,
-                role: { id: 'role-999' },
-            }) as never
+            const interaction = createMockInteraction(
+                makeInteraction('reward', 'add', {
+                    level: 5,
+                    role: { id: 'role-999' },
+                }),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -140,9 +147,11 @@ describe('/level', () => {
 
     describe('reward remove subcommand', () => {
         test('removes reward for level', async () => {
-            const interaction = makeInteraction('reward', 'remove', {
-                level: 10,
-            }) as never
+            const interaction = createMockInteraction(
+                makeInteraction('reward', 'remove', {
+                    level: 10,
+                }),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -168,7 +177,9 @@ describe('/level', () => {
             })
             levelServiceMock.getRank.mockResolvedValueOnce(3)
 
-            const interaction = makeInteraction('null', 'rank') as never
+            const interaction = createMockInteraction(
+                makeInteraction('null', 'rank'),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -190,9 +201,11 @@ describe('/level', () => {
             levelServiceMock.getRank.mockResolvedValueOnce(2)
 
             const targetUser = { id: 'u2', tag: 'bob#0000' }
-            const interaction = makeInteraction('null', 'rank', {
-                user: targetUser,
-            }) as never
+            const interaction = createMockInteraction(
+                makeInteraction('null', 'rank', {
+                    user: targetUser,
+                }),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -209,7 +222,9 @@ describe('/level', () => {
             levelServiceMock.getMemberXP.mockResolvedValueOnce(null)
             levelServiceMock.getRank.mockResolvedValueOnce(999)
 
-            const interaction = makeInteraction('null', 'rank') as never
+            const interaction = createMockInteraction(
+                makeInteraction('null', 'rank'),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -224,7 +239,9 @@ describe('/level', () => {
         test('shows empty state when no XP recorded', async () => {
             levelServiceMock.getLeaderboard.mockResolvedValueOnce([])
 
-            const interaction = makeInteraction('null', 'leaderboard') as never
+            const interaction = createMockInteraction(
+                makeInteraction('null', 'leaderboard'),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -243,7 +260,9 @@ describe('/level', () => {
                 { userId: 'u2', level: 3, xp: 300 },
             ])
 
-            const interaction = makeInteraction('null', 'leaderboard') as never
+            const interaction = createMockInteraction(
+                makeInteraction('null', 'leaderboard'),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -265,7 +284,9 @@ describe('/level', () => {
             }))
             levelServiceMock.getLeaderboard.mockResolvedValueOnce(entries)
 
-            const interaction = makeInteraction('null', 'leaderboard') as never
+            const interaction = createMockInteraction(
+                makeInteraction('null', 'leaderboard'),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -285,10 +306,12 @@ describe('/level', () => {
 
     describe('setup subcommand', () => {
         test('updates config with XP settings', async () => {
-            const interaction = makeInteraction('null', 'setup', {
-                'xp-per-message': 20,
-                'cooldown-seconds': 120,
-            }) as never
+            const interaction = createMockInteraction(
+                makeInteraction('null', 'setup', {
+                    'xp-per-message': 20,
+                    'cooldown-seconds': 120,
+                }),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -307,11 +330,13 @@ describe('/level', () => {
 
         test('includes announce channel when provided', async () => {
             const channel = { id: 'chan-123' }
-            const interaction = makeInteraction('null', 'setup', {
-                'xp-per-message': 15,
-                'cooldown-seconds': 60,
-                'announce-channel': channel,
-            }) as never
+            const interaction = createMockInteraction(
+                makeInteraction('null', 'setup', {
+                    'xp-per-message': 15,
+                    'cooldown-seconds': 60,
+                    'announce-channel': channel,
+                }),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -327,10 +352,12 @@ describe('/level', () => {
         })
 
         test('displays config summary', async () => {
-            const interaction = makeInteraction('null', 'setup', {
-                'xp-per-message': 10,
-                'cooldown-seconds': 30,
-            }) as never
+            const interaction = createMockInteraction(
+                makeInteraction('null', 'setup', {
+                    'xp-per-message': 10,
+                    'cooldown-seconds': 30,
+                }),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -351,7 +378,9 @@ describe('/level', () => {
                 new Error('db error'),
             )
 
-            const interaction = makeInteraction('null', 'rank') as never
+            const interaction = createMockInteraction(
+                makeInteraction('null', 'rank'),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),
@@ -376,12 +405,9 @@ describe('/level', () => {
             }
             requireGuild.mockResolvedValueOnce(false)
 
-            const interaction = makeInteraction(
-                'null',
-                'rank',
-                {},
-                false,
-            ) as never
+            const interaction = createMockInteraction(
+                makeInteraction('null', 'rank', {}, false),
+            )
 
             await levelCommand.execute({
                 client: createMockClient({}),

@@ -150,11 +150,11 @@ describe('/vaga command', () => {
     it('rejects outside a guild', async () => {
         const reply = jest.fn<unknown, unknown[]>()
         await vaga.execute({
-            interaction: {
+            interaction: createMockInteraction({
                 guild: null,
                 reply,
                 options: { getString: () => null },
-            } as never,
+            }),
             client: createMockClient({}),
         })
         expect(reply).toHaveBeenCalledWith(

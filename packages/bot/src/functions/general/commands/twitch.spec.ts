@@ -41,7 +41,10 @@ jest.mock('../handlers/twitchHandlers', () => ({
 }))
 
 import twitchCommand from './twitch'
-import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
+import {
+    createMockClient,
+    createMockInteraction,
+} from '../../../../tests/utils/command/fixtures.js'
 
 describe('twitch command', () => {
     let mockInteraction: Partial<ChatInputCommandInteraction>
@@ -52,19 +55,19 @@ describe('twitch command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
 
-        mockUser = {
+        mockUser = createMockInteraction({
             id: 'user123',
-        } as never
+        })
 
-        mockGuild = {
+        mockGuild = createMockInteraction({
             id: 'guild123',
             name: 'Test Guild',
             ownerId: 'owner123',
-        } as never
+        })
 
         mockGetSubcommand = jest.fn()
 
-        mockInteraction = {
+        mockInteraction = createMockInteraction({
             guild: mockGuild as Guild,
             user: mockUser as User,
             options: {
@@ -72,7 +75,7 @@ describe('twitch command', () => {
                 getString: jest.fn(),
                 getChannel: jest.fn(),
             } as never,
-        } as never
+        })
 
         requireGuildMock.mockResolvedValue(true)
         featureToggleServiceMock.mockResolvedValue(true)
