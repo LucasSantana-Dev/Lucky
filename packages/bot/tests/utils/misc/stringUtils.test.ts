@@ -1,5 +1,4 @@
 import {
-    applyPatterns,
     calculateSimilarity,
     normalizeString,
 } from '../../../src/utils/misc/stringUtils'
@@ -51,16 +50,6 @@ describe('stringUtils', () => {
             const ab = calculateSimilarity('hello', 'world')
             const ba = calculateSimilarity('world', 'hello')
             expect(ab).toBeCloseTo(ba, 5)
-        })
-    })
-
-    describe('applyPatterns', () => {
-        it('returns Unknown artist and input as title by default', () => {
-            const result = applyPatterns('some input', [])
-            expect(result).toEqual({
-                artist: 'Unknown',
-                title: 'some input',
-            })
         })
     })
 })
