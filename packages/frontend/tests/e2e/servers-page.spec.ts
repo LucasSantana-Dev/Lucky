@@ -58,11 +58,11 @@ test.describe('Servers Page', () => {
         await navigateToServers(page)
         await waitForServerList(page)
 
-        const serverWithBot = MOCK_GUILDS.find((g) => g.hasBot)
-        if (serverWithBot) {
-            const serverCard = getServerCard(page, serverWithBot.name)
+        for (const guild of MOCK_GUILDS.filter((g) => g.hasBot)) {
             await expect(
-                serverCard.getByRole('button', { name: /^Manage/ }),
+                getServerCard(page, guild.name).getByRole('button', {
+                    name: /^Manage/,
+                }),
             ).toBeVisible()
         }
     })
@@ -73,11 +73,11 @@ test.describe('Servers Page', () => {
         await navigateToServers(page)
         await waitForServerList(page)
 
-        const serverWithoutBot = MOCK_GUILDS.find((g) => !g.hasBot)
-        if (serverWithoutBot) {
-            const serverCard = getServerCard(page, serverWithoutBot.name)
+        for (const guild of MOCK_GUILDS.filter((g) => !g.hasBot)) {
             await expect(
-                serverCard.getByRole('button', { name: /^Add bot/i }),
+                getServerCard(page, guild.name).getByRole('button', {
+                    name: /^Add bot/i,
+                }),
             ).toBeVisible()
         }
     })
@@ -88,15 +88,17 @@ test.describe('Servers Page', () => {
         await navigateToServers(page)
         await waitForServerList(page)
 
-        const serverWithBot = MOCK_GUILDS.find((g) => g.hasBot)
-        if (serverWithBot) {
-            const manageButton = getManageButton(page, serverWithBot.name)
-            await expect(manageButton).toBeVisible()
-            await manageButton.click()
+        const serverWithBot = MOCK_GUILDS.find((g) => g.hasBot)!
+        const manageButton = getManageButton(page, serverWithBot.name)
+        await expect(manageButton).toBeVisible()
+        await manageButton.click()
 
-            await page.waitForTimeout(1000)
-            expect(page.url()).not.toContain('/servers')
-        }
+        await expect(page).toHaveURL(/\/$/)
+        await expect(
+            page.getByRole('button', {
+                name: `Active server: ${serverWithBot.name}. Click to switch.`,
+            }),
+        ).toBeVisible()
     })
 
     test('Add Bot button functionality for servers without bot', async ({
@@ -106,19 +108,25 @@ test.describe('Servers Page', () => {
         await navigateToServers(page)
         await waitForServerList(page)
 
-        const serverWithoutBot = MOCK_GUILDS.find((g) => !g.hasBot)
-        if (serverWithoutBot) {
-            const addBotButton = getAddBotButton(page, serverWithoutBot.name)
-            await expect(addBotButton).toBeVisible()
-            await addBotButton.click()
+        const serverWithoutBot = MOCK_GUILDS.find((g) => !g.hasBot)!
+        const addBotButton = getAddBotButton(page, serverWithoutBot.name)
+        await expect(addBotButton).toBeVisible()
 
-            await page.waitForTimeout(1000)
-        }
+        const [popup] = await Promise.all([
+            page.waitForEvent('popup'),
+            addBotButton.click(),
+        ])
+        expect(popup.url()).toBe(MOCK_API_RESPONSES.inviteUrl.inviteUrl)
+        await popup.close()
     })
 
     test('shows loading skeleton during data fetch', async ({ page }) => {
+        let release!: () => void
+        const gate = new Promise<void>((resolve) => {
+            release = resolve
+        })
         await page.route('**/api/guilds', async (route) => {
-            await new Promise((resolve) => setTimeout(resolve, 1000))
+            await gate
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -128,16 +136,11 @@ test.describe('Servers Page', () => {
 
         await navigateToServers(page)
 
-        const skeleton = page
-            .locator('[class*="skeleton"], [class*="Skeleton"]')
-            .first()
-        const isVisible = await skeleton
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
+        await expect(page.locator('main .animate-pulse').first()).toBeVisible()
 
-        if (isVisible) {
-            await expect(skeleton).toBeVisible()
-        }
+        release()
+        await waitForServerList(page)
+        await expect(page.locator('main .animate-pulse')).toHaveCount(0)
     })
 
     test('handles empty state when no servers available', async ({ page }) => {
@@ -168,22 +171,22 @@ test.describe('Servers Page', () => {
         await navigateToServers(page)
         await waitForServerList(page)
 
-        await page.waitForTimeout(2000)
+        for (const guild of MOCK_GUILDS) {
+            await expect(getServerCard(page, guild.name)).toHaveCount(0)
+        }
     })
 
     test('displays server count correctly', async ({ page }) => {
         await navigateToServers(page)
         await waitForServerList(page)
 
-        const serverCount = page.locator(
-            `text=/.*${MOCK_GUILDS.length}.*servers?/i`,
-        )
-        const isVisible = await serverCount
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(serverCount).toBeVisible()
-        }
+        const withBot = MOCK_GUILDS.filter((g) => g.hasBot).length
+        await expect(
+            page
+                .locator('main')
+                .getByText(
+                    `${MOCK_GUILDS.length} servers — ${withBot} with Lucky installed`,
+                ),
+        ).toBeVisible()
     })
 })

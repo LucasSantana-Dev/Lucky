@@ -87,49 +87,43 @@ test.describe('Features Page', () => {
         })
     })
 
-    test('toggles feature on/off (server-specific)', async ({ page }) => {
+    test('feature switches reflect server toggles and are read-only', async ({
+        page,
+    }) => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
 
-        // Global features render a disabled switch; toggle a server-owned one.
-        const switchButton = page
-            .getByRole('switch', { disabled: false })
-            .first()
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            const initialState = await switchButton.getAttribute('aria-checked')
-            await switchButton.click()
-            await page.waitForTimeout(500)
-
-            const newState = await switchButton.getAttribute('aria-checked')
-            expect(newState).not.toBe(initialState)
+        const expected: Record<string, string> = {
+            'Toggle Music Recommendations': 'true',
+            'Toggle Autoplay': 'true',
+            'Toggle Lyrics': 'false',
+        }
+        for (const [name, checked] of Object.entries(expected)) {
+            const toggle = page.getByRole('switch', { name })
+            await expect(toggle).toHaveAttribute('aria-checked', checked)
+            await expect(toggle).toBeDisabled()
         }
     })
 
-    test('server selector dropdown functionality', async ({ page }) => {
+    test('server selector chip links to the server list', async ({ page }) => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
 
-        const serverSelector = getServerSelector(page)
-        const isVisible = await serverSelector
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
+        await getServerSelector(page).click()
 
-        if (isVisible) {
-            await serverSelector.click()
-            await page.waitForTimeout(500)
-        }
+        await expect(page).toHaveURL(/\/servers/)
     })
 
-    test('selects different server to view its toggles', async ({ page }) => {
+    test('keeps the sidebar and active server on the features page', async ({
+        page,
+    }) => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
 
-        const sidebar = page.locator('aside').first()
-        await expect(sidebar).toBeVisible({ timeout: 5000 })
+        await expect(page.locator('aside').first()).toBeVisible()
+        await expect(getServerSelector(page)).toHaveAccessibleName(
+            /^Active server: .+\. Click to switch\.$/,
+        )
     })
 
     test('shows loading states during data fetch', async ({ page }) => {
@@ -171,37 +165,13 @@ test.describe('Features Page', () => {
 
         await navigateToFeatures(page)
 
-        const loadingIndicator = page.locator('.animate-pulse').first()
-        const loadingVisible = await loadingIndicator
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
-        if (loadingVisible) {
-            await expect(loadingIndicator).toBeVisible()
-        }
+        await expect(page.locator('.animate-pulse').first()).toBeVisible()
         await waitForFeatures(page)
         await expect(
             page
                 .locator('#lucky-main-content')
                 .getByRole('heading', { name: 'Features', exact: true }),
         ).toBeVisible({ timeout: 10000 })
-    })
-
-    test('shows toast notifications on toggle success', async ({ page }) => {
-        await navigateToFeatures(page)
-        await waitForFeatures(page)
-
-        const switchButton = page
-            .getByRole('switch', { disabled: false })
-            .first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await switchButton.click()
-            await page.waitForTimeout(1000)
-        }
     })
 
     test('feature cards display correct information', async ({ page }) => {
@@ -211,22 +181,24 @@ test.describe('Features Page', () => {
         const firstFeature = MOCK_FEATURES[0]
         const featureCard = getFeatureCard(page, firstFeature.name)
 
-        const isVisible = await featureCard
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(
-                featureCard.getByRole('heading', {
-                    name: new RegExp(firstFeature.name.replace(/_/g, ' '), 'i'),
-                }),
-            ).toBeVisible()
-        }
+        await expect(
+            featureCard.getByRole('heading', {
+                name: new RegExp(firstFeature.name.replace(/_/g, ' '), 'i'),
+            }),
+        ).toBeVisible()
     })
 
-    test('badge indicators show Global vs Per-Server', async ({ page }) => {
+    test('badge indicators show the managed state on each card', async ({
+        page,
+    }) => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
+
+        for (const feature of MOCK_FEATURES) {
+            await expect(getFeatureCard(page, feature.name)).toContainText(
+                'Managed',
+            )
+        }
     })
 
     test('developer-only global toggles are hidden for non-developers', async ({
@@ -243,11 +215,6 @@ test.describe('Features Page', () => {
         await navigateToFeatures(page)
         await waitForFeatures(page)
 
-        const globalSection = page.locator('text=/Global Toggles/i')
-        const isVisible = await globalSection
-            .isVisible({ timeout: 2000 })
-            .catch(() => false)
-
-        expect(isVisible).toBe(false)
+        await expect(page.locator('text=/Global Toggles/i')).toHaveCount(0)
     })
 })

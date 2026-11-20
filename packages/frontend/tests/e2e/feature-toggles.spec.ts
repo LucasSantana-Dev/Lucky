@@ -63,7 +63,10 @@ test.describe('Feature Toggles', () => {
 
         const toggle = page.getByRole('switch', { name: 'Toggle Autoplay' })
         const before = await toggle.getAttribute('aria-checked')
-        await toggle.click({ force: true })
+        await expect(toggle).toBeDisabled()
+        // A disabled switch cannot be clicked through the UI, so fire the DOM
+        // click directly to prove the handler still sends nothing.
+        await toggle.evaluate((el) => (el as HTMLElement).click())
 
         await expect(toggle).toHaveAttribute('aria-checked', before ?? '')
         await page.waitForLoadState('networkidle')

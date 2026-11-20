@@ -12,8 +12,12 @@ export function getFeatureCard(page: Page, featureName: string): Locator {
         .first()
 }
 
+// Header chip: "Active server: <name>. Click to switch." or "Select a server".
+// Clicking it opens /servers.
 export function getServerSelector(page: Page): Locator {
-    return page.locator('button[aria-haspopup="listbox"]').first()
+    return page
+        .getByRole('banner')
+        .getByRole('button', { name: /^(Active server:|Select a server)/ })
 }
 
 export function getUserDropdown(page: Page): Locator {

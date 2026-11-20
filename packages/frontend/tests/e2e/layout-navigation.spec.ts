@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { setupMockApiResponses } from './helpers/api-helpers'
 import { navigateToDashboard } from './helpers/page-helpers'
+import { getServerSelector } from './helpers/ui-helpers'
 import { MOCK_DISCORD_USER } from './fixtures/test-data'
 
 test.describe('Layout and Navigation', () => {
@@ -58,7 +59,9 @@ test.describe('Layout and Navigation', () => {
     })
 
     test('logout functionality', async ({ page }) => {
+        let logoutCalled = false
         await page.route('**/api/auth/logout', async (route) => {
+            logoutCalled = true
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
@@ -74,69 +77,48 @@ test.describe('Layout and Navigation', () => {
         await expect(logoutButton).toBeVisible({ timeout: 5000 })
         await logoutButton.click()
 
-        await page.waitForTimeout(1000)
+        await expect.poll(() => logoutCalled).toBe(true)
     })
 
-    test('server selector dropdown in sidebar', async ({ page }) => {
+    test('server selector chip in header', async ({ page }) => {
         await navigateToDashboard(page)
 
-        const serverSelector = page.locator('text=Select a server').first()
-        const isVisible = await serverSelector
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await expect(serverSelector).toBeVisible()
-        }
+        await expect(getServerSelector(page)).toHaveAccessibleName(
+            /^Active server: Test Server 1\./,
+        )
     })
 
     test('mobile menu toggle', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 667 })
         await navigateToDashboard(page)
 
-        const mobileMenuButton = page
-            .locator('button[aria-label="Open navigation menu"]')
-            .first()
-        const isVisible = await mobileMenuButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
+        const mobileSidebar = page.locator('#mobile-sidebar')
+        await expect(mobileSidebar).toHaveCount(0)
 
-        if (isVisible) {
-            await mobileMenuButton.click()
-            await page.waitForTimeout(500)
+        const toggle = page.getByRole('button', {
+            name: 'Open navigation menu',
+        })
+        await expect(toggle).toHaveAttribute('aria-expanded', 'false')
+        await toggle.click()
 
-            const sidebar = page.locator('aside').first()
-            await expect(sidebar).toBeVisible()
-        }
+        await expect(mobileSidebar).toBeVisible()
+        await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+        await expect(
+            mobileSidebar.getByRole('link', { name: 'Features' }),
+        ).toBeVisible()
     })
 
     test('sidebar closes on mobile', async ({ page }) => {
         await page.setViewportSize({ width: 375, height: 667 })
         await navigateToDashboard(page)
 
-        const mobileMenuButton = page
-            .locator('button[aria-label="Open navigation menu"]')
-            .first()
+        await page.getByRole('button', { name: 'Open navigation menu' }).click()
+        const mobileSidebar = page.locator('#mobile-sidebar')
+        await expect(mobileSidebar).toBeVisible()
 
-        const menuVisible = await mobileMenuButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (menuVisible) {
-            await mobileMenuButton.click()
-            await page.waitForTimeout(500)
-
-            const closeButton = page
-                .locator('button[aria-label="Close sidebar"]')
-                .first()
-            const closeVisible = await closeButton
-                .isVisible({ timeout: 2000 })
-                .catch(() => false)
-            if (closeVisible) {
-                await closeButton.click()
-                await page.waitForTimeout(500)
-            }
-        }
+        // Tap the backdrop to the right of the 256px drawer.
+        await page.mouse.click(340, 400)
+        await expect(mobileSidebar).toHaveCount(0)
     })
 
     test('navigation redirects unauthenticated users', async ({ page }) => {
@@ -148,9 +130,13 @@ test.describe('Layout and Navigation', () => {
             })
         })
 
-        await page.goto('/')
-        await page.waitForLoadState('domcontentloaded')
-        await page.waitForTimeout(2000)
+        await page.goto('/features')
+
+        await expect(page).toHaveURL(/\/$/)
+        await expect(page.locator('aside')).toHaveCount(0)
+        await expect(page.getByRole('button', { name: 'Log out' })).toHaveCount(
+            0,
+        )
     })
 
     test('Lucky branding in sidebar', async ({ page }) => {

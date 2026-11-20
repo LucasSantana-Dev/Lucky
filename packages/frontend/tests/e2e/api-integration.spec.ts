@@ -19,35 +19,19 @@ test.describe('API Integration', () => {
         expect(apiCalls.has('guilds')).toBe(true)
     })
 
-    test('request payload validation', async ({ page }) => {
-        let requestPayload: unknown = null
-
-        await page.route('**/api/guilds/*/features/*', async (route) => {
-            requestPayload = route.request().postDataJSON()
-            await route.fulfill({
-                status: 200,
-                contentType: 'application/json',
-                body: JSON.stringify({ success: true }),
-            })
-        })
+    test('feature toggles load from the guild features endpoint', async ({
+        page,
+    }) => {
+        const featuresRequest = page.waitForRequest(
+            (request) =>
+                request.method() === 'GET' &&
+                /\/api\/(guilds\/[^/]+\/)?features$/.test(request.url()),
+        )
 
         await navigateToFeatures(page)
 
-        const featureCard = page.locator('[class*="card"]').first()
-        const switchButton = featureCard.locator('[role="switch"]').first()
-
-        const isVisible = await switchButton
-            .isVisible({ timeout: 3000 })
-            .catch(() => false)
-
-        if (isVisible) {
-            await switchButton.click()
-            await page.waitForTimeout(1000)
-
-            if (requestPayload) {
-                expect(requestPayload).toHaveProperty('enabled')
-            }
-        }
+        await featuresRequest
+        await expect(page.getByRole('switch').first()).toBeVisible()
     })
 
     test('response handling', async ({ page }) => {
