@@ -23,6 +23,19 @@ describe('LanguageSwitcher', () => {
         void i18n.changeLanguage('en')
     })
 
+    it('hides the text label below the sm breakpoint so the header fits 375px', () => {
+        render(
+            <I18nextProvider i18n={i18n}>
+                <LanguageSwitcher />
+            </I18nextProvider>,
+        )
+        const label = screen.getByText('English')
+        expect(label).toHaveClass('hidden', 'sm:inline')
+        expect(
+            screen.getByRole('button', { name: /language/i }),
+        ).toBeInTheDocument()
+    })
+
     it('renders language switcher with current language label', () => {
         render(
             <I18nextProvider i18n={i18n}>

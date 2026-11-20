@@ -31,7 +31,7 @@ export default function LanguageSwitcher({
     const triggerClass =
         variant === 'compact'
             ? 'lucky-focus-visible flex min-h-[32px] min-w-[32px] items-center justify-center rounded-md text-lucky-text-subtle transition-colors hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary'
-            : 'lucky-focus-visible flex items-center gap-2 rounded-md border border-lucky-border bg-lucky-bg-secondary px-3 py-1.5 text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary'
+            : 'lucky-focus-visible flex shrink-0 items-center gap-2 rounded-md border border-lucky-border bg-lucky-bg-secondary px-2.5 py-1.5 sm:px-3 text-lucky-text-secondary transition-colors hover:border-lucky-border-strong hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary'
 
     return (
         <DropdownMenu>
@@ -45,7 +45,9 @@ export default function LanguageSwitcher({
                     aria-hidden='true'
                 />
                 {variant === 'header' && (
-                    <span className='type-body-sm'>{activeLabel}</span>
+                    <span className='type-body-sm hidden sm:inline'>
+                        {activeLabel}
+                    </span>
                 )}
             </DropdownMenuTrigger>
             <DropdownMenuContent
