@@ -55,6 +55,7 @@ import {
     primaryArtistKey,
 } from '../../../utils/music/trackNormalization'
 import type { QueueMetadata } from '../../../types/QueueMetadata'
+import { autoplayHistoryReplayTracksTotal } from '../../../utils/monitoring/prometheus'
 import {
     collectBroadFallbackCandidates,
     collectGenreCandidates,
@@ -1260,6 +1261,7 @@ export async function enqueueAndFinalize(
                 requestedBy?.id,
                 autoplayMode,
             )
+            autoplayHistoryReplayTracksTotal.inc(historyReplay.length)
             warnLog({
                 message:
                     'Autoplay: replaying history tracks, all collectors empty',

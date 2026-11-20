@@ -59,6 +59,13 @@ jest.mock('../../services/musicManagement/stageSpeaker', () => ({
     ensureStageSpeaker: (...args: unknown[]) => ensureStageSpeakerMock(),
 }))
 
+const sessionRestoreIncMock = jest.fn()
+jest.mock('../../utils/monitoring/prometheus', () => ({
+    sessionRestoreTotal: {
+        inc: (...args: unknown[]) => sessionRestoreIncMock(...args),
+    },
+}))
+
 jest.mock('../../utils/general/embeds', () => ({
     createErrorEmbed: (title: string, body: string) => ({
         kind: 'error',
@@ -283,6 +290,10 @@ describe('setupLifecycleHandlers', () => {
                 data: { guildId: 'guild-1', restoredCount: 9, aborted: true },
             }),
         )
+        expect(sessionRestoreIncMock).toHaveBeenCalledTimes(1)
+        expect(sessionRestoreIncMock).toHaveBeenCalledWith({
+            outcome: 'late_restored',
+        })
         jest.useRealTimers()
     })
 
@@ -322,6 +333,9 @@ describe('setupLifecycleHandlers', () => {
                 data: { guildId: 'guild-1', error: 'stream bridge died' },
             }),
         )
+        expect(sessionRestoreIncMock).toHaveBeenCalledWith({
+            outcome: 'late_failed',
+        })
         jest.useRealTimers()
     })
 
@@ -349,7 +363,41 @@ describe('setupLifecycleHandlers', () => {
                 message: 'Snapshot restore failed, continuing with empty queue',
             }),
         )
+        expect(sessionRestoreIncMock).toHaveBeenCalledWith({
+            outcome: 'failed',
+        })
     })
+
+    it.each([
+        [3, 'restored'],
+        [0, 'empty'],
+    ])(
+        'counts a restore of %i tracks inside the deadline as %s (#3151)',
+        async (restoredCount, outcome) => {
+            restoreSnapshotMock.mockResolvedValueOnce({ restoredCount })
+            const handlers: Record<string, PlayerEventHandler> = {}
+            const player = {
+                events: {
+                    on: jest.fn(
+                        (event: string, handler: PlayerEventHandler) => {
+                            handlers[event] = handler
+                        },
+                    ),
+                },
+            }
+            setupLifecycleHandlers(player)
+            const queue = {
+                guild: { id: 'guild-1', name: 'Guild 1' },
+                metadata: { requestedBy: { id: 'user-1' } },
+                connection: { state: { status: 'ready' }, joinConfig: {} },
+            } as unknown as GuildQueue
+
+            await handlers.connection(queue)
+
+            expect(sessionRestoreIncMock).toHaveBeenCalledTimes(1)
+            expect(sessionRestoreIncMock).toHaveBeenCalledWith({ outcome })
+        },
+    )
 
     it('does NOT restore snapshot on connection when intentional stop is set (#1948)', async () => {
         watchdogIsIntentionalStopMock.mockReturnValue(true)

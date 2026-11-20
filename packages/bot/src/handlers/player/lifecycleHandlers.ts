@@ -21,6 +21,7 @@ import {
 } from '../../services/musicManagement/queueOperations'
 import { isReplenishSuppressed } from '../../services/musicManagement/replenishSuppressionStore'
 import type { QueueMetadata } from '../../types/QueueMetadata'
+import { sessionRestoreTotal } from '../../utils/monitoring/prometheus'
 
 export const setupVoiceKickDetection = (client: Client): void => {
     client.on('voiceStateUpdate', async (oldState, newState) => {
@@ -251,7 +252,10 @@ export const setupLifecycleHandlers = (player: {
             )
 
             try {
-                await Promise.race([restore, restoreDeadline])
+                const result = await Promise.race([restore, restoreDeadline])
+                sessionRestoreTotal.inc({
+                    outcome: result.restoredCount > 0 ? 'restored' : 'empty',
+                })
             } catch (error) {
                 // Cancel the still-running restore so it stops before enqueuing more.
                 restoreController.abort()
@@ -266,7 +270,13 @@ export const setupLifecycleHandlers = (player: {
                         data: { guildId: queue.guild.id },
                     })
                     void restore.then(
-                        (result) =>
+                        (result) => {
+                            sessionRestoreTotal.inc({
+                                outcome:
+                                    result.restoredCount > 0
+                                        ? 'late_restored'
+                                        : 'late_empty',
+                            })
                             infoLog({
                                 message:
                                     'Snapshot restore finished after the deadline',
@@ -277,8 +287,10 @@ export const setupLifecycleHandlers = (player: {
                                     // count of 0 can be a rollback, not an empty snapshot.
                                     aborted: restoreController.signal.aborted,
                                 },
-                            }),
-                        (restoreError: unknown) =>
+                            })
+                        },
+                        (restoreError: unknown) => {
+                            sessionRestoreTotal.inc({ outcome: 'late_failed' })
                             infoLog({
                                 message:
                                     'Snapshot restore failed after the deadline',
@@ -289,9 +301,11 @@ export const setupLifecycleHandlers = (player: {
                                             ? restoreError.message
                                             : String(restoreError),
                                 },
-                            }),
+                            })
+                        },
                     )
                 } else {
+                    sessionRestoreTotal.inc({ outcome: 'failed' })
                     infoLog({
                         message: `Snapshot restore failed, continuing with empty queue`,
                         data: {

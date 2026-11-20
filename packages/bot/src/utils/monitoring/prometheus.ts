@@ -329,6 +329,47 @@ for (const result of ['hit', 'miss', 'negative']) {
 }
 
 /**
+ * Counter: session snapshot restores on voice connect, by outcome. A restore
+ * that brings tracks back replays the snapshot's current track from 0:00, so
+ * a jump in `restored`/`late_restored` right after a deploy is the "song
+ * repeated after restart" signal (#3151).
+ * restored|empty: finished inside the 2s deadline with tracks|without.
+ * late_restored|late_empty|late_failed: finished after the deadline.
+ * failed: rejected inside the deadline.
+ */
+export const SESSION_RESTORE_OUTCOMES = [
+    'restored',
+    'empty',
+    'late_restored',
+    'late_empty',
+    'late_failed',
+    'failed',
+] as const
+export type SessionRestoreOutcome = (typeof SESSION_RESTORE_OUTCOMES)[number]
+
+export const sessionRestoreTotal = new Counter<'outcome'>({
+    name: 'lucky_bot_session_restore_total',
+    help: 'Session snapshot restores on voice connect, by outcome (restored|empty|late_restored|late_empty|late_failed|failed).',
+    labelNames: ['outcome'],
+    registers: [registry],
+})
+for (const outcome of SESSION_RESTORE_OUTCOMES) {
+    sessionRestoreTotal.labels(outcome).inc(0)
+}
+
+/**
+ * Counter: tracks autoplay re-queued from the guild's own history because
+ * every candidate collector came back empty. Each one is a song the guild
+ * already heard, so any increase is a likely "bot repeats songs" report.
+ */
+export const autoplayHistoryReplayTracksTotal = new Counter({
+    name: 'lucky_bot_autoplay_history_replay_tracks_total',
+    help: 'Tracks autoplay re-queued from history because all candidate collectors were empty.',
+    registers: [registry],
+})
+autoplayHistoryReplayTracksTotal.inc(0)
+
+/**
  * Render the registry as Prometheus text exposition format.
  */
 export async function renderMetrics(): Promise<string> {

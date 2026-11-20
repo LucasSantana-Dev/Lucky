@@ -509,6 +509,15 @@ def erros():
         w=12, h=8, custom={**BARS, "stacking": {"mode": "none"}}, options=TS_OPTS, no_value="0",
         desc="Plays que esgotaram todas as etapas, e falhas do yt-dlp por classe (forbidden = HTTP 403, botcheck = "
              "\"not a bot\", empty, timeout, other). forbidden e botcheck abrem o breaker do yt-dlp.")
+    b.add("timeseries", "Músicas que podem ter repetido", [
+        prom('sum by (outcome) (increase(lucky_bot_session_restore_total{outcome=~"restored|late_restored"}[$__rate_interval]))',
+             "sessão restaurada após restart ({{outcome}})"),
+        prom("sum(increase(lucky_bot_autoplay_history_replay_tracks_total[$__rate_interval]))",
+             "autoplay repetiu do histórico")],
+        w=24, h=8, custom={**BARS, "stacking": {"mode": "none"}}, options=TS_OPTS, no_value="0",
+        desc="Sessão restaurada: depois de um restart o bot volta a tocar a faixa atual do começo (#3151). "
+             "Autoplay repetiu do histórico: nenhuma fonte trouxe sugestão e o autoplay recolocou músicas que o "
+             "servidor já ouviu. Barras aqui costumam virar um relato de \"o bot está repetindo músicas\".")
     b.add("logs", "Linhas de erro (mais recentes primeiro)", [loki(f"{{{APP}}} {ERR_LINE}")], w=24, h=10,
           options={"showTime": True, "wrapLogMessage": True, "sortOrder": "Descending", "enableLogDetails": True})
     return b

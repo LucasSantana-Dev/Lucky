@@ -201,4 +201,28 @@ describe('prometheus registry', () => {
             )
         }
     })
+
+    it('exports every session restore outcome and the history replay counter at 0 from boot (#3151)', async () => {
+        countMock.mockResolvedValue(0)
+
+        const text = await renderMetrics()
+
+        for (const outcome of [
+            'restored',
+            'empty',
+            'late_restored',
+            'late_empty',
+            'late_failed',
+            'failed',
+        ]) {
+            expect(text).toMatch(
+                new RegExp(
+                    `lucky_bot_session_restore_total\\{[^}]*outcome="${outcome}"[^}]*\\}\\s+0`,
+                ),
+            )
+        }
+        expect(text).toMatch(
+            /lucky_bot_autoplay_history_replay_tracks_total\{[^}]*\}\s+0/,
+        )
+    })
 })

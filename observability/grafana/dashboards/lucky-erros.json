@@ -1163,12 +1163,77 @@
             "id": 16
         },
         {
+            "type": "timeseries",
+            "title": "Músicas que podem ter repetido",
+            "description": "Sessão restaurada: depois de um restart o bot volta a tocar a faixa atual do começo (#3151). Autoplay repetiu do histórico: nenhuma fonte trouxe sugestão e o autoplay recolocou músicas que o servidor já ouviu. Barras aqui costumam virar um relato de \"o bot está repetindo músicas\".",
+            "gridPos": {
+                "x": 0,
+                "y": 46,
+                "w": 24,
+                "h": 8
+            },
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${ds_prometheus}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "sum by (outcome) (increase(lucky_bot_session_restore_total{outcome=~\"restored|late_restored\"}[$__rate_interval]))",
+                    "legendFormat": "sessão restaurada após restart ({{outcome}})",
+                    "instant": false,
+                    "range": true,
+                    "refId": "A"
+                },
+                {
+                    "datasource": {
+                        "type": "prometheus",
+                        "uid": "${ds_prometheus}"
+                    },
+                    "expr": "sum(increase(lucky_bot_autoplay_history_replay_tracks_total[$__rate_interval]))",
+                    "legendFormat": "autoplay repetiu do histórico",
+                    "instant": false,
+                    "range": true,
+                    "refId": "B"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "0",
+                    "custom": {
+                        "drawStyle": "bars",
+                        "fillOpacity": 80,
+                        "lineWidth": 1,
+                        "stacking": {
+                            "mode": "none"
+                        }
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "id": 17
+        },
+        {
             "type": "logs",
             "title": "Linhas de erro (mais recentes primeiro)",
             "description": "",
             "gridPos": {
                 "x": 0,
-                "y": 46,
+                "y": 54,
                 "w": 24,
                 "h": 10
             },
@@ -1198,7 +1263,7 @@
                 "sortOrder": "Descending",
                 "enableLogDetails": true
             },
-            "id": 17
+            "id": 18
         }
     ]
 }
