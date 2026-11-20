@@ -82,6 +82,7 @@ import {
     claimBreakerEpisodeReport,
     YTDLP_BLOCK_COOLDOWN_MS,
 } from './ytdlpBlockBreaker'
+import { runAsPlayProbe } from './probeContext'
 
 const botcheck = () =>
     new Error(
@@ -309,6 +310,28 @@ describe('breaker open: one Sentry event per episode (#3082)', () => {
         }
         expect(errors.map(isReportedBridgeExhausted)).toEqual([false, true])
         expect(failureCount('breaker_open')).toBe(2)
+    })
+
+    it('a play probe neither counts nor takes the episode slot (#3149)', async () => {
+        await openBreaker()
+        jest.clearAllMocks()
+        mockSoundCloudAvailable = false
+        try {
+            const attempt = (id: string) =>
+                createResilientStream(spotifyTrack(id) as never).then(
+                    () => null,
+                    (e: unknown) => e,
+                )
+            const probeError = await runAsPlayProbe(() => attempt('probe'))
+
+            expect(failureCount('breaker_open')).toBe(0)
+            expect(isReportedBridgeExhausted(probeError)).toBe(true)
+
+            expect(isReportedBridgeExhausted(await attempt('real'))).toBe(false)
+            expect(failureCount('breaker_open')).toBe(1)
+        } finally {
+            mockSoundCloudAvailable = true
+        }
     })
 
     it('a stale play cannot consume the slot of a newer episode', async () => {
