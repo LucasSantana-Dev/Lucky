@@ -1250,6 +1250,8 @@ describe('MusicSessionSnapshotService', () => {
             )
             const service = new MusicSessionSnapshotService()
             const queue = restoringQueue('guild-1')
+            const pause = jest.fn()
+            ;(queue.node as unknown as { pause: jest.Mock }).pause = pause
 
             const result = await service.restoreSnapshot(queue)
 
@@ -1257,6 +1259,73 @@ describe('MusicSessionSnapshotService', () => {
             expect(queue.node.play).toHaveBeenCalledWith(undefined, {
                 seek: 240_000,
             })
+            // It was paused before the restart, so it comes back paused.
+            expect(pause).toHaveBeenCalledTimes(1)
+        })
+
+        it('does not pause a restored track that was playing', async () => {
+            mockFindUnique.mockResolvedValueOnce(
+                currentTrackRow({ positionMs: 95_000, durationMs: 300_000 }),
+            )
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-1')
+            const pause = jest.fn()
+            ;(queue.node as unknown as { pause: jest.Mock }).pause = pause
+
+            await service.restoreSnapshot(queue)
+
+            expect(pause).not.toHaveBeenCalled()
+        })
+
+        it('consumes a snapshot whose only track was dropped, so it is not retried', async () => {
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-1')
+            // Current-only snapshot, nearly over: nothing will be restored.
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({
+                    upcomingTracks: [],
+                    currentTrack: {
+                        title: 'Almost Over',
+                        author: 'A',
+                        url: 'https://example.com/current',
+                        duration: '5:00',
+                        source: 'spotify',
+                        positionMs: 290_000,
+                        durationMs: 300_000,
+                    },
+                }),
+            )
+
+            const result = await service.restoreSnapshot(queue)
+
+            expect(result.restoredCount).toBe(0)
+            expect(queue.player.search).not.toHaveBeenCalled()
+            expect(mockDeleteMany).toHaveBeenCalledWith({
+                where: { guildId: 'guild-1' },
+            })
+        })
+
+        it('keeps the snapshot when the current track is skipped on purpose (orphan recovery)', async () => {
+            mockFindUnique.mockResolvedValueOnce(
+                snapshotRow({
+                    upcomingTracks: [],
+                    currentTrack: {
+                        title: 'Now',
+                        author: 'A',
+                        url: 'https://example.com/current',
+                        duration: '5:00',
+                        source: 'spotify',
+                    },
+                }),
+            )
+            const service = new MusicSessionSnapshotService()
+            const queue = restoringQueue('guild-1')
+
+            await service.restoreSnapshot(queue, undefined, {
+                skipCurrentTrack: true,
+            })
+
+            expect(mockDeleteMany).not.toHaveBeenCalled()
         })
 
         it('does not seek into an upcoming track when the current one failed to resolve', async () => {
@@ -1294,7 +1363,7 @@ describe('MusicSessionSnapshotService', () => {
     })
 
     describe('autosave (#3151)', () => {
-        function liveQueue(id: string, playing: boolean) {
+        function liveQueue(id: string, playing: boolean, paused = false) {
             return {
                 guild: { id },
                 currentTrack: {
@@ -1308,7 +1377,7 @@ describe('MusicSessionSnapshotService', () => {
                 channel: { id: 'c' },
                 node: {
                     playbackTime: 10_000,
-                    isPaused: () => !playing,
+                    isPaused: () => paused,
                     isPlaying: () => playing,
                 },
             } as unknown as GuildQueue
@@ -1348,6 +1417,55 @@ describe('MusicSessionSnapshotService', () => {
 
                 await jest.advanceTimersByTimeAsync(30_000)
                 expect(mockUpsert).toHaveBeenCalledTimes(1)
+                service.stopAutosave()
+            } finally {
+                jest.useRealTimers()
+            }
+        })
+
+        it('also saves a paused queue, so a pause then a crash keeps the right position', async () => {
+            jest.useFakeTimers()
+            try {
+                const service = new MusicSessionSnapshotService()
+                const queues = [
+                    liveQueue('paused', false, true),
+                    liveQueue('idle', false, false),
+                ]
+                service.startAutosave(() => queues, 30_000)
+
+                await jest.advanceTimersByTimeAsync(30_000)
+                expect(mockUpsert).toHaveBeenCalledTimes(1)
+                expect(mockUpsert).toHaveBeenCalledWith(
+                    expect.objectContaining({ where: { guildId: 'paused' } }),
+                )
+                service.stopAutosave()
+            } finally {
+                jest.useRealTimers()
+            }
+        })
+
+        it('skips a tick while the previous save is still pending', async () => {
+            jest.useFakeTimers()
+            try {
+                let release: () => void = () => {}
+                mockUpsert.mockImplementationOnce(
+                    () =>
+                        new Promise((resolve) => {
+                            release = () => resolve(snapshotRow())
+                        }),
+                )
+                const service = new MusicSessionSnapshotService()
+                const queues = [liveQueue('g1', true)]
+                service.startAutosave(() => queues, 30_000)
+
+                await jest.advanceTimersByTimeAsync(30_000)
+                await jest.advanceTimersByTimeAsync(30_000)
+                // Second tick found the first save in flight and skipped.
+                expect(mockUpsert).toHaveBeenCalledTimes(1)
+
+                release()
+                await jest.advanceTimersByTimeAsync(30_000)
+                expect(mockUpsert).toHaveBeenCalledTimes(2)
                 service.stopAutosave()
             } finally {
                 jest.useRealTimers()

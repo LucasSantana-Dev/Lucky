@@ -318,11 +318,15 @@ export class MusicSessionSnapshotService {
     }
 
     private autosaveTimer: ReturnType<typeof setInterval> | null = null
+    // A tick that finds the previous one still saving is skipped, so a slow
+    // older upsert can never land after a newer position.
+    private autosaveInFlight = false
 
     /**
-     * Re-saves every playing queue on an interval, so the stored position is
-     * at most one interval old when the process dies without a clean shutdown
-     * (#3151). The shutdown path saves once more on its own. Idempotent.
+     * Re-saves every playing or paused queue on an interval, so the stored
+     * position is at most one interval old when the process dies without a
+     * clean shutdown (#3151). The shutdown path saves once more on its own.
+     * Idempotent.
      */
     startAutosave(
         listQueues: () => Iterable<GuildQueue>,
@@ -344,10 +348,13 @@ export class MusicSessionSnapshotService {
     private async autosaveTick(
         listQueues: () => Iterable<GuildQueue>,
     ): Promise<void> {
-        let playing: GuildQueue[]
+        if (this.autosaveInFlight) return
+        let active: GuildQueue[]
         try {
-            playing = Array.from(listQueues()).filter(
-                (queue) => queue.currentTrack && queue.node.isPlaying(),
+            active = Array.from(listQueues()).filter(
+                (queue) =>
+                    queue.currentTrack &&
+                    (queue.node.isPlaying() || queue.node.isPaused()),
             )
         } catch (error) {
             errorLog({
@@ -356,8 +363,13 @@ export class MusicSessionSnapshotService {
             })
             return
         }
-        // saveSnapshot logs and swallows its own errors.
-        await Promise.all(playing.map((queue) => this.saveSnapshot(queue)))
+        this.autosaveInFlight = true
+        try {
+            // saveSnapshot logs and swallows its own errors.
+            await Promise.all(active.map((queue) => this.saveSnapshot(queue)))
+        } finally {
+            this.autosaveInFlight = false
+        }
     }
 
     /**
@@ -619,6 +631,8 @@ export class MusicSessionSnapshotService {
             // Seek only when the first track queued is the snapshot's current
             // one: if it failed to resolve, the next track starts from the top.
             let resumeSeekMs = 0
+            // Same condition: a track paused before the restart comes back paused.
+            let resumePaused = false
             // Tracks THIS restore added, so an abort can undo exactly those — never
             // tracks a user may have queued during the (racing) restore window.
             const restoredTracks: Track[] = []
@@ -688,6 +702,7 @@ export class MusicSessionSnapshotService {
                         currentPlan.restore
                     ) {
                         resumeSeekMs = currentPlan.seekMs
+                        resumePaused = entry.paused === true
                     }
                     restoredTracks.push(track as Track)
                     restoredCount += 1
@@ -705,6 +720,16 @@ export class MusicSessionSnapshotService {
                     sessionSnapshotId: null,
                     skippedYoutubeCount: 0,
                 }
+            }
+
+            if (
+                tracksToRestore.length === 0 &&
+                snapshot.currentTrack &&
+                !options.skipCurrentTrack
+            ) {
+                // The only track was dropped as over: consume the snapshot, or
+                // every later connection would read and drop it again.
+                await this.deleteSnapshot(queue.guild.id)
             }
 
             if (restoredCount > 0) {
@@ -732,6 +757,7 @@ export class MusicSessionSnapshotService {
                     } else {
                         await queue.node.play()
                     }
+                    if (resumePaused) queue.node.pause()
                 }
 
                 // Clear the snapshot now that playback has committed (or was
