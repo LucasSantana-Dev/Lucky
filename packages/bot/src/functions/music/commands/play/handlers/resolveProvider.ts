@@ -552,167 +552,193 @@ type ChainInput = {
     youtubeArm: boolean
 }
 
-async function resolveWithChain({
-    player,
-    voiceChannel,
-    query,
-    requestedProvider,
-    searchEngine,
-    playOptions,
-    onSearchResolved,
-    youtubeArm,
-}: ChainInput): Promise<Resolution> {
-    const startTime = Date.now()
-    const telemetry: ResolutionTelemetry = {
-        resolvedVia: 'primary',
-        latencyMs: 0,
-        requestedProvider,
-    }
-    const resolvedPlayOptions = {
-        ...playOptions,
-        afterSearch: rerankThenNotify(query, onSearchResolved),
-    }
+type ChainContext = ChainInput & {
+    startTime: number
+    telemetry: ResolutionTelemetry
+    resolvedPlayOptions: PlayerNodeInitializerOptions<unknown>
+    spotifyBlocked: boolean
+}
 
-    // While a Spotify 429 block is active the primary search can only fail,
-    // so go straight to the next arm without the retry or the warn (#2971).
-    // The block persisted by a previous process is loaded first (bounded
-    // wait), or the first /play after a restart would miss it.
-    if (searchEngine === QueryType.SPOTIFY_SEARCH) {
-        await awaitSpotifyBlockHydration()
+type PlayArm = {
+    via: ResolutionTelemetry['resolvedVia']
+    options?: Partial<PlayerNodeInitializerOptions<unknown>>
+}
+
+async function playViaArm(
+    ctx: ChainContext,
+    { via, options }: PlayArm,
+): Promise<Resolution> {
+    const result = await ctx.player.play(ctx.voiceChannel, ctx.query, {
+        ...ctx.resolvedPlayOptions,
+        ...options,
+    })
+    ctx.telemetry.latencyMs = Date.now() - ctx.startTime
+    ctx.telemetry.resolvedVia = via
+    return { result, telemetry: ctx.telemetry }
+}
+
+function failChain(ctx: ChainContext, error: unknown): never {
+    ctx.telemetry.latencyMs = Date.now() - ctx.startTime
+    ctx.telemetry.resolvedVia = 'failed'
+    ctx.telemetry.errorClass = (error as Error).constructor.name
+    throw error
+}
+
+/**
+ * While a Spotify 429 block is active the primary search can only fail,
+ * so the chain goes straight to the next arm without the retry or the warn
+ * (#2971). The block persisted by a previous process is loaded first
+ * (bounded wait), or the first /play after a restart would miss it.
+ */
+async function detectSpotifyBlock(
+    query: string,
+    searchEngine: QueryType,
+): Promise<boolean> {
+    if (searchEngine !== QueryType.SPOTIFY_SEARCH) return false
+    await awaitSpotifyBlockHydration()
+    if (!isSpotifyBlocked()) return false
+    infoLog({
+        message: 'Spotify blocked, skipping primary search',
+        data: { query, remainingSeconds: spotifyBlockRemainingSeconds() },
+    })
+    return true
+}
+
+/**
+ * Retry the primary provider once before conceding to YouTube. Scoped to
+ * Spotify: the swallowed-failure behavior this works around (see
+ * isNoResultError above) is specific to discord-player-spotify's
+ * client-credentials search(). An explicit YouTube/SoundCloud NoResultError
+ * is a real no-match from a provider with no such bug, so it falls straight
+ * through to the next fallback instead of paying a retry.
+ */
+async function retryPrimaryOnce(
+    ctx: ChainContext,
+    primaryError: unknown,
+): Promise<{ resolution?: Resolution; lastError: unknown }> {
+    if (
+        ctx.spotifyBlocked ||
+        ctx.searchEngine !== QueryType.SPOTIFY_SEARCH ||
+        !isNoResultError(primaryError)
+    ) {
+        return { lastError: primaryError }
     }
-    const spotifyBlocked =
-        searchEngine === QueryType.SPOTIFY_SEARCH && isSpotifyBlocked()
-    if (spotifyBlocked) {
-        infoLog({
-            message: 'Spotify blocked, skipping primary search',
-            data: {
-                query,
-                remainingSeconds: spotifyBlockRemainingSeconds(),
+    try {
+        return {
+            resolution: await playViaArm(ctx, { via: 'primary' }),
+            lastError: primaryError,
+        }
+    } catch (retryError) {
+        if (retryError instanceof AsmrBlockedError) throw retryError
+        return { lastError: retryError }
+    }
+}
+
+function warnPrimaryFailed(
+    ctx: ChainContext,
+    lastPrimaryError: unknown,
+    message: string,
+): void {
+    warnLog({
+        message,
+        data: {
+            query: ctx.query,
+            requestedProvider: ctx.requestedProvider,
+            searchEngine: String(ctx.searchEngine),
+            error: String(lastPrimaryError),
+        },
+    })
+}
+
+async function tryYoutubeArm(
+    ctx: ChainContext,
+    lastPrimaryError: unknown,
+): Promise<Resolution | undefined> {
+    if (!ctx.spotifyBlocked) {
+        warnPrimaryFailed(
+            ctx,
+            lastPrimaryError,
+            'Primary search failed, falling back to YouTube',
+        )
+    }
+    try {
+        // See TEXT_SEARCH_BLOCKED_EXTRACTORS for why these are excluded.
+        return await playViaArm(ctx, {
+            via: 'youtube-fallback',
+            options: {
+                searchEngine: QueryType.YOUTUBE_SEARCH,
+                blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
             },
         })
+    } catch (youtubeError) {
+        if (youtubeError instanceof AsmrBlockedError) throw youtubeError
+        warnLog({
+            message: 'YouTube search failed, falling back to SoundCloud',
+            data: { query: ctx.query, error: String(youtubeError) },
+        })
+        return undefined
+    }
+}
+
+async function resolveFallbackArms(
+    ctx: ChainContext,
+    primaryError: unknown,
+): Promise<Resolution> {
+    const { resolution, lastError } = await retryPrimaryOnce(ctx, primaryError)
+    if (resolution) return resolution
+
+    // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-
+    // positioning.md point 3): with no YouTube extractor registered,
+    // this arm would only pay for a guaranteed NoResultError, so skip
+    // straight to the SoundCloud fallback instead of attempting it.
+    if (ctx.youtubeArm) {
+        const youtube = await tryYoutubeArm(ctx, lastError)
+        if (youtube) return youtube
+    } else if (!ctx.spotifyBlocked) {
+        warnPrimaryFailed(
+            ctx,
+            lastError,
+            'Primary search failed, YouTube disabled, falling back to SoundCloud',
+        )
     }
 
     try {
-        if (spotifyBlocked) throw new Error('Spotify blocked')
-        // Attempt primary resolution
-        const result = await player.play(
-            voiceChannel,
-            query,
-            resolvedPlayOptions,
-        )
-        telemetry.latencyMs = Date.now() - startTime
-        telemetry.resolvedVia = 'primary'
-        return { result, telemetry }
+        // Same block reason as the YouTube arm.
+        return await playViaArm(ctx, {
+            via: 'soundcloud-fallback',
+            options: {
+                searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                blockExtractors: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
+            },
+        })
+    } catch (soundcloudError) {
+        // All fallbacks exhausted
+        return failChain(ctx, soundcloudError)
+    }
+}
+
+async function resolveWithChain(input: ChainInput): Promise<Resolution> {
+    const { query, requestedProvider, searchEngine, playOptions } = input
+    const ctx: ChainContext = {
+        ...input,
+        startTime: Date.now(),
+        telemetry: { resolvedVia: 'primary', latencyMs: 0, requestedProvider },
+        resolvedPlayOptions: {
+            ...playOptions,
+            afterSearch: rerankThenNotify(query, input.onSearchResolved),
+        },
+        spotifyBlocked: await detectSpotifyBlock(query, searchEngine),
+    }
+
+    try {
+        if (ctx.spotifyBlocked) throw new Error('Spotify blocked')
+        return await playViaArm(ctx, { via: 'primary' })
     } catch (primaryError) {
         // Another provider would only find the same ASMR.
         if (primaryError instanceof AsmrBlockedError) throw primaryError
-        if (searchEngine !== QueryType.AUTO) {
-            // Retry the primary provider once before conceding to YouTube.
-            // Scoped to Spotify: the swallowed-failure behavior this works
-            // around (see isNoResultError above) is specific to
-            // discord-player-spotify's client-credentials search(). An
-            // explicit YouTube/SoundCloud NoResultError is a real no-match
-            // from a provider with no such bug, so it should fall straight
-            // through to the next fallback instead of paying a retry.
-            let lastPrimaryError = primaryError
-            if (
-                !spotifyBlocked &&
-                searchEngine === QueryType.SPOTIFY_SEARCH &&
-                isNoResultError(primaryError)
-            ) {
-                try {
-                    const result = await player.play(
-                        voiceChannel,
-                        query,
-                        resolvedPlayOptions,
-                    )
-                    telemetry.latencyMs = Date.now() - startTime
-                    telemetry.resolvedVia = 'primary'
-                    return { result, telemetry }
-                } catch (retryError) {
-                    if (retryError instanceof AsmrBlockedError) throw retryError
-                    lastPrimaryError = retryError
-                }
-            }
-
-            // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-
-            // positioning.md point 3): with no YouTube extractor registered,
-            // this arm would only pay for a guaranteed NoResultError, so skip
-            // straight to the SoundCloud fallback instead of attempting it.
-            if (youtubeArm) {
-                if (!spotifyBlocked) {
-                    warnLog({
-                        message:
-                            'Primary search failed, falling back to YouTube',
-                        data: {
-                            query,
-                            requestedProvider,
-                            searchEngine: String(searchEngine),
-                            error: String(lastPrimaryError),
-                        },
-                    })
-                }
-
-                try {
-                    // Attempt YouTube fallback. See
-                    // TEXT_SEARCH_BLOCKED_EXTRACTORS for why these are excluded.
-                    const result = await player.play(voiceChannel, query, {
-                        ...resolvedPlayOptions,
-                        searchEngine: QueryType.YOUTUBE_SEARCH,
-                        blockExtractors: TEXT_SEARCH_BLOCKED_EXTRACTORS,
-                    })
-                    telemetry.latencyMs = Date.now() - startTime
-                    telemetry.resolvedVia = 'youtube-fallback'
-                    return { result, telemetry }
-                } catch (_youtubeError) {
-                    if (_youtubeError instanceof AsmrBlockedError) {
-                        throw _youtubeError
-                    }
-                    warnLog({
-                        message:
-                            'YouTube search failed, falling back to SoundCloud',
-                        data: { query, error: String(_youtubeError) },
-                    })
-                }
-            } else if (!spotifyBlocked) {
-                warnLog({
-                    message:
-                        'Primary search failed, YouTube disabled, falling back to SoundCloud',
-                    data: {
-                        query,
-                        requestedProvider,
-                        searchEngine: String(searchEngine),
-                        error: String(lastPrimaryError),
-                    },
-                })
-            }
-
-            try {
-                // Attempt SoundCloud fallback, same block reason as above
-                const result = await player.play(voiceChannel, query, {
-                    ...resolvedPlayOptions,
-                    searchEngine: QueryType.SOUNDCLOUD_SEARCH,
-                    blockExtractors: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
-                })
-                telemetry.latencyMs = Date.now() - startTime
-                telemetry.resolvedVia = 'soundcloud-fallback'
-                return { result, telemetry }
-            } catch (soundcloudError) {
-                // All fallbacks exhausted
-                telemetry.latencyMs = Date.now() - startTime
-                telemetry.resolvedVia = 'failed'
-                telemetry.errorClass = (
-                    soundcloudError as Error
-                ).constructor.name
-                throw soundcloudError
-            }
-        } else {
-            // No fallbacks available for AUTO
-            telemetry.latencyMs = Date.now() - startTime
-            telemetry.resolvedVia = 'failed'
-            telemetry.errorClass = (primaryError as Error).constructor.name
-            throw primaryError
-        }
+        // No fallbacks available for AUTO
+        if (searchEngine === QueryType.AUTO) return failChain(ctx, primaryError)
+        return resolveFallbackArms(ctx, primaryError)
     }
 }
 

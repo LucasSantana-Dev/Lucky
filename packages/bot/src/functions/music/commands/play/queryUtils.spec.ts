@@ -83,6 +83,8 @@ import {
     executePlayAtTop,
     expandSoundCloudShortUrl,
     resolveSearchEngine,
+    moveTrackToTop,
+    playWithFallbacks,
 } from './queryUtils'
 
 describe('host matching', () => {
@@ -744,5 +746,55 @@ describe('resolveSearchEngine', () => {
 
     it('searches plain text on Spotify by default', () => {
         expect(resolveSearchEngine('some song')).toBe('spotifySearch')
+    })
+})
+
+describe('moveTrackToTop', () => {
+    function makeQueue(trackCount: number) {
+        return {
+            tracks: { toArray: () => new Array(trackCount).fill({}) },
+            node: { remove: jest.fn(), skip: jest.fn() },
+            insertTrack: jest.fn(),
+        }
+    }
+    const track = { id: 't1' }
+
+    it('leaves an empty queue alone', () => {
+        const queue = makeQueue(0)
+        moveTrackToTop(queue as never, track as never, true)
+        expect(queue.node.remove).not.toHaveBeenCalled()
+        expect(queue.insertTrack).not.toHaveBeenCalled()
+        expect(queue.node.skip).not.toHaveBeenCalled()
+    })
+
+    it('moves the track to the head without skipping', () => {
+        const queue = makeQueue(2)
+        moveTrackToTop(queue as never, track as never, false)
+        expect(queue.node.remove).toHaveBeenCalledWith(track)
+        expect(queue.insertTrack).toHaveBeenCalledWith(track, 0)
+        expect(queue.node.skip).not.toHaveBeenCalled()
+    })
+
+    it('skips the current track when asked', () => {
+        const queue = makeQueue(1)
+        moveTrackToTop(queue as never, track as never, true)
+        expect(queue.node.skip).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe('playWithFallbacks', () => {
+    it('rethrows the primary error for AUTO without any fallback', async () => {
+        const boom = new Error('no result')
+        const play = jest.fn().mockRejectedValue(boom)
+        await expect(
+            playWithFallbacks({
+                client: { player: { play } } as never,
+                voiceChannel: {} as never,
+                query: 'q',
+                searchEngine: 'auto' as never,
+                afterSearch: jest.fn(),
+            }),
+        ).rejects.toBe(boom)
+        expect(play).toHaveBeenCalledTimes(1)
     })
 })
