@@ -431,8 +431,9 @@ describe('Music State Routes', () => {
                     },
                     (res) => {
                         expect(res.statusCode).toBe(200)
-                        // Simulate writableEnded by ending response early
-                        ;(res as unknown as import('http').ServerResponse).end()
+                        // Drop the connection from the client side; the server
+                        // must not throw on a later heartbeat.
+                        res.destroy()
                     },
                 )
 
