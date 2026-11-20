@@ -502,47 +502,48 @@ const handlePlayerSkip = async (
             await scrobbleCurrentTrackIfLastFm(queue, track, played)
         }
 
-        if (track) {
-            if (isRecommendationAutoplay(track)) {
-                logAutoplayOutcomeEval('skip', queue, track, startTime)
-            }
-            if (startTime && track.durationMS) {
-                const skipRatio = (Date.now() - startTime) / track.durationMS
-                // Implicit-dislike noise filter: only for tracks long enough that
-                // an early-skip ratio is meaningful (>20s).
-                if (
-                    track.durationMS > 20_000 &&
-                    skipRatio < OUTCOME_ACCEPT_PLAY_RATIO
-                ) {
-                    await recordImplicitTrackFeedback(track, 'implicit_dislike')
-                    const current =
-                        guildRecentSkipCounts.get(queue.guild.id) ?? 0
-                    guildRecentSkipCounts.set(queue.guild.id, current + 1)
-                }
-                // Record the autoplay recommendation outcome on skip — duration-
-                // agnostic, consistent with the playerFinish path: a skip before
-                // 30% played is a rejection (mirror of the accept threshold).
-                // Skips after 30% are ambiguous (a meaningful chunk was heard)
-                // and left unrecorded. Previously only sub-5s skips counted, so
-                // the common "heard ~15s, wrong, skip" rejection was lost (#1275).
-                if (
-                    isRecommendationAutoplay(track) &&
-                    skipRatio < OUTCOME_ACCEPT_PLAY_RATIO
-                ) {
-                    await recordRecommendationOutcome({
-                        guildId: queue.guild.id,
-                        trackId: track.id,
-                        outcome: 'rejected',
-                    })
-                }
-            }
-        }
+        if (track) await recordSkipOutcome(queue, track, startTime)
 
         await handleQueueExhaustion(queue, (q, t) =>
             replenishIfAutoplay(q, t ?? track),
         )
     } catch (error) {
         errorLog({ message: 'Error in playerSkip event:', error })
+    }
+}
+
+async function recordSkipOutcome(
+    queue: GuildQueue,
+    track: Track,
+    startTime: number | undefined,
+): Promise<void> {
+    if (isRecommendationAutoplay(track)) {
+        logAutoplayOutcomeEval('skip', queue, track, startTime)
+    }
+    if (!startTime || !track.durationMS) return
+    const skipRatio = (Date.now() - startTime) / track.durationMS
+    // Implicit-dislike noise filter: only for tracks long enough that
+    // an early-skip ratio is meaningful (>20s).
+    if (track.durationMS > 20_000 && skipRatio < OUTCOME_ACCEPT_PLAY_RATIO) {
+        await recordImplicitTrackFeedback(track, 'implicit_dislike')
+        const current = guildRecentSkipCounts.get(queue.guild.id) ?? 0
+        guildRecentSkipCounts.set(queue.guild.id, current + 1)
+    }
+    // Record the autoplay recommendation outcome on skip, duration-agnostic,
+    // consistent with the playerFinish path: a skip before 30% played is a
+    // rejection (mirror of the accept threshold). Skips after 30% are
+    // ambiguous (a meaningful chunk was heard) and left unrecorded.
+    // Previously only sub-5s skips counted, so the common "heard ~15s, wrong,
+    // skip" rejection was lost (#1275).
+    if (
+        isRecommendationAutoplay(track) &&
+        skipRatio < OUTCOME_ACCEPT_PLAY_RATIO
+    ) {
+        await recordRecommendationOutcome({
+            guildId: queue.guild.id,
+            trackId: track.id,
+            outcome: 'rejected',
+        })
     }
 }
 
