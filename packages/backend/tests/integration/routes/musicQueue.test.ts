@@ -7,6 +7,7 @@ import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -21,8 +22,8 @@ jest.mock('../../../src/services/GuildAccessService', () => ({
     },
 }))
 
-const mockSendCommand = jest.fn<any>()
-const mockGetState = jest.fn<any>()
+const mockSendCommand = jest.fn<AsyncMockFn>()
+const mockGetState = jest.fn<AsyncMockFn>()
 
 jest.mock('@lucky/shared/services', () => ({
     musicControlService: {

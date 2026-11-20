@@ -27,7 +27,7 @@ describe('Service Guild Routes Integration', () => {
         setupServiceGuildRoutes(app)
         app.use(errorHandler)
 
-        global.fetch = jest.fn()
+        global.fetch = jest.fn<typeof fetch>()
     })
 
     afterEach(() => {

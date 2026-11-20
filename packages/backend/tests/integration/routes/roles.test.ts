@@ -9,6 +9,7 @@ import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { requireAuth } from '../../../src/middleware/auth'
 import { requireGuildModuleAccess } from '../../../src/middleware/guildAccess'
 import { MOCK_SESSION_DATA } from '../../fixtures/mock-data'
+import { type AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -23,10 +24,10 @@ jest.mock('../../../src/services/GuildAccessService', () => ({
     },
 }))
 
-const mockListReactionRoles = jest.fn<any>()
-const mockListExclusiveRoles = jest.fn<any>()
-const mockCreateReactionRole = jest.fn<any>()
-const mockDeleteReactionRole = jest.fn<any>()
+const mockListReactionRoles = jest.fn<AsyncMockFn>()
+const mockListExclusiveRoles = jest.fn<AsyncMockFn>()
+const mockCreateReactionRole = jest.fn<AsyncMockFn>()
+const mockDeleteReactionRole = jest.fn<AsyncMockFn>()
 
 jest.mock('@lucky/shared/services', () => ({
     reactionRolesService: {
@@ -42,13 +43,13 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
-const mockGetFullGuildRoles = jest.fn<any>()
-const mockCreateGuildRole = jest.fn<any>()
-const mockUpdateGuildRole = jest.fn<any>()
-const mockDeleteGuildRole = jest.fn<any>()
-const mockHasBotInGuild = jest.fn<any>()
-const mockGetGuildMemberContext = jest.fn<any>()
-const mockGetBotHighestRolePosition = jest.fn<any>()
+const mockGetFullGuildRoles = jest.fn<AsyncMockFn>()
+const mockCreateGuildRole = jest.fn<AsyncMockFn>()
+const mockUpdateGuildRole = jest.fn<AsyncMockFn>()
+const mockDeleteGuildRole = jest.fn<AsyncMockFn>()
+const mockHasBotInGuild = jest.fn<AsyncMockFn>()
+const mockGetGuildMemberContext = jest.fn<AsyncMockFn>()
+const mockGetBotHighestRolePosition = jest.fn<AsyncMockFn>()
 
 jest.mock('../../../src/services/GuildService', () => ({
     guildService: {
@@ -606,7 +607,7 @@ describe('Roles Routes', () => {
             const fakeImageBuffer = Buffer.from('updated-png-data')
             process.env.DISCORD_TOKEN = 'test-token'
 
-            const mockUpdateReactionRole = jest.fn()
+            const mockUpdateReactionRole = jest.fn<AsyncMockFn>()
             ;(
                 jest.mocked(
                     require('@lucky/shared/services').reactionRolesService,
@@ -660,7 +661,7 @@ describe('Roles Routes', () => {
                     require('@lucky/shared/services').reactionRolesService,
                 ) as any
             ).updateReactionRoleMessage = jest
-                .fn()
+                .fn<AsyncMockFn>()
                 .mockRejectedValue(new Error(message))
         }
 
@@ -730,7 +731,7 @@ describe('Roles Routes', () => {
             ;(
                 require('@lucky/shared/services').reactionRolesService as any
             ).updateReactionRoleMessage = jest
-                .fn<any>()
+                .fn<AsyncMockFn>()
                 .mockResolvedValue({ messageId: MESSAGE_ID })
             mockGetFullGuildRoles.mockResolvedValue([
                 fullRole(LOW_ROLE, 2),
@@ -797,7 +798,7 @@ describe('Roles Routes', () => {
                     mappings: [{ roleId: HIGH_ROLE }],
                 },
             ])
-            const updateMock = jest.fn<any>().mockResolvedValue({
+            const updateMock = jest.fn<AsyncMockFn>().mockResolvedValue({
                 messageId: MESSAGE_ID,
             })
             ;(

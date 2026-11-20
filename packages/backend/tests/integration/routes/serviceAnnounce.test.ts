@@ -28,7 +28,7 @@ describe('Service Announce Routes Integration', () => {
         setupServiceAnnounceRoutes(app)
         app.use(errorHandler)
 
-        global.fetch = jest.fn()
+        global.fetch = jest.fn<typeof fetch>()
     })
 
     afterEach(() => {

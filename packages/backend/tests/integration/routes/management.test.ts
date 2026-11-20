@@ -1,3 +1,4 @@
+import { partial } from '../../fixtures/mock-types'
 import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
@@ -112,7 +113,9 @@ describe('Management Routes Integration', () => {
             const mockAutoModService = autoModService as jest.Mocked<
                 typeof autoModService
             >
-            mockAutoModService.getSettings.mockResolvedValue(mockSettings)
+            mockAutoModService.getSettings.mockResolvedValue(
+                partial(mockSettings),
+            )
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/automod/settings')
@@ -188,12 +191,16 @@ describe('Management Routes Integration', () => {
             const mockAutoModService = autoModService as jest.Mocked<
                 typeof autoModService
             >
-            mockAutoModService.updateSettings.mockResolvedValue(updatedSettings)
+            mockAutoModService.updateSettings.mockResolvedValue(
+                partial(updatedSettings),
+            )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logAutoModSettingsChange.mockResolvedValue()
+            mockServerLogService.logAutoModSettingsChange.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .patch('/api/guilds/111111111111111111/automod/settings')
@@ -261,7 +268,9 @@ describe('Management Routes Integration', () => {
             const mockAutoModService = autoModService as jest.Mocked<
                 typeof autoModService
             >
-            mockAutoModService.listTemplates.mockResolvedValue(mockTemplates)
+            mockAutoModService.listTemplates.mockResolvedValue(
+                partial(mockTemplates),
+            )
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/automod/templates')
@@ -284,14 +293,16 @@ describe('Management Routes Integration', () => {
                 typeof autoModService
             >
             mockAutoModService.applyTemplate.mockResolvedValue({
-                template: { id: 'template-1' },
-                settings: { enabled: true },
+                template: partial({ id: 'template-1' }),
+                settings: partial({ enabled: true }),
             })
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logAutoModSettingsChange.mockResolvedValue()
+            mockServerLogService.logAutoModSettingsChange.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .post(
@@ -348,7 +359,9 @@ describe('Management Routes Integration', () => {
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.getRecentLogs.mockResolvedValue(mockLogs)
+            mockServerLogService.getRecentLogs.mockResolvedValue(
+                partial(mockLogs),
+            )
             mockServerLogService.countRecentLogs.mockResolvedValue(10)
 
             const response = await request(app)
@@ -374,7 +387,9 @@ describe('Management Routes Integration', () => {
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.getLogsByType.mockResolvedValue(mockLogs)
+            mockServerLogService.getLogsByType.mockResolvedValue(
+                partial(mockLogs),
+            )
             mockServerLogService.countLogsByType.mockResolvedValue(5)
 
             const response = await request(app)
@@ -385,7 +400,7 @@ describe('Management Routes Integration', () => {
             expect(response.body).toEqual({ logs: mockLogs, total: 5 })
             expect(mockServerLogService.getLogsByType).toHaveBeenCalledWith(
                 '111111111111111111',
-                'error',
+                'error' as never,
                 50,
             )
         })
@@ -418,7 +433,7 @@ describe('Management Routes Integration', () => {
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.searchLogs.mockResolvedValue(mockLogs)
+            mockServerLogService.searchLogs.mockResolvedValue(partial(mockLogs))
             mockServerLogService.countSearchLogs.mockResolvedValue(1)
 
             const response = await request(app)
@@ -549,7 +564,9 @@ describe('Management Routes Integration', () => {
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.getUserLogs.mockResolvedValue(mockLogs)
+            mockServerLogService.getUserLogs.mockResolvedValue(
+                partial(mockLogs),
+            )
 
             const response = await request(app)
                 .get(
@@ -596,7 +613,7 @@ describe('Management Routes Integration', () => {
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.getStats.mockResolvedValue(mockStats)
+            mockServerLogService.getStats.mockResolvedValue(partial(mockStats))
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/logs/stats')
@@ -645,7 +662,7 @@ describe('Management Routes Integration', () => {
         })
 
         test('PUT returns the state recomputed after the write', async () => {
-            mockToggles.setGuildFeatureToggle.mockResolvedValue()
+            mockToggles.setGuildFeatureToggle.mockResolvedValue(undefined)
             // Opt-in is stored, but a global kill switch keeps it off.
             mockToggles.isEnabled.mockResolvedValueOnce(false)
 

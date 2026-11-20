@@ -1,3 +1,4 @@
+import { partial } from '../../fixtures/mock-types'
 import { errorHandler } from '../../../src/middleware/errorHandler'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
@@ -77,7 +78,9 @@ describe('Embed Management Routes Integration', () => {
             const mockEmbedService = embedBuilderService as jest.Mocked<
                 typeof embedBuilderService
             >
-            mockEmbedService.listTemplates.mockResolvedValue(mockTemplates)
+            mockEmbedService.listTemplates.mockResolvedValue(
+                partial(mockTemplates),
+            )
 
             const response = await request(app)
                 .get('/api/guilds/111111111111111111/embeds')
@@ -150,13 +153,19 @@ describe('Embed Management Routes Integration', () => {
             const mockEmbedService = embedBuilderService as jest.Mocked<
                 typeof embedBuilderService
             >
-            mockEmbedService.validateEmbedData.mockReturnValue({ valid: true })
-            mockEmbedService.createTemplate.mockResolvedValue(responseBody)
+            mockEmbedService.validateEmbedData.mockReturnValue(
+                partial({ valid: true }),
+            )
+            mockEmbedService.createTemplate.mockResolvedValue(
+                partial(responseBody),
+            )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logEmbedTemplateChange.mockResolvedValue()
+            mockServerLogService.logEmbedTemplateChange.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .post('/api/guilds/111111111111111111/embeds')
@@ -187,13 +196,15 @@ describe('Embed Management Routes Integration', () => {
             const mockEmbedService = embedBuilderService as jest.Mocked<
                 typeof embedBuilderService
             >
-            mockEmbedService.validateEmbedData.mockReturnValue({ valid: true })
+            mockEmbedService.validateEmbedData.mockReturnValue(
+                partial({ valid: true }),
+            )
             mockEmbedService.createTemplate.mockRejectedValue(
                 Object.assign(new Error('Unique constraint failed'), {
                     code: 'P2002',
                 }),
             )
-            mockEmbedService.getTemplate.mockResolvedValue(existing)
+            mockEmbedService.getTemplate.mockResolvedValue(partial(existing))
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
@@ -280,11 +291,15 @@ describe('Embed Management Routes Integration', () => {
             const mockEmbedService = embedBuilderService as jest.Mocked<
                 typeof embedBuilderService
             >
-            mockEmbedService.validateEmbedData.mockReturnValue({ valid: true })
-            mockEmbedService.createTemplate.mockResolvedValue({
-                name: 'welcome',
-                ...requestBody.embedData,
-            })
+            mockEmbedService.validateEmbedData.mockReturnValue(
+                partial({ valid: true }),
+            )
+            mockEmbedService.createTemplate.mockResolvedValue(
+                partial({
+                    name: 'welcome',
+                    ...requestBody.embedData,
+                }),
+            )
 
             const response = await request(app)
                 .post('/api/guilds/111111111111111111/embeds')
@@ -327,13 +342,19 @@ describe('Embed Management Routes Integration', () => {
             const mockEmbedService = embedBuilderService as jest.Mocked<
                 typeof embedBuilderService
             >
-            mockEmbedService.validateEmbedData.mockReturnValue({ valid: true })
-            mockEmbedService.updateTemplate.mockResolvedValue(responseBody)
+            mockEmbedService.validateEmbedData.mockReturnValue(
+                partial({ valid: true }),
+            )
+            mockEmbedService.updateTemplate.mockResolvedValue(
+                partial(responseBody),
+            )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logEmbedTemplateChange.mockResolvedValue()
+            mockServerLogService.logEmbedTemplateChange.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .patch('/api/guilds/111111111111111111/embeds/welcome')
@@ -376,15 +397,19 @@ describe('Embed Management Routes Integration', () => {
             const mockEmbedService = embedBuilderService as jest.Mocked<
                 typeof embedBuilderService
             >
-            mockEmbedService.updateTemplate.mockResolvedValue({
-                name: 'welcome',
-                ...requestBody,
-            })
+            mockEmbedService.updateTemplate.mockResolvedValue(
+                partial({
+                    name: 'welcome',
+                    ...requestBody,
+                }),
+            )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logEmbedTemplateChange.mockResolvedValue()
+            mockServerLogService.logEmbedTemplateChange.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .patch('/api/guilds/111111111111111111/embeds/welcome')
@@ -415,10 +440,12 @@ describe('Embed Management Routes Integration', () => {
             const mockEmbedService = embedBuilderService as jest.Mocked<
                 typeof embedBuilderService
             >
-            mockEmbedService.updateTemplate.mockResolvedValue({
-                name: 'welcome',
-                ...requestBody,
-            })
+            mockEmbedService.updateTemplate.mockResolvedValue(
+                partial({
+                    name: 'welcome',
+                    ...requestBody,
+                }),
+            )
 
             const response = await request(app)
                 .patch('/api/guilds/111111111111111111/embeds/welcome')
@@ -430,7 +457,7 @@ describe('Embed Management Routes Integration', () => {
             expect(mockEmbedService.updateTemplate).toHaveBeenCalledWith(
                 '111111111111111111',
                 'welcome',
-                requestBody,
+                partial(requestBody),
             )
         })
 
@@ -446,10 +473,12 @@ describe('Embed Management Routes Integration', () => {
             const mockEmbedService = embedBuilderService as jest.Mocked<
                 typeof embedBuilderService
             >
-            mockEmbedService.updateTemplate.mockResolvedValue({
-                name: 'welcome',
-                ...requestBody,
-            })
+            mockEmbedService.updateTemplate.mockResolvedValue(
+                partial({
+                    name: 'welcome',
+                    ...requestBody,
+                }),
+            )
 
             const response = await request(app)
                 .patch('/api/guilds/111111111111111111/embeds/welcome')
@@ -502,14 +531,18 @@ describe('Embed Management Routes Integration', () => {
             const mockEmbedService = embedBuilderService as jest.Mocked<
                 typeof embedBuilderService
             >
-            mockEmbedService.deleteTemplate.mockResolvedValue({
-                success: true,
-            })
+            mockEmbedService.deleteTemplate.mockResolvedValue(
+                partial({
+                    success: true,
+                }),
+            )
 
             const mockServerLogService = serverLogService as jest.Mocked<
                 typeof serverLogService
             >
-            mockServerLogService.logEmbedTemplateChange.mockResolvedValue()
+            mockServerLogService.logEmbedTemplateChange.mockResolvedValue(
+                partial(undefined),
+            )
 
             const response = await request(app)
                 .delete('/api/guilds/111111111111111111/embeds/welcome')

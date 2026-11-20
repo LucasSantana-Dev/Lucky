@@ -3,12 +3,15 @@ import request from 'supertest'
 import express from 'express'
 import { setupStatsRoutes } from '../../../src/routes/stats'
 import { redisClient } from '@lucky/shared/services'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 const mockRedis = redisClient as jest.Mocked<typeof redisClient>
 
 // Mock the getPrismaClient function before importing setupStatsRoutes
 jest.mock('@lucky/shared/utils', () => {
-    const actualUtils = jest.requireActual('@lucky/shared/utils')
+    const actualUtils = jest.requireActual<Record<string, unknown>>(
+        '@lucky/shared/utils',
+    )
     return {
         ...actualUtils,
         getPrismaClient: jest.fn(() => ({
@@ -27,7 +30,7 @@ describe('Stats Routes Integration', () => {
 
         // Get the mocked getPrismaClient
         const utils = require('@lucky/shared/utils')
-        getPrismaClientMock = utils.getPrismaClient as jest.Mock
+        getPrismaClientMock = jest.mocked(utils.getPrismaClient)
 
         app = express()
         setupStatsRoutes(app)
@@ -36,8 +39,8 @@ describe('Stats Routes Integration', () => {
     describe('GET /api/stats/public', () => {
         test('should return stats with valid schema', async () => {
             const mockDb = {
-                guild: { count: jest.fn().mockResolvedValue(100) },
-                user: { count: jest.fn().mockResolvedValue(0) },
+                guild: { count: jest.fn<AsyncMockFn>().mockResolvedValue(100) },
+                user: { count: jest.fn<AsyncMockFn>().mockResolvedValue(0) },
             }
             getPrismaClientMock.mockReturnValue(mockDb)
             mockRedis.isHealthy.mockReturnValue(true)
@@ -62,8 +65,8 @@ describe('Stats Routes Integration', () => {
 
         test('should handle redis unhealthy', async () => {
             const mockDb = {
-                guild: { count: jest.fn().mockResolvedValue(50) },
-                user: { count: jest.fn().mockResolvedValue(0) },
+                guild: { count: jest.fn<AsyncMockFn>().mockResolvedValue(50) },
+                user: { count: jest.fn<AsyncMockFn>().mockResolvedValue(0) },
             }
             getPrismaClientMock.mockReturnValue(mockDb)
             mockRedis.isHealthy.mockReturnValue(false)
@@ -81,8 +84,8 @@ describe('Stats Routes Integration', () => {
 
         test('should return correct cache headers', async () => {
             const mockDb = {
-                guild: { count: jest.fn().mockResolvedValue(10) },
-                user: { count: jest.fn().mockResolvedValue(100) },
+                guild: { count: jest.fn<AsyncMockFn>().mockResolvedValue(10) },
+                user: { count: jest.fn<AsyncMockFn>().mockResolvedValue(100) },
             }
             getPrismaClientMock.mockReturnValue(mockDb)
             mockRedis.isHealthy.mockReturnValue(true)
