@@ -45,13 +45,13 @@ const createEmbedBody = z.object({
 // EmbedBuilderService.updateTemplate persists directly (no `embedData`
 // wrapper). See #2407. `author`/`url` are omitted: EmbedTemplate has no
 // columns for them (kept in embedDataSchema only for #2444) and letting
-// them through here 500s on the Prisma update. `description` is inherited
-// from embedDataSchema (max 4096, matching createEmbedBody's embedData.description
-// and the DB column) rather than redeclared - a stricter override here would
-// reject edits to a template whose description create had already accepted.
-// thumbnail/image/footer are widened to nullable here only: null explicitly
-// clears an existing value on PATCH, which only makes sense once a template
-// exists - createEmbedBody keeps them non-nullable (#2445 review).
+// them through here 500s on the Prisma update. `description` keeps the same
+// max (4096, matching createEmbedBody's embedData.description and the DB
+// column) so edits to a template create had already accepted are not rejected.
+// title/description/color/thumbnail/image/footer are widened to nullable here
+// only: null explicitly clears an existing value on PATCH, which only makes
+// sense once a template exists - createEmbedBody keeps them non-nullable
+// (#2445 review, #2645).
 const updateEmbedBody = embedDataSchema
     .omit({ author: true, url: true })
     .extend({
