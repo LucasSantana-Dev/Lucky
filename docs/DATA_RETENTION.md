@@ -18,8 +18,8 @@ runs once at startup and then once a day. It calls
 | `user_feedback`                       | 180 days               |
 | `command_events`, `activation_events` | 180 days               |
 
-Other guild data (settings, moderation cases, XP, birthdays, starboard
-entries, ...) is kept while the bot is in the server.
+Other guild data (settings, moderation cases, XP, birthdays, reminders,
+...) is kept while the bot is in the server.
 
 ## Departed-guild purge (#2377)
 
@@ -47,8 +47,8 @@ over the same servers deletes nothing.
 - **Server owners**: remove Lucky from the server. With the purge enabled, the
   server's data is deleted once the grace period has passed. To ask for it
   sooner, contact the maintainers (below).
-- **Individual members** (XP, birthdays, AFK status, music preferences, logged
-  messages, ...): contact the maintainers with your Discord user id and the
+- **Individual members** (XP, birthdays, AFK status, music preferences, server
+  log entries about you, ...): contact the maintainers with your Discord user id and the
   server it concerns.
 - **Contact**: the support server
   (`SUPPORT_SERVER_INVITE_URL` in `packages/shared/src/constants/support.ts`)
