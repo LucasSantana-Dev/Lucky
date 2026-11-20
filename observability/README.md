@@ -246,7 +246,8 @@ ingested).
 Alloy never mounts the Docker socket. Access to the socket is root on the host
 whatever the mount flags (`:ro` protects the socket file, not the API), so the
 only holder is `docker-socket-proxy` (`tecnativa/docker-socket-proxy:0.3.0`,
-64m, on `lucky-network` only), which answers GET on `/containers` (list,
+64m, alone with Alloy on the internal `lucky-docker-api` network, so no app
+service can read container env through it), which answers GET on `/containers` (list,
 inspect, logs) and `/networks` (discovery labels) and refuses every POST,
 exec, image and volume call.
 Alloy talks to it over `tcp://lucky-docker-socket-proxy:2375`.

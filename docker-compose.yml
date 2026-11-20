@@ -524,7 +524,9 @@ services:
     # the API). This proxy is the only holder and answers GET on /containers
     # (list, inspect, logs) and /networks (discovery labels) plus /_ping,
     # /version and /events; every POST, exec, image or volume call is
-    # refused. Reachable only on lucky-network, no host port.
+    # refused. Even GET /containers/{id}/json exposes every container's env
+    # (secrets), so the proxy sits alone with alloy on the internal
+    # `lucky-docker-api` network: no app service can reach it. No host port.
     docker-socket-proxy:
         <<: *small-svc
         mem_limit: 64m
@@ -537,7 +539,7 @@ services:
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock:ro
         networks:
-            - lucky-network
+            - lucky-docker-api
         profiles:
             - observability
         logging:
@@ -566,7 +568,10 @@ services:
             # Read positions, so a restart does not resend or skip lines.
             - alloy_data:/var/lib/alloy/data
         networks:
+            # lucky-network to push to lucky-loki; lucky-docker-api to reach
+            # the socket proxy (only alloy and the proxy join it).
             - lucky-network
+            - lucky-docker-api
         profiles:
             - observability
         logging:
@@ -730,3 +735,8 @@ networks:
     lucky-db-ro:
         name: lucky-db-ro
         driver: bridge
+    # Only docker-socket-proxy and alloy. internal: no route outside the host.
+    lucky-docker-api:
+        name: lucky-docker-api
+        driver: bridge
+        internal: true
