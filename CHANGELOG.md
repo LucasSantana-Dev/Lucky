@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.73.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.73.0...v2.73.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **bot:** block attachment extractor on playtop youtube arm ([#3232](https://github.com/LucasSantana-Dev/Lucky/issues/3232)) ([f93b614](https://github.com/LucasSantana-Dev/Lucky/commit/f93b614d6496b5eae2bac15866fc57fb63afa71f))
+
 ## [2.73.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.72.0...v2.73.0) (2026-11-20)
 
 
