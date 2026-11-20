@@ -1,3 +1,4 @@
+import { errorLog, warnLog } from '@lucky/shared/utils'
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { isExtractorDegraded } from '../../../../../handlers/player/extractorHealth'
 import {
@@ -74,4 +75,39 @@ export function classifyPlayFailure(error: unknown): ClassifiedOutcome {
     return isNoResults || error instanceof AsmrBlockedError
         ? { ...classified, outcome: 'user_error' }
         : classified
+}
+
+/**
+ * "Nothing found" is the user's query, not a bot fault: log it as a warning
+ * and leave the query text out (it would become the Sentry issue title and
+ * split every distinct search into its own group). Anything else is an error.
+ */
+export function logPlayFailure(
+    message: string,
+    error: unknown,
+    data: { query?: string; guildId: string | null },
+): void {
+    // A no-results failure on a link only YouTube could serve while the
+    // extractor is degraded is an outage, not the user's query: keep it on
+    // the error path so Sentry and the error-rate alert still see it.
+    const degradedYoutubeOutage =
+        error instanceof Error &&
+        !(error instanceof AsmrBlockedError) &&
+        data.query !== undefined &&
+        detectQueryType(data.query) === 'youtube' &&
+        isExtractorDegraded('youtube')
+    if (
+        !degradedYoutubeOutage &&
+        classifyPlayFailure(error).outcome === 'user_error'
+    ) {
+        warnLog({
+            message:
+                error instanceof AsmrBlockedError
+                    ? `${message} ASMR blocked (expected)`
+                    : `${message} no results (expected)`,
+            data: { guildId: data.guildId },
+        })
+        return
+    }
+    errorLog({ message, error, data })
 }

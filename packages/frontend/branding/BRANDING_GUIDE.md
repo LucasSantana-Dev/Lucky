@@ -89,7 +89,7 @@ The Discord profile banner keeps its left quarter empty, where Discord draws the
 **Single accent** (resolved 2026-10-01, see `decisions/2026-10-01-blurple-focus-only.md`, which supersedes the 2026-04-21 dual accent):
 
 - **Accent** (CTAs, active nav, live pings, highlights, gradient accents): Neon Pink `#ec4899`; filled buttons use `#db2777`, hover `#be185d`.
-- **Focus rings only**: Discord Blurple `#5865f2`, via the `--color-lucky-focus` token (`ring-lucky-focus`).
+- **Focus rings only**: Discord-style blurple `#7480f7`, via the `--color-lucky-focus` token (`ring-lucky-focus`).
 
 Removed gold family (`#d4a017`, etc.) and old purple (`#8b5cf6`, etc.) from the UI palette. The brand assets use their own palette (see **Brand Identity** above).
 
@@ -97,7 +97,7 @@ Removed gold family (`#d4a017`, etc.) and old purple (`#8b5cf6`, etc.) from the 
 | ------------------------ | -------------------------------------- |
 | Accent                   | `#ec4899` (neon pink)                  |
 | CTA fill / hover         | `#db2777` / `#be185d`                  |
-| Focus ring               | `#5865f2` (blurple, focus only)        |
+| Focus ring               | `#7480f7` (blurple, focus only)        |
 | Landing gradient end     | `#fb923c` (neon orange — landing only) |
 | Success                  | `#23a55a`                              |
 | Error                    | `#f23f42`                              |

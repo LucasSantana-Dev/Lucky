@@ -67,7 +67,7 @@ jobs:
                   }
                   # Compare everything except the version bump release-please owns.
                   pkg='del(.version)'
-                  lock='.packages[""] | del(.version)'
+                  lock='del(.version) | del(.packages[""].version)'
                   stale=0
                   for spec in "package.json:$pkg" "package-lock.json:$lock"; do
                     file=${spec%%:*}

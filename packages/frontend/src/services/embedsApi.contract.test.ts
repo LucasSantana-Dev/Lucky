@@ -72,6 +72,24 @@ describe('embed builder frontend/backend contract', () => {
         )
     })
 
+    test('blanked title, description, color and fields send explicit clearing values the update schema accepts', () => {
+        const payload = buildUpdateEmbedInput({
+            ...fullForm,
+            title: '',
+            description: '',
+            color: '',
+            fields: [],
+        })
+
+        expect(payload.title).toBeNull()
+        expect(payload.description).toBeNull()
+        expect(payload.color).toBeNull()
+        expect(payload.fields).toEqual([])
+        expect(embedSchemas.updateEmbedBody.safeParse(payload).success).toBe(
+            true,
+        )
+    })
+
     test('the create schema parses back to exactly the payload the form sends, nested fields included', () => {
         const payload = buildCreateEmbedInput(fullForm)
 

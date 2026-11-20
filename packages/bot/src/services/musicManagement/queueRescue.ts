@@ -1,6 +1,7 @@
 import { QueryType, type Track, type GuildQueue } from 'discord-player'
 import { errorLog, debugLog } from '@lucky/shared/utils'
 import { replenishQueue } from '../../services/musicRecommendation/autoplay/replenisher'
+import { getAllHistoryTracks } from '../../utils/music/historyTracks'
 
 const HISTORY_SEED_LIMIT = 3
 const QUEUE_RESCUE_PROBE_TIMEOUT_MS = Number.parseInt(
@@ -120,17 +121,6 @@ export async function rescueQueue(
             addedTracks: 0,
         }
     }
-}
-
-function getAllHistoryTracks(queue: GuildQueue): Track[] {
-    const history = queue.history as
-        { tracks?: { toArray?: () => Track[]; data?: Track[] } } | undefined
-
-    if (!history?.tracks) return []
-    if (typeof history.tracks.toArray === 'function')
-        return history.tracks.toArray()
-    if (Array.isArray(history.tracks.data)) return history.tracks.data
-    return []
 }
 
 export function getHistoryTracks(queue: GuildQueue): Track[] {

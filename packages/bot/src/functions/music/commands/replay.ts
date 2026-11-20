@@ -12,6 +12,7 @@ import {
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { createSuccessEmbed } from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
+import { acknowledgeAndTranslate } from '../../../i18n/acknowledgeAndTranslate'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -47,9 +48,10 @@ export default new Command({
             return
         }
 
+        const t = await acknowledgeAndTranslate(interaction)
         const trackEmbed = buildCommandTrackEmbed(
             currentTrack,
-            '🔄 Replayed',
+            t('music.messages.statusReplayed'),
             interaction.user,
             'replayed',
         )

@@ -1,4 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+
+jest.mock('../../../i18n/acknowledgeAndTranslate', () => ({
+    acknowledgeAndTranslate: jest.fn(async () =>
+        jest
+            .requireActual<typeof import('../../../i18n')>('../../../i18n')
+            .translatorFor('en'),
+    ),
+}))
 import replayCommand from './replay'
 
 const requireVoiceChannelMock = jest.fn()

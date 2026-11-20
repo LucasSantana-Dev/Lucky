@@ -624,8 +624,11 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         const promise = streamViaYtDlp(validUrl, timeoutMs)
         let settled = false
         promise.catch(() => undefined).finally(() => (settled = true))
-        await new Promise((resolve) => setImmediate(resolve))
-        await new Promise((resolve) => setImmediate(resolve))
+        // Wait for the retry spawn itself rather than a fixed number of
+        // ticks: under parallel jest load the async chain needs more turns.
+        for (let i = 0; i < 1_000 && mockSpawn.mock.calls.length < 2; i++) {
+            await new Promise((resolve) => setImmediate(resolve))
+        }
         expect(mockSpawn).toHaveBeenCalledTimes(2)
         return { promise, cookiesProc, isSettled: () => settled }
     }

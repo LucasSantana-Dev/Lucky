@@ -11,7 +11,11 @@ jest.mock('lru-cache', () => ({
     }),
 }))
 
-import { replenishQueue, popularityBoost } from './replenisher'
+import {
+    replenishQueue,
+    popularityBoost,
+    REPLENISH_DEADLINE_MS,
+} from './replenisher'
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
@@ -1036,6 +1040,42 @@ describe('replenishQueue', () => {
         expect(indices.get('f9')).toBe(9)
         expect(indices.has('')).toBe(false) // missing author skipped
         expect(indices.has('outofwindow')).toBe(false) // window-bounded
+    })
+    it('does not enqueue when the refill finishes after its deadline (#2981)', async () => {
+        const {
+            collectRecommendationCandidates,
+        } = require('./candidateCollector')
+        const { addSelectedTracks } = require('./diversitySelector')
+        const { debugLog } = require('@lucky/shared/utils')
+        let release!: () => void
+        collectRecommendationCandidates.mockImplementationOnce(
+            () =>
+                new Promise<Map<string, Track>>((resolve) => {
+                    release = () => resolve(new Map())
+                }),
+        )
+        const queue = createGuildQueue({
+            guild: { id: 'deadline-guild' },
+        } as Partial<GuildQueue>)
+
+        jest.useFakeTimers()
+        try {
+            const refill = replenishQueue(queue)
+            await jest.advanceTimersByTimeAsync(REPLENISH_DEADLINE_MS + 1)
+            await expect(refill).resolves.toBe(false)
+
+            release()
+            await jest.advanceTimersByTimeAsync(10)
+        } finally {
+            jest.useRealTimers()
+        }
+
+        expect(addSelectedTracks).not.toHaveBeenCalled()
+        expect(debugLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Autoplay: refill passed its deadline, not enqueueing',
+            }),
+        )
     })
 })
 

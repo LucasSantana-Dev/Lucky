@@ -2,7 +2,8 @@ import type { Client } from 'discord.js'
 import { EmbedBuilder } from 'discord.js'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { twitchNotificationService } from '@lucky/shared/services'
-import { getTwitchUserAccessToken } from './token'
+import { getTwitchUserAccessToken, clearTwitchTokenCache } from './token'
+import { isTwitchAuthError, TwitchAuthError } from './twitchAuthError'
 
 const EVENTSUB_API_URL = 'https://api.twitch.tv/helix/eventsub/subscriptions'
 const STREAM_ONLINE_TYPE = 'stream.online'
@@ -64,6 +65,29 @@ export type ChannelRaidPayload = {
     }
 }
 
+const REFRESH_SHARE_MS = 30_000
+let sharedRefresh: {
+    stale: string
+    startedAt: number
+    promise: Promise<string | null>
+} | null = null
+
+// All topics subscribe concurrently, so one stale token yields several 401s.
+// Share one refresh per stale token so they do not clear the cache repeatedly.
+function refreshAfterAuthError(stale: string): Promise<string | null> {
+    if (
+        sharedRefresh &&
+        sharedRefresh.stale === stale &&
+        Date.now() - sharedRefresh.startedAt < REFRESH_SHARE_MS
+    ) {
+        return sharedRefresh.promise
+    }
+    clearTwitchTokenCache()
+    const promise = getTwitchUserAccessToken()
+    sharedRefresh = { stale, startedAt: Date.now(), promise }
+    return promise
+}
+
 async function subscribeToEvent(
     sessionId: string,
     clientId: string,
@@ -72,7 +96,7 @@ async function subscribeToEvent(
     version: string,
     conditionKey: string = 'broadcaster_user_id',
 ): Promise<void> {
-    const token = await getTwitchUserAccessToken()
+    let token = await getTwitchUserAccessToken()
     if (!token) return
 
     const userIds = await twitchNotificationService.getDistinctTwitchUserIds()
@@ -87,15 +111,28 @@ async function subscribeToEvent(
             hasSubscribedBroadcaster = true
             continue
         }
-        const ok = await createSubscription(
-            broadcasterUserId,
-            token,
-            sessionId,
-            clientId,
-            type,
-            version,
-            conditionKey,
-        )
+        const create = (accessToken: string) =>
+            createSubscription(
+                broadcasterUserId,
+                accessToken,
+                sessionId,
+                clientId,
+                type,
+                version,
+                conditionKey,
+            )
+        let ok: boolean
+        try {
+            ok = await create(token)
+        } catch (error) {
+            if (!isTwitchAuthError(error)) throw error
+            // A 401 cannot succeed on retry with the same token: refresh it
+            // once, and if Twitch still refuses, stop for every broadcaster.
+            const fresh = await refreshAfterAuthError(token)
+            if (!fresh) throw error
+            token = fresh
+            ok = await create(token)
+        }
         if (ok) {
             subscribedIds.add(broadcasterUserId)
             hasSubscribedBroadcaster = true
@@ -191,6 +228,11 @@ async function createSubscription(
             }),
             signal: AbortSignal.timeout(10_000),
         })
+        if (res.status === 401) {
+            throw new TwitchAuthError(
+                `Twitch EventSub: token rejected (401) while subscribing to ${type}`,
+            )
+        }
         if (!res.ok) {
             const text = await res.text()
             errorLog({
@@ -204,6 +246,7 @@ async function createSubscription(
         })
         return true
     } catch (err) {
+        if (isTwitchAuthError(err)) throw err
         errorLog({
             message: 'Twitch EventSub: create subscription error',
             error: err,
@@ -365,7 +408,7 @@ export async function handleChannelRaid(
         .setTitle(`Raid incoming on ${toName}!`)
         .setURL(`https://twitch.tv/${toLogin}`)
         .setDescription(
-            `**${fromName}** is raiding **${toName}** with **${viewers.toLocaleString()}** viewers!`,
+            `**${fromName}** is raiding **${toName}** with **${viewers.toLocaleString('en-US')}** viewers!`,
         )
         .setTimestamp()
         .setFooter({ text: 'Twitch' })

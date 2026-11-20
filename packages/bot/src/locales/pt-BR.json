@@ -138,17 +138,28 @@
             "requestedBy": "pedido por {{user}}",
             "autoplay": "✨ Autoplay pelo histórico da sessão",
             "accepted": "{{rate}}% aceitas",
+            "albumTrack": "💿 {{album}} · faixa {{position}}/{{total}}",
             "viaFallback": "via fallback: {{label}}",
             "unknownTrack": "Faixa desconhecida",
             "unknownArtist": "Artista desconhecido",
             "moreControls": "Mais",
+
+            "nowPlayingNoAccess": "Não consigo enviar a mensagem de tocando agora nesse canal: faltam as permissões Ver Canal e Enviar Mensagens. A música continua tocando, mas sem a mensagem de controles.",
             "controlsTitle": "🎛️ Controles de música",
             "streamFailed": "Não achei a original de **{{title}}** agora, então não vou tocar um cover. Tente de novo em instantes ou cole um link.",
             "streamFailedMany_one": "{{count}} música não pôde ser tocada. Tente de novo em instantes ou cole um link.",
             "streamFailedMany_other": "{{count}} músicas não puderam ser tocadas. Tente de novo em instantes ou cole um link.",
             "autoplayCount": "{{count}}/{{max}} músicas",
             "autoplayStopped_one": "A última música do autoplay não pôde ser tocada, então o autoplay parou. Use /play para recomeçar.",
-            "autoplayStopped_other": "As últimas {{count}} músicas do autoplay não puderam ser tocadas, então o autoplay parou. Use /play para recomeçar."
+            "autoplayStopped_other": "As últimas {{count}} músicas do autoplay não puderam ser tocadas, então o autoplay parou. Use /play para recomeçar.",
+            "statusSkipped": "⏭️ Música pulada - Tocando agora",
+            "statusPaused": "⏸️ Pausado",
+            "statusResumed": "▶️ Retomado",
+            "statusPrevious": "⏮️ Tocando a faixa anterior",
+            "statusRestarting": "⏮️ Reiniciando a faixa",
+            "statusReplayed": "🔄 Reproduzida de novo",
+            "statusSeeked": "⏩ Avançou para {{time}}",
+            "statusJumped": "🎯 Tocando agora (posição {{position}})"
         }
     }
 }
