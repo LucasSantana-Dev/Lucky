@@ -72,13 +72,13 @@ describe('streamRecovery', () => {
                 isCompositeVideoError: false,
                 isHypePointsError: false,
                 isTypeMismatchError: true,
+                isGridShelfViewError: false,
+                isSectionHeaderViewError: false,
+                shouldRetry: false,
+                retryWithFallback: false,
             }
 
-            handleYouTubeParserError(
-                queue as any,
-                error,
-                youtubeErrorInfo as never,
-            )
+            handleYouTubeParserError(queue as any, error, youtubeErrorInfo)
 
             expect(logYouTubeErrorMock).toHaveBeenCalledWith(
                 error,
