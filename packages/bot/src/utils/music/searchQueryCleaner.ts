@@ -272,12 +272,23 @@ export function cleanSearchQuery(title: string, author: string): string {
 // "Song - 2011 Remaster", "Song - From \"Film\" / Soundtrack Version" and
 // never puts the artist there. Tested against the right side up to its first
 // inner dash, so a song title like "Live Forever" or "Club Mix" stays a song.
-const RELEASE_SUFFIX_RE =
-    /^(?:from ["“'(]|live (?:at|in|from)\b|live$|ao vivo\b|en vivo\b|(?:\d{4} )?remaster(?:ed)?\b|soundtrack\b|acoustic\b|instrumental\b|karaok|coment[aá]rio\b|commentary\b|bonus track\b|demo\b|mono\b|radio edit\b)|\bversion$|\bremaster(?:ed)?(?: \d{4})?$/i
+const RELEASE_TAG_PATTERNS: readonly RegExp[] = [
+    /^from ["“'(]/i,
+    /^live (?:at|in|from)\b/i,
+    /^live$/i,
+    /^(?:ao|en) vivo\b/i,
+    /^(?:\d{4} )?remaster(?:ed)?\b/i,
+    /^(?:soundtrack|acoustic|instrumental|commentary|demo|mono)\b/i,
+    /^karaok/i,
+    /^coment[aá]rio\b/i,
+    /^(?:bonus track|radio edit)\b/i,
+    /\bversion$/i,
+    /\bremaster(?:ed)?(?: \d{4})?$/i,
+]
 
 function isReleaseSuffix(text: string): boolean {
     const head = text.split(/\s[-–—]\s/, 1)[0]?.trim() ?? ''
-    return RELEASE_SUFFIX_RE.test(head)
+    return RELEASE_TAG_PATTERNS.some((pattern) => pattern.test(head))
 }
 
 /**
