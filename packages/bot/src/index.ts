@@ -5,22 +5,28 @@ import {
     initializeSentry,
     debugLog,
     errorLog,
+    infoLog,
     sanitizeErrorMessage,
     sanitizeStack,
 } from '@lucky/shared/utils'
 import { initializeBot, shutdown as shutdownBot } from './bot/start'
 import { dependencyCheckService } from './services/DependencyCheckService'
+import { installExitDiagnostics } from './utils/monitoring/exitDiagnostics'
+
+// First, so even an exit during startup leaves its code and cause (#3036).
+const exitDiagnostics = installExitDiagnostics()
 
 let isShuttingDown = false
 
 async function gracefulShutdown(signal: string): Promise<void> {
+    exitDiagnostics.noteSignal(signal)
     if (isShuttingDown) {
         debugLog({ message: `${signal} already in progress, ignoring` })
         return
     }
 
     isShuttingDown = true
-    debugLog({ message: `Received ${signal}, initiating graceful shutdown...` })
+    infoLog({ message: `Received ${signal}, initiating graceful shutdown...` })
 
     try {
         await shutdownBot()
