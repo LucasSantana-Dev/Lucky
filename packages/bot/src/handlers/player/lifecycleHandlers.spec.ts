@@ -280,7 +280,46 @@ describe('setupLifecycleHandlers', () => {
         expect(infoLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Snapshot restore finished after the deadline',
-                data: { guildId: 'guild-1', restoredCount: 9 },
+                data: { guildId: 'guild-1', restoredCount: 9, aborted: true },
+            }),
+        )
+        jest.useRealTimers()
+    })
+
+    it('logs a restore that rejects after the deadline with its error (#3076)', async () => {
+        jest.useFakeTimers()
+        let fail: (e: Error) => void = () => {}
+        restoreSnapshotMock.mockImplementation(
+            () =>
+                new Promise((_, reject) => {
+                    fail = reject
+                }),
+        )
+        const handlers: Record<string, PlayerEventHandler> = {}
+        const player = {
+            events: {
+                on: jest.fn((event: string, handler: PlayerEventHandler) => {
+                    handlers[event] = handler
+                }),
+            },
+        }
+        setupLifecycleHandlers(player)
+        const queue = {
+            guild: { id: 'guild-1', name: 'Guild 1' },
+            metadata: { requestedBy: { id: 'user-1' } },
+            connection: { state: { status: 'ready' }, joinConfig: {} },
+        } as unknown as GuildQueue
+
+        const pending = handlers.connection(queue)
+        await jest.advanceTimersByTimeAsync(2000)
+        await pending
+        fail(new Error('stream bridge died'))
+        await jest.advanceTimersByTimeAsync(0)
+
+        expect(infoLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Snapshot restore failed after the deadline',
+                data: { guildId: 'guild-1', error: 'stream bridge died' },
             }),
         )
         jest.useRealTimers()

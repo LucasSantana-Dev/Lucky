@@ -273,6 +273,9 @@ export const setupLifecycleHandlers = (player: {
                                 data: {
                                     guildId: queue.guild.id,
                                     restoredCount: result.restoredCount,
+                                    // The deadline already aborted this restore, so a
+                                    // count of 0 can be a rollback, not an empty snapshot.
+                                    aborted: restoreController.signal.aborted,
                                 },
                             }),
                         (restoreError: unknown) =>
