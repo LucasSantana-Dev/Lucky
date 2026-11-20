@@ -414,6 +414,8 @@ async function attemptBroadYtDlpSearch(
     cleanedAuthor: string,
     track: BridgeTrack,
 ): Promise<Readable | null> {
+    // SoundCloud already won the race: nothing this retry finds can be used.
+    if (raceWonByAnotherArm()) return null
     const broadQuery = buildBroadYtQuery(cleanedTitle, cleanedAuthor)
     if (!broadQuery) return null
     broadSearchTried.add(track)
@@ -1148,6 +1150,8 @@ async function attemptSpotifyViaYtDlp(
         }
         staleCache = true
     }
+    // SoundCloud won while the cached match was failing: skip the fresh search.
+    if (raceWonByAnotherArm()) return null
     const stream = await attemptYtDlpSearch(cleanedTitle, cleanedAuthor, track)
     if (stream) return stream
     // The cached match no longer streams and a fresh search found nothing
