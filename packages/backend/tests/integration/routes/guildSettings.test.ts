@@ -12,6 +12,7 @@ import { sessionService } from '../../../src/services/SessionService'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
 import { GUILD_SETTINGS_EDITABLE_FIELDS } from '@lucky/shared/services'
+import type { AsyncMockFn } from '../../fixtures/mock-types'
 
 jest.mock('../../../src/services/SessionService', () => ({
     sessionService: {
@@ -26,8 +27,8 @@ jest.mock('../../../src/services/GuildAccessService', () => ({
     },
 }))
 
-const mockGetSettings = jest.fn<any>()
-const mockSetSettings = jest.fn<any>()
+const mockGetSettings = jest.fn<AsyncMockFn>()
+const mockSetSettings = jest.fn<AsyncMockFn>()
 
 jest.mock('@lucky/shared/services', () => ({
     ...(jest.requireActual('@lucky/shared/services') as object),

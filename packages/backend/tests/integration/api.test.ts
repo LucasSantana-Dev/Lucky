@@ -1,3 +1,4 @@
+import { partial } from '../fixtures/mock-types'
 import { describe, test, expect, beforeEach, jest } from '@jest/globals'
 import request from 'supertest'
 import express from 'express'
@@ -82,7 +83,7 @@ describe('API Integration Flows', () => {
             const mockSessionService = sessionService as jest.Mocked<
                 typeof sessionService
             >
-            mockSessionService.setSession.mockResolvedValue()
+            mockSessionService.setSession.mockResolvedValue(undefined)
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
 
             const oauthApp = express()
@@ -223,7 +224,7 @@ describe('API Integration Flows', () => {
             }))
 
             mockGuildAccessService.listAuthorizedGuilds.mockResolvedValue(
-                enrichedGuilds,
+                partial(enrichedGuilds),
             )
 
             const response = await request(app)
@@ -239,8 +240,7 @@ describe('API Integration Flows', () => {
     describe('CORS Headers', () => {
         test('should set access-control-allow-origin for allowed origins', async () => {
             const corsApp = express()
-            const { setupMiddleware } =
-                await import('../../src/middleware')
+            const { setupMiddleware } = await import('../../src/middleware')
             setupMiddleware(corsApp)
             corsApp.options('/api/test', (_req, res) => {
                 res.send()
@@ -253,14 +253,15 @@ describe('API Integration Flows', () => {
                 .options('/api/test')
                 .set('Origin', 'http://localhost:3000')
 
-            expect(response.headers['access-control-allow-origin']).toBeDefined()
+            expect(
+                response.headers['access-control-allow-origin'],
+            ).toBeDefined()
             expect(response.headers['access-control-allow-origin']).not.toBe('')
         })
 
         test('should set access-control-allow-methods header', async () => {
             const corsApp = express()
-            const { setupMiddleware } =
-                await import('../../src/middleware')
+            const { setupMiddleware } = await import('../../src/middleware')
             setupMiddleware(corsApp)
             corsApp.options('/api/test', (_req, res) => {
                 res.send()
@@ -273,7 +274,9 @@ describe('API Integration Flows', () => {
                 .options('/api/test')
                 .set('Origin', 'http://localhost:3000')
 
-            expect(response.headers['access-control-allow-methods']).toBeDefined()
+            expect(
+                response.headers['access-control-allow-methods'],
+            ).toBeDefined()
             expect(response.headers['access-control-allow-methods']).toContain(
                 'GET',
             )

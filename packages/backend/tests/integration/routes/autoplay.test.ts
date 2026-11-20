@@ -4,13 +4,13 @@ import type { Express } from 'express'
 import express from 'express'
 
 interface MockGuildSettingsService {
-    getGuildSettings: jest.Mock<Promise<unknown>>
-    updateGuildSettings: jest.Mock<Promise<boolean>>
+    getGuildSettings: jest.Mock<(...args: unknown[]) => Promise<unknown>>
+    updateGuildSettings: jest.Mock<(...args: unknown[]) => Promise<boolean>>
 }
 
 const mockGuildSettingsService: MockGuildSettingsService = {
-    getGuildSettings: jest.fn(),
-    updateGuildSettings: jest.fn(),
+    getGuildSettings: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+    updateGuildSettings: jest.fn<(...args: unknown[]) => Promise<boolean>>(),
 }
 
 jest.mock('@lucky/shared/services', () => ({

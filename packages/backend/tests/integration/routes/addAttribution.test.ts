@@ -6,6 +6,7 @@ import {
     afterAll,
     jest,
 } from '@jest/globals'
+import { partial } from '../../fixtures/mock-types'
 import request from 'supertest'
 import express from 'express'
 import { getPrismaClient } from '@lucky/shared/utils'
@@ -50,7 +51,7 @@ describe('landing source attribution (#2750)', () => {
     let app: express.Express
     let table: ReturnType<typeof fakeTable>
 
-    const exchange = discordOAuthService.exchangeCodeForToken as jest.Mock
+    const exchange = jest.mocked(discordOAuthService.exchangeCodeForToken)
 
     const prevRedirect = process.env.WEBAPP_REDIRECT_URI
     afterAll(() => {
@@ -71,9 +72,11 @@ describe('landing source attribution (#2750)', () => {
             scope: 'bot',
             guild: { id: GUILD_ID },
         }))
-        ;(getPrismaClient as jest.Mock).mockReturnValue({
-            guildJoinSource: { upsert: table.upsert },
-        })
+        jest.mocked(getPrismaClient).mockReturnValue(
+            partial({
+                guildJoinSource: { upsert: table.upsert },
+            }),
+        )
         app = express()
         setupSessionMiddleware(app)
         setupAddRoute(app)
