@@ -1,0 +1,69 @@
+# Lucky-owned Loki (obs P2b, #2393; ADR 2026-09-26 section 1).
+#
+# Single binary, filesystem storage on the `loki_data` volume, 30 day
+# retention enforced by the compactor. Loki has no size-based retention:
+# disk use is bounded by the retention period and the ingestion limits below,
+# and watched by LuckyDiskSpaceLow / LuckyDiskSpaceCritical (node_exporter).
+# The volume is disposable (ADR section 5): history is lost on a host move.
+
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: warn
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2026-11-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+compactor:
+  working_directory: /loki/compactor
+  compaction_interval: 10m
+  retention_enabled: true
+  retention_delete_delay: 2h
+  delete_request_store: filesystem
+
+limits_config:
+  retention_period: 720h
+  # Bot + backend + render log a few KB/s; these caps stop a log loop from
+  # filling the disk Postgres shares before the disk alert fires.
+  ingestion_rate_mb: 1
+  ingestion_burst_size_mb: 4
+  per_stream_rate_limit: 512KB
+  per_stream_rate_limit_burst: 2MB
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  # Query limits keep a heavy `| json` over 30 days inside the 512m mem_limit.
+  max_query_series: 1000
+  max_query_parallelism: 2
+  max_entries_limit_per_query: 5000
+  query_timeout: 1m
+
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 64
+
+analytics:
+  reporting_enabled: false

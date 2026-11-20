@@ -13,7 +13,8 @@ docker compose --profile observability up -d
 ```
 
 This starts `prometheus`, `alertmanager` (plus the one-shot
-`alertmanager-config` renderer), `grafana`, `node-exporter`, and `cadvisor` in
+`alertmanager-config` renderer), `grafana`, `loki`, `alloy`, `node-exporter`,
+and `cadvisor` in
 addition to whatever other profile(s)/services you already run. None of them
 bind a host port.
 
@@ -230,8 +231,41 @@ values:
    confirm the disk-free stat panel shows a real percentage matching `df -h`
    on the host.
 
-## What P2b adds next
+## Logs: Loki + Alloy (P2b, #2393)
 
-Per the ADR phase list: Loki + Alloy for log aggregation, gated on P2a passing
-and #2386 (single-line JSON logs) being deployed; cutting Lucky out of the
-homelab's promtail scrape so logs aren't double-ingested.
+`loki` (`grafana/loki:3.7.2`, 512m) stores 30 days of logs on the disposable
+`loki_data` volume (`observability/loki/loki.yaml`). Retention is by time only:
+Loki has no size cap, so ingestion limits stop a log loop and the disk alerts
+watch the rest. `alloy` (`grafana/alloy:v1.10.0`, 192m) reads the Docker socket
+read-only and ships only `lucky-bot`, `lucky-backend` and `lucky-render`
+(`observability/alloy/config.alloy`, explicit allowlist, so staging, tunnel,
+webhook and Postgres are never ingested).
+
+Alloy splits the `[LEVEL] ` token off each line, so the stored line is pure
+JSON and LogQL `| json` works. Labels: `service`, `env` (`LUCKY_ENV`, default
+`production`), `level`, plus `container_name` with the same value as `service`:
+the homelab promtail sets `container_name` and the dashboards select on it, so
+the same dashboard JSON reads both Lokis. Error and warning panels match both
+line shapes (with and without the token). guildId, userId and correlationId
+stay in the JSON body.
+
+The profile Grafana's Loki datasource points at `lucky-loki`. The
+"Lucky: logs" dashboard filters by service, level, guildId, userId,
+correlationId and free text, with no query to write.
+
+### Cutover from the homelab promtail (owner steps)
+
+Until these are done, the homelab keeps shipping Lucky logs to its own Loki and
+the homelab Grafana keeps reading them; nothing breaks if the profile is down.
+
+1. Bring the profile up on the host (see "Run it"; issue #3153 tracks that the
+   profile is not running in production today) and check that
+   "Lucky: logs" in the profile Grafana shows new lines from `lucky-bot`.
+2. In the homelab repo, drop the Lucky containers from the promtail scrape
+   config (its `lucky-*` / `container_name` match) and restart promtail, so
+   Lucky logs are not ingested twice.
+3. Point the homelab Grafana's Loki datasource used by the Lucky dashboards at
+   `http://lucky-loki:3100`. The homelab Grafana must join `lucky-network`
+   for that name to resolve, or keep using the profile Grafana for logs.
+4. Keep the `lucky-monitoring` network until 2 and 3 are done (ADR 2026-09-26
+   section 1); history in the homelab Loki ages out on its own retention.

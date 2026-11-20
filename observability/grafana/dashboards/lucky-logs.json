@@ -1,0 +1,336 @@
+{
+    "uid": "lucky-logs",
+    "title": "Lucky: logs",
+    "description": "Linhas de log do bot, backend e render, com filtros. Fonte: Loki. Nada para digitar além dos filtros no topo.",
+    "tags": ["lucky", "logs"],
+    "timezone": "browser",
+    "editable": true,
+    "graphTooltip": 1,
+    "schemaVersion": 39,
+    "time": {
+        "from": "now-6h",
+        "to": "now"
+    },
+    "refresh": "5m",
+    "templating": {
+        "list": [
+            {
+                "name": "ds_prometheus",
+                "type": "datasource",
+                "query": "prometheus",
+                "regex": "/^Prometheus$/",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "ds_loki",
+                "type": "datasource",
+                "query": "loki",
+                "regex": "",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "ds_postgres",
+                "type": "datasource",
+                "query": "grafana-postgresql-datasource",
+                "regex": "/^Lucky Postgres$/",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "ds_sentry",
+                "type": "datasource",
+                "query": "grafana-sentry-datasource",
+                "regex": "",
+                "hide": 2,
+                "refresh": 1,
+                "current": {},
+                "options": [],
+                "includeAll": false,
+                "multi": false
+            },
+            {
+                "name": "servico",
+                "label": "Serviço",
+                "description": "Qual serviço mostrar.",
+                "type": "custom",
+                "query": "bot : lucky-bot,backend : lucky-backend,render : lucky-render",
+                "includeAll": true,
+                "allValue": "lucky-(bot|backend|render)",
+                "multi": false,
+                "hide": 0,
+                "current": {
+                    "selected": true,
+                    "text": "All",
+                    "value": "$__all"
+                },
+                "options": []
+            },
+            {
+                "name": "nivel",
+                "label": "Nível",
+                "description": "Gravidade da linha.",
+                "type": "custom",
+                "query": "erro : (?i)^\\[(error|fatal|critical)\\] |^\\{\"ts\":\"[^\"]*\",\"level\":\"(error|fatal|critical)\",aviso : (?i)^\\[(warn)\\] |^\\{\"ts\":\"[^\"]*\",\"level\":\"(warn)\",info : (?i)^\\[(info)\\] |^\\{\"ts\":\"[^\"]*\",\"level\":\"(info)\",debug : (?i)^\\[(debug)\\] |^\\{\"ts\":\"[^\"]*\",\"level\":\"(debug)\"",
+                "includeAll": true,
+                "allValue": ".*",
+                "multi": false,
+                "hide": 0,
+                "current": {
+                    "selected": true,
+                    "text": "All",
+                    "value": "$__all"
+                },
+                "options": []
+            },
+            {
+                "name": "guildId",
+                "label": "guildId",
+                "description": "Id do servidor (Discord). Vazio = todos.",
+                "type": "textbox",
+                "query": "",
+                "hide": 0,
+                "current": {
+                    "selected": false,
+                    "text": "",
+                    "value": ""
+                },
+                "options": []
+            },
+            {
+                "name": "userId",
+                "label": "userId",
+                "description": "Id do usuário (Discord). Vazio = todos.",
+                "type": "textbox",
+                "query": "",
+                "hide": 0,
+                "current": {
+                    "selected": false,
+                    "text": "",
+                    "value": ""
+                },
+                "options": []
+            },
+            {
+                "name": "correlationId",
+                "label": "correlationId",
+                "description": "Id de uma requisição, para seguir tudo o que ela fez.",
+                "type": "textbox",
+                "query": "",
+                "hide": 0,
+                "current": {
+                    "selected": false,
+                    "text": "",
+                    "value": ""
+                },
+                "options": []
+            },
+            {
+                "name": "busca",
+                "label": "Texto",
+                "description": "Trecho de texto que a linha precisa ter (diferencia maiúsculas). Vazio = tudo.",
+                "type": "textbox",
+                "query": "",
+                "hide": 0,
+                "current": {
+                    "selected": false,
+                    "text": "",
+                    "value": ""
+                },
+                "options": []
+            }
+        ]
+    },
+    "annotations": {
+        "list": []
+    },
+    "links": [
+        {
+            "type": "dashboards",
+            "tags": ["lucky"],
+            "asDropdown": false,
+            "title": "Dashboards do Lucky",
+            "includeVars": false,
+            "keepTime": true,
+            "targetBlank": false,
+            "icon": "external link"
+        }
+    ],
+    "panels": [
+        {
+            "type": "text",
+            "title": "Como usar",
+            "gridPos": {
+                "x": 0,
+                "y": 0,
+                "w": 24,
+                "h": 3
+            },
+            "options": {
+                "mode": "markdown",
+                "content": "Escolha **Serviço** e **Nível** e, se quiser, cole um **guildId**, **userId**, **correlationId** ou um trecho de **Texto** nas caixas do topo; o painel de linhas usa todos os filtros (a descrição de cada painel diz quais usa). Para ver tudo o que uma requisição fez, cole o `correlationId` de uma linha (abra a linha para ver os campos) e olhe **Seguir uma requisição**. Os logs guardam 30 dias."
+            },
+            "id": 1
+        },
+        {
+            "type": "timeseries",
+            "title": "Erros por minuto por serviço",
+            "description": "Média de linhas de erro por minuto (ignora o filtro Nível). Normal: perto de zero, com picos curtos em deploy. Preocupante: um patamar que não volta a zero ou um serviço que de repente passa dos outros.",
+            "gridPos": {
+                "x": 0,
+                "y": 3,
+                "w": 24,
+                "h": 7
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "sum by (container_name) (rate({container_name=~\"$servico\"} |~ `^\\[(ERROR|FATAL|CRITICAL)\\]|^\\{\"ts\":\"[^\"]*\",\"level\":\"(error|fatal|critical)\"` [$__auto])) * 60",
+                    "legendFormat": "{{container_name}}",
+                    "queryType": "range",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "0",
+                    "decimals": 1,
+                    "custom": {
+                        "drawStyle": "line",
+                        "fillOpacity": 10,
+                        "lineWidth": 2,
+                        "showPoints": "never"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "legend": {
+                    "displayMode": "list",
+                    "placement": "bottom",
+                    "showLegend": true
+                },
+                "tooltip": {
+                    "mode": "multi",
+                    "sort": "desc"
+                }
+            },
+            "id": 2
+        },
+        {
+            "type": "logs",
+            "title": "Linhas de log (mais recentes primeiro)",
+            "description": "Até 1000 linhas que passam por todos os filtros do topo. Clique numa linha para ver os campos (guildId, userId, correlationId, error).",
+            "gridPos": {
+                "x": 0,
+                "y": 10,
+                "w": 24,
+                "h": 14
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "{container_name=~\"$servico\"} |~ `$nivel` |= `$guildId` |= `$userId` |= `$correlationId` |= `$busca`",
+                    "legendFormat": "",
+                    "queryType": "range",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {},
+                "overrides": []
+            },
+            "options": {
+                "showTime": true,
+                "wrapLogMessage": true,
+                "sortOrder": "Descending",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false,
+                "dedupStrategy": "none"
+            },
+            "id": 3
+        },
+        {
+            "type": "row",
+            "title": "Seguir uma requisição",
+            "collapsed": false,
+            "panels": [],
+            "gridPos": {
+                "x": 0,
+                "y": 24,
+                "w": 24,
+                "h": 1
+            },
+            "id": 4
+        },
+        {
+            "type": "logs",
+            "title": "Seguir uma requisição (correlationId)",
+            "description": "Tudo o que uma requisição registrou, em ordem, em todos os serviços (ignora Serviço, Nível e os outros filtros). Fica vazio até a caixa correlationId ser preenchida.",
+            "gridPos": {
+                "x": 0,
+                "y": 25,
+                "w": 24,
+                "h": 12
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "{container_name=~\"lucky-(bot|backend|render)\"} |= `\"correlationId\":\"$correlationId\"`",
+                    "legendFormat": "",
+                    "queryType": "range",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "preencha correlationId no topo"
+                },
+                "overrides": []
+            },
+            "options": {
+                "showTime": true,
+                "wrapLogMessage": true,
+                "sortOrder": "Ascending",
+                "enableLogDetails": true,
+                "prettifyLogMessage": false,
+                "dedupStrategy": "none"
+            },
+            "id": 5
+        }
+    ]
+}
