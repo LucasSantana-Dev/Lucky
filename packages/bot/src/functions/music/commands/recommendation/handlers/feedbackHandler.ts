@@ -8,6 +8,18 @@ import {
 import { recommendationFeedbackService } from '../../../../../services/musicRecommendation/feedbackService'
 import type { CustomClient } from '../../../../../types'
 import { resolveGuildQueue } from '../../../../../services/musicManagement/queueResolver'
+import { parseYoutubeLink } from '../../play/queryDetector'
+
+function sameTrackUrl(a: string, b: string): boolean {
+    if (a === b) return true
+    const first = parseYoutubeLink(a)
+    const second = parseYoutubeLink(b)
+    return (
+        first?.kind === 'video' &&
+        second?.kind === 'video' &&
+        first.videoId === second.videoId
+    )
+}
 
 export async function handleFeedback(
     interaction: ChatInputCommandInteraction,
@@ -36,7 +48,7 @@ export async function handleFeedback(
     const currentTrack = queue?.currentTrack
 
     const ratesCurrentTrack =
-        currentTrack && (!trackUrl || currentTrack.url === trackUrl)
+        currentTrack && (!trackUrl || sameTrackUrl(currentTrack.url, trackUrl))
 
     if (!ratesCurrentTrack) {
         await interactionReply({

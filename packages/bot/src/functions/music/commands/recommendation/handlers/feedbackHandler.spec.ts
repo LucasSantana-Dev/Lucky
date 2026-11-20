@@ -83,6 +83,7 @@ describe('handleFeedback', () => {
     it('replies with an error when the write fails (#2686)', async () => {
         mockSetFeedback.mockResolvedValue(false)
         await handleFeedback(interactionWith(null), {} as never)
+        expect(mockInteractionReply).toHaveBeenCalledTimes(1)
         expect(embedKind()).toBe('error')
     })
 
@@ -93,5 +94,24 @@ describe('handleFeedback', () => {
         )
         expect(mockSetFeedback).not.toHaveBeenCalled()
         expect(embedKind()).toBe('warning')
+    })
+
+    it('accepts another URL form of the playing YouTube video (#2686)', async () => {
+        mockResolveGuildQueue.mockReturnValue({
+            queue: {
+                currentTrack: {
+                    title: 'Song',
+                    author: 'Artist',
+                    url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                },
+            },
+        })
+        mockSetFeedback.mockResolvedValue(true)
+        await handleFeedback(
+            interactionWith('https://youtu.be/dQw4w9WgXcQ?si=abc'),
+            {} as never,
+        )
+        expect(mockSetFeedback).toHaveBeenCalledTimes(1)
+        expect(embedKind()).toBe('success')
     })
 })
