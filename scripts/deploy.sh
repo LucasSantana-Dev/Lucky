@@ -996,6 +996,14 @@ done
 docker_compose up -d --remove-orphans --no-deps $_rollout_services postgres redis
 phase_end rollout
 
+# po_token sidecar (ADR 2026-06-18, amendment 2026-11-20). Best-effort and
+# no-deps: the bot extracts without a PO token when it is down, so a failure
+# here warns and never fails or rolls back the deploy. A no-op when the
+# running container already matches the compose definition.
+if ! docker_compose up -d --no-deps bgutil-pot >/dev/null 2>&1; then
+    log "WARN: Could not start bgutil-pot (PO token sidecar); yt-dlp runs without a PO token"
+fi
+
 # The webhook runs this script, so it is never recreated here; nginx proxies
 # /webhook/ to it by service name.
 if docker ps --format '{{.Names}}' | grep -qx "lucky-webhook"; then

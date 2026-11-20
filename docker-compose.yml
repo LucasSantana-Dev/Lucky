@@ -152,12 +152,12 @@ services:
             # detection. Drop a Netscape-format cookies.txt at
             # ./secrets/youtube-cookies.txt on the host; no-ops if absent.
             YTDLP_COOKIES_FILE: ${YTDLP_COOKIES_FILE:-/app/secrets/youtube-cookies.txt}
-            # ADR 2026-06-18 amendment 2026-10-21: po_token provider. Unset
-            # (the default) keeps yt-dlp exactly as before. Set it to
-            # http://bgutil-pot:4416 once the bgutil-pot service below runs.
+            # ADR 2026-06-18 amendments 2026-10-21 and 2026-11-20: po_token
+            # provider, on by default and pointing at the bgutil-pot service
+            # below. Set it to an empty string to turn it off.
             # No depends_on: when the sidecar is down, yt-dlp extracts without
             # a PO token instead of the bot failing to start.
-            YTDLP_POT_PROVIDER_URL: ${YTDLP_POT_PROVIDER_URL:-}
+            YTDLP_POT_PROVIDER_URL: ${YTDLP_POT_PROVIDER_URL-http://bgutil-pot:4416}
         volumes:
             - ./downloads:/app/downloads
             # Named volume, not a bind mount: it lives under /var/lib/docker, which
@@ -366,11 +366,10 @@ services:
                 tag: "{{.Name}}"
 
     # bgutil po_token provider for the bot's yt-dlp (ADR 2026-06-18,
-    # amendment 2026-10-21). Behind the `pot` profile, like the tunnel: the
-    # deploy script neither starts nor requires it, so a stopped sidecar never
-    # fails a deploy. Start it once with
-    # `docker compose --profile pot up -d bgutil-pot`; restart: unless-stopped
-    # keeps it up across reboots. Version pinned with the plugin in the
+    # amendments 2026-10-21 and 2026-11-20). Starts with the stack. deploy.sh
+    # starts it best-effort after the rollout, so a sidecar that fails to start
+    # never fails or rolls back a deploy; restart: unless-stopped keeps it up
+    # across reboots. Version pinned with the plugin in the
     # Dockerfile (BGUTIL_POT_PROVIDER_VERSION): bump both together. The server
     # is unauthenticated, so it publishes no host port and only joins
     # lucky-network, where the bot reaches it by service name.
@@ -388,8 +387,6 @@ services:
         pids_limit: 128
         networks:
             - lucky-network
-        profiles:
-            - pot
         healthcheck:
             test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4416/ping').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
             interval: 30s

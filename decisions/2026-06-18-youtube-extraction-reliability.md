@@ -161,7 +161,7 @@ above 5% exhaustion); this amendment does not touch it.
   under about 10 a week and the 30d exhaustion rate trends back toward the 2.7% baseline. Same
   Loki queries as the 2026-08-03 re-evaluation.
 - Rollback: unset `YTDLP_POT_PROVIDER_URL` and recreate the bot (back to the exact previous
-  command line), then `docker compose --profile pot stop bgutil-pot`. No data migrates.
+  command line), then `docker compose stop bgutil-pot`. No data migrates.
 - Recreate the bot with `IMAGE_TAG` set to the tag it already runs. Without it the compose
   image falls back to `:latest`, a stale local image. On 2026-10-22 a manual
   `docker compose up -d --no-deps bot` started that image, which has no plugin directory, so
@@ -169,3 +169,18 @@ above 5% exhaustion); this amendment does not touch it.
 - Escalate: if the bot check persists while yt-dlp `-v` shows
   `Generating a gvs PO Token ... via bgutil HTTP server`, the cheaper rungs are spent and the
   Lavalink gate is the next read.
+
+## Amendment (2026-11-20): sidecar on by default
+
+Status: accepted (owner decision on #2974). The sidecar had been running in production since
+2026-10 and the bot logged `Bridge: yt-dlp po_token provider configured`, but a fresh checkout or
+rebuilt box still defaulted to no provider and more 403s. Changes:
+
+- `YTDLP_POT_PROVIDER_URL` defaults to `http://bgutil-pot:4416` in `docker-compose.yml`. An empty
+  value (set in the env file) turns the provider off.
+- `bgutil-pot` leaves the `pot` profile and starts with the stack. Same service, container name
+  (`lucky-bgutil-pot`), network and digest-pinned image, so the running container is reused.
+- `scripts/deploy.sh` starts it best-effort after the rollout. A failure warns and never fails or
+  rolls back a deploy, and the bot still has no `depends_on` on it (point 4 of the decision).
+- Rollback: set `YTDLP_POT_PROVIDER_URL=` in the env file, recreate the bot, then
+  `docker compose stop bgutil-pot`.
