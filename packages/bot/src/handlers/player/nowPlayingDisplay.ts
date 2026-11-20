@@ -15,6 +15,7 @@ import { translatorForInteraction } from '../../i18n/translatorForInteraction'
 import type { QueueMetadata } from '../../types/QueueMetadata'
 import { getPerSourceAcceptanceRateCached } from '../../services/musicRecommendation/autoplay/autoplayAcceptanceCache'
 import { getSkipReasonEmojis } from '../../utils/music/skipReasonMap'
+import { trackAlbumPosition } from '../../utils/music/trackFields'
 import { getStreamBridgeFallbackLabel } from './streamFallbackState'
 import { clearLastFmTrackTiming } from './lastfmScrobbler'
 
@@ -377,6 +378,10 @@ async function buildNowPlayingFooter(
                 }),
             ),
         )
+    }
+    const albumPosition = trackAlbumPosition(track)
+    if (albumPosition) {
+        parts.push(t('music.messages.albumTrack', albumPosition))
     }
     // Subtle footnote when the streamBridge resolved via a fallback stage
     // instead of the primary yt-dlp source (#1769).

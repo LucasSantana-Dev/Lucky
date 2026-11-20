@@ -34,3 +34,21 @@ export function trackAlbumName(track: Track): string | undefined {
     const name = raw?.album?.name
     return typeof name === 'string' ? name : undefined
 }
+
+/**
+ * Where the track sits in its album, when it was queued from one. Extractors
+ * link every album track to its Playlist, so this costs no lookup.
+ */
+export function trackAlbumPosition(
+    track: Pick<Track, 'url' | 'playlist'>,
+): { album: string; position: number; total: number } | undefined {
+    const album = track.playlist
+    if (album?.type !== 'album') return undefined
+    const index = album.tracks.findIndex((other) => other.url === track.url)
+    if (index < 0) return undefined
+    return {
+        album: album.title,
+        position: index + 1,
+        total: album.tracks.length,
+    }
+}

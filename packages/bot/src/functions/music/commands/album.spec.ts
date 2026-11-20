@@ -186,6 +186,26 @@ describe('album command album resolution', () => {
         expect(search.mock.calls[0][0]).toBe(ALBUM_URL)
     })
 
+    it('links the first track back to the album', async () => {
+        const playlist = { title: 'Abbey Road' }
+        const playedTrack = { ...createTrack('Come Together'), playlist: null }
+
+        await albumCommand.execute({
+            client: {
+                player: {
+                    search: jest.fn(async () => ({
+                        tracks: [createTrack('Come Together')],
+                        playlist,
+                    })),
+                    play: jest.fn(async () => ({ track: playedTrack })),
+                },
+            },
+            interaction: createInteraction(ALBUM_URL),
+        } as never)
+
+        expect(playedTrack.playlist).toBe(playlist)
+    })
+
     it('reports an actionable message when no album matches', async () => {
         searchSpotifyAlbumsMock.mockResolvedValue([])
         const search = jest.fn()

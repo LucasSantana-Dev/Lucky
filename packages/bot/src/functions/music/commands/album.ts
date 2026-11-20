@@ -206,6 +206,12 @@ export default new Command({
                 },
             )
 
+            // Played by URL, so it lost the link the other tracks keep and
+            // now playing could not name the album.
+            if (playResult.track) {
+                playResult.track.playlist ??= searchResult.playlist
+            }
+
             const { queue } = resolveGuildQueue(client, interaction.guildId)
             if (!queue) {
                 await interactionReply({
