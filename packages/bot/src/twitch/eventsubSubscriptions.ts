@@ -365,7 +365,7 @@ export async function handleChannelRaid(
         .setTitle(`Raid incoming on ${toName}!`)
         .setURL(`https://twitch.tv/${toLogin}`)
         .setDescription(
-            `**${fromName}** is raiding **${toName}** with **${viewers.toLocaleString()}** viewers!`,
+            `**${fromName}** is raiding **${toName}** with **${viewers.toLocaleString('en-US')}** viewers!`,
         )
         .setTimestamp()
         .setFooter({ text: 'Twitch' })
