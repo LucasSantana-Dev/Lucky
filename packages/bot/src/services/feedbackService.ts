@@ -44,19 +44,11 @@ export const FEEDBACK_REPORT_BUTTON_PREFIX = 'feedback_report:'
 // Lazy singleton, not a module-scope instantiation: buildFeedbackReportCustomId
 // (a pure function) is imported by commandsHandler.ts just to build the
 // "Report this" button, and that import must not have the side effect of
-// constructing a DatabaseService. DatabaseConfig is accepted by the
-// constructor but not read by DatabaseService today (it talks to the shared
-// getPrismaClient() singleton regardless of these values); kept only to
-// satisfy the required shape. Same boilerplate as dataRetentionScheduler.ts.
+// constructing a DatabaseService.
 let databaseServiceInstance: DatabaseService | null = null
 function getFeedbackDatabaseService(): DatabaseService {
     if (!databaseServiceInstance) {
-        databaseServiceInstance = new DatabaseService({
-            url: process.env.DATABASE_URL ?? '',
-            ttl: 3600,
-            maxConnections: 10,
-            connectionTimeout: 5000,
-        })
+        databaseServiceInstance = new DatabaseService()
     }
     return databaseServiceInstance
 }
