@@ -70,7 +70,7 @@ test.describe('Server Management', () => {
         ).toBeVisible()
     })
 
-    test('server card interactions', async ({ page }) => {
+    test('server card is visible', async ({ page }) => {
         await navigateToServers(page)
 
         const serverCard = getServerCard(page, MOCK_GUILDS[0].name)

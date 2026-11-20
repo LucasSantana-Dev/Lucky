@@ -34,7 +34,9 @@ test.describe('State Management', () => {
         ).toBeVisible()
     })
 
-    test('state persists across page reloads', async ({ page }) => {
+    test('default server is selected again after a reload', async ({
+        page,
+    }) => {
         await navigateToDashboard(page)
         await expect(getServerSelector(page)).toHaveAccessibleName(ACTIVE_NAME)
 

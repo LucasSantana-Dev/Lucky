@@ -15,7 +15,9 @@ test.describe('Config Page', () => {
         await page.goto('/config')
 
         await expect(
-            page.getByText('Configuration', { exact: true }),
+            page
+                .locator('#lucky-main-content')
+                .getByText('Configuration', { exact: true }),
         ).toBeVisible()
         await expect(page.getByText('Server: Test Server 1')).toBeVisible()
     })

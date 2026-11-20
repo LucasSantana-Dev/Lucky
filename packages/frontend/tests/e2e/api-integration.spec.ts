@@ -19,13 +19,13 @@ test.describe('API Integration', () => {
         expect(apiCalls.has('guilds')).toBe(true)
     })
 
-    test('feature toggles load from the guild features endpoint', async ({
+    test('feature catalog loads from the features endpoint', async ({
         page,
     }) => {
         const featuresRequest = page.waitForRequest(
             (request) =>
                 request.method() === 'GET' &&
-                /\/api\/(guilds\/[^/]+\/)?features$/.test(request.url()),
+                /\/api\/features$/.test(request.url()),
         )
 
         await navigateToFeatures(page)

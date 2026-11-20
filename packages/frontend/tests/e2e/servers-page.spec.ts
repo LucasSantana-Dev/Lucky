@@ -88,7 +88,9 @@ test.describe('Servers Page', () => {
         await navigateToServers(page)
         await waitForServerList(page)
 
-        const serverWithBot = MOCK_GUILDS.find((g) => g.hasBot)!
+        // The first bot server is auto-selected, so manage the last one to
+        // prove the click is what changes the active server.
+        const serverWithBot = MOCK_GUILDS.filter((g) => g.hasBot).at(-1)!
         const manageButton = getManageButton(page, serverWithBot.name)
         await expect(manageButton).toBeVisible()
         await manageButton.click()
@@ -105,6 +107,13 @@ test.describe('Servers Page', () => {
         page,
     }) => {
         await mockInviteUrl(page, '222222222222222222')
+        await page.route('https://discord.com/**', (route) =>
+            route.fulfill({
+                status: 200,
+                contentType: 'text/html',
+                body: '<html><body>invite</body></html>',
+            }),
+        )
         await navigateToServers(page)
         await waitForServerList(page)
 
@@ -116,7 +125,7 @@ test.describe('Servers Page', () => {
             page.waitForEvent('popup'),
             addBotButton.click(),
         ])
-        expect(popup.url()).toBe(MOCK_API_RESPONSES.inviteUrl.inviteUrl)
+        await popup.waitForURL(MOCK_API_RESPONSES.inviteUrl.inviteUrl)
         await popup.close()
     })
 
@@ -159,7 +168,9 @@ test.describe('Servers Page', () => {
         await expect(emptyState).toBeVisible()
     })
 
-    test('handles error when API fails', async ({ page }) => {
+    test('shows a retry action when the guild list request fails', async ({
+        page,
+    }) => {
         await page.route('**/api/guilds', async (route) => {
             await route.fulfill({
                 status: 500,
@@ -171,6 +182,7 @@ test.describe('Servers Page', () => {
         await navigateToServers(page)
         await waitForServerList(page)
 
+        await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible()
         for (const guild of MOCK_GUILDS) {
             await expect(getServerCard(page, guild.name)).toHaveCount(0)
         }
