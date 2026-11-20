@@ -59,7 +59,7 @@ describe('Changelog', { timeout: 20000 }, () => {
         expect(prLinks[0]).toHaveAttribute(
             'href',
             expect.stringMatching(
-                /^https:\/\/github\.com\/LucasSantana-Dev\/Lucky\/pull\/\d+$/,
+                /^https:\/\/github\.com\/LucasSantana-Dev\/Lucky\/(pull|issues)\/\d+$/,
             ),
         )
     })
@@ -93,5 +93,27 @@ describe('Changelog', { timeout: 20000 }, () => {
         expect(await screen.findByRole('alert')).toHaveTextContent(
             /could not load/i,
         )
+    })
+
+    test('renders bold and markdown links instead of raw syntax', async () => {
+        vi.mocked(loadChangelogSource).mockResolvedValueOnce(
+            [
+                '## [9.9.9] - 2026-01-02',
+                '### Fixed',
+                '- **bot:** repair queue ([#3090](https://github.com/LucasSantana-Dev/Lucky/pull/3090)) and `code`',
+            ].join('\n'),
+        )
+        const { container } = renderPage()
+        const bold = await screen.findByText('bot:')
+        expect(bold.tagName).toBe('STRONG')
+        const link = screen.getByRole('link', { name: '#3090' })
+        expect(link).toHaveAttribute(
+            'href',
+            'https://github.com/LucasSantana-Dev/Lucky/pull/3090',
+        )
+        expect(link.querySelector('a')).toBeNull()
+        expect(screen.getAllByRole('link', { name: /#3090/ })).toHaveLength(1)
+        expect(container.textContent).not.toMatch(/\*\*|\]\(/)
+        expect(screen.getByText('code').tagName).toBe('CODE')
     })
 })

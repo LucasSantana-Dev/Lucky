@@ -65,42 +65,64 @@ function formatDate(date: string | null): string {
     })
 }
 
-function renderInlineMd(text: string): React.ReactNode {
-    const parts: React.ReactNode[] = []
-    const codeSplit = text.split(/(`[^`]+`)/g)
-    codeSplit.forEach((chunk, ci) => {
+const INLINE_TOKEN =
+    /(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\(https?:\/\/[^)\s]+\)|#\d{2,5})/g
+
+function renderInlineMd(text: string, keyPrefix = 'm'): React.ReactNode {
+    return text.split(INLINE_TOKEN).map((chunk, i) => {
+        if (!chunk) return null
+        const key = `${keyPrefix}-${i}`
         if (chunk.startsWith('`') && chunk.endsWith('`')) {
-            parts.push(
+            return (
                 <code
-                    key={`c-${ci}`}
+                    key={key}
                     className='rounded bg-lucky-surface-elevated border border-lucky-border-soft px-1.5 py-0.5 font-mono text-[0.84em] text-lucky-text-strong'
                 >
                     {chunk.slice(1, -1)}
-                </code>,
+                </code>
             )
-            return
         }
-        const prSplit = chunk.split(/(#\d{2,5})/g)
-        prSplit.forEach((p, pi) => {
-            const m = p.match(/^#(\d{2,5})$/)
-            if (m) {
-                parts.push(
-                    <a
-                        key={`p-${ci}-${pi}`}
-                        href={`https://github.com/LucasSantana-Dev/Lucky/pull/${m[1]}`}
-                        target='_blank'
-                        rel='noreferrer'
-                        className='font-mono text-lucky-brand-text hover:underline'
-                    >
-                        #{m[1]}
-                    </a>,
-                )
-            } else if (p) {
-                parts.push(p)
-            }
-        })
+        if (
+            chunk.startsWith('**') &&
+            chunk.endsWith('**') &&
+            chunk.length > 4
+        ) {
+            return (
+                <strong key={key} className='font-semibold'>
+                    {renderInlineMd(chunk.slice(2, -2), key)}
+                </strong>
+            )
+        }
+        const link = chunk.match(/^\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)$/)
+        if (link) {
+            return (
+                <a
+                    key={key}
+                    href={link[2]}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='text-lucky-brand-text hover:underline'
+                >
+                    {link[1]}
+                </a>
+            )
+        }
+        const pr = chunk.match(/^#(\d{2,5})$/)
+        if (pr) {
+            return (
+                <a
+                    key={key}
+                    href={`https://github.com/LucasSantana-Dev/Lucky/pull/${pr[1]}`}
+                    target='_blank'
+                    rel='noreferrer'
+                    className='font-mono text-lucky-brand-text hover:underline'
+                >
+                    #{pr[1]}
+                </a>
+            )
+        }
+        return chunk
     })
-    return parts
 }
 
 const sectionStyles: Record<string, string> = {
