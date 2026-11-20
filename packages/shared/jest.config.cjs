@@ -68,7 +68,9 @@ module.exports = {
   testPathIgnorePatterns: [
     '/node_modules/',
     '/dist/',
-    '/coverage/'
+    '/coverage/',
+    // Needs a real Postgres: run via jest.db.config.cjs (npm run test:db)
+    '\\.db\\.spec\\.ts$'
   ],
   verbose: true,
   clearMocks: true,
