@@ -130,6 +130,48 @@ describe('guildMembershipService', () => {
             expect(eventArgs.data.kind).toBe('LEAVE')
             expect(eventArgs.data.guildDiscordId).toBe('222')
         })
+
+        it('falls back to the stored guild name when the name is undefined', async () => {
+            findUniqueMock.mockResolvedValueOnce({
+                joinedAt: null,
+                name: 'Stored Name',
+            } as never)
+
+            await recordGuildLeave('222', undefined)
+
+            expect(updateManyMock).toHaveBeenCalledTimes(1)
+            const eventArgs = createMock.mock.calls[0]?.[0] as {
+                data: Record<string, unknown>
+            }
+            expect(eventArgs.data.kind).toBe('LEAVE')
+            expect(eventArgs.data.guildName).toBe('Stored Name')
+            expect(errorLogMock).not.toHaveBeenCalled()
+        })
+
+        it('uses a placeholder when the name is missing and no row exists', async () => {
+            findUniqueMock.mockResolvedValueOnce(null)
+
+            await recordGuildLeave('333', null)
+
+            const eventArgs = createMock.mock.calls[0]?.[0] as {
+                data: Record<string, unknown>
+            }
+            expect(eventArgs.data.guildName).toBe('Unknown guild')
+            expect(errorLogMock).not.toHaveBeenCalled()
+        })
+
+        it('still writes the leave when the name lookup fails', async () => {
+            findUniqueMock.mockRejectedValueOnce(new Error('lookup down'))
+
+            await recordGuildLeave('444', undefined)
+
+            expect(updateManyMock).toHaveBeenCalledTimes(1)
+            const eventArgs = createMock.mock.calls[0]?.[0] as {
+                data: Record<string, unknown>
+            }
+            expect(eventArgs.data.kind).toBe('LEAVE')
+            expect(eventArgs.data.guildName).toBe('Unknown guild')
+        })
     })
 
     describe('syncGuildsOnReady', () => {
