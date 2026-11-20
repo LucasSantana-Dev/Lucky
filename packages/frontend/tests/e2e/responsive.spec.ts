@@ -20,11 +20,27 @@ const VIEWPORTS = [
     { width: 1920, height: 1080 },
 ]
 
+// .lucky-shell clips overflow-x and <main> is the scroll container, so the
+// document never grows: content wider than the viewport only shows up as
+// <main> scrolling sideways or as elements crossing the viewport edge.
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
-    const overflow = await page.evaluate(
-        () => document.documentElement.scrollWidth - window.innerWidth,
-    )
-    expect(overflow).toBeLessThanOrEqual(0)
+    const overflow = await page.evaluate(() => {
+        const main = document.querySelector('main')
+        if (!main) throw new Error('main scroll container not found')
+        const viewport = window.innerWidth
+        const escaping = Array.from(main.querySelectorAll('*'))
+            .filter((el) => {
+                const rect = el.getBoundingClientRect()
+                return rect.width > 0 && rect.right > viewport + 1
+            })
+            .map((el) => `${el.tagName.toLowerCase()}.${el.className}`)
+        return {
+            document: document.documentElement.scrollWidth - viewport,
+            main: main.scrollWidth - main.clientWidth,
+            escaping: escaping.slice(0, 5),
+        }
+    })
+    expect(overflow).toEqual({ document: 0, main: 0, escaping: [] })
 }
 
 test.describe('Responsive Design', () => {

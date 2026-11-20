@@ -8,12 +8,7 @@ import { usePageMetadata } from '@/hooks/usePageMetadata'
 
 export default function FeaturesPage() {
     const features = useFeaturesStore((state) => state.features)
-    const {
-        globalToggles,
-        isLoading,
-        loadError,
-        retryLoad,
-    } = useFeatures()
+    const { globalToggles, isLoading, loadError, retryLoad } = useFeatures()
     usePageMetadata({
         title: 'Features - Lucky',
         description: 'View available bot features and their current status',
@@ -42,17 +37,22 @@ export default function FeaturesPage() {
                 <h1 className='type-h1 text-lucky-text-primary'>Features</h1>
             </header>
 
-            {loadError && <FeatureErrorBanner loadError={loadError} retryLoad={retryLoad} />}
+            {loadError && (
+                <FeatureErrorBanner
+                    loadError={loadError}
+                    retryLoad={retryLoad}
+                />
+            )}
 
             <section>
                 <h2 className='text-lg font-semibold text-white mb-2'>
                     Available Features
                 </h2>
                 <p className='text-sm text-lucky-text-secondary mb-6'>
-                    Features currently available on this bot. Contact an admin if a
-                    feature you need is disabled.
+                    Features currently available on this bot. Contact an admin
+                    if a feature you need is disabled.
                 </p>
-                <div className='grid gap-4'>
+                <div className='grid grid-cols-1 gap-4'>
                     {features.map((feature) => (
                         <FeatureCard
                             key={feature.name}

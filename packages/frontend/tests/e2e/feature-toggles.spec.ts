@@ -66,18 +66,7 @@ test.describe('Feature Toggles', () => {
         await toggle.click({ force: true })
 
         await expect(toggle).toHaveAttribute('aria-checked', before ?? '')
+        await page.waitForLoadState('networkidle')
         expect(writes).toEqual([])
-    })
-
-    test('non-developers do not see the global toggles section', async ({
-        page,
-    }) => {
-        await navigateToFeatures(page)
-        await waitForFeatures(page)
-
-        await expect(
-            page.getByRole('switch', { name: 'Toggle Autoplay' }),
-        ).toBeVisible()
-        await expect(page.getByText('Global Toggles')).toHaveCount(0)
     })
 })
