@@ -66,17 +66,42 @@ jobs:
                       // under .github/ can change what an approved run executes
                       // and where (runs-on). Those always wait for a maintainer
                       // click, whoever the author is (#2403).
+                      //
+                      // listFiles reads the PR's live head, while the approval
+                      // below targets the event's head SHA. The head is read
+                      // before and after the listing: if either differs, a newer
+                      // push happened and its own synchronize event decides.
+                      const headMoved = async () => {
+                          const { data } = await github.rest.pulls.get({
+                              owner: context.repo.owner,
+                              repo: context.repo.repo,
+                              pull_number: pr.number,
+                          });
+                          return data.head.sha !== pr.head.sha;
+                      };
+                      if (await headMoved()) {
+                          core.notice(`PR #${pr.number} head moved past ${pr.head.sha}; leaving it to the newer event`);
+                          return;
+                      }
                       const files = await github.paginate(github.rest.pulls.listFiles, {
                           owner: context.repo.owner,
                           repo: context.repo.repo,
                           pull_number: pr.number,
                           per_page: 100,
                       });
-                      const touchesCi = files.some((f) =>
-                          [f.filename, f.previous_filename].some((name) => name?.startsWith('.github/')),
-                      );
+                      if (await headMoved()) {
+                          core.notice(`PR #${pr.number} head moved past ${pr.head.sha}; leaving it to the newer event`);
+                          return;
+                      }
+                      // The API lists at most 3000 files; past that the diff
+                      // cannot be checked, so it counts as touching .github/.
+                      const touchesCi =
+                          files.length >= 3000 ||
+                          files.some((f) =>
+                              [f.filename, f.previous_filename].some((name) => name?.startsWith('.github/')),
+                          );
                       if (touchesCi) {
-                          core.notice(`PR #${pr.number} changes files under .github/; leaving its runs for manual approval`);
+                          core.notice(`PR #${pr.number} changes files under .github/ (or too many to list); leaving its runs for manual approval`);
                           return;
                       }
 
