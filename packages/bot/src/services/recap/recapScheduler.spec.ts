@@ -51,7 +51,7 @@ jest.mock('../../i18n/translatorForInteraction', () => ({
     translatorForInteraction: async () => (key: string) => key,
 }))
 
-import { RecapScheduler } from './recapScheduler'
+import { RecapScheduler, resolveRecapChannel } from './recapScheduler'
 
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 1])
 const ATTACH_PERMS = ALL_RECAP_PERMS_FOR_CARD()
@@ -221,7 +221,10 @@ describe('RecapScheduler (#2678)', () => {
 
     it.each([
         ['a deleted channel', makeClient(null)],
-        ['a non-text channel', makeClient({ type: ChannelType.GuildVoice })],
+        [
+            'an unsupported channel type',
+            makeClient({ type: ChannelType.GuildCategory }),
+        ],
         [
             'Unknown Channel from Discord',
             makeClient('text', { fetchError: { code: 10003 } }),
@@ -580,6 +583,55 @@ describe('RecapScheduler (#2678)', () => {
 
             expect(renderRecapCardMock).not.toHaveBeenCalled()
             expect(fallbackLabelsMock).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('resolveRecapChannel (#3062)', () => {
+        function guildFor(channel: unknown, fetchError?: unknown) {
+            return {
+                members: { me: {} },
+                channels: {
+                    fetch: fetchError
+                        ? jest.fn().mockRejectedValue(fetchError)
+                        : jest.fn().mockResolvedValue(channel),
+                },
+            } as never
+        }
+        const sendable = (type: ChannelType) => ({
+            type,
+            id: 'c-1',
+            send: jest.fn(),
+            permissionsFor: () => new PermissionsBitField(ATTACH_PERMS),
+        })
+
+        it('accepts the text chat of a voice channel', async () => {
+            const channel = sendable(ChannelType.GuildVoice)
+
+            const result = await resolveRecapChannel(guildFor(channel), 'c-1')
+
+            expect(result).toEqual({ channel, canAttach: true })
+        })
+
+        it('reports a channel that does not exist as missing_channel', async () => {
+            expect(await resolveRecapChannel(guildFor(null), 'c-1')).toEqual({
+                reason: 'missing_channel',
+            })
+            expect(
+                await resolveRecapChannel(
+                    guildFor(null, { code: 10003 }),
+                    'c-1',
+                ),
+            ).toEqual({ reason: 'missing_channel' })
+        })
+
+        it('reports an existing unsupported channel type with its own reason', async () => {
+            const channel = sendable(ChannelType.GuildCategory)
+
+            expect(await resolveRecapChannel(guildFor(channel), 'c-1')).toEqual(
+                {
+                    reason: 'unsupported_channel_type',
+                },
+            )
         })
     })
 })
