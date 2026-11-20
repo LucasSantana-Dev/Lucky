@@ -175,20 +175,24 @@ export function replenishQueue(
     // Bounded so one hung DB or Redis call cannot hold the guild's chain, and
     // with it waitForReplenish, forever (#2981). The orphaned run may still
     // finish later; the next refill re-derives its state from the queue.
-    const next = prev.then(() =>
-        withTimeout(
-            _replenishQueue(queue, finishedTrack, skipStateProvider),
+    const next = prev.then(() => {
+        // Flipped on timeout so the orphaned run skips its queue write and
+        // cannot enqueue against stale state next to the retry.
+        const run = { cancelled: false }
+        return withTimeout(
+            _replenishQueue(queue, finishedTrack, skipStateProvider, run),
             REPLENISH_DEADLINE_MS,
             'replenishQueue',
         ).catch((error) => {
+            run.cancelled = true
             errorLog({
                 message: 'Autoplay refill exceeded its deadline',
                 error,
                 data: { guildId },
             })
             return false
-        }),
-    )
+        })
+    })
     replenishLocks.set(
         guildId,
         next.catch(() => false),
@@ -215,6 +219,7 @@ async function _replenishQueue(
     queue: GuildQueue,
     finishedTrack?: Track,
     skipStateProvider?: SkipStateProvider,
+    run: { cancelled: boolean } = { cancelled: false },
 ): Promise<boolean> {
     const startTime = Date.now()
     const guildId = queue.guild.id
@@ -375,6 +380,14 @@ async function _replenishQueue(
             requestedBy,
             !hasQueuedSeedSimilarPick(queue),
         )
+
+        if (run.cancelled) {
+            debugLog({
+                message: 'Autoplay: refill passed its deadline, not enqueueing',
+                data: { guildId },
+            })
+            return false
+        }
 
         await enqueueAndFinalize(
             autoplayContext,

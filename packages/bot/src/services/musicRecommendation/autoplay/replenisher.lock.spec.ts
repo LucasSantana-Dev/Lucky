@@ -98,8 +98,14 @@ describe('waitForReplenish', () => {
             } as unknown as GuildQueue
 
             const hung = replenishQueue(queue)
+            let settled = false
+            void hung.then(() => {
+                settled = true
+            })
             const wait = waitForReplenish('hang-guild')
-            await jest.advanceTimersByTimeAsync(REPLENISH_DEADLINE_MS + 1)
+            await jest.advanceTimersByTimeAsync(REPLENISH_DEADLINE_MS - 1)
+            expect(settled).toBe(false)
+            await jest.advanceTimersByTimeAsync(2)
 
             await expect(hung).resolves.toBe(false)
             await expect(wait).resolves.toBe(false)
