@@ -299,6 +299,9 @@ async function pollSingleSubscription(
     }
 }
 
+// Guards against overlapping polls sending the notice twice while a send is pending
+const noticesInFlight = new Set<string>()
+
 async function recordFeedFailure(
     client: Client,
     subscription: { id: string; feedUrl: string; channelId: string },
@@ -327,7 +330,8 @@ async function recordFeedFailure(
     }
     if (health.failures < FAILURE_THRESHOLD) return
     health.skipsLeft = BACKOFF_SKIPPED_POLLS
-    if (health.notified) return
+    if (health.notified || noticesInFlight.has(subscription.id)) return
+    noticesInFlight.add(subscription.id)
     try {
         const channel = await client.channels.fetch(subscription.channelId)
         if (channel?.isTextBased() && 'send' in channel) {
@@ -348,6 +352,8 @@ async function recordFeedFailure(
             error: noticeErr,
             data: { subscriptionId: subscription.id },
         })
+    } finally {
+        noticesInFlight.delete(subscription.id)
     }
 }
 
