@@ -11,6 +11,7 @@ const parseURLMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const infoLogMock = jest.fn()
+const warnLogMock = jest.fn()
 const featureToggleMock = jest.fn()
 const findUniqueMock = jest.fn()
 const createMock = jest.fn()
@@ -31,6 +32,7 @@ jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
     infoLog: (...args: unknown[]) => infoLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -80,6 +82,7 @@ beforeEach(() => {
     debugLogMock.mockReset()
     errorLogMock.mockReset()
     infoLogMock.mockReset()
+    warnLogMock.mockReset()
     featureToggleMock.mockReset()
     findUniqueMock.mockReset()
     createMock.mockReset()
@@ -460,5 +463,62 @@ describe('RSS feed polling', () => {
                 }),
             )
         })
+    })
+})
+
+describe('dead feed handling (#3088)', () => {
+    const HOUR = 3600000
+    const deadFeed = () => new Error('Status code 404')
+
+    beforeEach(() => jest.useFakeTimers())
+    afterEach(() => {
+        stopRssBridgeService()
+        jest.useRealTimers()
+    })
+
+    it('logs a 404 at warning level, not as a Sentry error', async () => {
+        parseURLMock.mockRejectedValue(deadFeed() as never)
+        await startRssBridgeService(makeClient() as never)
+
+        expect(errorLogMock).not.toHaveBeenCalled()
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'RSS feed is not available' }),
+        )
+    })
+
+    it('still reports other failures as errors', async () => {
+        parseURLMock.mockRejectedValue(new Error('boom') as never)
+        await startRssBridgeService(makeClient() as never)
+
+        expect(errorLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({ message: 'Error polling RSS feed' }),
+        )
+    })
+
+    it('backs off after 3 failures and tells the guild once', async () => {
+        parseURLMock.mockRejectedValue(deadFeed() as never)
+        const channel = makeChannel()
+        await startRssBridgeService(makeClient(channel) as never)
+        await jest.advanceTimersByTimeAsync(HOUR)
+        await jest.advanceTimersByTimeAsync(HOUR)
+        expect(parseURLMock).toHaveBeenCalledTimes(3)
+        expect(channel.send).toHaveBeenCalledTimes(1)
+
+        // Next hours are skipped while backing off
+        await jest.advanceTimersByTimeAsync(HOUR * 3)
+        expect(parseURLMock).toHaveBeenCalledTimes(3)
+        expect(channel.send).toHaveBeenCalledTimes(1)
+    })
+
+    it('resumes normal polling once the feed recovers', async () => {
+        parseURLMock
+            .mockRejectedValueOnce(deadFeed() as never)
+            .mockResolvedValue({ items: [] } as never)
+        await startRssBridgeService(makeClient() as never)
+        await jest.advanceTimersByTimeAsync(HOUR)
+        await jest.advanceTimersByTimeAsync(HOUR)
+
+        expect(parseURLMock).toHaveBeenCalledTimes(3)
+        expect(warnLogMock).toHaveBeenCalledTimes(1)
     })
 })

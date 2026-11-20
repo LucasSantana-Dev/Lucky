@@ -1,11 +1,29 @@
 import type { Client } from 'discord.js'
 import Parser from 'rss-parser'
-import { debugLog, errorLog, infoLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { featureToggleService } from '@lucky/shared/services'
 import { getPrismaClient } from '@lucky/shared/utils/database/prismaClient'
 
 const POLL_INTERVAL_MS = 3600000 // 1 hour
 const EMBED_COLOR = 0xe879a0
+// A feed that fails this many polls in a row is skipped for the next
+// BACKOFF_SKIPPED_POLLS polls, and its guild is told once.
+const FAILURE_THRESHOLD = 3
+const BACKOFF_SKIPPED_POLLS = 5
+
+interface FeedHealth {
+    failures: number
+    skipsLeft: number
+    notified: boolean
+}
+// In-memory on purpose: a restart gives a dead feed a fresh chance
+const feedHealth = new Map<string, FeedHealth>()
+
+function isDeadFeedError(err: unknown): boolean {
+    return (
+        err instanceof Error && /Status code (404|410)(?!\d)/.test(err.message)
+    )
+}
 
 interface RssItem {
     title?: string
@@ -45,6 +63,7 @@ export async function startRssBridgeService(client: Client): Promise<void> {
 }
 
 export function stopRssBridgeService(): void {
+    feedHealth.clear()
     if (pollInterval) {
         clearInterval(pollInterval)
         pollInterval = null
@@ -133,9 +152,15 @@ async function pollSingleSubscription(
         updatedAt: Date
     },
 ): Promise<void> {
+    const health = feedHealth.get(subscription.id)
+    if (health && health.skipsLeft > 0) {
+        health.skipsLeft -= 1
+        return
+    }
     try {
         const parser = new Parser()
         const feed = await parser.parseURL(subscription.feedUrl)
+        feedHealth.delete(subscription.id)
 
         if (!feed.items || feed.items.length === 0) {
             debugLog({
@@ -270,13 +295,56 @@ async function pollSingleSubscription(
             })
         }
     } catch (err) {
-        errorLog({
-            message: 'Error polling RSS feed',
-            error: err,
-            data: {
-                subscriptionId: subscription.id,
-                feedUrl: subscription.feedUrl,
-            },
+        await recordFeedFailure(client, subscription, err)
+    }
+}
+
+async function recordFeedFailure(
+    client: Client,
+    subscription: { id: string; feedUrl: string; channelId: string },
+    err: unknown,
+): Promise<void> {
+    const health = feedHealth.get(subscription.id) ?? {
+        failures: 0,
+        skipsLeft: 0,
+        notified: false,
+    }
+    health.failures += 1
+    feedHealth.set(subscription.id, health)
+    const data = {
+        subscriptionId: subscription.id,
+        feedUrl: subscription.feedUrl,
+        consecutiveFailures: health.failures,
+    }
+    // A dead feed or a feed already past the threshold is expected noise:
+    // only the first few unexpected failures reach Sentry.
+    if (isDeadFeedError(err)) {
+        warnLog({ message: 'RSS feed is not available', error: err, data })
+    } else if (health.failures <= FAILURE_THRESHOLD) {
+        errorLog({ message: 'Error polling RSS feed', error: err, data })
+    } else {
+        warnLog({ message: 'RSS feed still failing', error: err, data })
+    }
+    if (health.failures < FAILURE_THRESHOLD) return
+    health.skipsLeft = BACKOFF_SKIPPED_POLLS
+    if (health.notified) return
+    health.notified = true
+    try {
+        const channel = await client.channels.fetch(subscription.channelId)
+        if (channel?.isTextBased() && 'send' in channel) {
+            await (
+                channel as unknown as {
+                    send: (options: unknown) => Promise<unknown>
+                }
+            ).send({
+                content: `The RSS feed ${subscription.feedUrl} has stopped working. It will be checked less often until it recovers.`,
+            })
+        }
+    } catch (noticeErr) {
+        warnLog({
+            message: 'Could not post the RSS feed failure notice',
+            error: noticeErr,
+            data: { subscriptionId: subscription.id },
         })
     }
 }
