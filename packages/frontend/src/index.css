@@ -556,8 +556,8 @@
       pointer-events: auto;
       outline: none;
       transform: translateY(0);
-      border-color: color-mix(in srgb, var(--color-lucky-focus) 55%, transparent);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-lucky-focus) 25%, transparent), var(--lucky-shadow-panel);
+      border-color: var(--color-lucky-focus);
+      box-shadow: var(--lucky-shadow-focus), var(--lucky-shadow-panel);
     }
   }
 

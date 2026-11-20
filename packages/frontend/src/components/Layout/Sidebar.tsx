@@ -70,8 +70,8 @@ function NavSections({
                                                 className={cn(
                                                     'lucky-focus-visible group relative flex min-h-[38px] items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-all duration-120',
                                                     active
-                                                        ? 'border-lucky-brand/40 bg-lucky-bg-active text-lucky-text-primary shadow-[0_8px_24px_rgb(0_0_0/0.18)] focus-visible:shadow-[0_0_0_3px_var(--color-lucky-focus),0_8px_24px_rgb(0_0_0/0.18)]'
-                                                        : 'border-transparent text-lucky-text-tertiary hover:border-lucky-border hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary focus-visible:shadow-[0_0_0_3px_var(--color-lucky-focus)]',
+                                                        ? 'border-lucky-brand/40 bg-lucky-bg-active text-lucky-text-primary shadow-[0_8px_24px_rgb(0_0_0/0.18)] focus-visible:shadow-[0_0_0_2px_var(--color-lucky-surface-canvas),0_0_0_4px_var(--color-lucky-focus),0_8px_24px_rgb(0_0_0/0.18)]'
+                                                        : 'border-transparent text-lucky-text-tertiary hover:border-lucky-border hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary focus-visible:shadow-[0_0_0_2px_var(--color-lucky-surface-canvas),0_0_0_4px_var(--color-lucky-focus)]',
                                                 )}
                                             >
                                                 <span
@@ -137,8 +137,8 @@ function NavSections({
                                         className={cn(
                                             'lucky-focus-visible group relative flex min-h-[38px] items-center gap-2.5 rounded-lg border px-2.5 py-2 transition-all duration-120',
                                             isActive(link.to)
-                                                ? 'border-lucky-brand/40 bg-lucky-bg-active text-lucky-text-primary shadow-[0_8px_24px_rgb(0_0_0/0.18)] focus-visible:shadow-[0_0_0_3px_var(--color-lucky-focus),0_8px_24px_rgb(0_0_0/0.18)]'
-                                                : 'border-transparent text-lucky-text-tertiary hover:border-lucky-border hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary focus-visible:shadow-[0_0_0_3px_var(--color-lucky-focus)]',
+                                                ? 'border-lucky-brand/40 bg-lucky-bg-active text-lucky-text-primary shadow-[0_8px_24px_rgb(0_0_0/0.18)] focus-visible:shadow-[0_0_0_2px_var(--color-lucky-surface-canvas),0_0_0_4px_var(--color-lucky-focus),0_8px_24px_rgb(0_0_0/0.18)]'
+                                                : 'border-transparent text-lucky-text-tertiary hover:border-lucky-border hover:bg-lucky-bg-tertiary hover:text-lucky-text-primary focus-visible:shadow-[0_0_0_2px_var(--color-lucky-surface-canvas),0_0_0_4px_var(--color-lucky-focus)]',
                                         )}
                                     >
                                         <span
