@@ -103,8 +103,8 @@
                     "type": "grafana-postgresql-datasource",
                     "uid": "${ds_postgres}"
                 },
-                "query": "SELECT DISTINCT command FROM command_events WHERE \"occurredAt\" > now() - interval '180 days' ORDER BY 1",
-                "definition": "SELECT DISTINCT command FROM command_events WHERE \"occurredAt\" > now() - interval '180 days' ORDER BY 1",
+                "query": "SELECT DISTINCT command FROM command_events WHERE \"guildId\" IS NOT NULL AND \"occurredAt\" > now() - interval '180 days' ORDER BY 1",
+                "definition": "SELECT DISTINCT command FROM command_events WHERE \"guildId\" IS NOT NULL AND \"occurredAt\" > now() - interval '180 days' ORDER BY 1",
                 "refresh": 2,
                 "sort": 1,
                 "hide": 0,

@@ -494,7 +494,7 @@ def produto():
                "SELECT \"discordId\" AS __value, coalesce(name, \"discordId\") AS __text FROM guilds ORDER BY 2",
                "Filtra os painéis de comandos por uma guilda."),
         pg_var("comando", "Comando",
-               "SELECT DISTINCT command FROM command_events WHERE \"occurredAt\" > now() - interval '180 days' ORDER BY 1",
+               "SELECT DISTINCT command FROM command_events WHERE \"guildId\" IS NOT NULL AND \"occurredAt\" > now() - interval '180 days' ORDER BY 1",
                "Filtra os painéis de comandos por um comando."),
     ]
     flt = ("('${guilda:raw}' = 'todas' OR ce.\"guildId\" = '${guilda:raw}') "
