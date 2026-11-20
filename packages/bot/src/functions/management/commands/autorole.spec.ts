@@ -1,4 +1,5 @@
 import autoroleCommand from './autorole'
+import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
 
 const interactionReplyMock = jest.fn()
 const createSuccessEmbedMock = jest.fn(
@@ -100,7 +101,7 @@ describe('autorole command', () => {
         })
 
         await autoroleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: createInteraction('add') as any,
         })
 
@@ -121,7 +122,7 @@ describe('autorole command', () => {
         interaction.options.getInteger = () => 30
 
         await autoroleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: interaction as any,
         })
 
@@ -132,7 +133,7 @@ describe('autorole command', () => {
         removeMock.mockResolvedValue(undefined)
 
         await autoroleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: createInteraction('remove') as any,
         })
 
@@ -152,7 +153,7 @@ describe('autorole command', () => {
         ])
 
         await autoroleCommand.execute({
-            client: {} as never,
+            client: createMockClient({}),
             interaction: createInteraction('list') as any,
         })
 

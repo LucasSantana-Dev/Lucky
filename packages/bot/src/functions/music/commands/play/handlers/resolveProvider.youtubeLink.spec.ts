@@ -38,14 +38,14 @@ describe('resolveQueryWithFallbacks with a YouTube link', () => {
     const voiceChannel = { id: 'vc-1' } as never
 
     const resolve = (query: string) =>
-        resolveQueryWithFallbacks(
-            player as never,
+        resolveQueryWithFallbacks({
+            player: player as never,
             voiceChannel,
             query,
-            'default',
-            QueryType.AUTO,
-            { searchEngine: QueryType.AUTO } as never,
-        )
+            requestedProvider: 'default',
+            searchEngine: QueryType.AUTO,
+            playOptions: { searchEngine: QueryType.AUTO } as never,
+        })
 
     const engines = () =>
         player.play.mock.calls.map(

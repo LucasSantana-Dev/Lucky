@@ -12,6 +12,8 @@
         "forceConsistentCasingInFileNames": true,
         "rootDir": "./src",
         "outDir": "./dist",
+        "sourceMap": true,
+        "inlineSources": true,
         "paths": {
             "@/*": ["./src/*"],
             "@lucky/shared": ["../shared/src/index.ts"],

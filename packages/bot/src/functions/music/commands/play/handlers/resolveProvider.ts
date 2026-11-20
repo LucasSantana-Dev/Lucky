@@ -398,6 +398,16 @@ function rerankThenNotify(
     }
 }
 
+export type ResolveQueryParams = {
+    player: Player
+    voiceChannel: VoiceBasedChannel
+    query: string
+    requestedProvider: string
+    searchEngine: QueryType
+    playOptions: PlayerNodeInitializerOptions<unknown>
+    onSearchResolved?: (result: SearchResult) => void
+}
+
 /**
  * Resolve a query via the discord-player with fallback chain.
  * Emits telemetry breadcrumbs for observability.
@@ -408,14 +418,9 @@ function rerankThenNotify(
  * (for example after a voice connect failure), it may fire more than once.
  */
 export async function resolveQueryWithFallbacks(
-    player: Player,
-    voiceChannel: VoiceBasedChannel,
-    query: string,
-    requestedProvider: string,
-    searchEngine: QueryType,
-    playOptions: PlayerNodeInitializerOptions<unknown>,
-    onSearchResolved?: (result: SearchResult) => void,
+    params: ResolveQueryParams,
 ): Promise<Resolution> {
+    const { player, voiceChannel } = params
     // A request made while the next track loads must not let play() start
     // the track queued behind it (see holdLoadingTrack).
     const guildId = voiceChannel.guild?.id
@@ -423,29 +428,21 @@ export async function resolveQueryWithFallbacks(
         guildId ? resolveGuildQueue({ player }, guildId).queue : null,
     )
     try {
-        return await resolveQuery(
-            player,
-            voiceChannel,
-            query,
-            requestedProvider,
-            searchEngine,
-            playOptions,
-            onSearchResolved,
-        )
+        return await resolveQuery(params)
     } finally {
         release()
     }
 }
 
-async function resolveQuery(
-    player: Player,
-    voiceChannel: VoiceBasedChannel,
-    query: string,
-    requestedProvider: string,
-    searchEngine: QueryType,
-    playOptions: PlayerNodeInitializerOptions<unknown>,
-    onSearchResolved?: (result: SearchResult) => void,
-): Promise<Resolution> {
+async function resolveQuery({
+    player,
+    voiceChannel,
+    query,
+    requestedProvider,
+    searchEngine,
+    playOptions,
+    onSearchResolved,
+}: ResolveQueryParams): Promise<Resolution> {
     const chain = (
         chainQuery: string,
         engine: QueryType,

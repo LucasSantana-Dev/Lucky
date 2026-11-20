@@ -72,7 +72,8 @@ export class DatabaseService {
     }
 
     /** Deletes track history, expired rate limit records, and server logs older than 30 days,
-     * user feedback (#2477), command events (#2391) and activation events older than their own 180-day window. */
+     * user feedback (#2477), command events (#2391) and activation events older than their own 180-day window,
+     * invite clicks after 180 days and top.gg vote events after 400 days (#2395). */
     async cleanupOldData(): Promise<Result<number>> {
         return this.executeWithFallback(async () => {
             const thirtyDaysAgo = new Date(
@@ -89,6 +90,8 @@ export class DatabaseService {
                 userFeedback,
                 commandEvents,
                 activationEvents,
+                inviteClicks,
+                topggVoteEvents,
             ] = await Promise.all([
                 this.prisma.trackHistory.deleteMany({
                     where: { playedAt: { lt: thirtyDaysAgo } },
@@ -108,6 +111,18 @@ export class DatabaseService {
                 this.prisma.activationEvent.deleteMany({
                     where: { occurredAt: { lt: oneHundredEightyDaysAgo } },
                 }),
+                this.prisma.inviteClick.deleteMany({
+                    where: { occurredAt: { lt: oneHundredEightyDaysAgo } },
+                }),
+                this.prisma.topggVoteEvent.deleteMany({
+                    where: {
+                        occurredAt: {
+                            lt: new Date(
+                                Date.now() - 400 * 24 * 60 * 60 * 1000,
+                            ),
+                        },
+                    },
+                }),
             ])
 
             return (
@@ -116,7 +131,9 @@ export class DatabaseService {
                 serverLogs.count +
                 userFeedback.count +
                 commandEvents.count +
-                activationEvents.count
+                activationEvents.count +
+                inviteClicks.count +
+                topggVoteEvents.count
             )
         }, 'cleanup_old_data')
     }

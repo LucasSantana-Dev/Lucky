@@ -24,7 +24,10 @@ homelab (veja [`observability/README.md`](../observability/README.md)).
 - **Lucky: negócio**: metas do music-first (WAG ≥ 20, 1ª hora ≥ 35%, dia 8 ≥
   15%), faixas por dia (pedidas e autoplay), guildas tocando, comandos mais
   usados, entradas e saídas de servidores, aceite do autoplay por fonte,
-  votos no top.gg, cards de recap, onboarding e de onde vem o áudio.
+  votos no top.gg, cards de recap, onboarding e de onde vem o áudio. A
+  seção "Convites e votos" mostra cliques em `/invite` por origem, as
+  entradas de guildas ligadas a eles (aproximado: clique mais recente nos
+  10 minutos antes da entrada) e os votos no top.gg por dia.
 - **Lucky: produto**: guildas ativas por dia, semana e mês (DAU/WAU/MAU de
   guildas), fidelidade DAU/MAU, retenção D1/D7/D30 por semana de entrada,
   comandos por dia, comandos mais usados e guildas que mais usam comandos,
@@ -66,6 +69,9 @@ de restaurar um dump em outro host (papéis não vão no `pg_dump`) ou se uma
 migration recriar uma tabela usada pelos dashboards. No homelab a senha fica
 em `secrets/lucky_grafana_ro_password`. O Grafana alcança o Postgres pela rede
 `lucky-db-ro`, que só tem o `lucky-postgres` (criada pelo compose do Lucky no deploy).
+Depois do deploy que cria `invite_clicks` e `topgg_vote_events` (#2395), rode
+o script de novo para liberar essas tabelas; até lá os painéis de convites e
+votos ficam com erro de permissão.
 
 ## O que fazer quando um alerta chega por email
 

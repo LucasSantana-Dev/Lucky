@@ -19,6 +19,7 @@ jest.mock('../../../../utils/general/interactionReply', () => ({
 
 import { afkService } from '@lucky/shared/services'
 import { interactionReply } from '../../../../utils/general/interactionReply'
+import { createMockInteraction } from '../../../../../tests/utils/command/fixtures.js'
 
 describe('afk command', () => {
     beforeEach(() => {
@@ -41,7 +42,7 @@ describe('afk command', () => {
 
         await afkCommand.execute({
             client: {} as any,
-            interaction: mockInteraction as never,
+            interaction: createMockInteraction(mockInteraction),
         })
 
         expect(afkService.clear).toHaveBeenCalledWith('guild1', 'user1')
@@ -73,7 +74,7 @@ describe('afk command', () => {
 
         await afkCommand.execute({
             client: {} as any,
-            interaction: mockInteraction as never,
+            interaction: createMockInteraction(mockInteraction),
         })
 
         expect(afkService.set).toHaveBeenCalledWith(
@@ -99,7 +100,7 @@ describe('afk command', () => {
 
         await afkCommand.execute({
             client: {} as any,
-            interaction: mockInteraction as never,
+            interaction: createMockInteraction(mockInteraction),
         })
 
         expect(interactionReply).toHaveBeenCalledWith({
@@ -123,7 +124,7 @@ describe('afk command', () => {
 
         await afkCommand.execute({
             client: {} as any,
-            interaction: mockInteraction as never,
+            interaction: createMockInteraction(mockInteraction),
         })
 
         const calls = (interactionReply as jest.Mock).mock.calls

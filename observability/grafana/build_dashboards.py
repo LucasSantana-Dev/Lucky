@@ -421,6 +421,39 @@ def negocio():
                            "pieType": "donut", "reduceOptions": {"calcs": ["lastNotNull"], "values": True}},
         desc="Fonte real do stream de cada faixa (YouTube, SoundCloud...).")
 
+    b.row("Convites e votos (atribuição aproximada)")
+    b.stat("Cliques em /invite (período)", sql(
+        "SELECT count(*) AS \"Cliques\" FROM invite_clicks WHERE $__timeFilter(\"occurredAt\")"), w=4,
+        no_value="sem cliques",
+        desc="Cada acesso ao link /invite do Lucky (#2395). Normal: sobe quando há divulgação; zero por dias seguidos com listagens ativas é estranho.")
+    b.add("table", "Cliques e entradas por origem (aproximado)", [sql(
+        "WITH joins AS (SELECT \"guildDiscordId\" AS g, \"occurredAt\" AS t FROM guild_membership_events "
+        f"WHERE kind = 'JOIN' AND $__timeFilter(\"occurredAt\") AND \"guildDiscordId\" NOT IN {EXCL}), "
+        "m AS (SELECT coalesce((SELECT coalesce(c.\"utmSource\", 'sem utm') FROM invite_clicks c "
+        "WHERE c.\"occurredAt\" <= j.t AND c.\"occurredAt\" > j.t - interval '10 minutes' AND $__timeFilter(c.\"occurredAt\") "
+        "ORDER BY c.\"occurredAt\" DESC LIMIT 1), 'sem clique antes') AS src FROM joins j), "
+        "a AS (SELECT src, count(*) AS n FROM m GROUP BY 1), "
+        "c AS (SELECT coalesce(\"utmSource\", 'sem utm') AS src, count(*) AS n FROM invite_clicks "
+        "WHERE $__timeFilter(\"occurredAt\") GROUP BY 1) "
+        "SELECT coalesce(c.src, a.src) AS \"Origem (utm_source)\", coalesce(c.n, 0) AS \"Cliques\", "
+        "coalesce(a.n, 0) AS \"Entradas atribuídas (aprox.)\", "
+        "round(100.0 * a.n / nullif(c.n, 0), 1) AS \"Conversão aprox. (%)\" "
+        "FROM c FULL JOIN a ON a.src = c.src ORDER BY 2 DESC, 3 DESC")], w=12, h=8,
+        no_value="sem cliques nem entradas no período",
+        desc="APROXIMADO: cada entrada de servidor é ligada ao clique em /invite mais recente nos 10 minutos antes dela, "
+             "sem confirmar que foi a mesma pessoa. 'sem clique antes' = a entrada veio por outro caminho (link direto do Discord, "
+             "listagem com link próprio). Normal: a maioria das entradas com clique antes vem das listagens. Preocupante: muitos "
+             "cliques de uma origem e nenhuma entrada (link quebrado ou permissão recusada). A origem exata, quando existe, está "
+             "em 'Entradas e 1ª hora por origem'.")
+    b.add("timeseries", "Votos no top.gg por dia", [sql(
+        "SELECT date_trunc('day', \"occurredAt\") AS time, count(*) FILTER (WHERE NOT \"isWeekend\") AS \"Votos\", "
+        "count(*) FILTER (WHERE \"isWeekend\") AS \"Votos de fim de semana (valem 2)\" FROM topgg_vote_events "
+        "WHERE $__timeFilter(\"occurredAt\") GROUP BY 1 ORDER BY 1", "time_series")],
+        w=8, h=8, custom=BARS, options=TS_OPTS, no_value="sem votos no período",
+        desc="Cada voto aceito no top.gg (#2395); votos repetidos em menos de 12 horas não contam. Normal: alguns por dia, "
+             "mais no fim de semana. Preocupante: zero por vários dias quando antes havia votos (webhook do top.gg quebrado). "
+             "O histórico começa no deploy desta tabela.")
+
     b.row("Gatilhos YouTube-off")
     b.add("gauge", "WAG (7 dias) vs limite 100", [sql(WAG_7D)],
           w=12, h=7, min_val=0, max_val=100,

@@ -33,6 +33,7 @@ jest.mock('@lucky/shared/services', () => ({
 
 // Import after mocks are set up
 import embedCommand from './embed.js'
+import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
 
 function createChatInputInteraction(
     subcommand: string,
@@ -121,7 +122,10 @@ describe('embed command', () => {
             const interaction = createChatInputInteraction('create')
             ;(interaction as { guild: unknown }).guild = null
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -139,7 +143,10 @@ describe('embed command', () => {
                 name: 'my-template',
             })
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(showModalMock).toHaveBeenCalled()
             const modalCall = showModalMock.mock.calls[0][0]
@@ -169,7 +176,10 @@ describe('embed command', () => {
                 name: 'existing',
             })
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -186,7 +196,10 @@ describe('embed command', () => {
                 name: 'MyTemplate',
             })
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             // Check that getTemplate was called with lowercase name
             expect(embedBuilderServiceMock.getTemplate).toHaveBeenCalledWith(
@@ -226,7 +239,10 @@ describe('embed command', () => {
                 channel: mockChannel,
             })
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(mockChannel.send).toHaveBeenCalled()
             expect(embedBuilderServiceMock.incrementUsage).toHaveBeenCalledWith(
@@ -266,7 +282,10 @@ describe('embed command', () => {
                 channel: null,
             })
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(
                 (interaction.channel as unknown as { send: jest.Mock }).send,
@@ -281,7 +300,10 @@ describe('embed command', () => {
                 channel: null,
             })
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -340,7 +362,10 @@ describe('embed command', () => {
                 isModalSubmit: jest.fn(() => false),
             } as unknown as ChatInputCommandInteraction
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -380,7 +405,10 @@ describe('embed command', () => {
                 channel: nonTextChannel,
             })
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(nonTextChannel.send).not.toHaveBeenCalled()
             expect(interactionReplyMock).toHaveBeenCalledWith({
@@ -433,7 +461,10 @@ describe('embed command', () => {
 
             const interaction = createChatInputInteraction('list')
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(embedBuilderServiceMock.listTemplates).toHaveBeenCalledWith(
                 'guild-123',
@@ -457,7 +488,10 @@ describe('embed command', () => {
 
             const interaction = createChatInputInteraction('list')
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -491,7 +525,10 @@ describe('embed command', () => {
                 template: 'old-template',
             })
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(embedBuilderServiceMock.deleteTemplate).toHaveBeenCalledWith(
                 'guild-123',
@@ -512,7 +549,10 @@ describe('embed command', () => {
                 template: 'nonexistent',
             })
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(interactionReplyMock).toHaveBeenCalledWith({
                 interaction,
@@ -533,7 +573,10 @@ describe('embed command', () => {
 
             const interaction = createChatInputInteraction('list')
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(errorLogMock).toHaveBeenCalledWith({
                 message: 'Failed to manage embed template',
@@ -555,7 +598,10 @@ describe('embed command', () => {
                 name: 'test',
             })
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(errorLogMock).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -591,7 +637,10 @@ describe('embed command', () => {
             })
 
             // Discord.js EmbedBuilder validates field lengths and throws on oversized content
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             // Should not send to channel due to validation error
             expect(
@@ -637,7 +686,10 @@ describe('embed command', () => {
                 template: 'with-fields',
             })
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             const sendCall = (
                 interaction.channel as unknown as { send: jest.Mock }
@@ -653,7 +705,10 @@ describe('embed command', () => {
                 template: 'MyUppercaseTemplate',
             })
 
-            await embedCommand.execute({ client: {} as never, interaction })
+            await embedCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
 
             expect(embedBuilderServiceMock.getTemplate).toHaveBeenCalledWith(
                 'guild-123',

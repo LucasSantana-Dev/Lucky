@@ -60,14 +60,14 @@ describe('resolveQueryWithFallbacks', () => {
             const mockTrack = { title: 'Test Song' }
             mockPlayer.play.mockResolvedValue(mockTrack)
 
-            const { result, telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'test query',
-                'default',
-                QueryType.AUTO,
-                mockPlayOptions,
-            )
+            const { result, telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'test query',
+                requestedProvider: 'default',
+                searchEngine: QueryType.AUTO,
+                playOptions: mockPlayOptions,
+            })
 
             expect(result).toEqual(mockTrack)
             expect(telemetry.resolvedVia).toBe('primary')
@@ -97,14 +97,14 @@ describe('resolveQueryWithFallbacks', () => {
                 return { title: "Rue's I'm Tired (with Zendaya)" }
             })
 
-            await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'im tired zendaya',
-                'default',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'im tired zendaya',
+                requestedProvider: 'default',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(mockPlayer.nodes.get).toHaveBeenCalledWith('guild-job')
             expect(dispatch).not.toHaveBeenCalled()
@@ -125,14 +125,14 @@ describe('resolveQueryWithFallbacks', () => {
                 return { title: 'Minto pra quem perguntar' }
             })
 
-            await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'minto pra quem perguntar',
-                'default',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'minto pra quem perguntar',
+                requestedProvider: 'default',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(dispatch).toHaveBeenCalledTimes(1)
         })
@@ -151,14 +151,14 @@ describe('resolveQueryWithFallbacks', () => {
             })
             mockPlayer.play.mockResolvedValueOnce({ title: 'Test Song' })
 
-            const { telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'test query',
-                'default',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            const { telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'test query',
+                requestedProvider: 'default',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(awaitHydrationMock).toHaveBeenCalledTimes(1)
             expect(telemetry.resolvedVia).toBe('youtube-fallback')
@@ -169,14 +169,14 @@ describe('resolveQueryWithFallbacks', () => {
             const mockTrack = { title: 'Test Song' }
             mockPlayer.play.mockResolvedValueOnce(mockTrack)
 
-            const { result, telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'test query',
-                'default',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            const { result, telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'test query',
+                requestedProvider: 'default',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(result).toEqual(mockTrack)
             expect(telemetry.resolvedVia).toBe('youtube-fallback')
@@ -193,14 +193,14 @@ describe('resolveQueryWithFallbacks', () => {
         it('logs one info line with the remaining seconds and no primary warn', async () => {
             mockPlayer.play.mockResolvedValueOnce({ title: 'Test Song' })
 
-            await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'test query',
-                'default',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'test query',
+                requestedProvider: 'default',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(infoLogMock).toHaveBeenCalledTimes(1)
             expect(infoLogMock).toHaveBeenCalledWith(
@@ -219,14 +219,14 @@ describe('resolveQueryWithFallbacks', () => {
         it('does not skip a non-Spotify primary engine', async () => {
             mockPlayer.play.mockResolvedValueOnce({ title: 'Test Song' })
 
-            const { telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'test query',
-                'youtube',
-                QueryType.YOUTUBE_SEARCH,
-                mockPlayOptions,
-            )
+            const { telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'test query',
+                requestedProvider: 'youtube',
+                searchEngine: QueryType.YOUTUBE_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(telemetry.resolvedVia).toBe('primary')
             expect(infoLogMock).not.toHaveBeenCalled()
@@ -242,14 +242,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(primaryError)
                 .mockResolvedValueOnce(mockTrack)
 
-            const { result, telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'test query',
-                'youtube',
-                QueryType.YOUTUBE_SEARCH,
-                mockPlayOptions,
-            )
+            const { result, telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'test query',
+                requestedProvider: 'youtube',
+                searchEngine: QueryType.YOUTUBE_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(result).toEqual(mockTrack)
             expect(telemetry.resolvedVia).toBe('youtube-fallback')
@@ -270,14 +270,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(primaryError)
                 .mockResolvedValueOnce(mockTrack)
 
-            await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'pink floyd wish you were here',
-                'spotify',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'pink floyd wish you were here',
+                requestedProvider: 'spotify',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             const youtubeFallbackCall = mockPlayer.play.mock.calls[1]
             expect(youtubeFallbackCall[2]).toMatchObject({
@@ -303,14 +303,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(youtubeError)
                 .mockResolvedValueOnce(mockTrack)
 
-            const { result, telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'test query',
-                'soundcloud',
-                QueryType.SOUNDCLOUD_SEARCH,
-                mockPlayOptions,
-            )
+            const { result, telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'test query',
+                requestedProvider: 'soundcloud',
+                searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(result).toEqual(mockTrack)
             expect(telemetry.resolvedVia).toBe('soundcloud-fallback')
@@ -329,14 +329,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(youtubeError)
                 .mockResolvedValueOnce(mockTrack)
 
-            await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'pink floyd wish you were here',
-                'spotify',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'pink floyd wish you were here',
+                requestedProvider: 'spotify',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             const soundcloudFallbackCall = mockPlayer.play.mock.calls[2]
             expect(soundcloudFallbackCall[2]).toMatchObject({
@@ -357,14 +357,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(new Error('YouTube failed'))
                 .mockResolvedValueOnce({ track: { title: 'Test Song' } })
 
-            await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'domadinho tamixanny',
-                'default',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'domadinho tamixanny',
+                requestedProvider: 'default',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             const youtubeCall = mockPlayer.play.mock.calls[1]
             expect(youtubeCall[2].blockExtractors).not.toContain(
@@ -383,14 +383,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(new Error('YouTube failed'))
                 .mockResolvedValueOnce({ track: mockTrack })
 
-            await resolveQueryWithFallbacks(
-                mockPlayer as never,
-                mockVoiceChannel as never,
-                'chico preto jurandyr',
-                'spotify',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            await resolveQueryWithFallbacks({
+                player: mockPlayer as never,
+                voiceChannel: mockVoiceChannel as never,
+                query: 'chico preto jurandyr',
+                requestedProvider: 'spotify',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             // Arms 2 and 3 are the text-search fallbacks. Neither may leave
             // AttachmentExtractor unblocked: it accepts the query, cannot
@@ -428,14 +428,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(noResultError)
                 .mockResolvedValueOnce(mockTrack)
 
-            const { result, telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'human nature',
-                'default',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            const { result, telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'human nature',
+                requestedProvider: 'default',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(result).toEqual(mockTrack)
             expect(telemetry.resolvedVia).toBe('primary')
@@ -457,14 +457,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(noResultError)
                 .mockResolvedValueOnce(mockTrack)
 
-            const { result, telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'human nature',
-                'default',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            const { result, telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'human nature',
+                requestedProvider: 'default',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(result).toEqual(mockTrack)
             expect(telemetry.resolvedVia).toBe('youtube-fallback')
@@ -484,14 +484,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(primaryError)
                 .mockResolvedValueOnce(mockTrack)
 
-            const { telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'test query',
-                'default',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            const { telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'test query',
+                requestedProvider: 'default',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             // One primary call, then straight to the YouTube fallback — no
             // extra retry call in between.
@@ -507,14 +507,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(noResultError)
                 .mockResolvedValueOnce(mockTrack)
 
-            const { telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'test query',
-                'youtube',
-                QueryType.YOUTUBE_SEARCH,
-                mockPlayOptions,
-            )
+            const { telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'test query',
+                requestedProvider: 'youtube',
+                searchEngine: QueryType.YOUTUBE_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             // The retry exists for Spotify's swallowed client-credentials
             // failure only. An explicit YouTube no-result is a real
@@ -548,14 +548,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(primaryError)
                 .mockResolvedValueOnce(mockTrack)
 
-            const { result, telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'test query',
-                'default',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            const { result, telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'test query',
+                requestedProvider: 'default',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(result).toEqual(mockTrack)
             expect(telemetry.resolvedVia).toBe('soundcloud-fallback')
@@ -579,14 +579,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(primaryError)
                 .mockResolvedValueOnce(mockTrack)
 
-            const { result, telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'pink floyd wish you were here',
-                'spotify',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            const { result, telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'pink floyd wish you were here',
+                requestedProvider: 'spotify',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(result).toEqual(mockTrack)
             expect(telemetry.resolvedVia).toBe('soundcloud-fallback')
@@ -605,14 +605,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(soundcloudError)
 
             await expect(
-                resolveQueryWithFallbacks(
-                    mockPlayer,
-                    mockVoiceChannel,
-                    'test query',
-                    'default',
-                    QueryType.SPOTIFY_SEARCH,
-                    mockPlayOptions,
-                ),
+                resolveQueryWithFallbacks({
+                    player: mockPlayer,
+                    voiceChannel: mockVoiceChannel,
+                    query: 'test query',
+                    requestedProvider: 'default',
+                    searchEngine: QueryType.SPOTIFY_SEARCH,
+                    playOptions: mockPlayOptions,
+                }),
             ).rejects.toThrow('SoundCloud failed')
 
             expect(mockPlayer.play).toHaveBeenCalledTimes(2)
@@ -638,14 +638,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(noResultError)
                 .mockResolvedValueOnce(mockTrack)
 
-            const { result, telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'test query',
-                'default',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            const { result, telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'test query',
+                requestedProvider: 'default',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             expect(result).toEqual(mockTrack)
             expect(telemetry.resolvedVia).toBe('soundcloud-fallback')
@@ -671,14 +671,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(new CustomError())
 
             try {
-                await resolveQueryWithFallbacks(
-                    mockPlayer,
-                    mockVoiceChannel,
-                    'test query',
-                    'soundcloud',
-                    QueryType.SOUNDCLOUD_SEARCH,
-                    mockPlayOptions,
-                )
+                await resolveQueryWithFallbacks({
+                    player: mockPlayer,
+                    voiceChannel: mockVoiceChannel,
+                    query: 'test query',
+                    requestedProvider: 'soundcloud',
+                    searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                    playOptions: mockPlayOptions,
+                })
             } catch (e) {
                 expect(e).toBeInstanceOf(CustomError)
             }
@@ -689,14 +689,14 @@ describe('resolveQueryWithFallbacks', () => {
             mockPlayer.play.mockRejectedValueOnce(primaryError)
 
             await expect(
-                resolveQueryWithFallbacks(
-                    mockPlayer,
-                    mockVoiceChannel,
-                    'test query',
-                    'default',
-                    QueryType.AUTO,
-                    mockPlayOptions,
-                ),
+                resolveQueryWithFallbacks({
+                    player: mockPlayer,
+                    voiceChannel: mockVoiceChannel,
+                    query: 'test query',
+                    requestedProvider: 'default',
+                    searchEngine: QueryType.AUTO,
+                    playOptions: mockPlayOptions,
+                }),
             ).rejects.toThrow('Primary failed')
 
             expect(warnLogMock).not.toHaveBeenCalled()
@@ -713,14 +713,14 @@ describe('resolveQueryWithFallbacks', () => {
                     }),
             )
 
-            const { telemetry } = await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'test query',
-                'default',
-                QueryType.AUTO,
-                mockPlayOptions,
-            )
+            const { telemetry } = await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'test query',
+                requestedProvider: 'default',
+                searchEngine: QueryType.AUTO,
+                playOptions: mockPlayOptions,
+            })
 
             expect(telemetry.latencyMs).toBeGreaterThanOrEqual(40)
         })
@@ -734,14 +734,14 @@ describe('resolveQueryWithFallbacks', () => {
                 .mockRejectedValueOnce(new Error('YouTube failed'))
                 .mockResolvedValueOnce(mockTrack)
 
-            await resolveQueryWithFallbacks(
-                mockPlayer,
-                mockVoiceChannel,
-                'Prince',
-                'spotify',
-                QueryType.SPOTIFY_SEARCH,
-                mockPlayOptions,
-            )
+            await resolveQueryWithFallbacks({
+                player: mockPlayer,
+                voiceChannel: mockVoiceChannel,
+                query: 'Prince',
+                requestedProvider: 'spotify',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: mockPlayOptions,
+            })
 
             for (const call of mockPlayer.play.mock.calls) {
                 expect(call[2].afterSearch).toEqual(expect.any(Function))
@@ -776,15 +776,15 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
             }),
         }
 
-        const pending = resolveQueryWithFallbacks(
+        const pending = resolveQueryWithFallbacks({
             player,
-            channel,
-            'song',
-            'default',
-            QueryType.AUTO,
-            {},
-            (result) => seen.push(result),
-        )
+            voiceChannel: channel,
+            query: 'song',
+            requestedProvider: 'default',
+            searchEngine: QueryType.AUTO,
+            playOptions: {},
+            onSearchResolved: (result) => seen.push(result),
+        })
         await new Promise((resolve) => setImmediate(resolve))
 
         expect(seen).toHaveLength(1)
@@ -804,15 +804,15 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
         }
 
         await expect(
-            resolveQueryWithFallbacks(
+            resolveQueryWithFallbacks({
                 player,
-                channel,
-                'https://soundcloud.com/a/b',
-                'default',
-                QueryType.AUTO,
-                {},
+                voiceChannel: channel,
+                query: 'https://soundcloud.com/a/b',
+                requestedProvider: 'default',
+                searchEngine: QueryType.AUTO,
+                playOptions: {},
                 onSearchResolved,
-            ),
+            }),
         ).rejects.toMatchObject({ name: 'TrackMetadataUnavailableError' })
         expect(startPlayback).not.toHaveBeenCalled()
         expect(onSearchResolved).not.toHaveBeenCalled()
@@ -828,15 +828,15 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
         }
 
         await expect(
-            resolveQueryWithFallbacks(
+            resolveQueryWithFallbacks({
                 player,
-                channel,
-                'bom garoto',
-                'spotify',
-                QueryType.SPOTIFY_SEARCH,
-                {},
+                voiceChannel: channel,
+                query: 'bom garoto',
+                requestedProvider: 'spotify',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: {},
                 onSearchResolved,
-            ),
+            }),
         ).rejects.toMatchObject({ name: 'AsmrBlockedError' })
         expect(player.play).toHaveBeenCalledTimes(1)
         expect(onSearchResolved).not.toHaveBeenCalled()
@@ -857,14 +857,14 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
         }
 
         await expect(
-            resolveQueryWithFallbacks(
+            resolveQueryWithFallbacks({
                 player,
-                channel,
-                'bom garoto',
-                'spotify',
-                QueryType.SPOTIFY_SEARCH,
-                {},
-            ),
+                voiceChannel: channel,
+                query: 'bom garoto',
+                requestedProvider: 'spotify',
+                searchEngine: QueryType.SPOTIFY_SEARCH,
+                playOptions: {},
+            }),
         ).rejects.toMatchObject({ name: 'AsmrBlockedError' })
         expect(player.play).toHaveBeenCalledTimes(2)
     })
@@ -878,14 +878,14 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
         }
 
         await expect(
-            resolveQueryWithFallbacks(
+            resolveQueryWithFallbacks({
                 player,
-                channel,
-                'asmr bom garoto',
-                'default',
-                QueryType.AUTO,
-                {},
-            ),
+                voiceChannel: channel,
+                query: 'asmr bom garoto',
+                requestedProvider: 'default',
+                searchEngine: QueryType.AUTO,
+                playOptions: {},
+            }),
         ).rejects.toMatchObject({ name: 'AsmrBlockedError' })
     })
 
@@ -898,15 +898,15 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
             }),
         }
 
-        await resolveQueryWithFallbacks(
+        await resolveQueryWithFallbacks({
             player,
-            channel,
-            'song',
-            'default',
-            QueryType.AUTO,
-            {},
+            voiceChannel: channel,
+            query: 'song',
+            requestedProvider: 'default',
+            searchEngine: QueryType.AUTO,
+            playOptions: {},
             onSearchResolved,
-        )
+        })
 
         expect(onSearchResolved).not.toHaveBeenCalled()
     })
@@ -920,17 +920,17 @@ describe('resolveQueryWithFallbacks onSearchResolved', () => {
         }
 
         await expect(
-            resolveQueryWithFallbacks(
+            resolveQueryWithFallbacks({
                 player,
-                channel,
-                'song',
-                'default',
-                QueryType.AUTO,
-                {},
-                () => {
+                voiceChannel: channel,
+                query: 'song',
+                requestedProvider: 'default',
+                searchEngine: QueryType.AUTO,
+                playOptions: {},
+                onSearchResolved: () => {
                     throw new Error('callback bug')
                 },
-            ),
+            }),
         ).resolves.toMatchObject({ telemetry: { resolvedVia: 'primary' } })
         expect(warnLogMock).toHaveBeenCalledWith(
             expect.objectContaining({

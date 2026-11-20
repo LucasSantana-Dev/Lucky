@@ -41,7 +41,9 @@ jest.mock('../../../src/middleware/auth', () => ({
 // Mock Prisma client via getPrismaClient so the route never opens a real database connection.
 // This must be done before importing the route module.
 const mockFindUnique = jest.fn<AsyncMockFn>()
-const mockTransaction = jest.fn<(callback: Function) => Promise<unknown>>()
+const mockTransaction =
+    jest.fn<(callback: Function, options?: unknown) => Promise<unknown>>()
+const txEventCreate = jest.fn<AsyncMockFn>()
 
 jest.mock(
     '@lucky/shared/utils',
@@ -93,6 +95,8 @@ beforeEach(() => {
     process.env.LUCKY_NOTIFY_API_KEY = 'internal-key'
     mockFindUnique.mockClear()
     mockTransaction.mockClear()
+    txEventCreate.mockReset()
+    txEventCreate.mockResolvedValue({})
 })
 
 afterEach(() => {
@@ -314,6 +318,7 @@ describe('POST /webhooks/topgg-votes persistence', () => {
         mockTransaction.mockImplementation(async (callback: Function) => {
             // The callback receives a tx object with topggVote operations
             const txMock = {
+                topggVoteEvent: { create: txEventCreate },
                 topggVote: {
                     findUnique: jest.fn<AsyncMockFn>().mockResolvedValue(null), // No existing vote
                     upsert: jest.fn(async (arg) => {
@@ -343,6 +348,17 @@ describe('POST /webhooks/topgg-votes persistence', () => {
         expect(res.body).toEqual({ ok: true })
         expect(mockTransaction).toHaveBeenCalled()
         expect(txUpsertCalls).toHaveLength(1)
+        expect(mockTransaction.mock.calls[0][1]).toEqual({
+            isolationLevel: 'Serializable',
+        })
+        expect(txEventCreate).toHaveBeenCalledWith({
+            data: expect.objectContaining({
+                userId: '123456789012345678',
+                streak: 1,
+                isWeekend: false,
+                occurredAt: expect.any(Date),
+            }),
+        })
         expect(txUpsertCalls[0]).toEqual(
             expect.objectContaining({
                 where: { userId: '123456789012345678' },
@@ -357,12 +373,43 @@ describe('POST /webhooks/topgg-votes persistence', () => {
         )
     })
 
+    it('records a weekend vote in the history and fails the delivery when the history write fails', async () => {
+        mockTransaction.mockImplementation(async (callback: Function) =>
+            callback({
+                topggVoteEvent: { create: txEventCreate },
+                topggVote: {
+                    findUnique: jest.fn<AsyncMockFn>().mockResolvedValue(null),
+                    upsert: jest.fn<AsyncMockFn>().mockResolvedValue({}),
+                },
+            }),
+        )
+        const send = () =>
+            request(buildApp())
+                .post('/webhooks/topgg-votes')
+                .set('authorization', 'valid-token')
+                .send({
+                    user: '123456789012345678',
+                    type: 'upvote',
+                    isWeekend: true,
+                })
+
+        expect((await send()).status).toBe(200)
+        expect(txEventCreate).toHaveBeenCalledWith({
+            data: expect.objectContaining({ isWeekend: true, streak: 1 }),
+        })
+
+        // A lost history row surfaces as a 500 instead of being swallowed.
+        txEventCreate.mockRejectedValueOnce(new Error('db down'))
+        expect((await send()).status).toBe(500)
+    })
+
     it('returns duplicate=true on duplicate vote within 12h', async () => {
         const now = Date.now()
         const lastVoteTime = new Date(now - 3600000) // 1 hour ago, within 12h window
         const txUpsertCalls: unknown[] = []
         mockTransaction.mockImplementation(async (callback: Function) => {
             const txMock = {
+                topggVoteEvent: { create: txEventCreate },
                 topggVote: {
                     findUnique: jest.fn<AsyncMockFn>().mockResolvedValue({
                         userId: '123456789012345678',
@@ -393,6 +440,7 @@ describe('POST /webhooks/topgg-votes persistence', () => {
         expect(res.body).toEqual({ ok: true, duplicate: true })
         expect(mockTransaction).toHaveBeenCalled()
         expect(txUpsertCalls).toHaveLength(0)
+        expect(txEventCreate).not.toHaveBeenCalled()
     })
 
     it('increments streak when vote recorded after 12h but within 36h', async () => {
@@ -406,6 +454,7 @@ describe('POST /webhooks/topgg-votes persistence', () => {
                 streak: 6,
             })
             const txMock = {
+                topggVoteEvent: { create: txEventCreate },
                 topggVote: {
                     findUnique: jest.fn<AsyncMockFn>().mockResolvedValue({
                         userId: '123456789012345678',
@@ -456,6 +505,7 @@ describe('POST /webhooks/topgg-votes persistence', () => {
                 streak: 11,
             })
             const txMock = {
+                topggVoteEvent: { create: txEventCreate },
                 topggVote: {
                     findUnique: jest.fn<AsyncMockFn>().mockResolvedValue({
                         userId: '123456789012345678',
@@ -508,6 +558,7 @@ describe('POST /webhooks/topgg-votes persistence', () => {
                 streak: 1,
             })
             const txMock = {
+                topggVoteEvent: { create: txEventCreate },
                 topggVote: {
                     findUnique: jest.fn<AsyncMockFn>().mockResolvedValue({
                         userId: '123456789012345678',

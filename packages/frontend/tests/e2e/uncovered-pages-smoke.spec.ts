@@ -141,6 +141,17 @@ async function mockSession(
     return unmocked
 }
 
+async function mockSignedOut(page: Page): Promise<void> {
+    await failUnmockedApiCalls(page)
+    await page.route('**/api/auth/status', async (route) => {
+        await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ authenticated: false }),
+        })
+    })
+}
+
 test.describe('Pages without other e2e coverage', () => {
     for (const { route, request, heading, copy } of GUILD_PAGES) {
         test(`${route} renders for a signed-in member`, async ({ page }) => {
@@ -233,4 +244,109 @@ test.describe('Pages without other e2e coverage', () => {
         await expect(page).toHaveURL(/\/admin$/)
         expect(errors).toEqual([])
     })
+
+    for (const route of ['/terms', '/privacy']) {
+        test(`${route} alias renders the legal page`, async ({ page }) => {
+            const errors = collectPageErrors(page)
+            await mockSignedOut(page)
+
+            await page.goto(route)
+
+            await expect(
+                page.getByRole('heading', { level: 1 }).first(),
+            ).toBeVisible({ timeout: 10000 })
+            await page.waitForLoadState('networkidle')
+            await expect(page).toHaveURL(new RegExp(`${route}$`))
+            expect(errors).toEqual([])
+        })
+    }
+
+    for (const { route, source } of [
+        { route: '/add?source=topgg', source: 'topgg' },
+        { route: '/l/topgg', source: 'topgg' },
+        { route: '/l/not-a-real-source', source: null },
+    ]) {
+        test(`${route} shows the landing page with an attributed add link`, async ({
+            page,
+        }) => {
+            const errors = collectPageErrors(page)
+            await mockSignedOut(page)
+
+            await page.goto(route)
+
+            await expect(page.getByRole('heading', { level: 1 })).toBeVisible({
+                timeout: 10000,
+            })
+            const addLink = page.getByRole('link', { name: 'Add to Discord' })
+            await expect(addLink).toBeVisible()
+            const href = await addLink.getAttribute('href')
+            expect(href).toMatch(/^\/api\/add\?source=/)
+            if (source) expect(href).toBe(`/api/add?source=${source}`)
+            await page.waitForLoadState('networkidle')
+            expect(errors).toEqual([])
+        })
+    }
+
+    test('/admin/support lists reports for a developer', async ({ page }) => {
+        const errors = collectPageErrors(page)
+        await mockSession(page, true)
+        await page.route('**/api/admin/support**', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify([
+                    {
+                        id: 'report-1',
+                        createdAt: '2026-11-01T12:00:00.000Z',
+                        context: 'Queue stops after the third track',
+                        imageMimeType: null,
+                        correlationId: null,
+                        guildId: null,
+                        surface: 'web',
+                        errorCategory: null,
+                        status: 'open',
+                    },
+                ]),
+            })
+        })
+
+        await page.goto('/admin/support')
+
+        await expect(
+            page.getByRole('heading', { level: 1, name: 'Support reports' }),
+        ).toBeVisible({ timeout: 10000 })
+        await expect(
+            page.getByText('Queue stops after the third track'),
+        ).toBeVisible()
+        await expect(page.getByRole('alert')).toHaveCount(0)
+        await expect(
+            page.getByRole('heading', { level: 1, name: 'Access Denied' }),
+        ).toHaveCount(0)
+        await page.waitForLoadState('networkidle')
+        expect(errors).toEqual([])
+    })
+
+    for (const [label, signedIn] of [
+        ['signed out', false],
+        ['signed in', true],
+    ] as const) {
+        test(`an unknown route shows the not-found page (${label})`, async ({
+            page,
+        }) => {
+            const errors = collectPageErrors(page)
+            if (signedIn) await mockSession(page, false)
+            else await mockSignedOut(page)
+
+            await page.goto('/this-route-does-not-exist')
+
+            await expect(
+                page.getByRole('heading', { level: 1, name: 'Page not found' }),
+            ).toBeVisible({ timeout: 10000 })
+            await expect(
+                page.getByRole('link', { name: 'Back to home' }),
+            ).toBeVisible()
+            await page.waitForLoadState('networkidle')
+            expect(errors).toEqual([])
+        })
+    }
 })

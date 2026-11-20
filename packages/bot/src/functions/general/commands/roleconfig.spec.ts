@@ -31,6 +31,7 @@ jest.mock('../handlers/roleconfigHandlers.js', () => ({
 }))
 
 import roleConfigCommand from './roleconfig.js'
+import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
 
 function makeInteraction(
     subcommand: string,
@@ -65,7 +66,10 @@ describe('/roleconfig', () => {
 
         const interaction = makeInteraction('set-exclusive', {}, false) as never
 
-        await roleConfigCommand.execute({ client: {} as never, interaction })
+        await roleConfigCommand.execute({
+            client: createMockClient({}),
+            interaction,
+        })
 
         expect(requireGuild).toHaveBeenCalled()
     })
@@ -80,7 +84,7 @@ describe('/roleconfig', () => {
             }) as never
 
             await roleConfigCommand.execute({
-                client: {} as never,
+                client: createMockClient({}),
                 interaction,
             })
 
@@ -98,7 +102,7 @@ describe('/roleconfig', () => {
             }) as never
 
             await roleConfigCommand.execute({
-                client: {} as never,
+                client: createMockClient({}),
                 interaction,
             })
 
@@ -111,7 +115,7 @@ describe('/roleconfig', () => {
             const interaction = makeInteraction('list') as never
 
             await roleConfigCommand.execute({
-                client: {} as never,
+                client: createMockClient({}),
                 interaction,
             })
 
@@ -131,7 +135,7 @@ describe('/roleconfig', () => {
             }) as never
 
             await roleConfigCommand.execute({
-                client: {} as never,
+                client: createMockClient({}),
                 interaction,
             })
 

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { setupMockApiResponses } from './helpers/api-helpers'
-import { navigateToFeatures } from './helpers/page-helpers'
+import { navigateToFeatures, navigateToServers } from './helpers/page-helpers'
 import { MOCK_API_RESPONSES } from './fixtures/test-data'
 
 test.describe('Error Handling', () => {
@@ -82,5 +82,40 @@ test.describe('Error Handling', () => {
         await expect(
             page.getByRole('switch', { name: 'Toggle Autoplay' }),
         ).toBeVisible()
+    })
+
+    test('guild load failure on /servers shows an alert with retry', async ({
+        page,
+    }) => {
+        await setupMockApiResponses(page)
+        let failing = true
+        await page.route('**/api/guilds', async (route) => {
+            if (failing) {
+                await route.fulfill({
+                    status: 500,
+                    contentType: 'application/json',
+                    body: JSON.stringify({ error: 'Internal server error' }),
+                })
+                return
+            }
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify(MOCK_API_RESPONSES.guildsList),
+            })
+        })
+
+        await navigateToServers(page)
+
+        const alert = page.getByRole('alert')
+        await expect(alert).toBeVisible({ timeout: 10000 })
+        await expect(alert.getByRole('button', { name: 'Retry' })).toBeVisible()
+        await expect(page.getByText('No servers yet')).toHaveCount(0)
+
+        failing = false
+        await alert.getByRole('button', { name: 'Retry' }).click()
+
+        await expect(alert).toHaveCount(0)
+        await expect(page.getByText('No servers yet')).toHaveCount(0)
     })
 })

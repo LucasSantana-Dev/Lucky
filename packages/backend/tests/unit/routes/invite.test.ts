@@ -4,20 +4,27 @@ import request from 'supertest'
 
 const mockInfoLog = jest.fn()
 const mockLogAndSwallow = jest.fn()
+const mockLogAndWarn = jest.fn()
+const mockInviteClickCreate = jest.fn<(arg: unknown) => Promise<unknown>>()
+const mockGetPrismaClient = jest.fn(() => ({
+    inviteClick: { create: mockInviteClickCreate },
+}))
 
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => mockInfoLog(...args),
+    getPrismaClient: () => mockGetPrismaClient(),
 }))
 
 jest.mock('@lucky/shared/utils/error', () => ({
     logAndSwallow: (...args: unknown[]) => mockLogAndSwallow(...args),
+    logAndWarn: (...args: unknown[]) => mockLogAndWarn(...args),
 }))
 
 jest.mock('../../../src/middleware/rateLimit', () => ({
     apiLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
 }))
 
-import { setupInviteRoute } from '../../../src/routes/invite'
+import { setupInviteRoute, referrerHostOf } from '../../../src/routes/invite'
 
 function buildApp() {
     const app = express()
@@ -29,6 +36,11 @@ describe('GET /invite', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         mockInfoLog.mockReset()
+        mockInviteClickCreate.mockReset()
+        mockInviteClickCreate.mockResolvedValue({})
+        mockGetPrismaClient.mockImplementation(() => ({
+            inviteClick: { create: mockInviteClickCreate },
+        }))
     })
 
     test('redirects to Discord invite URL', async () => {
@@ -118,5 +130,98 @@ describe('GET /invite', () => {
         const res = await request(buildApp()).get('/invite?utm_source=<script>')
         const location = new URL(res.headers.location)
         expect(location.searchParams.get('state')).toBe('src.unknown')
+    })
+
+    describe('invite_clicks (#2395)', () => {
+        test('records the UTM fields and the referrer host', async () => {
+            await request(buildApp())
+                .get(
+                    '/invite?utm_source=topgg&utm_medium=directory&utm_campaign=listing&utm_content=button',
+                )
+                .set('Referer', 'https://top.gg/bot/123?ref=abc')
+            expect(mockInviteClickCreate).toHaveBeenCalledWith({
+                data: {
+                    utmSource: 'topgg',
+                    utmMedium: 'directory',
+                    utmCampaign: 'listing',
+                    utmContent: 'button',
+                    referrerHost: 'top.gg',
+                },
+            })
+        })
+
+        test('stores nulls when nothing is known', async () => {
+            await request(buildApp()).get('/invite')
+            expect(mockInviteClickCreate).toHaveBeenCalledWith({
+                data: {
+                    utmSource: null,
+                    utmMedium: null,
+                    utmCampaign: null,
+                    utmContent: null,
+                    referrerHost: null,
+                },
+            })
+        })
+
+        test('caps long values at 100 characters', async () => {
+            await request(buildApp()).get(
+                `/invite?utm_campaign=${'x'.repeat(500)}`,
+            )
+            const arg = mockInviteClickCreate.mock.calls[0][0] as {
+                data: { utmCampaign: string }
+            }
+            expect(arg.data.utmCampaign).toHaveLength(100)
+        })
+
+        test('still redirects when the insert rejects', async () => {
+            mockInviteClickCreate.mockRejectedValue(new Error('db down'))
+            const res = await request(buildApp()).get(
+                '/invite?utm_source=topgg',
+            )
+            expect(res.status).toBe(302)
+            await new Promise((resolve) => setImmediate(resolve))
+            expect(mockLogAndWarn).toHaveBeenCalledWith(
+                expect.any(Error),
+                'invite.recordClick',
+            )
+        })
+
+        test('a throwing logger never escapes the route', async () => {
+            mockInviteClickCreate.mockRejectedValue(new Error('db down'))
+            mockLogAndWarn.mockImplementation(() => {
+                throw new Error('sink down')
+            })
+            const res = await request(buildApp()).get('/invite')
+            await new Promise((resolve) => setImmediate(resolve))
+            expect(res.status).toBe(302)
+            expect(mockLogAndWarn).toHaveBeenCalled()
+            mockLogAndWarn.mockReset()
+        })
+
+        test('still redirects when the client cannot be created', async () => {
+            mockGetPrismaClient.mockImplementation(() => {
+                throw new Error('no client')
+            })
+            const res = await request(buildApp()).get('/invite')
+            expect(res.status).toBe(302)
+            expect(res.headers.location).toContain('discord.com')
+            expect(mockLogAndWarn).toHaveBeenCalledWith(
+                expect.any(Error),
+                'invite.recordClick',
+            )
+        })
+    })
+})
+
+describe('referrerHostOf', () => {
+    test('keeps only the host', () => {
+        expect(
+            referrerHostOf('https://discordbotlist.com/bots/lucky?x=1'),
+        ).toBe('discordbotlist.com')
+    })
+
+    test('returns null for a missing or malformed referer', () => {
+        expect(referrerHostOf(undefined)).toBeNull()
+        expect(referrerHostOf('not a url')).toBeNull()
     })
 })

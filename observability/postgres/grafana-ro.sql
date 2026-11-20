@@ -67,6 +67,14 @@ GRANT SELECT ("guildDiscordId", source, "createdAt")
     ON guild_join_sources TO grafana_ro;
 GRANT SELECT ("guildDiscordId", kind, reason, "occurredAt")
     ON activation_events TO grafana_ro;
+-- Obs P4 (#2395). Skipped until the migration that creates
+-- them has run, so this script stays safe to run on an older schema.
+SELECT format('GRANT SELECT (%s) ON %I TO grafana_ro', cols, t)
+FROM (VALUES
+        ('invite_clicks', '"occurredAt", "utmSource", "utmMedium", "utmCampaign", "utmContent", "referrerHost"'),
+        ('topgg_vote_events', '"occurredAt", streak, "isWeekend"')
+     ) AS v(t, cols)
+WHERE to_regclass('public.' || t) IS NOT NULL \gexec
 
 -- Most of these tables have RLS enabled with no policies
 -- (migration 20250101000001_enable_rls_no_policies), which hides every row
@@ -76,4 +84,6 @@ SELECT format('DROP POLICY IF EXISTS grafana_ro_read ON %I', t),
        format('CREATE POLICY grafana_ro_read ON %I FOR SELECT TO grafana_ro USING (true)', t)
 FROM unnest(ARRAY['command_events', 'track_history', 'guild_membership_events',
                   'recommendations', 'guilds', 'topgg_votes',
-                  'guild_join_sources', 'activation_events']) AS t \gexec
+                  'guild_join_sources', 'activation_events',
+                  'invite_clicks', 'topgg_vote_events']) AS t
+WHERE to_regclass('public.' || t) IS NOT NULL \gexec

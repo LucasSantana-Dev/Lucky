@@ -33,6 +33,7 @@ jest.mock('../../../i18n/translatorForInteraction.js', () => ({
 
 import { errorLog } from '@lucky/shared/utils'
 import helpCommand, { handleHelpCategorySelect } from './help.js'
+import { createMockClient } from '../../../../tests/utils/command/fixtures.js'
 
 function makeCommand(name: string, description: string, category = 'general') {
     return {
@@ -104,7 +105,10 @@ describe('/help', () => {
         ])
         const interaction = makeInteraction() as never
 
-        await helpCommand.execute({ client: client as never, interaction })
+        await helpCommand.execute({
+            client: createMockClient(client),
+            interaction,
+        })
 
         expect(interactionReply).toHaveBeenCalledTimes(1)
     })
@@ -113,7 +117,10 @@ describe('/help', () => {
         const client = makeClient([makeCommand('ping', 'Check latency')])
         const interaction = makeInteraction() as never
 
-        await helpCommand.execute({ client: client as never, interaction })
+        await helpCommand.execute({
+            client: createMockClient(client),
+            interaction,
+        })
 
         expect(interactionReply.mock.calls.length).toBeGreaterThanOrEqual(1)
         expect(interactionReply).toHaveBeenCalledTimes(1)
@@ -123,7 +130,10 @@ describe('/help', () => {
         const client = makeClient([])
         const interaction = makeInteraction() as never
 
-        await helpCommand.execute({ client: client as never, interaction })
+        await helpCommand.execute({
+            client: createMockClient(client),
+            interaction,
+        })
 
         expect(interactionReply).toHaveBeenCalledTimes(1)
     })
@@ -142,7 +152,10 @@ describe('/help', () => {
         const client = makeClient(commands)
         const interaction = makeInteraction() as never
 
-        await helpCommand.execute({ client: client as never, interaction })
+        await helpCommand.execute({
+            client: createMockClient(client),
+            interaction,
+        })
 
         expect(interactionReply.mock.calls.length).toBeGreaterThan(1)
     })
@@ -158,7 +171,10 @@ describe('/help', () => {
         const client = makeClient(commands)
         const interaction = makeInteraction() as never
 
-        await helpCommand.execute({ client: client as never, interaction })
+        await helpCommand.execute({
+            client: createMockClient(client),
+            interaction,
+        })
 
         const calls = interactionReply.mock.calls
         expect(calls.length).toBeGreaterThan(1)
@@ -179,7 +195,10 @@ describe('/help', () => {
         ])
         const interaction = makeInteraction() as never
 
-        await helpCommand.execute({ client: client as never, interaction })
+        await helpCommand.execute({
+            client: createMockClient(client),
+            interaction,
+        })
 
         const call = interactionReply.mock.calls[0][0] as {
             content: {
@@ -198,7 +217,10 @@ describe('/help', () => {
         const client = makeClient([makeCommand('play', 'Play music', 'music')])
         const interaction = makeInteraction() as never
 
-        await helpCommand.execute({ client: client as never, interaction })
+        await helpCommand.execute({
+            client: createMockClient(client),
+            interaction,
+        })
 
         const call = interactionReply.mock.calls[0][0] as {
             content: { components?: unknown[] }
@@ -297,7 +319,10 @@ describe('/help', () => {
             },
         } as never
 
-        await helpCommand.execute({ client: client as never, interaction })
+        await helpCommand.execute({
+            client: createMockClient(client),
+            interaction,
+        })
 
         expect(interactionReply).toHaveBeenCalledTimes(1)
         const call = interactionReply.mock.calls[0][0] as {
@@ -311,7 +336,10 @@ describe('/help', () => {
         const client = makeClient([])
         const interaction = makeInteraction() as never
 
-        await helpCommand.execute({ client: client as never, interaction })
+        await helpCommand.execute({
+            client: createMockClient(client),
+            interaction,
+        })
 
         expect(interactionReply).toHaveBeenCalledTimes(1)
         const call = interactionReply.mock.calls[0][0] as {
@@ -333,7 +361,10 @@ describe('/help on the hosted bot (#2736)', () => {
         ])
         const interaction = { ...makeInteraction(), guildId: '2' } as never
 
-        await helpCommand.execute({ client: client as never, interaction })
+        await helpCommand.execute({
+            client: createMockClient(client),
+            interaction,
+        })
 
         const call = interactionReply.mock.calls[0][0] as {
             content: {
