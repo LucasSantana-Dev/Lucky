@@ -64,7 +64,13 @@ export class DataRetentionScheduler extends IntervalScheduler {
     /** Logs counts per table only, never row content. */
     private async purgeDepartedGuilds(): Promise<void> {
         const graceDays = guildPurgeGraceDays()
-        const result = await databaseService.purgeDepartedGuildData(graceDays)
+        const activeGuildIds = Array.from(
+            this.client?.guilds.cache.keys() ?? [],
+        )
+        const result = await databaseService.purgeDepartedGuildData(
+            graceDays,
+            activeGuildIds,
+        )
         if (result.isFailure()) {
             errorLog({
                 message: 'Departed-guild purge failed',

@@ -1,5 +1,8 @@
 const mockCleanupOldData = jest.fn<Promise<unknown>, []>()
-const mockPurgeDepartedGuildData = jest.fn<Promise<unknown>, [number]>()
+const mockPurgeDepartedGuildData = jest.fn<
+    Promise<unknown>,
+    [number, string[]]
+>()
 
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: jest.fn(),
@@ -114,7 +117,9 @@ describe('DataRetentionScheduler', () => {
                 makeResult({ isFailure: false, data: 0 }),
             )
             scheduler = new DataRetentionScheduler(100)
-            scheduler.start({} as any)
+            scheduler.start({
+                guilds: { cache: new Map([['live-guild', {}]]) },
+            } as any)
             await jest.advanceTimersByTimeAsync(0)
         }
 
@@ -146,7 +151,9 @@ describe('DataRetentionScheduler', () => {
 
             await runOnce()
 
-            expect(mockPurgeDepartedGuildData).toHaveBeenCalledWith(30)
+            expect(mockPurgeDepartedGuildData).toHaveBeenCalledWith(30, [
+                'live-guild',
+            ])
             expect(infoLog).toHaveBeenCalledWith({
                 message:
                     'Departed-guild purge over 2 guild(s) deleted: server_logs=5, member_xp=2',
@@ -165,7 +172,9 @@ describe('DataRetentionScheduler', () => {
 
             await runOnce()
 
-            expect(mockPurgeDepartedGuildData).toHaveBeenCalledWith(7)
+            expect(mockPurgeDepartedGuildData).toHaveBeenCalledWith(7, [
+                'live-guild',
+            ])
             expect(infoLog).toHaveBeenCalledWith({
                 message:
                     'Departed-guild purge: no guild past the 7-day grace period',
@@ -186,7 +195,9 @@ describe('DataRetentionScheduler', () => {
 
                 await runOnce()
 
-                expect(mockPurgeDepartedGuildData).toHaveBeenCalledWith(30)
+                expect(mockPurgeDepartedGuildData).toHaveBeenCalledWith(30, [
+                    'live-guild',
+                ])
             },
         )
 

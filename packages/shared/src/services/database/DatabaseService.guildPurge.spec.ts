@@ -114,6 +114,33 @@ describe('DatabaseService.purgeDepartedGuildData', () => {
         })
     })
 
+    it('never purges a guild the bot is currently in, even if leftAt is still set (rejoin not yet recorded)', async () => {
+        mockQueryRaw.mockResolvedValue([
+            { discordId: 'g1' },
+            { discordId: 'rejoined' },
+        ])
+
+        const result = await service.purgeDepartedGuildData(30, ['rejoined'])
+
+        expect(result.getData()).toEqual({ guilds: 1, deleted: {} })
+        for (const fn of deleteManyByModel.values()) {
+            expect(fn).toHaveBeenCalledWith({
+                where: { guildId: { in: ['g1'] } },
+            })
+        }
+    })
+
+    it('deletes nothing when every departed guild is back in the live cache', async () => {
+        mockQueryRaw.mockResolvedValue([{ discordId: 'g1' }])
+
+        const result = await service.purgeDepartedGuildData(30, ['g1'])
+
+        expect(result.getData()).toEqual({ guilds: 0, deleted: {} })
+        for (const fn of deleteManyByModel.values()) {
+            expect(fn).not.toHaveBeenCalled()
+        }
+    })
+
     it('is idempotent: a second run over already-purged guilds deletes nothing', async () => {
         mockQueryRaw.mockResolvedValue([{ discordId: 'g1' }])
         // Rows exist only until the first delete, like a real table.

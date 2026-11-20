@@ -215,12 +215,14 @@ export class DatabaseService {
 
     /**
      * Deletes guild-scoped data for guilds the bot left more than `graceDays`
-     * ago (#2377). Rejoined guilds have `leftAt` null and never match. Keeps
+     * ago (#2377). Rejoined guilds have `leftAt` null and never match, and
+     * `activeGuildIds` (the bot's live guild cache) is excluded too. Keeps
      * the `guilds` row and the tables in GUILD_PURGE_KEPT_TABLES. Safe to run
      * repeatedly: a second pass over the same guilds deletes nothing.
      */
     async purgeDepartedGuildData(
         graceDays: number,
+        activeGuildIds: readonly string[] = [],
     ): Promise<Result<GuildPurgeSummary>> {
         return this.executeWithFallback(async () => {
             const cutoff = new Date(
@@ -234,7 +236,14 @@ export class DatabaseService {
                     const departed = await tx.$queryRaw<
                         { discordId: string }[]
                     >`SELECT "discordId" FROM "guilds" WHERE "leftAt" < ${cutoff} FOR UPDATE`
-                    const ids = departed.map((g) => g.discordId)
+                    // A guild the bot is in right now is never purged, even if
+                    // recordGuildJoin has not committed yet: discord.js adds it
+                    // to the cache before GuildCreate fires, so before anyone
+                    // can write new config for it.
+                    const active = new Set(activeGuildIds)
+                    const ids = departed
+                        .map((g) => g.discordId)
+                        .filter((id) => !active.has(id))
                     if (ids.length === 0) return { guilds: 0, deleted: {} }
 
                     const where = { guildId: { in: ids } }
