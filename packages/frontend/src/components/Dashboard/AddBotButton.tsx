@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { Guild } from '@/types'
 import { api } from '@/services/api'
 import { toast } from 'sonner'
@@ -9,6 +10,7 @@ interface AddBotButtonProps {
 }
 
 export default function AddBotButton({ guild }: AddBotButtonProps) {
+    const { t } = useTranslation('servers')
     const [isLoading, setIsLoading] = useState(false)
 
     const handleAddBot = useCallback(async () => {
@@ -16,13 +18,13 @@ export default function AddBotButton({ guild }: AddBotButtonProps) {
         try {
             const response = await api.guilds.getInvite(guild.id)
             window.open(response.data.inviteUrl, '_blank')
-            toast.success('Invite URL opened in new tab')
+            toast.success(t('inviteOpened'))
         } catch {
-            toast.error('Failed to generate invite URL')
+            toast.error(t('inviteFailed'))
         } finally {
             setIsLoading(false)
         }
-    }, [guild.id])
+    }, [guild.id, t])
 
     return (
         <Button

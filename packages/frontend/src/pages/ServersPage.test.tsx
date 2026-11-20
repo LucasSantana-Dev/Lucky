@@ -30,6 +30,7 @@ const translations: Record<string, string> = {
     allOtherServers: 'All Other Servers',
     luckyInstalled: 'Lucky installed',
     inviteLucky: 'Invite Lucky',
+    inviteFailed: 'Failed to generate invite URL',
     noServersTitle: 'No servers yet',
     noServersDescription: 'Join a Discord server and Lucky will appear here.',
 }
