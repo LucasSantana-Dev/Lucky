@@ -31,7 +31,7 @@ export default function ServersPage() {
             const response = await api.guilds.getInvite(guild.id)
             window.open(response.data.inviteUrl, '_blank')
         } catch {
-            toast.error('Failed to generate invite URL')
+            toast.error(t('inviteFailed'))
         }
     }
 

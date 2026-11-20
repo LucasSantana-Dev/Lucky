@@ -995,6 +995,8 @@
         "allOtherServers": "Todos os Outros Servidores",
         "luckyInstalled": "Lucky instalado",
         "inviteLucky": "Convidar Lucky",
+        "inviteOpened": "Link de convite aberto em uma nova aba",
+        "inviteFailed": "Falha ao gerar o link de convite",
         "noServersTitle": "Nenhum servidor ainda",
         "noServersDescription": "Junte-se a um servidor Discord e Lucky aparecerá aqui."
     },
