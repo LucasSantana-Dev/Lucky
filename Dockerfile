@@ -172,11 +172,34 @@ FROM source-copied AS build-shared
 WORKDIR /app
 RUN npm run build:shared
 
+# Source maps for Sentry (#3086). tsc emits a .js.map next to each file
+# (sourceMap + inlineSources in the package tsconfigs); `sourcemaps inject`
+# stamps a debug id into each .js and its map, which is how Sentry pairs an
+# event frame with the uploaded map, with no release or path matching. The
+# CLI is the lockfile-pinned @sentry/cli (a dependency of the frontend vite
+# plugin), so this step needs no network. shared/dist is injected here and
+# not in build-shared: build-frontend bundles shared/dist, and an injected
+# snippet inside a vite chunk would register the wrong debug id for it. That
+# is why the production stages copy shared/dist from build-bot/build-backend.
+# docker-publish.yml uploads the same files from the sourcemaps-* stages.
 FROM build-shared AS build-bot
-RUN npm run build --workspace=packages/bot
+RUN npm run build --workspace=packages/bot \
+    && npx --no-install sentry-cli sourcemaps inject packages/shared/dist packages/bot/dist
 
 FROM build-shared AS build-backend
-RUN npm run build --workspace=packages/backend
+RUN npm run build --workspace=packages/backend \
+    && npx --no-install sentry-cli sourcemaps inject packages/shared/dist packages/backend/dist
+
+# Leaf stages holding only the injected .js and .js.map files, exported by
+# docker-publish.yml (`--target sourcemaps-<service> --output type=local`)
+# and uploaded to Sentry. Not part of any runtime image.
+FROM scratch AS sourcemaps-bot
+COPY --from=build-bot /app/packages/shared/dist /packages/shared/dist
+COPY --from=build-bot /app/packages/bot/dist /packages/bot/dist
+
+FROM scratch AS sourcemaps-backend
+COPY --from=build-backend /app/packages/shared/dist /packages/shared/dist
+COPY --from=build-backend /app/packages/backend/dist /packages/backend/dist
 
 # Frontend build — inherits build-shared's deps + toolchain, so we get
 # build-base + python3-dev + opus-dev "for free." Previously the standalone
@@ -281,7 +304,7 @@ COPY --from=deps-production-bot /app/packages/bot/node_modules ./packages/bot/no
 # why this copies the whole directory rather than naming one dep. It comes from
 # deps-production-bot, so it is already devDep-pruned.
 COPY --from=deps-production-bot /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=build-shared /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build-bot /app/packages/shared/dist ./packages/shared/dist
 COPY --from=source-copied /app/packages/shared/src/generated ./packages/shared/src/generated
 COPY --from=source-copied /app/packages/shared/src/generated ./packages/shared/dist/generated
 COPY --from=build-bot /app/packages/bot/dist ./packages/bot/dist
@@ -348,7 +371,7 @@ COPY --from=deps-production-backend /app/packages/backend/node_modules ./package
 # why this copies the whole directory rather than naming one dep. It comes from
 # deps-production-backend, so it is already devDep-pruned.
 COPY --from=deps-production-backend /app/packages/shared/node_modules ./packages/shared/node_modules
-COPY --from=build-shared /app/packages/shared/dist ./packages/shared/dist
+COPY --from=build-backend /app/packages/shared/dist ./packages/shared/dist
 COPY --from=source-copied /app/packages/shared/src/generated ./packages/shared/src/generated
 COPY --from=source-copied /app/packages/shared/src/generated ./packages/shared/dist/generated
 COPY --from=build-backend /app/packages/backend/dist ./packages/backend/dist
