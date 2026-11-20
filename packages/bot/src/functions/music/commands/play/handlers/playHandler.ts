@@ -1,7 +1,12 @@
-import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
+import type {
+    ChatInputCommandInteraction,
+    GuildMember,
+    VoiceBasedChannel,
+} from 'discord.js'
 import type { TFunction } from 'i18next'
 import type {
     PlayerNodeInitializationResult,
+    QueryType,
     SearchResult,
     Track,
 } from 'discord-player'
@@ -33,6 +38,7 @@ import { translatorFor } from '../../../../../i18n'
 import {
     resolveQueryWithFallbacks,
     emitPlayResolutionTelemetry,
+    type ResolveQueryParams,
 } from './resolveProvider'
 import { runPostPlayBackgroundOps } from './postPlayBackgroundOps'
 import { resolveAlbumIntent } from './albumIntent'
@@ -167,23 +173,501 @@ async function replaceReplyWithError(
     })
 }
 
+type PlayContext = {
+    client: CommandExecuteParams['client']
+    interaction: ChatInputCommandInteraction
+    guildId: string
+    voiceChannel: VoiceBasedChannel
+    query: string
+    provider: string | null
+    t: TFunction
+    commandStartedAt: number
+}
+
+/** Written by the search callback while play() is still awaiting voice. */
+type EarlyState = { reply: EarlyReply | null; watch: PlayStartWatch | null }
+
+type GuildQueue = ReturnType<typeof resolveGuildQueue>['queue']
+
+async function replyNotInGuild(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createErrorEmbed(
+                    'Error',
+                    'This command can only be used in a server',
+                ),
+            ],
+            ephemeral: true,
+        },
+    })
+}
+
+/** Defers the reply. False when the interaction already expired. */
+async function deferPlayReply(
+    interaction: ChatInputCommandInteraction,
+): Promise<boolean> {
+    try {
+        await interaction.deferReply()
+        return true
+    } catch (error) {
+        if (isUnknownInteractionError(error)) {
+            markCommandOutcome(interaction, {
+                outcome: 'error',
+                errorClass: 'InteractionExpired',
+            })
+            return false
+        }
+        throw error
+    }
+}
+
+async function prepareQuery(
+    rawQuery: string,
+    provider: string | null,
+): Promise<string> {
+    // Expand SoundCloud short links first (on.soundcloud.com → full URL)
+    const expandedQuery = await expandSoundCloudShortUrl(rawQuery)
+    // Then normalize: SoundCloud `?in=` playlist context, and YouTube Mix
+    // (`list=RD...`) context that the youtubei extractor cannot resolve.
+    const normalizedQuery = normalizeYouTubeUrl(
+        normalizeSoundCloudUrl(expandedQuery),
+    )
+    // "album esquinas anavitória completo": queue the album's link, which
+    // plays the whole album, instead of searching for a single track. A
+    // YouTube or SoundCloud provider choice keeps its own search.
+    return provider && provider !== 'spotify'
+        ? normalizedQuery
+        : ((await resolveAlbumIntent(normalizedQuery)) ?? normalizedQuery)
+}
+
+/** Replies and returns true when the collaborative request limit is hit. */
+async function rejectOverCollaborativeLimit(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+): Promise<boolean> {
+    const collaborativeCheck = collaborativePlaylistService.canAddTracks(
+        guildId,
+        interaction.user.id,
+        1,
+    )
+    if (collaborativeCheck.allowed) return false
+    markCommandOutcome(interaction, { outcome: 'user_error' })
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createErrorEmbed(
+                    'Contribution limit reached',
+                    `Collaborative mode limit reached (${collaborativeCheck.limit} track requests per user).`,
+                ),
+            ],
+        },
+    })
+    return true
+}
+
+async function registerDeferredNowPlaying(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+    channelId: string,
+): Promise<void> {
+    try {
+        const deferredMsg = await interaction.fetchReply()
+        registerNowPlayingMessage(guildId, deferredMsg.id, channelId)
+    } catch (error) {
+        // Non-fatal: playerStart sends its own message if this fails.
+        // Logged because an empty catch made the double failure
+        // (this AND playerStart) indistinguishable from success -
+        // the user got no now-playing message and nothing was
+        // recorded anywhere (#1993).
+        warnLog({
+            message: 'Failed to register now-playing message',
+            data: {
+                guildId: interaction.guildId,
+                channelId: interaction.channelId,
+                error: String(error),
+            },
+        })
+    }
+}
+
+function buildPlayOptions(ctx: PlayContext, searchEngine: QueryType) {
+    const { client, interaction, voiceChannel } = ctx
+    const vcMemberIds = voiceChannel.members
+        ? Array.from(voiceChannel.members.values())
+              .filter((m) => m.id !== client.user?.id)
+              .map((m) => m.id)
+        : []
+    return {
+        nodeOptions: {
+            metadata: {
+                channel: interaction.channel,
+                requestedBy: interaction.user,
+                vcMemberIds,
+            },
+            connectionTimeout: ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
+            ...QUEUE_LEAVE_OPTIONS,
+        },
+        requestedBy: interaction.user,
+        searchEngine,
+    }
+}
+
+/**
+ * Answers as soon as the search found something, so the user is not waiting
+ * out the voice connect and the stream bridge (about 6 s on a cold Spotify
+ * play). Not awaited: the edit runs while discord-player connects. The
+ * now-playing message later overwrites the same message.
+ */
+function createEarlyReplier(
+    ctx: PlayContext,
+    early: EarlyState,
+    hadQueueBeforePlay: boolean,
+): (searchResult: SearchResult) => void {
+    const { client, interaction, guildId, t, commandStartedAt } = ctx
+    return (searchResult) => {
+        const found = searchResult.tracks[0]
+        if (!found || (!searchResult.playlist && !found.title)) return
+        if (!searchResult.playlist) {
+            // Lets stream recovery hand its outcome to this command
+            // instead of messaging the channel (see playStartWatch.ts).
+            if (early.watch) early.watch.track = found
+            else early.watch = openPlayStartWatch(guildId, found)
+        }
+        if (early.reply) return
+        const queueNow = resolveGuildQueue(client, guildId).queue
+        const queuePosition =
+            hadQueueBeforePlay && queueNow ? queueNow.tracks.size + 1 : 0
+        const embed = buildQueuedEmbed({
+            searchResult,
+            track: found,
+            interaction,
+            queuePosition,
+            t,
+        })
+        early.reply = {
+            track: found,
+            queuePosition,
+            sent: interactionReply({
+                interaction,
+                content: { embeds: [embed] },
+            }).catch(() => undefined),
+        }
+        debugLog({
+            message: 'Play: early reply sent after search',
+            data: { guildId, replyAfterMs: Date.now() - commandStartedAt },
+        })
+    }
+}
+
+function emitFailedResolutionTelemetry(
+    provider: string | null,
+    resolutionStartedAt: number,
+    error: unknown,
+): void {
+    const resolutionTelemetry = {
+        resolvedVia: 'failed' as const,
+        latencyMs: Date.now() - resolutionStartedAt,
+        requestedProvider: provider ?? 'default',
+        errorClass: (error as Error).constructor.name,
+    }
+    try {
+        emitPlayResolutionTelemetry(resolutionTelemetry)
+    } catch {
+        // Telemetry failure must not break play error handling
+    }
+}
+
+async function resolvePlayWithTelemetry(
+    params: ResolveQueryParams,
+    provider: string | null,
+): Promise<PlayerNodeInitializationResult<unknown>> {
+    const resolutionStartedAt = Date.now()
+    try {
+        const resolution = await resolveQueryWithFallbacks(params)
+        emitPlayResolutionTelemetry(resolution.telemetry)
+        return resolution.result
+    } catch (error) {
+        emitFailedResolutionTelemetry(provider, resolutionStartedAt, error)
+        throw error
+    }
+}
+
+/**
+ * Recovery may still start a replacement (YouTube search) or give up. Say
+ * "could not start" only if it gave up; it does not message the channel while
+ * this command is watching. Returns true when the failure was reported.
+ */
+async function reportStartFailureIfGaveUp(
+    ctx: PlayContext,
+    early: EarlyState,
+    track: Track,
+): Promise<boolean> {
+    const outcome = early.watch
+        ? await waitForPlayStartOutcome(early.watch, RECOVERY_OUTCOME_WAIT_MS)
+        : 'gave_up'
+    if (outcome === 'gave_up') {
+        await reportStartFailure(ctx.interaction, early.reply, track, ctx.t)
+        return true
+    }
+    debugLog({
+        message:
+            outcome === 'recovered'
+                ? 'Play: stream recovered with a replacement track, keeping the reply'
+                : 'Play: stream recovery outcome unknown, keeping the reply',
+        data: { guildId: ctx.guildId, title: track.title },
+    })
+    return false
+}
+
+function resolveQueuePosition(
+    queue: GuildQueue,
+    track: Track,
+    hadQueueBeforePlay: boolean,
+): number {
+    const queuedTracks = queue ? (queue.tracks.toArray?.() ?? []) : []
+    const trackIndex = queuedTracks.findIndex((queued) =>
+        isSameResolvedTrack(queued, track),
+    )
+    // A track in the upcoming list is queued even when the pre-play
+    // snapshot saw no queue (a concurrent /play created it first).
+    if (trackIndex >= 0) return trackIndex + 1
+    if (hadQueueBeforePlay && queue) return queuedTracks.length
+    return 0
+}
+
+function recordPlayContribution(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+): void {
+    try {
+        collaborativePlaylistService.recordContribution(
+            guildId,
+            interaction.user.id,
+            1,
+        )
+    } catch (err) {
+        errorLog({
+            message: 'Failed to record contribution',
+            error: err,
+        })
+    }
+}
+
+async function sendFinalReply(
+    interaction: ChatInputCommandInteraction,
+    earlyReply: EarlyReply | null,
+    embed: ReturnType<typeof buildQueuedEmbed>,
+    track: Track,
+    queuePosition: number,
+): Promise<void> {
+    if (!earlyReply) {
+        await interactionReply({
+            interaction,
+            content: { embeds: [embed] },
+        })
+        return
+    }
+    // The early embed was built before the track was added, so its
+    // position is an estimate (and a fallback arm may have resolved a
+    // different track). Correct it only when it differs.
+    await earlyReply.sent
+    if (
+        !isSameResolvedTrack(earlyReply.track, track) ||
+        earlyReply.queuePosition !== queuePosition
+    ) {
+        await editOriginalReply(interaction, embed)
+    }
+}
+
+type PlayCompletion = {
+    result: PlayerNodeInitializationResult<unknown>
+    isPlaylist: boolean
+    hadQueueBeforePlay: boolean
+}
+
+/** Queue position, final reply, contribution and background ops. */
+async function completePlay(
+    ctx: PlayContext,
+    early: EarlyState,
+    { result, isPlaylist, hadQueueBeforePlay }: PlayCompletion,
+): Promise<void> {
+    const { client, interaction, guildId, t } = ctx
+    const track = result.track
+    const { queue } = resolveGuildQueue(client, guildId)
+
+    if (!isPlaylist && queue) {
+        moveUserTrackToPriority(queue, track)
+    }
+
+    const queuePosition = resolveQueuePosition(queue, track, hadQueueBeforePlay)
+    const embed = buildQueuedEmbed({
+        searchResult: result.searchResult,
+        track,
+        interaction,
+        queuePosition,
+        t,
+    })
+
+    recordPlayContribution(interaction, guildId)
+    await sendFinalReply(interaction, early.reply, embed, track, queuePosition)
+
+    // Fire-and-forget: each op is isolated inside runPostPlayBackgroundOps so a
+    // single failure never silently skips the others (#1085).
+    //
+    // Not awaited: these are background ops by design and the user-facing
+    // reply has already been sent, so awaiting would hold the command open
+    // on work the user is not waiting for. The catch is what #1997 was
+    // actually missing: anything escaping the internal isolation used to
+    // vanish into an unhandled rejection.
+    void runPostPlayBackgroundOps({
+        queue,
+        guildId,
+        track,
+        hadQueueBeforePlay,
+        isPlaylist,
+        recapTarget:
+            interaction.guild && interaction.channelId
+                ? {
+                      guild: interaction.guild,
+                      channelId: interaction.channelId,
+                  }
+                : null,
+    }).catch((error: unknown) => {
+        errorLog({
+            message: 'Post-play background ops failed',
+            error,
+            data: { guildId, track: track?.title },
+        })
+    })
+}
+
+/** Searches, plays and replies. Throws on any failure; the caller reports it. */
+async function runPlay(ctx: PlayContext, early: EarlyState): Promise<void> {
+    const { client, interaction, guildId, voiceChannel, query, provider } = ctx
+    const hadQueueBeforePlay = Boolean(resolveGuildQueue(client, guildId).queue)
+
+    if (!hadQueueBeforePlay && interaction.channelId) {
+        await registerDeferredNowPlaying(
+            interaction,
+            guildId,
+            interaction.channelId,
+        )
+    }
+
+    const searchEngine = resolveSearchEngine(query, provider)
+    const playOptions = buildPlayOptions(ctx, searchEngine)
+    const startWatcher = watchStreamStartFailures(client.player, guildId)
+    const replyOnceSearched = createEarlyReplier(ctx, early, hadQueueBeforePlay)
+
+    let result: PlayerNodeInitializationResult<unknown>
+    try {
+        result = await resolvePlayWithTelemetry(
+            {
+                player: client.player,
+                voiceChannel,
+                query,
+                requestedProvider: provider ?? 'default',
+                searchEngine,
+                playOptions,
+                onSearchResolved: replyOnceSearched,
+            },
+            provider,
+        )
+    } finally {
+        startWatcher.dispose()
+    }
+
+    const track = result.track
+    const isPlaylist = stampPlaylistTracks(result.searchResult)
+
+    // discord-player does not throw to this caller when every stream
+    // source fails: it skips the track and resolves play() as if it had
+    // started. Say so instead of leaving "added to queue" on screen.
+    const startFailed = !isPlaylist && startWatcher.hasFailed(track)
+    // Only a failed start still needs the hand-off; a track that fails
+    // later must reach the regular channel notification.
+    if (!startFailed && early.watch) closePlayStartWatch(early.watch)
+
+    if (startFailed && (await reportStartFailureIfGaveUp(ctx, early, track))) {
+        return
+    }
+
+    await completePlay(ctx, early, { result, isPlaylist, hadQueueBeforePlay })
+}
+
+async function sendEphemeralPlayError(
+    interaction: ChatInputCommandInteraction,
+    errorEmbed: ReturnType<typeof createErrorEmbed>,
+): Promise<void> {
+    try {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [errorEmbed],
+                ephemeral: true,
+            },
+        })
+    } catch (replyError) {
+        warnLog({
+            message: 'Failed to send play command error reply',
+            error: replyError,
+            data: { guildId: interaction.guildId },
+        })
+    }
+}
+
+async function reportPlayFailure(
+    ctx: PlayContext,
+    early: EarlyState,
+    error: unknown,
+): Promise<void> {
+    const { interaction, query, t } = ctx
+    if (isUnknownInteractionError(error)) {
+        debugLog({
+            message: 'Play command interaction expired before reply',
+            data: { query, guildId: interaction.guildId },
+        })
+        markCommandOutcome(interaction, {
+            outcome: 'error',
+            errorClass: 'InteractionExpired',
+        })
+        return
+    }
+
+    logPlayFailure('Play command error:', error, {
+        query,
+        guildId: interaction.guildId,
+    })
+    markCommandOutcome(interaction, classifyPlayFailure(error))
+
+    const errorEmbed = createErrorEmbed(
+        'Play Error',
+        resolvePlayErrorMessage(error, query, t),
+    )
+
+    if (early.reply) {
+        // The user already has a success reply: replace it, do not stack
+        // an ephemeral follow-up under it.
+        await early.reply.sent
+        await replaceReplyWithError(interaction, errorEmbed)
+        return
+    }
+
+    await sendEphemeralPlayError(interaction, errorEmbed)
+}
+
 export async function executePlayHandler({
     client,
     interaction,
 }: CommandExecuteParams): Promise<void> {
-    if (!interaction.guildId) {
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [
-                    createErrorEmbed(
-                        'Error',
-                        'This command can only be used in a server',
-                    ),
-                ],
-                ephemeral: true,
-            },
-        })
+    const guildId = interaction.guildId
+    if (!guildId) {
+        await replyNotInGuild(interaction)
         return
     }
 
@@ -213,362 +697,31 @@ export async function executePlayHandler({
         return
     }
 
-    try {
-        await interaction.deferReply()
-    } catch (error) {
-        if (isUnknownInteractionError(error)) {
-            markCommandOutcome(interaction, {
-                outcome: 'error',
-                errorClass: 'InteractionExpired',
-            })
-            return
-        }
-        throw error
-    }
+    if (!(await deferPlayReply(interaction))) return
 
     const t = await resolveTranslator(interaction)
+    const query = await prepareQuery(rawQuery, provider)
 
-    // Expand SoundCloud short links first (on.soundcloud.com → full URL)
-    const expandedQuery = await expandSoundCloudShortUrl(rawQuery)
-    // Then normalize: SoundCloud `?in=` playlist context, and YouTube Mix
-    // (`list=RD...`) context that the youtubei extractor cannot resolve.
-    const normalizedQuery = normalizeYouTubeUrl(
-        normalizeSoundCloudUrl(expandedQuery),
-    )
-    // "album esquinas anavitória completo": queue the album's link, which
-    // plays the whole album, instead of searching for a single track. A
-    // YouTube or SoundCloud provider choice keeps its own search.
-    const query =
-        provider && provider !== 'spotify'
-            ? normalizedQuery
-            : ((await resolveAlbumIntent(normalizedQuery)) ?? normalizedQuery)
+    if (await rejectOverCollaborativeLimit(interaction, guildId)) return
 
-    const collaborativeCheck = collaborativePlaylistService.canAddTracks(
-        interaction.guildId,
-        interaction.user.id,
-        1,
-    )
-    if (!collaborativeCheck.allowed) {
-        markCommandOutcome(interaction, { outcome: 'user_error' })
-        await interactionReply({
-            interaction,
-            content: {
-                embeds: [
-                    createErrorEmbed(
-                        'Contribution limit reached',
-                        `Collaborative mode limit reached (${collaborativeCheck.limit} track requests per user).`,
-                    ),
-                ],
-            },
-        })
-        return
+    const ctx: PlayContext = {
+        client,
+        interaction,
+        guildId,
+        voiceChannel,
+        query,
+        provider,
+        t,
+        commandStartedAt,
     }
-
-    // Written by the onSearchResolved callback while play() is still awaiting
-    // voice and stream; read by the final reconcile and by the catch below.
-    const early: { reply: EarlyReply | null; watch: PlayStartWatch | null } = {
-        reply: null,
-        watch: null,
-    }
+    // Written by the search callback while play() is still awaiting voice
+    // and stream; read by the final reconcile and by the catch below.
+    const early: EarlyState = { reply: null, watch: null }
 
     try {
-        const hadQueueBeforePlay = Boolean(
-            resolveGuildQueue(client, interaction.guildId ?? '').queue,
-        )
-
-        if (!hadQueueBeforePlay && interaction.channelId) {
-            try {
-                const deferredMsg = await interaction.fetchReply()
-                registerNowPlayingMessage(
-                    assertDefined(
-                        interaction.guildId,
-                        'Guild ID guaranteed by requireGuild check',
-                    ),
-                    deferredMsg.id,
-                    interaction.channelId,
-                )
-            } catch (error) {
-                // Non-fatal: playerStart sends its own message if this fails.
-                // Logged because an empty catch made the double failure
-                // (this AND playerStart) indistinguishable from success —
-                // the user got no now-playing message and nothing was
-                // recorded anywhere (#1993).
-                warnLog({
-                    message: 'Failed to register now-playing message',
-                    data: {
-                        guildId: interaction.guildId,
-                        channelId: interaction.channelId,
-                        error: String(error),
-                    },
-                })
-            }
-        }
-
-        const searchEngine = resolveSearchEngine(query, provider)
-        const vcMemberIds = voiceChannel.members
-            ? Array.from(voiceChannel.members.values())
-                  .filter((m) => m.id !== client.user?.id)
-                  .map((m) => m.id)
-            : []
-        const playOptions = {
-            nodeOptions: {
-                metadata: {
-                    channel: interaction.channel,
-                    requestedBy: interaction.user,
-                    vcMemberIds,
-                },
-                connectionTimeout: ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-                ...QUEUE_LEAVE_OPTIONS,
-            },
-            requestedBy: interaction.user,
-            searchEngine,
-        }
-
-        const guildId = interaction.guildId
-        const startWatcher = watchStreamStartFailures(client.player, guildId)
-
-        // Answers as soon as the search found something, so the user is not
-        // waiting out the voice connect and the stream bridge (about 6 s on a
-        // cold Spotify play). Not awaited: the edit runs while discord-player
-        // connects. The now-playing message later overwrites the same message.
-        const replyOnceSearched = (searchResult: SearchResult): void => {
-            const found = searchResult.tracks[0]
-            if (!found || (!searchResult.playlist && !found.title)) return
-            if (!searchResult.playlist) {
-                // Lets stream recovery hand its outcome to this command
-                // instead of messaging the channel (see playStartWatch.ts).
-                if (early.watch) early.watch.track = found
-                else early.watch = openPlayStartWatch(guildId, found)
-            }
-            if (early.reply) return
-            const queueNow = resolveGuildQueue(client, guildId).queue
-            const queuePosition =
-                hadQueueBeforePlay && queueNow ? queueNow.tracks.size + 1 : 0
-            const embed = buildQueuedEmbed({
-                searchResult,
-                track: found,
-                interaction,
-                queuePosition,
-                t,
-            })
-            early.reply = {
-                track: found,
-                queuePosition,
-                sent: interactionReply({
-                    interaction,
-                    content: { embeds: [embed] },
-                }).catch(() => undefined),
-            }
-            debugLog({
-                message: 'Play: early reply sent after search',
-                data: { guildId, replyAfterMs: Date.now() - commandStartedAt },
-            })
-        }
-
-        let result: PlayerNodeInitializationResult<unknown>
-        let resolutionTelemetry
-        const resolutionStartedAt = Date.now()
-        try {
-            const resolution = await resolveQueryWithFallbacks(
-                client.player,
-                voiceChannel,
-                query,
-                provider ?? 'default',
-                searchEngine,
-                playOptions,
-                replyOnceSearched,
-            )
-            result = resolution.result
-            resolutionTelemetry = resolution.telemetry
-            emitPlayResolutionTelemetry(resolutionTelemetry)
-        } catch (error) {
-            // Emit failure telemetry
-            resolutionTelemetry = {
-                resolvedVia: 'failed' as const,
-                latencyMs: Date.now() - resolutionStartedAt,
-                requestedProvider: provider ?? 'default',
-                errorClass: (error as Error).constructor.name,
-            }
-            try {
-                emitPlayResolutionTelemetry(resolutionTelemetry)
-            } catch {
-                // Telemetry failure must not break play error handling
-            }
-            throw error
-        } finally {
-            startWatcher.dispose()
-        }
-
-        const track = result.track
-
-        const isPlaylist = stampPlaylistTracks(result.searchResult)
-
-        // discord-player does not throw to this caller when every stream
-        // source fails: it skips the track and resolves play() as if it had
-        // started. Say so instead of leaving "added to queue" on screen.
-        const startFailed = !isPlaylist && startWatcher.hasFailed(track)
-        // Only a failed start still needs the hand-off; a track that fails
-        // later must reach the regular channel notification.
-        if (!startFailed && early.watch) closePlayStartWatch(early.watch)
-
-        if (startFailed) {
-            // Recovery may still start a replacement (YouTube search) or give
-            // up. Say "could not start" only if it gave up; it does not
-            // message the channel while this command is watching.
-            const outcome = early.watch
-                ? await waitForPlayStartOutcome(
-                      early.watch,
-                      RECOVERY_OUTCOME_WAIT_MS,
-                  )
-                : 'gave_up'
-            if (outcome === 'gave_up') {
-                await reportStartFailure(interaction, early.reply, track, t)
-                return
-            }
-            debugLog({
-                message:
-                    outcome === 'recovered'
-                        ? 'Play: stream recovered with a replacement track, keeping the reply'
-                        : 'Play: stream recovery outcome unknown, keeping the reply',
-                data: { guildId, title: track.title },
-            })
-        }
-
-        const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
-
-        if (!isPlaylist && queue) {
-            moveUserTrackToPriority(queue, track)
-        }
-
-        const queuedTracks = queue ? (queue.tracks.toArray?.() ?? []) : []
-        const trackIndex = queuedTracks.findIndex(
-            (t) => t === track || (track.id && t.id === track.id),
-        )
-        // A track in the upcoming list is queued even when the pre-play
-        // snapshot saw no queue (a concurrent /play created it first).
-        let queuePosition = 0
-        if (trackIndex >= 0) queuePosition = trackIndex + 1
-        else if (hadQueueBeforePlay && queue) {
-            queuePosition = queuedTracks.length
-        }
-
-        const embed = buildQueuedEmbed({
-            searchResult: result.searchResult,
-            track,
-            interaction,
-            queuePosition,
-            t,
-        })
-
-        try {
-            collaborativePlaylistService.recordContribution(
-                interaction.guildId,
-                interaction.user.id,
-                1,
-            )
-        } catch (err) {
-            errorLog({
-                message: 'Failed to record contribution',
-                error: err,
-            })
-        }
-
-        if (!early.reply) {
-            await interactionReply({
-                interaction,
-                content: { embeds: [embed] },
-            })
-        } else {
-            // The early embed was built before the track was added, so its
-            // position is an estimate (and a fallback arm may have resolved a
-            // different track). Correct it only when it differs.
-            await early.reply.sent
-            if (
-                !isSameResolvedTrack(early.reply.track, track) ||
-                early.reply.queuePosition !== queuePosition
-            ) {
-                await editOriginalReply(interaction, embed)
-            }
-        }
-
-        // Fire-and-forget: each op is isolated inside runPostPlayBackgroundOps so a
-        // single failure never silently skips the others (#1085).
-        //
-        // Not awaited: these are background ops by design and the user-facing
-        // reply has already been sent, so awaiting would hold the command open
-        // on work the user is not waiting for. The catch is what #1997 was
-        // actually missing — anything escaping the internal isolation used to
-        // vanish into an unhandled rejection.
-        void runPostPlayBackgroundOps({
-            queue,
-            guildId: assertDefined(
-                interaction.guildId,
-                'Guild ID guaranteed by requireGuild check',
-            ),
-            track,
-            hadQueueBeforePlay,
-            isPlaylist,
-            recapTarget:
-                interaction.guild && interaction.channelId
-                    ? {
-                          guild: interaction.guild,
-                          channelId: interaction.channelId,
-                      }
-                    : null,
-        }).catch((error: unknown) => {
-            errorLog({
-                message: 'Post-play background ops failed',
-                error,
-                data: { guildId: interaction.guildId, track: track?.title },
-            })
-        })
+        await runPlay(ctx, early)
     } catch (error) {
-        if (isUnknownInteractionError(error)) {
-            debugLog({
-                message: 'Play command interaction expired before reply',
-                data: { query, guildId: interaction.guildId },
-            })
-            markCommandOutcome(interaction, {
-                outcome: 'error',
-                errorClass: 'InteractionExpired',
-            })
-            return
-        }
-
-        logPlayFailure('Play command error:', error, {
-            query,
-            guildId: interaction.guildId,
-        })
-        markCommandOutcome(interaction, classifyPlayFailure(error))
-
-        const errorEmbed = createErrorEmbed(
-            'Play Error',
-            resolvePlayErrorMessage(error, query, t),
-        )
-
-        if (early.reply) {
-            // The user already has a success reply: replace it, do not stack
-            // an ephemeral follow-up under it.
-            await early.reply.sent
-            await replaceReplyWithError(interaction, errorEmbed)
-            return
-        }
-
-        try {
-            await interactionReply({
-                interaction,
-                content: {
-                    embeds: [errorEmbed],
-                    ephemeral: true,
-                },
-            })
-        } catch (replyError) {
-            warnLog({
-                message: 'Failed to send play command error reply',
-                error: replyError,
-                data: { guildId: interaction.guildId },
-            })
-        }
+        await reportPlayFailure(ctx, early, error)
     } finally {
         if (early.watch) closePlayStartWatch(early.watch)
     }
