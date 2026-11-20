@@ -273,6 +273,10 @@ describe('TwitchEventSubClient', () => {
             await Promise.resolve()
 
             expect(errorLogMock).toHaveBeenCalledTimes(1)
+            expect(errorLogMock).toHaveBeenCalledWith({
+                message: 'Twitch EventSub: stream.online subscription failed',
+                error: expect.objectContaining({ message: 'boom' }),
+            })
             expect(mockWsInstance.close).not.toHaveBeenCalled()
         })
     })

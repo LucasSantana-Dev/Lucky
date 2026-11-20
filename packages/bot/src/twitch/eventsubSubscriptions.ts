@@ -65,6 +65,29 @@ export type ChannelRaidPayload = {
     }
 }
 
+const REFRESH_SHARE_MS = 30_000
+let sharedRefresh: {
+    stale: string
+    startedAt: number
+    promise: Promise<string | null>
+} | null = null
+
+// All topics subscribe concurrently, so one stale token yields several 401s.
+// Share one refresh per stale token so they do not clear the cache repeatedly.
+function refreshAfterAuthError(stale: string): Promise<string | null> {
+    if (
+        sharedRefresh &&
+        sharedRefresh.stale === stale &&
+        Date.now() - sharedRefresh.startedAt < REFRESH_SHARE_MS
+    ) {
+        return sharedRefresh.promise
+    }
+    clearTwitchTokenCache()
+    const promise = getTwitchUserAccessToken()
+    sharedRefresh = { stale, startedAt: Date.now(), promise }
+    return promise
+}
+
 async function subscribeToEvent(
     sessionId: string,
     clientId: string,
@@ -105,8 +128,7 @@ async function subscribeToEvent(
             if (!isTwitchAuthError(error)) throw error
             // A 401 cannot succeed on retry with the same token: refresh it
             // once, and if Twitch still refuses, stop for every broadcaster.
-            clearTwitchTokenCache()
-            const fresh = await getTwitchUserAccessToken()
+            const fresh = await refreshAfterAuthError(token)
             if (!fresh) throw error
             token = fresh
             ok = await create(token)
