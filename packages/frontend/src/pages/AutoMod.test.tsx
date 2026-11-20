@@ -816,6 +816,61 @@ describe('AutoModPage', () => {
                 screen.queryByText('Failed to load Discord roles'),
             ).not.toBeInTheDocument()
         })
+
+        test('hides the previous guild channels and roles while the new ones load', async () => {
+            const pendingChannels = deferred<any>()
+            const pendingRoles = deferred<any>()
+            vi.mocked(api.guilds.getChannels).mockImplementation(
+                (guildId: string) =>
+                    guildId === mockGuild.id
+                        ? (Promise.resolve({
+                              data: {
+                                  channels: [{ id: 'c1', name: 'general' }],
+                              },
+                          }) as any)
+                        : pendingChannels.promise,
+            )
+            vi.mocked(api.guilds.getRbac).mockImplementation(
+                (guildId: string) =>
+                    guildId === mockGuild.id
+                        ? (Promise.resolve({
+                              data: { roles: [{ id: 'r1', name: 'Mods' }] },
+                          }) as any)
+                        : pendingRoles.promise,
+            )
+
+            const { rerender } = renderPage()
+            await screen.findByText('Spam Detection')
+            await flush()
+            expect(
+                screen.queryByText(
+                    'Channels unavailable, enter IDs manually below',
+                ),
+            ).not.toBeInTheDocument()
+            expect(
+                screen.queryByText(
+                    'Roles unavailable, enter IDs manually below',
+                ),
+            ).not.toBeInTheDocument()
+
+            switchGuild(rerender)
+            await waitFor(() =>
+                expect(api.guilds.getRbac).toHaveBeenCalledWith(otherGuild.id),
+            )
+            await screen.findByText('Spam Detection')
+            await flush()
+
+            // No stale picker for the new guild: fall back to manual IDs
+            // until its own lists arrive.
+            expect(
+                screen.getByText(
+                    'Channels unavailable, enter IDs manually below',
+                ),
+            ).toBeInTheDocument()
+            expect(
+                screen.getByText('Roles unavailable, enter IDs manually below'),
+            ).toBeInTheDocument()
+        })
     })
 })
 

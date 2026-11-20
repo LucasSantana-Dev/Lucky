@@ -516,6 +516,10 @@ export default function AutoModPage() {
     useEffect(() => {
         if (!selectedGuild?.id) return
         let cancelled = false
+        // Drop the previous guild's lists right away: its IDs must not be
+        // pickable (and savable) for the newly selected guild.
+        setChannels([])
+        setRoles([])
         setChannelsError(null)
         setRolesError(null)
         api.guilds
