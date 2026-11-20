@@ -868,7 +868,10 @@ async function attemptCoreStageOrLogExhausted(
 }
 
 // Counts one breaker-open play and says whether it is the first of its episode.
+// The play probe is not a user play: it neither counts nor takes the episode's
+// one report (#3149).
 function claimBreakerReport(track: BridgeTrack): boolean {
+    if (isPlayProbe()) return false
     extractionFailuresTotal.inc({ type: 'breaker_open' })
     return claimBreakerEpisodeReport(
         breakerEpisodeByTrack.get(track) ?? getBreakerEpisode(),
