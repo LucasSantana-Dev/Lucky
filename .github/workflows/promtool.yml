@@ -1,0 +1,47 @@
+name: Prometheus Rules
+
+# Runs `promtool check rules` and `promtool test rules` over
+# observability/prometheus/rules/ (#3219). The homelab Prometheus loads these
+# files straight from the checkout (#2723), so a rule edit that breaks an
+# expression, label or annotation must fail here, not in prod. The promtool
+# image tag matches the Prometheus pin in docker-compose.yml.
+#
+# Path-filtered and not a required check: it only reports on PRs that touch
+# the rules, which is why it must stay out of branch protection.
+
+on:
+    pull_request:
+        branches: [main, 'release/**']
+        paths:
+            - 'observability/prometheus/**'
+            - '.github/workflows/promtool.yml'
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+permissions:
+    contents: read
+
+env:
+    PROMETHEUS_IMAGE: prom/prometheus:v3.9.0
+
+jobs:
+    promtool:
+        name: promtool check and test rules
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+              with:
+                  persist-credentials: false
+
+            - name: promtool check rules
+              run: |
+                  docker run --rm -v "$PWD/observability/prometheus/rules:/r:ro" -w /r \
+                      --entrypoint sh "$PROMETHEUS_IMAGE" -c 'promtool check rules *.yml'
+
+            - name: promtool test rules
+              run: |
+                  docker run --rm -v "$PWD/observability/prometheus/rules:/r:ro" -w /r/tests \
+                      --entrypoint sh "$PROMETHEUS_IMAGE" -c 'promtool test rules *.test.yml'
