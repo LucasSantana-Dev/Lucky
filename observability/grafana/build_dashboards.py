@@ -461,7 +461,7 @@ def produto():
                "SELECT \"discordId\" AS __value, coalesce(name, \"discordId\") AS __text FROM guilds ORDER BY 2",
                "Filtra os painéis de comandos por uma guilda."),
         pg_var("comando", "Comando",
-               "SELECT DISTINCT command FROM command_events WHERE \"occurredAt\" > now() - interval '90 days' ORDER BY 1",
+               "SELECT DISTINCT command FROM command_events WHERE \"occurredAt\" > now() - interval '180 days' ORDER BY 1",
                "Filtra os painéis de comandos por um comando."),
     ]
     flt = ("('${guilda:raw}' = 'todas' OR ce.\"guildId\" = '${guilda:raw}') "
@@ -527,7 +527,7 @@ def produto():
     b.add("timeseries", "Comandos por dia", [sql(
         "SELECT date_trunc('day', ce.\"occurredAt\") AS time, count(*) FILTER (WHERE ce.outcome = 'ok') AS \"Deram certo\", "
         "count(*) FILTER (WHERE ce.outcome <> 'ok') AS \"Não deram certo\" FROM command_events ce "
-        f"WHERE $__timeFilter(ce.\"occurredAt\") AND coalesce(ce.\"guildId\", '') NOT IN {EXCL} AND {flt} GROUP BY 1 ORDER BY 1",
+        f"WHERE $__timeFilter(ce.\"occurredAt\") AND ce.\"guildId\" IS NOT NULL AND ce.\"guildId\" NOT IN {EXCL} AND {flt} GROUP BY 1 ORDER BY 1",
         "time_series")], w=12, h=8, custom=BARS, options=TS_OPTS, no_value="nenhum comando no período",
         overrides=[{"matcher": {"id": "byName", "options": "Não deram certo"},
                     "properties": [{"id": "color", "value": {"mode": "fixed", "fixedColor": ORANGE}}]}],
@@ -535,14 +535,14 @@ def produto():
     b.add("table", "Comandos mais usados", [sql(
         "SELECT ce.command AS \"Comando\", count(*) AS \"Usos\", count(DISTINCT ce.\"guildId\") AS \"Guildas\", "
         "round(100.0 * count(*) FILTER (WHERE ce.outcome <> 'ok') / count(*), 1) AS \"Não deram certo (%)\" "
-        f"FROM command_events ce WHERE $__timeFilter(ce.\"occurredAt\") AND coalesce(ce.\"guildId\", '') NOT IN {EXCL} AND {flt} "
+        f"FROM command_events ce WHERE $__timeFilter(ce.\"occurredAt\") AND ce.\"guildId\" IS NOT NULL AND ce.\"guildId\" NOT IN {EXCL} AND {flt} "
         "GROUP BY 1 ORDER BY 2 DESC LIMIT 20")], w=12, h=8, no_value="nenhum comando no período",
         desc="Mais de 10% que não deram certo num comando costuma ser texto de ajuda confuso ou um bug.")
     b.add("table", "Guildas que mais usam comandos", [sql(
-        "SELECT coalesce(gu.name, ce.\"guildId\") AS \"Guilda\", count(*) AS \"Comandos\", count(DISTINCT ce.command) AS \"Comandos diferentes\", "
+        "SELECT coalesce(gu.name, ce.\"guildId\") AS \"Guilda\", ce.\"guildId\" AS \"Id\", count(*) AS \"Comandos\", count(DISTINCT ce.command) AS \"Comandos diferentes\", "
         "max(ce.\"occurredAt\") AS \"Último uso\" FROM command_events ce LEFT JOIN guilds gu ON gu.\"discordId\" = ce.\"guildId\" "
         f"WHERE $__timeFilter(ce.\"occurredAt\") AND ce.\"guildId\" IS NOT NULL AND ce.\"guildId\" NOT IN {EXCL} AND {flt} "
-        "GROUP BY 1 ORDER BY 2 DESC LIMIT 20")], w=24, h=9, no_value="nenhum comando no período",
+        "GROUP BY ce.\"guildId\", gu.name ORDER BY 3 DESC LIMIT 20")], w=24, h=9, no_value="nenhum comando no período",
         desc="Uma guilda com muito mais comandos que as outras pode ser um teste ou uso automatizado.")
     return b
 

@@ -28,7 +28,11 @@ groups:
           description: >-
             The bot has been losing command events before they reach
             command_events for 15 minutes (reason {{ $labels.reason }}).
-            Commands still work; usage and error panels undercount. flush_failure
-            usually means Postgres is down or slow: check lucky-postgres and the
-            bot log for "Command event flush failed". overflow means flushes
-            cannot keep up with the command rate.
+            Commands still work; usage and error panels undercount. flush_failure:
+            Postgres is down or slow, check lucky-postgres and the bot log for
+            "Command event flush failed". overflow: flushes cannot keep up with the
+            command rate. stopped or stop_timeout: events arrived during a shutdown;
+            only expected around a deploy, so 15 minutes of it means the bot is
+            restarting in a loop (check docker ps and the restart count).
+            internal_error: a bug in the buffer, look for "Command event buffer
+            internal error" in the bot log and open an issue.

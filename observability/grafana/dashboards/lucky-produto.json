@@ -103,8 +103,8 @@
                     "type": "grafana-postgresql-datasource",
                     "uid": "${ds_postgres}"
                 },
-                "query": "SELECT DISTINCT command FROM command_events WHERE \"occurredAt\" > now() - interval '90 days' ORDER BY 1",
-                "definition": "SELECT DISTINCT command FROM command_events WHERE \"occurredAt\" > now() - interval '90 days' ORDER BY 1",
+                "query": "SELECT DISTINCT command FROM command_events WHERE \"occurredAt\" > now() - interval '180 days' ORDER BY 1",
+                "definition": "SELECT DISTINCT command FROM command_events WHERE \"occurredAt\" > now() - interval '180 days' ORDER BY 1",
                 "refresh": 2,
                 "sort": 1,
                 "hide": 0,
@@ -531,7 +531,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT date_trunc('day', ce.\"occurredAt\") AS time, count(*) FILTER (WHERE ce.outcome = 'ok') AS \"Deram certo\", count(*) FILTER (WHERE ce.outcome <> 'ok') AS \"Não deram certo\" FROM command_events ce WHERE $__timeFilter(ce.\"occurredAt\") AND coalesce(ce.\"guildId\", '') NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') AND ('${guilda:raw}' = 'todas' OR ce.\"guildId\" = '${guilda:raw}') AND ('${comando:raw}' = 'todas' OR ce.command = '${comando:raw}') GROUP BY 1 ORDER BY 1",
+                    "rawSql": "SELECT date_trunc('day', ce.\"occurredAt\") AS time, count(*) FILTER (WHERE ce.outcome = 'ok') AS \"Deram certo\", count(*) FILTER (WHERE ce.outcome <> 'ok') AS \"Não deram certo\" FROM command_events ce WHERE $__timeFilter(ce.\"occurredAt\") AND ce.\"guildId\" IS NOT NULL AND ce.\"guildId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') AND ('${guilda:raw}' = 'todas' OR ce.\"guildId\" = '${guilda:raw}') AND ('${comando:raw}' = 'todas' OR ce.command = '${comando:raw}') GROUP BY 1 ORDER BY 1",
                     "format": "time_series",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -602,7 +602,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT ce.command AS \"Comando\", count(*) AS \"Usos\", count(DISTINCT ce.\"guildId\") AS \"Guildas\", round(100.0 * count(*) FILTER (WHERE ce.outcome <> 'ok') / count(*), 1) AS \"Não deram certo (%)\" FROM command_events ce WHERE $__timeFilter(ce.\"occurredAt\") AND coalesce(ce.\"guildId\", '') NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') AND ('${guilda:raw}' = 'todas' OR ce.\"guildId\" = '${guilda:raw}') AND ('${comando:raw}' = 'todas' OR ce.command = '${comando:raw}') GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+                    "rawSql": "SELECT ce.command AS \"Comando\", count(*) AS \"Usos\", count(DISTINCT ce.\"guildId\") AS \"Guildas\", round(100.0 * count(*) FILTER (WHERE ce.outcome <> 'ok') / count(*), 1) AS \"Não deram certo (%)\" FROM command_events ce WHERE $__timeFilter(ce.\"occurredAt\") AND ce.\"guildId\" IS NOT NULL AND ce.\"guildId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') AND ('${guilda:raw}' = 'todas' OR ce.\"guildId\" = '${guilda:raw}') AND ('${comando:raw}' = 'todas' OR ce.command = '${comando:raw}') GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
@@ -638,7 +638,7 @@
                         "type": "grafana-postgresql-datasource",
                         "uid": "${ds_postgres}"
                     },
-                    "rawSql": "SELECT coalesce(gu.name, ce.\"guildId\") AS \"Guilda\", count(*) AS \"Comandos\", count(DISTINCT ce.command) AS \"Comandos diferentes\", max(ce.\"occurredAt\") AS \"Último uso\" FROM command_events ce LEFT JOIN guilds gu ON gu.\"discordId\" = ce.\"guildId\" WHERE $__timeFilter(ce.\"occurredAt\") AND ce.\"guildId\" IS NOT NULL AND ce.\"guildId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') AND ('${guilda:raw}' = 'todas' OR ce.\"guildId\" = '${guilda:raw}') AND ('${comando:raw}' = 'todas' OR ce.command = '${comando:raw}') GROUP BY 1 ORDER BY 2 DESC LIMIT 20",
+                    "rawSql": "SELECT coalesce(gu.name, ce.\"guildId\") AS \"Guilda\", ce.\"guildId\" AS \"Id\", count(*) AS \"Comandos\", count(DISTINCT ce.command) AS \"Comandos diferentes\", max(ce.\"occurredAt\") AS \"Último uso\" FROM command_events ce LEFT JOIN guilds gu ON gu.\"discordId\" = ce.\"guildId\" WHERE $__timeFilter(ce.\"occurredAt\") AND ce.\"guildId\" IS NOT NULL AND ce.\"guildId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') AND ('${guilda:raw}' = 'todas' OR ce.\"guildId\" = '${guilda:raw}') AND ('${comando:raw}' = 'todas' OR ce.command = '${comando:raw}') GROUP BY ce.\"guildId\", gu.name ORDER BY 3 DESC LIMIT 20",
                     "format": "table",
                     "rawQuery": true,
                     "editorMode": "code",
