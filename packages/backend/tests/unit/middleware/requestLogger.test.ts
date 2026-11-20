@@ -20,13 +20,17 @@ function makeReq(path: string, overrides: Partial<Request> = {}): Request {
     } as unknown as Request
 }
 
-function makeRes(statusCode = 200): {
+function makeRes(
+    statusCode = 200,
+    locals: Record<string, unknown> = {},
+): {
     res: Response
     emit: (event: string) => void
 } {
     const listeners: Record<string, Array<() => void>> = {}
     const res = {
         statusCode,
+        locals,
         on: jest.fn((event: string, cb: () => void) => {
             listeners[event] = listeners[event] ?? []
             listeners[event].push(cb)
@@ -63,6 +67,23 @@ describe('requestLogger', () => {
         expect(infoLog).toHaveBeenCalled()
         expect(warnLog).not.toHaveBeenCalled()
         expect(errorLog).not.toHaveBeenCalled()
+    })
+
+    test('logs info, not warn, for a 404 the route flags as an expected miss', () => {
+        const next = jest.fn() as unknown as NextFunction
+        const { res, emit } = makeRes(404, { expectedNotFound: true })
+        requestLogger(makeReq('/api/guilds/1/threads/x'), res, next)
+        emit('finish')
+        expect(infoLog).toHaveBeenCalled()
+        expect(warnLog).not.toHaveBeenCalled()
+    })
+
+    test('still logs warn for a flagged route that answers a real error status', () => {
+        const next = jest.fn() as unknown as NextFunction
+        const { res, emit } = makeRes(400, { expectedNotFound: true })
+        requestLogger(makeReq('/api/guilds/1/threads/x'), res, next)
+        emit('finish')
+        expect(warnLog).toHaveBeenCalled()
     })
 
     test('logs warn for 4xx responses', () => {

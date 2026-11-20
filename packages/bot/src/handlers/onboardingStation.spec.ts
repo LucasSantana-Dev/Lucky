@@ -248,6 +248,94 @@ describe('handleOnboardingStationButton', () => {
         )
     })
 
+    it('queues the station once when a second click lands mid-start (#2922)', async () => {
+        let finishPlay!: (v: unknown) => void
+        const interaction = createInteraction()
+        const play = (interaction.client as { player: { play: jest.Mock } })
+            .player.play
+        play.mockReturnValueOnce(
+            new Promise((resolve) => {
+                finishPlay = resolve
+            }),
+        )
+        const second = createInteraction()
+        const secondPlay = (second.client as { player: { play: jest.Mock } })
+            .player.play
+
+        const first = handleOnboardingStationButton(interaction as never)
+        await handleOnboardingStationButton(second as never)
+        finishPlay({ track: { title: 'Fake Track' } })
+        await first
+
+        expect(play).toHaveBeenCalledTimes(1)
+        expect(secondPlay).not.toHaveBeenCalled()
+        expect(createWarningEmbedMock).toHaveBeenCalledWith(
+            'music.station.alreadyStartingTitle',
+            'music.station.alreadyStartingDescription',
+        )
+        expect(infoLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    started: false,
+                    reason: 'already_playing',
+                }),
+            }),
+        )
+
+        // The lock is released afterwards: a later click plays again.
+        const later = createInteraction()
+        await handleOnboardingStationButton(later as never)
+        expect(
+            (later.client as { player: { play: jest.Mock } }).player.play,
+        ).toHaveBeenCalledTimes(1)
+    })
+
+    it('keeps a newer click locked when an expired start finishes (#2922)', async () => {
+        const nowSpy = jest.spyOn(Date, 'now')
+        try {
+            let finishFirst!: (v: unknown) => void
+            let finishSecond!: (v: unknown) => void
+            const first = createInteraction()
+            const firstPlay = (first.client as { player: { play: jest.Mock } })
+                .player.play
+            firstPlay.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishFirst = resolve
+                }),
+            )
+            const second = createInteraction()
+            const secondPlay = (
+                second.client as { player: { play: jest.Mock } }
+            ).player.play
+            secondPlay.mockReturnValueOnce(
+                new Promise((resolve) => {
+                    finishSecond = resolve
+                }),
+            )
+            const third = createInteraction()
+            const thirdPlay = (third.client as { player: { play: jest.Mock } })
+                .player.play
+
+            nowSpy.mockReturnValue(1_000)
+            const p1 = handleOnboardingStationButton(first as never)
+            await new Promise((resolve) => setImmediate(resolve))
+            // The first start outlives the lock, so a second click takes over.
+            nowSpy.mockReturnValue(1_000 + 31_000)
+            const p2 = handleOnboardingStationButton(second as never)
+            await new Promise((resolve) => setImmediate(resolve))
+            finishFirst({ track: { title: 'Fake Track' } })
+            await p1
+
+            await handleOnboardingStationButton(third as never)
+            expect(thirdPlay).not.toHaveBeenCalled()
+
+            finishSecond({ track: { title: 'Fake Track' } })
+            await p2
+        } finally {
+            nowSpy.mockRestore()
+        }
+    })
+
     it('starts playback from SoundCloud (never YouTube) when in voice with permissions', async () => {
         const fakeQueue = { id: 'queue-1' }
         resolveGuildQueueMock
