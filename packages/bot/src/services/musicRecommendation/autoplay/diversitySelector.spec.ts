@@ -188,6 +188,129 @@ describe('diversitySelector', () => {
             ).toBe(false)
         })
 
+        describe('cross-source near-duplicate titles (#3152)', () => {
+            const timed = (
+                title: string,
+                author: string,
+                source: string,
+                durationMS?: number,
+            ) =>
+                ({
+                    title,
+                    author,
+                    source,
+                    durationMS,
+                    url: `u:${author}:${title}`,
+                }) as Track
+            const keysFor = (played: Track) =>
+                buildExcludedKeys(
+                    {
+                        tracks: { toArray: () => [] },
+                        history: { tracks: { toArray: () => [] } },
+                        metadata: {},
+                    } as unknown as GuildQueue,
+                    played,
+                    [],
+                )
+
+            test('treats "Chama os Muleke - ConeCrewDiretoria" as the "Chama os Mulekes" that played', () => {
+                const keys = keysFor(
+                    timed(
+                        'Chama os Mulekes',
+                        'Cone Crew Diretoria',
+                        'spotify',
+                        183000,
+                    ),
+                )
+
+                expect(
+                    isDuplicateCandidate(
+                        timed(
+                            'Chama os Muleke - ConeCrewDiretoria',
+                            'MusicIntro',
+                            'youtube',
+                            185000,
+                        ),
+                        new Set(),
+                        keys,
+                    ),
+                ).toBe(true)
+            })
+
+            test('keeps a similar half title apart when the durations differ clearly', () => {
+                const keys = keysFor(
+                    timed(
+                        'Chama os Mulekes',
+                        'Cone Crew Diretoria',
+                        'spotify',
+                        183000,
+                    ),
+                )
+
+                expect(
+                    isDuplicateCandidate(
+                        timed(
+                            'Chama os Muleke - Outro Artista',
+                            'MusicIntro',
+                            'youtube',
+                            241000,
+                        ),
+                        new Set(),
+                        keys,
+                    ),
+                ).toBe(false)
+            })
+
+            test('does not call it a repeat when a duration is unknown', () => {
+                const keys = keysFor(
+                    timed(
+                        'Chama os Mulekes',
+                        'Cone Crew Diretoria',
+                        'spotify',
+                        183000,
+                    ),
+                )
+
+                expect(
+                    isDuplicateCandidate(
+                        timed(
+                            'Chama os Muleke - ConeCrewDiretoria',
+                            'MusicIntro',
+                            'youtube',
+                        ),
+                        new Set(),
+                        keys,
+                    ),
+                ).toBe(false)
+            })
+
+            test('matches the artist half too and ignores short halves', () => {
+                const keys = keysFor(
+                    timed('Beat Itt', 'Someone', 'spotify', 258000),
+                )
+
+                expect(
+                    isDuplicateCandidate(
+                        timed(
+                            'Michael Jackson - Beat It',
+                            'Fan Channel',
+                            'youtube',
+                            259000,
+                        ),
+                        new Set(),
+                        keys,
+                    ),
+                ).toBe(true)
+                expect(
+                    isDuplicateCandidate(
+                        timed('Abc - Xyz', 'Fan Channel', 'youtube', 259000),
+                        new Set(),
+                        keysFor(timed('Abd', 'Someone', 'spotify', 259000)),
+                    ),
+                ).toBe(false)
+            })
+        })
+
         test('does not read an artist half as a song that played ("Queen - Barracuda" after "Queen")', () => {
             const keys = playedKeys('Queen', 'Some Band', 'spotify')
 
