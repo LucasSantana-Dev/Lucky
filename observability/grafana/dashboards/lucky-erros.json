@@ -1164,8 +1164,8 @@
         },
         {
             "type": "timeseries",
-            "title": "Músicas que podem ter repetido",
-            "description": "Sessão restaurada: depois de um restart o bot volta a tocar a faixa atual do começo (#3151). Autoplay repetiu do histórico: nenhuma fonte trouxe sugestão e o autoplay recolocou músicas que o servidor já ouviu. Barras aqui costumam virar um relato de \"o bot está repetindo músicas\".",
+            "title": "Faixas que podem ter repetido",
+            "description": "Sessão restaurada: depois de um restart o bot volta a tocar a faixa atual (#3151). Autoplay repetiu do histórico: nenhuma sugestão foi escolhida (fontes vazias ou todas rejeitadas) e o autoplay recolocou faixas que a guilda já ouviu. Barras aqui costumam virar um relato de \"o bot está repetindo músicas\".",
             "gridPos": {
                 "x": 0,
                 "y": 46,
