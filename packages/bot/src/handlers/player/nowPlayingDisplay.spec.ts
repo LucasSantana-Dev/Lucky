@@ -768,6 +768,51 @@ describe('nowPlayingDisplay', () => {
             expect(dm).toHaveBeenCalledTimes(1)
         })
 
+        it('DMs the requester of the failed track, not the queue starter', async () => {
+            const starterDm = jest.fn().mockResolvedValue(undefined)
+            const trackDm = jest.fn().mockResolvedValue(undefined)
+            ;(mockQueue.metadata as { requestedBy?: unknown }).requestedBy = {
+                send: starterDm,
+            }
+            mockTrack.requestedBy = { username: 'other', send: trackDm } as any
+            ;(mockChannel.send as jest.Mock).mockRejectedValue(missingAccess())
+
+            await sendNowPlayingEmbed(
+                mockQueue as GuildQueue,
+                mockTrack as Track,
+                false,
+            )
+
+            expect(trackDm).toHaveBeenCalledTimes(1)
+            expect(starterDm).not.toHaveBeenCalled()
+        })
+
+        it('remembers every unwritable channel, not only the last one', async () => {
+            const metadata = mockQueue.metadata as { channel: unknown }
+            const channelA = mockChannel
+            const channelB = {
+                ...mockChannel,
+                id: 'channel-b',
+                send: jest.fn().mockRejectedValue(missingAccess()),
+            }
+            ;(channelA.send as jest.Mock).mockRejectedValue(missingAccess())
+            const play = () =>
+                sendNowPlayingEmbed(
+                    mockQueue as GuildQueue,
+                    mockTrack as Track,
+                    false,
+                )
+
+            await play()
+            metadata.channel = channelB
+            await play()
+            metadata.channel = channelA
+            await play()
+
+            expect(channelA.send).toHaveBeenCalledTimes(1)
+            expect(channelB.send).toHaveBeenCalledTimes(1)
+        })
+
         it('still rethrows other send failures', async () => {
             ;(mockChannel.send as jest.Mock).mockRejectedValue(
                 new Error('boom'),

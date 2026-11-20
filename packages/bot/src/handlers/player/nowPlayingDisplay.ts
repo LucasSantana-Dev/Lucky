@@ -134,7 +134,9 @@ export function deleteSongInfoMessage(guildId: string): void {
 }
 
 export function cleanupGuildState(guildId: string): void {
-    unwritableChannels.delete(guildId)
+    for (const key of unwritableChannels) {
+        if (key.startsWith(`${guildId}:`)) unwritableChannels.delete(key)
+    }
     trackNowPlayingState.cleanupGuild(guildId)
 }
 
@@ -406,17 +408,21 @@ async function buildNowPlayingEmbed(
     return embed
 }
 
-// Channel the bot cannot post in, per guild: tried once, then skipped until
-// the session ends (cleanupGuildState) or the channel changes.
-const unwritableChannels = new Map<string, string>()
+// Channels the bot cannot post in, keyed `guildId:channelId`: tried once, then
+// skipped until the session ends (cleanupGuildState).
+const unwritableChannels = new Set<string>()
+const unwritableKey = (guildId: string, channelId: string): string =>
+    `${guildId}:${channelId}`
 const MISSING_ACCESS_CODES = new Set<number>([50001, 50013])
 
 async function notifyRequesterOfMissingAccess(
     metadata: QueueMetadata,
+    track: Track,
     t: TFunction,
 ): Promise<void> {
     try {
-        await metadata.requestedBy?.send(t('music.messages.nowPlayingNoAccess'))
+        const requester = track.requestedBy ?? metadata.requestedBy
+        await requester?.send(t('music.messages.nowPlayingNoAccess'))
     } catch {
         // DMs may be closed; the warning log already records it
     }
@@ -450,7 +456,13 @@ async function sendNowPlayingEmbedNow(
 ): Promise<void> {
     const metadata = queue.metadata as QueueMetadata | undefined
     if (!metadata?.channel) return
-    if (unwritableChannels.get(queue.guild.id) === metadata.channel.id) return
+    if (
+        unwritableChannels.has(
+            unwritableKey(queue.guild.id, metadata.channel.id),
+        )
+    ) {
+        return
+    }
 
     const t = await translatorForInteraction({
         guildId: queue.guild.id,
@@ -497,7 +509,9 @@ async function sendNowPlayingEmbedNow(
         if (code === undefined || !MISSING_ACCESS_CODES.has(Number(code))) {
             throw error
         }
-        unwritableChannels.set(queue.guild.id, metadata.channel.id)
+        unwritableChannels.add(
+            unwritableKey(queue.guild.id, metadata.channel.id),
+        )
         warnLog({
             message:
                 'Now playing message skipped: bot cannot write to the music channel',
@@ -507,7 +521,7 @@ async function sendNowPlayingEmbedNow(
                 errorCode: code,
             },
         })
-        await notifyRequesterOfMissingAccess(metadata, t)
+        await notifyRequesterOfMissingAccess(metadata, track, t)
         return
     }
 
