@@ -147,7 +147,15 @@
             "streamFailedMany_other": "{{count}} tracks couldn't be played. Try again shortly or paste a link.",
             "autoplayCount": "{{count}}/{{max}} songs",
             "autoplayStopped_one": "The last autoplay track couldn't be streamed, so autoplay stopped. Use /play to start again.",
-            "autoplayStopped_other": "The last {{count}} autoplay tracks couldn't be streamed, so autoplay stopped. Use /play to start again."
+            "autoplayStopped_other": "The last {{count}} autoplay tracks couldn't be streamed, so autoplay stopped. Use /play to start again.",
+            "statusSkipped": "⏭️ Song skipped - Now playing",
+            "statusPaused": "⏸️ Paused",
+            "statusResumed": "▶️ Resumed",
+            "statusPrevious": "⏮️ Playing previous track",
+            "statusRestarting": "⏮️ Restarting track",
+            "statusReplayed": "🔄 Replayed",
+            "statusSeeked": "⏩ Seeked to {{time}}",
+            "statusJumped": "🎯 Now playing (position {{position}})"
         }
     }
 }

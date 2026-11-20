@@ -146,7 +146,15 @@
             "streamFailedMany_other": "{{count}} músicas não puderam ser tocadas. Tente de novo em instantes ou cole um link.",
             "autoplayCount": "{{count}}/{{max}} músicas",
             "autoplayStopped_one": "A última música do autoplay não pôde ser tocada, então o autoplay parou. Use /play para recomeçar.",
-            "autoplayStopped_other": "As últimas {{count}} músicas do autoplay não puderam ser tocadas, então o autoplay parou. Use /play para recomeçar."
+            "autoplayStopped_other": "As últimas {{count}} músicas do autoplay não puderam ser tocadas, então o autoplay parou. Use /play para recomeçar.",
+            "statusSkipped": "⏭️ Música pulada - Tocando agora",
+            "statusPaused": "⏸️ Pausado",
+            "statusResumed": "▶️ Retomado",
+            "statusPrevious": "⏮️ Tocando a faixa anterior",
+            "statusRestarting": "⏮️ Reiniciando a faixa",
+            "statusReplayed": "🔄 Reproduzida de novo",
+            "statusSeeked": "⏩ Avançou para {{time}}",
+            "statusJumped": "🎯 Tocando agora (posição {{position}})"
         }
     }
 }

@@ -14,6 +14,7 @@ import {
     createErrorEmbed,
 } from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
+import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -74,9 +75,10 @@ export default new Command({
             return
         }
 
+        const t = await translatorForInteraction(interaction)
         const trackEmbed = buildCommandTrackEmbed(
             targetTrack,
-            `🎯 Now playing (position ${position})`,
+            t('music.messages.statusJumped', { position }),
             interaction.user,
             'jumped',
         )

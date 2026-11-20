@@ -12,6 +12,7 @@ import {
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { createErrorEmbed } from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
+import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
 
 function parseTimeToMs(timeStr: string): number | null {
     const parts = timeStr.split(':')
@@ -120,9 +121,10 @@ export default new Command({
         queue?.node.seek(targetMs)
 
         const formattedTime = formatMs(targetMs)
+        const t = await translatorForInteraction(interaction)
         const trackEmbed = buildCommandTrackEmbed(
             currentTrack,
-            `⏩ Seeked to ${formattedTime}`,
+            t('music.messages.statusSeeked', { time: formattedTime }),
             interaction.user,
             'seeked',
         )
