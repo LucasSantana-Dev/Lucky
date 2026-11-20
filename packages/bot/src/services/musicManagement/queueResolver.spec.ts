@@ -246,11 +246,14 @@ describe('queueResolver', () => {
                 cacheSampleKeys: ['guild-a', 'guild-b'],
             }),
         )
-        expect(warnLogMock).toHaveBeenCalledWith(
+        // A miss with other guilds cached is the normal first /play on a
+        // second guild, not a fault (#2875).
+        expect(debugLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'Unable to resolve guild queue',
             }),
         )
+        expect(warnLogMock).not.toHaveBeenCalled()
         expect(addBreadcrumbMock).toHaveBeenCalledWith(
             'queue_resolution_source',
             'queue_resolution',
