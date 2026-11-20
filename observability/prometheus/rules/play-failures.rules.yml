@@ -1,0 +1,37 @@
+# Failed-play share alert (#3079).
+#
+# Its own file, like recap-render.rules.yml: the homelab Prometheus that runs
+# in production loads individual files from the Lucky checkout (#2723), not
+# lucky-alerts.rules.yml, so this file must be added to its rule_files to
+# page in production. Lucky's own Prometheus picks it up through the
+# rules/*.yml glob.
+#
+# On 2026-11-12/13 most plays failed (YouTube blocked and the
+# SoundCloud fallback also missed) and only Sentry showed it. bridge_total
+# is observed once per track: outcome="fail" means every stage was
+# exhausted. The `>= 3` floor keeps one failed play out of one attempt, at
+# night, from paging anyone.
+
+groups:
+  - name: lucky-play-failures
+    rules:
+      - alert: LuckyPlayFailureRateHigh
+        expr: |
+          (
+            sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}[15m]))
+              / sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total"}[15m]))
+              > 0.5
+          )
+          and
+          sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}[15m])) >= 3
+        for: 5m
+        labels:
+          severity: critical
+          service: lucky-bot
+        annotations:
+          summary: "More than half of plays exhaust every stream stage (15m window)"
+          description: >-
+            Over 50% of /play attempts in the last 15 minutes failed on every
+            stage (yt-dlp and SoundCloud), with at least 3 failures. Check
+            lucky_bot_extraction_failures_total by type, the LuckyYouTubeDegraded
+            alert, and Sentry issues tagged youtube-extraction-exhausted.

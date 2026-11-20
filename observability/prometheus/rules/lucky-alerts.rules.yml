@@ -11,7 +11,6 @@
 #   - up{job=...}                              (Prometheus scrape liveness)
 #   - lucky_music_extractor_degraded           (bot, gauge, 1 = degraded, by extractor)
 #   - lucky_bot_extraction_failures_total      (bot, counter, yt-dlp failures by type)
-#   - lucky_bot_play_stage_seconds_count       (bot, histogram count, by stage/outcome)
 #
 # These are STARTER symptom alerts. Per ADR 2026-05-30, the availability SLO and a
 # proper multi-window burn-rate are defined AFTER ~14 days of observed data.
@@ -48,34 +47,6 @@ groups:
             at startup. Check lucky_bot_extraction_failures_total labelled
             forbidden/botcheck, recent yt-dlp logs, and the startup log for
             "YouTube extractor unavailable".
-
-  # #3079: on 2026-11-12/13 most plays failed (YouTube blocked and the
-  # SoundCloud fallback also missed) and only Sentry showed it. bridge_total
-  # is observed once per track: outcome="fail" means every stage was
-  # exhausted. The `>= 3` floor keeps one failed play out of one attempt, at
-  # night, from paging anyone.
-  - name: lucky-play-failures
-    rules:
-      - alert: LuckyPlayFailureRateHigh
-        expr: |
-          (
-            sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}[15m]))
-              / sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total"}[15m]))
-              > 0.5
-          )
-          and
-          sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}[15m])) >= 3
-        for: 5m
-        labels:
-          severity: critical
-          service: lucky-bot
-        annotations:
-          summary: "More than half of plays exhaust every stream stage (15m window)"
-          description: >-
-            Over 50% of /play attempts in the last 15 minutes failed on every
-            stage (yt-dlp and SoundCloud), with at least 3 failures. Check
-            lucky_bot_extraction_failures_total by type, the LuckyYouTubeDegraded
-            alert, and Sentry issues tagged youtube-extraction-exhausted.
 
   - name: lucky-backend-errors
     rules:
