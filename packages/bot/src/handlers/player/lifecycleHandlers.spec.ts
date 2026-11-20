@@ -86,6 +86,12 @@ import {
     setupVoiceKickDetection,
     __resetStagePausedForTests,
 } from './lifecycleHandlers'
+import {
+    asClient,
+    asParam,
+} from '../../../tests/utils/handlers/handlerFixtures'
+
+type LifecyclePlayer = Parameters<typeof setupLifecycleHandlers>[0]
 
 type PlayerEventHandler = (queue: GuildQueue, message?: string) => Promise<void>
 
@@ -115,7 +121,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const queue = {
             guild: { id: 'guild-1', name: 'Guild 1' },
@@ -152,7 +158,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const queue = {
             guild: { id: 'guild-shared', name: 'Guild Shared' },
@@ -191,7 +197,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const queue = {
             guild: { id: 'guild-1', name: 'Guild 1' },
@@ -223,7 +229,7 @@ describe('setupLifecycleHandlers', () => {
                 }),
             },
         }
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const queue = {
             guild: { id: 'guild-1', name: 'Guild 1' },
@@ -271,7 +277,7 @@ describe('setupLifecycleHandlers', () => {
                 }),
             },
         }
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
         const queue = {
             guild: { id: 'guild-1', name: 'Guild 1' },
             metadata: { requestedBy: { id: 'user-1' } },
@@ -314,7 +320,7 @@ describe('setupLifecycleHandlers', () => {
                 }),
             },
         }
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
         const queue = {
             guild: { id: 'guild-1', name: 'Guild 1' },
             metadata: { requestedBy: { id: 'user-1' } },
@@ -349,7 +355,7 @@ describe('setupLifecycleHandlers', () => {
                 }),
             },
         }
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
         const queue = {
             guild: { id: 'guild-1', name: 'Guild 1' },
             metadata: { requestedBy: { id: 'user-1' } },
@@ -385,7 +391,7 @@ describe('setupLifecycleHandlers', () => {
                     ),
                 },
             }
-            setupLifecycleHandlers(player as never)
+            setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
             const queue = {
                 guild: { id: 'guild-1', name: 'Guild 1' },
                 metadata: { requestedBy: { id: 'user-1' } },
@@ -411,7 +417,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const queue = {
             guild: { id: 'guild-kicked', name: 'Guild Kicked' },
@@ -436,7 +442,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const queue = {
             guild: { id: 'guild-2', name: 'Guild 2' },
@@ -458,7 +464,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const queue = {
             guild: { id: 'guild-3', name: 'Guild 3' },
@@ -482,7 +488,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const queue = {
             guild: { id: 'guild-4', name: 'Guild 4' },
@@ -509,7 +515,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const queue = {
             guild: { id: 'guild-3b', name: 'Guild 3b' },
@@ -532,7 +538,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const queue = {
             guild: { id: 'guild-empty', name: 'Guild Empty' },
@@ -554,7 +560,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const track = { id: 'track-1', title: 'Test' }
         const queue = {
@@ -665,7 +671,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const queue = {
             guild: { id: 'guild-5', name: 'Guild 5' },
@@ -689,7 +695,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const track = { id: 'track-1', title: 'Test' }
         const queue = {
@@ -722,7 +728,7 @@ describe('setupLifecycleHandlers', () => {
             },
         }
 
-        setupLifecycleHandlers(player as never)
+        setupLifecycleHandlers(asParam<LifecyclePlayer>(player))
 
         const track = { id: 'track-1', title: 'Test' }
         const queue = {
@@ -762,7 +768,7 @@ describe('setupVoiceKickDetection', () => {
             ),
         }
 
-        setupVoiceKickDetection(client as never)
+        setupVoiceKickDetection(asClient(client))
 
         expect(voiceStateUpdateListeners.length).toBe(1)
 
@@ -842,7 +848,7 @@ describe('setupVoiceKickDetection', () => {
             ),
         }
 
-        setupVoiceKickDetection(client as never)
+        setupVoiceKickDetection(asClient(client))
 
         const oldState = {
             member: { id: 'other-user-id' },
@@ -877,7 +883,7 @@ describe('setupVoiceKickDetection', () => {
             ),
         }
 
-        setupVoiceKickDetection(client as never)
+        setupVoiceKickDetection(asClient(client))
 
         const oldState = {
             member: { id: 'bot-user-id' },

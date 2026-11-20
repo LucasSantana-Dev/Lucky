@@ -93,6 +93,7 @@ jest.mock('../i18n/translatorForInteraction', () => ({
 }))
 
 import { handleMusicButtonInteraction } from './musicButtonHandler'
+import { asButtonInteraction } from '../../tests/utils/handlers/handlerFixtures'
 
 function createInteraction(customId: string) {
     return {
@@ -132,7 +133,7 @@ describe('handleMusicButtonInteraction — previous button (#1191)', () => {
         resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.PREVIOUS)
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(interaction.followUp).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -150,7 +151,7 @@ describe('handleMusicButtonInteraction — previous button (#1191)', () => {
         resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.PREVIOUS)
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(queue.history.back).toHaveBeenCalledTimes(1)
         expect(interaction.followUp).not.toHaveBeenCalled()
@@ -163,7 +164,7 @@ describe('handleMusicButtonInteraction — previous button (#1191)', () => {
         resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.PREVIOUS)
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(interaction.editReply).toHaveBeenCalledWith(
             expect.objectContaining({
@@ -181,7 +182,7 @@ describe('handleMusicButtonInteraction — previous button (#1191)', () => {
         resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.PREVIOUS)
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(errorLogMock).not.toHaveBeenCalled()
         expect(expiredMock).toHaveBeenCalledTimes(1)
@@ -218,7 +219,7 @@ describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
             resolveGuildQueueMock.mockReturnValue({ queue })
             const interaction = thumbsInteraction(customId)
 
-            await handleMusicButtonInteraction(interaction as never)
+            await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
             expect(setFeedbackMock).toHaveBeenCalledWith(
                 'guild-1',
@@ -246,7 +247,7 @@ describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
         resolveGuildQueueMock.mockReturnValue({ queue })
         const interaction = thumbsInteraction(MUSIC_BUTTON_IDS.LIKE)
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(interaction.followUp).toHaveBeenCalledWith(
             expect.objectContaining({ content: 'music.thumbs.failed' }),
@@ -261,7 +262,7 @@ describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
         resolveGuildQueueMock.mockReturnValue({ queue })
         const interaction = thumbsInteraction(MUSIC_BUTTON_IDS.LIKE)
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         const content = (
             interaction.followUp.mock.calls[0] as unknown as [
@@ -281,7 +282,7 @@ describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
         resolveGuildQueueMock.mockReturnValue({ queue })
         const interaction = thumbsInteraction(MUSIC_BUTTON_IDS.LIKE)
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(setFeedbackMock).not.toHaveBeenCalled()
     })
@@ -294,7 +295,7 @@ describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
         resolveGuildQueueMock.mockReturnValue({ queue })
         const interaction = thumbsInteraction(MUSIC_BUTTON_IDS.DISLIKE)
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(setFeedbackMock).not.toHaveBeenCalled()
         expect(interaction.followUp).toHaveBeenCalledWith(
@@ -310,7 +311,7 @@ describe('handleMusicButtonInteraction - thumbs buttons (#2658)', () => {
         resolveGuildQueueMock.mockReturnValue({ queue })
         const interaction = thumbsInteraction(MUSIC_BUTTON_IDS.LIKE)
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(setFeedbackMock).not.toHaveBeenCalled()
         expect(interaction.followUp).toHaveBeenCalledWith(
@@ -351,7 +352,7 @@ describe('handleMusicButtonInteraction - autoplay feedback prompt', () => {
         resolveGuildQueueMock.mockReturnValue({ queue })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP)
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(maybePromptMock).toHaveBeenCalledWith(interaction, {
             trackKey: 'key:Autoplay Pick',
@@ -367,7 +368,7 @@ describe('handleMusicButtonInteraction - autoplay feedback prompt', () => {
         resolveGuildQueueMock.mockReturnValue({ queue })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.STOP)
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(maybePromptMock).toHaveBeenCalledWith(interaction, {
             trackKey: 'key:Autoplay Pick',
@@ -406,7 +407,7 @@ describe('handleMusicButtonInteraction - autoplay feedback prompt', () => {
         const { interaction, nowPlaying, fetchChannel, fetchMessage } =
             stopFrom('panel-1')
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(fetchChannel).toHaveBeenCalledWith('np-channel')
         expect(fetchMessage).toHaveBeenCalledWith('np-1')
@@ -416,7 +417,7 @@ describe('handleMusicButtonInteraction - autoplay feedback prompt', () => {
     it('stop on the now-playing message itself does not fetch it again', async () => {
         const { interaction, fetchChannel } = stopFrom('np-1')
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(fetchChannel).not.toHaveBeenCalled()
     })
@@ -426,7 +427,7 @@ describe('handleMusicButtonInteraction - autoplay feedback prompt', () => {
         resolveGuildQueueMock.mockReturnValue({ queue })
         const pausing = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME)
 
-        await handleMusicButtonInteraction(pausing as never)
+        await handleMusicButtonInteraction(asButtonInteraction(pausing))
 
         expect(maybePromptMock).toHaveBeenLastCalledWith(pausing, {
             trackKey: 'key:Autoplay Pick',
@@ -436,7 +437,7 @@ describe('handleMusicButtonInteraction - autoplay feedback prompt', () => {
         queue.node.isPaused.mockReturnValue(true)
         const resuming = createInteraction(MUSIC_BUTTON_IDS.PAUSE_RESUME)
 
-        await handleMusicButtonInteraction(resuming as never)
+        await handleMusicButtonInteraction(asButtonInteraction(resuming))
 
         expect(maybePromptMock).toHaveBeenLastCalledWith(resuming, null)
     })
@@ -456,7 +457,7 @@ describe('handleMusicButtonInteraction - loop button (#2932)', () => {
         resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
 
         await handleMusicButtonInteraction(
-            createInteraction(MUSIC_BUTTON_IDS.LOOP) as never,
+            asButtonInteraction(createInteraction(MUSIC_BUTTON_IDS.LOOP)),
         )
 
         expect(queue.setRepeatMode).toHaveBeenCalledWith(3)
@@ -472,7 +473,7 @@ describe('handleMusicButtonInteraction - loop button (#2932)', () => {
         resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
 
         await handleMusicButtonInteraction(
-            createInteraction(MUSIC_BUTTON_IDS.LOOP) as never,
+            asButtonInteraction(createInteraction(MUSIC_BUTTON_IDS.LOOP)),
         )
 
         expect(resumeAutoplayMock).not.toHaveBeenCalled()
@@ -493,7 +494,7 @@ describe('handleMusicButtonInteraction - compact now-playing row', () => {
         resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
         const interaction = createInteraction(MUSIC_BUTTON_IDS.MORE_CONTROLS)
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(interaction.followUp).toHaveBeenCalledWith({
             content: 'music.messages.controlsTitle',
@@ -520,7 +521,7 @@ describe('handleMusicButtonInteraction - compact now-playing row', () => {
             message: messageWithRows(rows),
         }
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(refreshMusicComponentsMock).toHaveBeenCalledWith(rows, queue)
         expect(interaction.editReply).toHaveBeenCalledWith({
@@ -543,7 +544,7 @@ describe('handleMusicButtonInteraction - compact now-playing row', () => {
             message: messageWithRows(rows),
         }
 
-        await handleMusicButtonInteraction(interaction as never)
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
 
         expect(queue.setRepeatMode).toHaveBeenCalledWith(0)
         expect(refreshMusicComponentsMock).toHaveBeenCalledWith(rows, queue)
