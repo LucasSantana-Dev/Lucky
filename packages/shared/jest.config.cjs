@@ -1,5 +1,10 @@
+const os = require('node:os')
+
 /** @type {import('jest').Config} */
 module.exports = {
+  // Same cap as packages/bot/jest.config.cjs: half the cores, max 4, so parallel
+  // local runs do not exhaust RAM. A 2-vCPU CI runner still gets 1 worker.
+  maxWorkers: Math.max(1, Math.min(4, Math.floor(os.availableParallelism() / 2))),
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
