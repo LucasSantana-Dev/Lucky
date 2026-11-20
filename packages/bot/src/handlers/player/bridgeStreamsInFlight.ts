@@ -23,13 +23,10 @@ export async function runBridgeStreamOnce<T>(
     start: () => Promise<T>,
     onJoin: () => void,
 ): Promise<T> {
-    let pending = inFlight.get(track)
-    if (pending) onJoin()
-    while (pending) {
-        await pending.catch(() => undefined)
-        pending = inFlight.get(track)
-    }
-    const run = start()
+    // Chained on the latest run, so any number of callers go one by one.
+    const previous = inFlight.get(track)
+    if (previous) onJoin()
+    const run = previous ? previous.catch(() => undefined).then(start) : start()
     inFlight.set(track, run)
     try {
         return await run

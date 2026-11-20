@@ -310,7 +310,6 @@ export class MusicWatchdogService {
                 // (seconds through the bridge after a skip). Replaying it
                 // started a second, parallel resolve of the same track
                 // (#3064). Check again later instead.
-                action = 'none'
                 detail = 'stream_resolving'
                 rearm = true
             } else if (queue.currentTrack) {
