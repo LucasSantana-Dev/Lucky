@@ -564,6 +564,17 @@ def sistema():
         mappings=[{"type": "value", "options": {"0": {"text": "fora", "color": RED}, "1": {"text": "ok", "color": GREEN}}}],
         options={"showValue": "never", "legend": {"showLegend": False}},
         desc="Faixa vermelha = o Prometheus não conseguiu coletar métricas daquele serviço.")
+
+    b.row("Sonda de play")
+    b.add("state-timeline", "Sonda de play por caso", [prom("max by (case) (lucky_bot_probe_success)", "{{case}}")],
+          w=12, h=8, mappings=[{"type": "value", "options": {"0": {"text": "falhou", "color": RED}, "1": {"text": "ok", "color": GREEN}}}],
+          options={"showValue": "never", "legend": {"showLegend": False}},
+          desc="A cada 15 min (e 2 min depois de cada deploy) o bot resolve e abre o stream de casos fixos, sem entrar em "
+               "canal de voz. Duas falhas seguidas no mesmo caso disparam LuckyPlayProbeFailing (#2920).")
+    b.add("timeseries", "Sonda: tempo por etapa", [prom("max by (case, stage) (lucky_bot_probe_duration_seconds)", "{{case}} {{stage}}")],
+          w=12, h=8, unit="s", custom=LINES, options=TS_OPTS,
+          desc="Última vez que cada etapa rodou: resolve (busca) e first_byte (primeiros bytes do stream). "
+               "Um caso que falha no resolve fica sem first_byte.")
     return b
 
 

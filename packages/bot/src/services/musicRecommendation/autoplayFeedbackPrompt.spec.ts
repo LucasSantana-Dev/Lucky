@@ -11,10 +11,12 @@ const setFeedbackMock = jest.fn<(...args: unknown[]) => Promise<boolean>>()
 const getLikedMock = jest.fn<(...args: unknown[]) => Promise<Set<string>>>()
 const getDislikedMock = jest.fn<(...args: unknown[]) => Promise<Set<string>>>()
 const errorLogMock = jest.fn()
+const warnLogMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
     errorLog: (...args: unknown[]) => errorLogMock(...args),
+    warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
 jest.mock('./feedbackService', () => ({
@@ -249,6 +251,23 @@ describe('autoplay feedback prompt', () => {
             expect(errorLogMock).toHaveBeenCalledTimes(1)
         })
 
+        it('does not report an expired interaction (10062) as an error', async () => {
+            const interaction = promptInteraction()
+            interaction.followUp.mockRejectedValue(
+                Object.assign(new Error('Unknown interaction'), {
+                    code: 10062,
+                }),
+            )
+
+            await maybePromptAutoplayFeedback(
+                interaction as never,
+                captureAutoplayTrack(autoplayTrack),
+            )
+
+            expect(errorLogMock).not.toHaveBeenCalled()
+            expect(warnLogMock).toHaveBeenCalledTimes(1)
+        })
+
         it('swallows a failing vote lookup', async () => {
             getLikedMock.mockRejectedValue(new Error('db down'))
 
@@ -311,6 +330,21 @@ describe('autoplay feedback prompt', () => {
                     ephemeral: true,
                 }),
             )
+        })
+
+        it('does not report an expired interaction (10062) as an error', async () => {
+            const prompt = await sendPrompt('user-1')
+            const click = buttonInteraction('like', keyFrom(prompt))
+            click.update.mockRejectedValue(
+                Object.assign(new Error('Unknown interaction'), {
+                    code: 10062,
+                }),
+            )
+
+            await handleAutoplayFeedbackButton(click as never)
+
+            expect(errorLogMock).not.toHaveBeenCalled()
+            expect(warnLogMock).toHaveBeenCalledTimes(1)
         })
 
         it('answers "expired" once the 30 minute key lifetime has passed', async () => {

@@ -37,6 +37,7 @@ import { runPostPlayBackgroundOps } from './postPlayBackgroundOps'
 import { resolveAlbumIntent } from './albumIntent'
 import {
     classifyPlayFailure,
+    logPlayFailure,
     resolvePlayErrorMessage,
 } from './playErrorMessage'
 import { watchStreamStartFailures } from './streamStartWatcher'
@@ -543,10 +544,9 @@ export async function executePlayHandler({
             return
         }
 
-        errorLog({
-            message: 'Play command error:',
-            error,
-            data: { query, guildId: interaction.guildId },
+        logPlayFailure('Play command error:', error, {
+            query,
+            guildId: interaction.guildId,
         })
         markCommandOutcome(interaction, classifyPlayFailure(error))
 

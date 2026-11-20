@@ -156,7 +156,9 @@ test.describe('Responsive Design', () => {
                 .poll(() =>
                     link.evaluate((el) => getComputedStyle(el).boxShadow),
                 )
-                .toContain('rgb(88, 101, 242) 0px 0px 0px 3px')
+                .toContain(
+                    'rgb(15, 17, 23) 0px 0px 0px 2px, rgb(116, 128, 247) 0px 0px 0px 4px',
+                )
         }
 
         const activeShadow = await active

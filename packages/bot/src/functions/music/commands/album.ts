@@ -44,7 +44,8 @@ export default new Command({
             option
                 .setName('query')
                 .setDescription('Album name or Spotify album URL')
-                .setRequired(true),
+                .setRequired(true)
+                .setAutocomplete(true),
         )
         .addStringOption((option) =>
             option
@@ -244,6 +245,16 @@ export default new Command({
                     },
                     requestedBy: interaction.user,
                     searchEngine: QueryType.SPOTIFY_SONG,
+                    // Played by URL, so it lost the link the other tracks
+                    // keep. Put it back before the track starts, or now
+                    // playing could not name the album.
+                    afterSearch: (result) => {
+                        const played = result.tracks[0]
+                        if (played && searchResult.playlist) {
+                            played.playlist ??= searchResult.playlist
+                        }
+                        return Promise.resolve(result)
+                    },
                 },
             )
 

@@ -1,4 +1,5 @@
 import { extractionFailuresTotal } from '../../utils/monitoring/prometheus'
+import { isPlayProbe } from './probeContext'
 import { isExtractorDegraded, setExtractorDegraded } from './extractorHealth'
 
 // Since 2026-10-06 YouTube answers yt-dlp media downloads with HTTP 403 for
@@ -62,6 +63,10 @@ let slowFailureAts: number[] = []
 let anonymousVideoSeq = 0
 let blockedUntil = 0
 let degradedByBreaker = false
+// The open-breaker Sentry event is sent once per episode (#3082). Episodes are
+// numbered so a play claims the one it was blocked in, not the current one.
+let episodeSeq = 0
+let reportedEpisode = 0
 let expiryTimer: ReturnType<typeof setTimeout> | undefined
 const budgetMisses = new WeakSet<object>()
 const countedPlays = new WeakSet<object>()
@@ -103,6 +108,8 @@ function markBreakerDegraded(): void {
  * breaker — only a 403 that also failed the retry reaches recordYtDlpFailure.
  */
 export function countYtDlpFailure(error: unknown): void {
+    // A synthetic probe reports through its own metrics (#2920).
+    if (isPlayProbe()) return
     extractionFailuresTotal.inc({ type: classifyYtDlpFailure(error) })
 }
 
@@ -116,6 +123,8 @@ export function recordYtDlpFailure(
     play?: object,
     videoId?: string,
 ): void {
+    // A probe failure must not open the breaker that gates real plays (#2920).
+    if (isPlayProbe()) return
     const type = classifyYtDlpFailure(error)
     extractionFailuresTotal.inc({ type })
     if (type === 'other') return
@@ -140,12 +149,15 @@ export function recordYtDlpFailure(
         opens = slowFailureAts.length >= SLOW_FAILURE_THRESHOLD
     }
     if (opens) {
+        if (now >= blockedUntil) episodeSeq++
         blockedUntil = now + YTDLP_BLOCK_COOLDOWN_MS
         markBreakerDegraded()
     }
 }
 
 export function recordYtDlpSuccess(): void {
+    // Nor may a probe success close one that real plays opened (#2920).
+    if (isPlayProbe()) return
     forbiddenByVideo.clear()
     slowFailureAts = []
     blockedUntil = 0
@@ -156,4 +168,21 @@ export function isYtDlpBlocked(now = Date.now()): boolean {
     if (now < blockedUntil) return true
     clearBreakerDegraded()
     return false
+}
+
+/** Id of the current breaker-open episode; a new one starts on each open. */
+export function getBreakerEpisode(): number {
+    return episodeSeq
+}
+
+/**
+ * True for the first exhausted play of a breaker-open episode, false for the
+ * rest of it. `episode` is the id the play observed when it was blocked, so a
+ * play that outlives its episode cannot use up a newer episode's report.
+ * Callers still count every play in Prometheus.
+ */
+export function claimBreakerEpisodeReport(episode: number): boolean {
+    if (episode === reportedEpisode) return false
+    reportedEpisode = episode
+    return true
 }

@@ -25,6 +25,7 @@ import {
     recordYtDlpFailure,
     recordYtDlpSuccess,
 } from './ytdlpBlockBreaker'
+import { runAsPlayProbe } from './probeContext'
 
 const FORBIDDEN = new Error(
     'yt-dlp exited with code 1 - ERROR: unable to download video data: HTTP Error 403: Forbidden',
@@ -372,5 +373,35 @@ describe('ytdlpBlockBreaker (#2653)', () => {
         } finally {
             jest.useRealTimers()
         }
+    })
+})
+
+describe('synthetic play probe (#2920)', () => {
+    beforeEach(() => {
+        mockInc.mockReset()
+        recordYtDlpSuccess()
+        mockSetExtractorDegraded.mockReset()
+    })
+
+    it('does not count or open the breaker on a probe failure', async () => {
+        await runAsPlayProbe(async () => {
+            countYtDlpFailure(FORBIDDEN)
+            recordYtDlpFailure(FORBIDDEN, 1_000, undefined, 'a')
+            recordYtDlpFailure(FORBIDDEN, 1_000, undefined, 'b')
+        })
+
+        expect(mockInc).not.toHaveBeenCalled()
+        expect(isYtDlpBlocked(1_001)).toBe(false)
+        expect(mockSetExtractorDegraded).not.toHaveBeenCalled()
+    })
+
+    it('does not close a breaker that real plays opened', async () => {
+        recordYtDlpFailure(FORBIDDEN, 1_000, undefined, 'a')
+        recordYtDlpFailure(FORBIDDEN, 1_000, undefined, 'b')
+        expect(isYtDlpBlocked(1_001)).toBe(true)
+
+        await runAsPlayProbe(async () => recordYtDlpSuccess())
+
+        expect(isYtDlpBlocked(1_002)).toBe(true)
     })
 })

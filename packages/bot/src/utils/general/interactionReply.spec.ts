@@ -14,8 +14,15 @@ const mockDebugLog = jest.fn()
 const mockErrorEmbed = jest.fn()
 const mockInfoEmbed = jest.fn()
 const mockCaptureException = jest.fn()
+const mockWarnLog = jest.fn()
+const mockExpiredInc = jest.fn()
+
+jest.mock('../monitoring/prometheus', () => ({
+    interactionExpiredTotal: { labels: () => ({ inc: mockExpiredInc }) },
+}))
 
 jest.mock('@lucky/shared/utils', () => ({
+    warnLog: (...args: unknown[]) => mockWarnLog(...args),
     errorLog: (...args: unknown[]) => mockErrorLog(...args),
     debugLog: (...args: unknown[]) => mockDebugLog(...args),
     captureException: (...args: unknown[]) => mockCaptureException(...args),
@@ -300,6 +307,40 @@ describe('interactionReply', () => {
             expect(mockCaptureException).toHaveBeenCalled()
             const capturedError = mockCaptureException.mock.calls[0][0]
             expect(capturedError.cause).toBe(deferError)
+        })
+
+        it('treats an expired interaction (10062) as expected, not an error', async () => {
+            mockInteraction.deferReply = jest.fn().mockRejectedValue(
+                Object.assign(new Error('Unknown interaction'), {
+                    code: 10062,
+                }),
+            )
+
+            await interactionReply({
+                interaction: mockInteraction,
+                content: { content: 'button' },
+            })
+
+            expect(mockCaptureException).not.toHaveBeenCalled()
+            expect(mockErrorLog).not.toHaveBeenCalled()
+            expect(mockWarnLog).toHaveBeenCalledTimes(1)
+            expect(mockExpiredInc).toHaveBeenCalledTimes(1)
+        })
+
+        it('still reports a 10062 from editReply after a successful defer', async () => {
+            mockInteraction.editReply = jest.fn().mockRejectedValue(
+                Object.assign(new Error('Unknown interaction'), {
+                    code: 10062,
+                }),
+            )
+
+            await interactionReply({
+                interaction: mockInteraction,
+                content: { content: 'button' },
+            })
+
+            expect(mockCaptureException).toHaveBeenCalledTimes(1)
+            expect(mockExpiredInc).not.toHaveBeenCalled()
         })
 
         it('propagates the raw error when editReply fails', async () => {

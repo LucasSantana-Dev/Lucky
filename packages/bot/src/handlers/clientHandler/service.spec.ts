@@ -69,6 +69,10 @@ jest.mock('../../utils/general/dataRetentionScheduler', () => ({
     dataRetentionScheduler: { start: jest.fn(), stop: jest.fn() },
 }))
 
+jest.mock('../../services/playProbe/playProbe', () => ({
+    playProbeScheduler: { start: jest.fn(), stop: jest.fn() },
+}))
+
 jest.mock('../../services/recap/recapScheduler', () => ({
     recapScheduler: { start: jest.fn(), stop: jest.fn() },
 }))
@@ -518,6 +522,44 @@ describe('service', () => {
 
             expect(restoreSessionsOnStartup).toHaveBeenCalledWith(mockClient)
         })
+
+        it.each([
+            ['with a Player', { search: jest.fn() }, 1],
+            ['without a Player (skipPlayer)', null, 0],
+        ])(
+            'starts the play probe only %s (#2920)',
+            async (_label, player, calls) => {
+                const { playProbeScheduler } =
+                    await import('../../services/playProbe/playProbe')
+                ;(playProbeScheduler.start as jest.Mock).mockClear()
+
+                const mockClient = {
+                    login: jest.fn().mockResolvedValue('client'),
+                    once: jest.fn((event, handler) => {
+                        if (event === 'clientReady') {
+                            Promise.resolve().then(() => handler())
+                        }
+                    }),
+                    user: null,
+                    player,
+                    commands: { map: jest.fn().mockReturnValue([]) },
+                    guilds: {
+                        cache: { values: jest.fn().mockReturnValue([]) },
+                    },
+                }
+
+                const startPromise = startClient({ client: mockClient as any })
+                await new Promise((resolve) => setImmediate(resolve))
+                await startPromise
+
+                expect(playProbeScheduler.start).toHaveBeenCalledTimes(calls)
+                if (player) {
+                    expect(playProbeScheduler.start).toHaveBeenCalledWith(
+                        player,
+                    )
+                }
+            },
+        )
 
         it('isolates a restoreSessionsOnStartup failure from other startup steps', async () => {
             const { restoreSessionsOnStartup } =

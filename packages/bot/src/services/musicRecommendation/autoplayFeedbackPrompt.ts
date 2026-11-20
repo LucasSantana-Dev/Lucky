@@ -14,6 +14,10 @@ import {
     autoplayFeedbackPromptsTotal,
 } from '../../utils/monitoring/prometheus'
 import { recommendationFeedbackService } from './feedbackService'
+import {
+    isExpiredInteractionError,
+    recordExpiredInteraction,
+} from '../../utils/general/expiredInteraction'
 
 /** customId: `autoplay_fb:<like|dislike>:<key>`. */
 export const AUTOPLAY_FEEDBACK_BUTTON_PREFIX = 'autoplay_fb:'
@@ -167,6 +171,13 @@ export async function maybePromptAutoplayFeedback(
         })
         autoplayFeedbackPromptsTotal.inc()
     } catch (error) {
+        if (isExpiredInteractionError(error)) {
+            recordExpiredInteraction(
+                'autoplay_feedback_prompt',
+                interaction.guildId,
+            )
+            return
+        }
         errorLog({
             message: 'Autoplay feedback prompt failed',
             error,
@@ -246,6 +257,13 @@ export async function handleAutoplayFeedbackButton(
             allowedMentions: { parse: [] },
         })
     } catch (error) {
+        if (isExpiredInteractionError(error)) {
+            recordExpiredInteraction(
+                'autoplay_feedback_button',
+                interaction.guildId,
+            )
+            return
+        }
         errorLog({
             message: 'Autoplay feedback button error',
             error,

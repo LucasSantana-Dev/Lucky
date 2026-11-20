@@ -1,0 +1,50 @@
+# promtool unit tests for the lucky-play-probe group (#2920).
+# Run: promtool test rules observability/prometheus/rules/tests/lucky-play-probe.test.yml
+# Kept in tests/ so the /etc/prometheus/rules/*.yml glob never loads it.
+rule_files:
+  - ../play-probe.rules.yml
+
+evaluation_interval: 1m
+
+tests:
+  # One failed run (the gauge sits at 1 for a whole interval), then a second.
+  - name: second consecutive failure fires for that case
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_probe_consecutive_failures{case="youtube_watch",job="lucky-bot"}'
+        values: '0+0x2 1+0x15 2+0x5'
+      - series: 'lucky_bot_probe_consecutive_failures{case="youtu_be",job="lucky-bot"}'
+        values: '0+0x22'
+    alert_rule_test:
+      - eval_time: 16m
+        alertname: LuckyPlayProbeFailing
+        exp_alerts: []
+      - eval_time: 19m
+        alertname: LuckyPlayProbeFailing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              service: lucky-bot
+              case: youtube_watch
+            exp_annotations:
+              summary: "Synthetic play probe failed twice in a row for youtube_watch"
+              description: >-
+                The in-process play probe could not resolve or stream its
+                youtube_watch case on two consecutive runs (15 minutes apart).
+                Real plays of that kind are most likely failing too. Check the bot
+                log for "play probe: case failed" (it names the stage: resolve or
+                first_byte), lucky_bot_extraction_failures_total by type, and the
+                LuckyYouTubeDegraded alert.
+
+  - name: a single failure that recovers stays silent
+    interval: 1m
+    input_series:
+      - series: 'lucky_bot_probe_consecutive_failures{case="soundcloud_text",job="lucky-bot"}'
+        values: '0+0x2 1+0x15 0+0x10'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: LuckyPlayProbeFailing
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: LuckyPlayProbeFailing
+        exp_alerts: []
