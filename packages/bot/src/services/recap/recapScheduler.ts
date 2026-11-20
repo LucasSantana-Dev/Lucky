@@ -1,4 +1,4 @@
-import type { Client, Guild, TextChannel } from 'discord.js'
+import type { Client, Guild, TextChannel, VoiceChannel } from 'discord.js'
 import { AttachmentBuilder, ChannelType, PermissionFlagsBits } from 'discord.js'
 import { getWeeklyRecap, type RecapPayload } from '@lucky/shared/services'
 import { debugLog, errorLog, infoLog, warnLog } from '@lucky/shared/utils'
@@ -60,16 +60,24 @@ function isChannelGone(error: unknown): boolean {
 }
 
 /**
- * The text channel the bot can post the recap in, or why it cannot. Only a
- * definite answer from Discord becomes a reason; a transient failure (5xx,
- * rate limit, network) throws so the caller retries instead of opting out.
+ * The channel the bot can post the recap in, or why it cannot. A text channel
+ * or the text chat of a voice channel qualifies (#3062). Only a definite answer
+ * from Discord becomes a reason; a transient failure (5xx, rate limit, network)
+ * throws so the caller retries instead of opting out.
+ * `missing_channel` means it does not exist; `unsupported_channel_type` means
+ * it exists but cannot carry a recap (category, forum, stage, thread...).
  */
 export async function resolveRecapChannel(
     guild: Guild,
     channelId: string,
 ): Promise<
-    | { channel: TextChannel; canAttach: boolean }
-    | { reason: 'missing_channel' | 'missing_permissions' }
+    | { channel: TextChannel | VoiceChannel; canAttach: boolean }
+    | {
+          reason:
+              | 'missing_channel'
+              | 'unsupported_channel_type'
+              | 'missing_permissions'
+      }
 > {
     let channel
     try {
@@ -78,8 +86,12 @@ export async function resolveRecapChannel(
         if (isChannelGone(error)) return { reason: 'missing_channel' }
         throw error
     }
-    if (!channel || channel.type !== ChannelType.GuildText) {
-        return { reason: 'missing_channel' }
+    if (!channel) return { reason: 'missing_channel' }
+    if (
+        channel.type !== ChannelType.GuildText &&
+        channel.type !== ChannelType.GuildVoice
+    ) {
+        return { reason: 'unsupported_channel_type' }
     }
     const me = guild.members.me ?? (await guild.members.fetchMe())
     const permissions = channel.permissionsFor(me)
