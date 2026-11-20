@@ -36,6 +36,20 @@ import { QUEUE_LEAVE_OPTIONS } from '../services/musicManagement/queueLeaveOptio
 
 export const ONBOARDING_STATION_BUTTON_PREFIX = 'station_'
 
+// Guilds with a station play in flight. The reply only lands once the stream
+// starts (~10s), and users click again meanwhile, which queued the station
+// twice (#2922). Entries expire so a hung play cannot block the guild forever.
+const STATION_START_LOCK_MS = 30_000
+const stationStartsInFlight = new Map<string, number>()
+
+function isStationStarting(guildId: string): boolean {
+    const startedAt = stationStartsInFlight.get(guildId)
+    if (startedAt === undefined) return false
+    if (Date.now() - startedAt < STATION_START_LOCK_MS) return true
+    stationStartsInFlight.delete(guildId)
+    return false
+}
+
 type StationGenre = {
     id: string
     query: string
@@ -168,9 +182,33 @@ export async function handleOnboardingStationButton(
         return
     }
 
+    if (isStationStarting(guildId)) {
+        logStationClick({
+            guildId,
+            genre: genre.id,
+            started: false,
+            reason: 'already_playing',
+        })
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createWarningEmbed(
+                        t('music.station.alreadyStartingTitle'),
+                        t('music.station.alreadyStartingDescription'),
+                    ),
+                ],
+                ephemeral: true,
+            },
+        })
+        return
+    }
+    stationStartsInFlight.set(guildId, Date.now())
+
     try {
         await interaction.deferReply({ ephemeral: true })
     } catch (error) {
+        stationStartsInFlight.delete(guildId)
         if (isUnknownInteractionError(error)) {
             logStationClick({
                 guildId,
@@ -274,5 +312,7 @@ export async function handleOnboardingStationButton(
                 ephemeral: true,
             },
         })
+    } finally {
+        stationStartsInFlight.delete(guildId)
     }
 }
