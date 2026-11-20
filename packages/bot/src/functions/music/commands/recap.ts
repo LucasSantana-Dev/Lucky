@@ -24,7 +24,10 @@ export default new Command({
                     option
                         .setName('channel')
                         .setDescription('Text channel for the weekly recap')
-                        .addChannelTypes(ChannelType.GuildText)
+                        .addChannelTypes(
+                            ChannelType.GuildText,
+                            ChannelType.GuildVoice,
+                        )
                         .setRequired(true),
                 ),
         )
@@ -74,7 +77,8 @@ export default new Command({
             const target = await resolveRecapChannel(guild, picked.id)
             if ('reason' in target) {
                 await reply(
-                    target.reason === 'missing_channel'
+                    target.reason === 'missing_channel' ||
+                        target.reason === 'unsupported_channel_type'
                         ? t('music.recap.notTextChannel')
                         : t('music.recap.missingPermissions', {
                               channel: picked.id,

@@ -1,3 +1,5 @@
+import { asFixture } from '../../../tests/utils/services/serviceFixtures.js'
+import type { GuildQueue, Track } from 'discord-player'
 import type { ScoredTrack } from './autoplay/candidateCollector'
 import type { AutoplayContext } from './autoplay/autoplayContext'
 
@@ -102,14 +104,14 @@ function createScoredTrack(
     url = 'https://url',
 ): ScoredTrack {
     return {
-        track: {
+        track: asFixture({
             title: 'Track',
             author,
             url,
             durationMS: 200_000,
-        } as never,
+        }),
         score,
-        basis: { source: 'spotify-rec', signals: [] } as never,
+        basis: asFixture({ source: 'spotify-rec', signals: [] }),
     }
 }
 
@@ -117,19 +119,19 @@ function createAutoplayContext(
     overrides: Partial<AutoplayContext> = {},
 ): AutoplayContext {
     return {
-        queue: { player: { search: jest.fn() } } as never,
+        queue: asFixture({ player: { search: jest.fn() } }),
         excludedUrls: new Set(),
         excludedKeys: new Set(),
         dislikedWeights: new Map(),
         likedWeights: new Map(),
         preferredArtistKeys: new Set(),
         blockedArtistKeys: new Set(),
-        currentTrack: {
+        currentTrack: asFixture<Track>({
             author: 'Artist',
             title: 'Song',
             url: 'u1',
             durationMS: 200_000,
-        } as never,
+        }),
         recentArtists: new Set(),
         autoplayMode: 'similar',
         artistFrequency: new Map(),
@@ -192,12 +194,12 @@ describe('collectGenreCandidates', () => {
             recentArtists: new Set<string>(),
             likedTrackKeys: new Map<string, number>(),
             dislikedTrackKeys: new Map<string, number>(),
-            currentTrack: {
+            currentTrack: asFixture<Track>({
                 title: 'Now',
                 author: 'Artist',
                 url: 'u0',
                 durationMS: 200_000,
-            } as never,
+            }),
             excludedUrls: new Set<string>(),
             excludedKeys: new Set<string>(),
             preferredArtistKeys: new Set<string>(),
@@ -224,9 +226,9 @@ describe('collectGenreCandidates', () => {
             artistTagFetcherMock.mockResolvedValue(artistTags)
 
             await collectGenreCandidates(
-                { player: { search: jest.fn() } } as never,
+                asFixture({ player: { search: jest.fn() } }),
                 ['rock'],
-                { id: 'user-1' } as never,
+                asFixture({ id: 'user-1' }),
                 createCtx(),
             )
 
@@ -250,9 +252,9 @@ describe('collectGenreCandidates', () => {
         ])
 
         await collectGenreCandidates(
-            { player: { search: jest.fn() } } as never,
+            asFixture({ player: { search: jest.fn() } }),
             ['rock'],
-            { id: 'user-1' } as never,
+            asFixture({ id: 'user-1' }),
             { ...createCtx(), seedArtistStreak: 1 },
         )
 
@@ -271,9 +273,9 @@ describe('collectGenreCandidates', () => {
         artistTagFetcherMock.mockRejectedValue(new Error('lastfm down'))
 
         await collectGenreCandidates(
-            { player: { search: jest.fn() } } as never,
+            asFixture({ player: { search: jest.fn() } }),
             ['rock'],
-            { id: 'user-1' } as never,
+            asFixture({ id: 'user-1' }),
             createCtx(),
         )
 
@@ -299,9 +301,9 @@ describe('collectGenreCandidates', () => {
         ctx.dislikedTrackKeys.set('key', 1)
 
         await collectGenreCandidates(
-            { player: { search: jest.fn() } } as never,
+            asFixture({ player: { search: jest.fn() } }),
             ['rock'],
-            { id: 'user-1' } as never,
+            asFixture({ id: 'user-1' }),
             ctx,
         )
 
@@ -323,9 +325,9 @@ describe('collectGenreCandidates', () => {
         )
 
         await collectGenreCandidates(
-            { player: { search: jest.fn() } } as never,
+            asFixture({ player: { search: jest.fn() } }),
             ['rock'],
-            { id: 'user-1' } as never,
+            asFixture({ id: 'user-1' }),
             createCtx(),
         )
 
@@ -333,9 +335,14 @@ describe('collectGenreCandidates', () => {
     })
 
     it('does nothing when genres array is empty', async () => {
-        const queue = { player: { search: jest.fn() } } as never
+        const queue = asFixture<GuildQueue>({ player: { search: jest.fn() } })
         const ctx = createCtx()
-        await collectGenreCandidates(queue, [], { id: 'user-1' } as never, ctx)
+        await collectGenreCandidates(
+            queue,
+            [],
+            asFixture({ id: 'user-1' }),
+            ctx,
+        )
         expect(getTagTopTracksMock).not.toHaveBeenCalled()
     })
 
@@ -347,9 +354,9 @@ describe('collectGenreCandidates', () => {
         const budget = { remaining: 3 }
 
         await collectGenreCandidates(
-            { player: { search: jest.fn() } } as never,
+            asFixture({ player: { search: jest.fn() } }),
             ['rock'],
-            { id: 'user-1' } as never,
+            asFixture({ id: 'user-1' }),
             { ...createCtx(), spotifySearchBudget: budget },
         )
 
@@ -370,13 +377,13 @@ describe('collectGenreCandidates', () => {
                 durationMS: 180_000,
             },
         ])
-        const queue = { player: { search: jest.fn() } } as never
+        const queue = asFixture<GuildQueue>({ player: { search: jest.fn() } })
         const ctx = createCtx()
 
         await collectGenreCandidates(
             queue,
             ['rock'],
-            { id: 'user-1' } as never,
+            asFixture({ id: 'user-1' }),
             ctx,
         )
         expect(upsertScoredCandidateMock).toHaveBeenCalled()
@@ -390,7 +397,7 @@ describe('collectGenreCandidates', () => {
         const ctx2 = createCtx()
         for (let i = 0; i < 8; i++) {
             ctx2.candidates.set(`key-${i}`, {
-                track: {} as never,
+                track: asFixture({}),
                 score: 0.5,
                 basis: { source: 'spotify-rec', signals: [] },
             })
@@ -398,7 +405,7 @@ describe('collectGenreCandidates', () => {
         await collectGenreCandidates(
             queue,
             ['rock', 'pop'],
-            { id: 'user-1' } as never,
+            asFixture({ id: 'user-1' }),
             ctx2,
         )
         expect(getTagTopTracksMock).not.toHaveBeenCalled()
@@ -421,7 +428,7 @@ describe('collectGenreCandidates', () => {
         await collectGenreCandidates(
             queue,
             ['rock'],
-            { id: 'user-1' } as never,
+            asFixture({ id: 'user-1' }),
             ctx3,
         )
         expect(upsertScoredCandidateMock).not.toHaveBeenCalled()
@@ -453,13 +460,13 @@ describe('collectBroadFallbackCandidates', () => {
     it('makes no Spotify search while Spotify is blocked (#2972)', async () => {
         claimSpotifySearchMock.mockReturnValue(false)
         const searchMock = jest.fn().mockResolvedValue({ tracks: [] })
-        const queue = { player: { search: searchMock } } as never
-        const currentTrack = {
+        const queue = asFixture<GuildQueue>({ player: { search: searchMock } })
+        const currentTrack = asFixture<AutoplayContext['currentTrack']>({
             author: 'Artist',
             title: 'Song',
             url: 'u1',
             durationMS: 200_000,
-        } as never
+        })
         const ctx = createAutoplayContext({ queue, currentTrack })
 
         await collectBroadFallbackCandidates(ctx, new Map())
@@ -475,13 +482,13 @@ describe('collectBroadFallbackCandidates', () => {
             return true
         })
         const searchMock = jest.fn().mockResolvedValue({ tracks: [] })
-        const queue = { player: { search: searchMock } } as never
-        const currentTrack = {
+        const queue = asFixture<GuildQueue>({ player: { search: searchMock } })
+        const currentTrack = asFixture<AutoplayContext['currentTrack']>({
             author: 'Artist',
             title: 'Song',
             url: 'u1',
             durationMS: 200_000,
-        } as never
+        })
         const budget = { remaining: 0 }
         const ctx = createAutoplayContext({
             queue,
@@ -500,13 +507,15 @@ describe('collectBroadFallbackCandidates', () => {
         const searchMock = jest
             .fn()
             .mockRejectedValue(new Error('network error'))
-        let queue = { player: { search: searchMock } } as never
-        let currentTrack = {
+        let queue = asFixture<AutoplayContext['queue']>({
+            player: { search: searchMock },
+        })
+        let currentTrack = asFixture<AutoplayContext['currentTrack']>({
             author: 'Artist',
             title: 'Song',
             url: 'u1',
             durationMS: 200_000,
-        } as never
+        })
         let candidates = new Map<string, ScoredTrack>()
         let ctx = createAutoplayContext({ queue, currentTrack })
         await expect(
@@ -526,7 +535,7 @@ describe('collectBroadFallbackCandidates', () => {
             ],
         })
         shouldIncludeCandidateMock.mockReturnValue(false)
-        queue = { player: { search: searchMock } } as never
+        queue = asFixture({ player: { search: searchMock } })
         candidates = new Map<string, ScoredTrack>()
         ctx = createAutoplayContext({ queue, currentTrack })
         await collectBroadFallbackCandidates(ctx, candidates)
@@ -542,13 +551,13 @@ describe('collectBroadFallbackCandidates', () => {
             durationMS: 180_000,
         }
         const searchMock = jest.fn().mockResolvedValue({ tracks: [foundTrack] })
-        const queue = { player: { search: searchMock } } as never
-        const currentTrack = {
+        const queue = asFixture<GuildQueue>({ player: { search: searchMock } })
+        const currentTrack = asFixture<AutoplayContext['currentTrack']>({
             author: 'Coldplay',
             title: 'Yellow',
             url: 'u1',
             durationMS: 200_000,
-        } as never
+        })
         const getArtistTagsMock = jest
             .fn()
             .mockResolvedValue(['latin gospel', 'latin christian'])
@@ -594,13 +603,13 @@ describe('collectBroadFallbackCandidates', () => {
             ],
         })
         const ctx = createAutoplayContext({
-            queue: { player: { search: searchMock } } as never,
-            currentTrack: {
+            queue: asFixture({ player: { search: searchMock } }),
+            currentTrack: asFixture<Track>({
                 author: 'Michael Jackson',
                 title: 'Human Nature',
                 url: 'u1',
                 durationMS: 200_000,
-            } as never,
+            }),
         })
 
         await collectBroadFallbackCandidates(ctx, new Map())
@@ -624,7 +633,7 @@ describe('collectBroadFallbackCandidates', () => {
             ],
         })
         const ctx = createAutoplayContext({
-            queue: { player: { search: searchMock } } as never,
+            queue: asFixture({ player: { search: searchMock } }),
             seedArtistStreak: 1,
         })
 
@@ -645,13 +654,15 @@ describe('collectBroadFallbackCandidates', () => {
 
         // getArtistTags rejects
         const searchMock = jest.fn().mockResolvedValue({ tracks: [foundTrack] })
-        let queue = { player: { search: searchMock } } as never
-        let currentTrack = {
+        let queue = asFixture<AutoplayContext['queue']>({
+            player: { search: searchMock },
+        })
+        let currentTrack = asFixture<AutoplayContext['currentTrack']>({
             author: 'Artist',
             title: 'Song',
             url: 'u1',
             durationMS: 200_000,
-        } as never
+        })
         let getArtistTagsMock = jest
             .fn()
             .mockRejectedValue(new Error('lastfm down'))
@@ -675,7 +686,7 @@ describe('collectBroadFallbackCandidates', () => {
         searchMock.mockResolvedValue({ tracks: [foundTrack] })
         getArtistTagsMock = jest.fn().mockResolvedValue(['rock', 'indie'])
         getValidAccessTokenMock.mockResolvedValue(null)
-        queue = { player: { search: searchMock } } as never
+        queue = asFixture({ player: { search: searchMock } })
         candidates = new Map<string, ScoredTrack>()
         ctx = createAutoplayContext({
             queue,
@@ -694,13 +705,13 @@ describe('collectBroadFallbackCandidates', () => {
             durationMS: 180_000,
         }
         const searchMock = jest.fn().mockResolvedValue({ tracks: [foundTrack] })
-        const queue = { player: { search: searchMock } } as never
-        const currentTrack = {
+        const queue = asFixture<GuildQueue>({ player: { search: searchMock } })
+        const currentTrack = asFixture<AutoplayContext['currentTrack']>({
             author: 'Artist',
             title: 'Song',
             url: 'u1',
             durationMS: 200_000,
-        } as never
+        })
         const ctx = createAutoplayContext({ queue, currentTrack })
         await collectBroadFallbackCandidates(ctx, new Map())
 
@@ -709,13 +720,13 @@ describe('collectBroadFallbackCandidates', () => {
 
     it('records an empty sample when the search returns nothing', async () => {
         const searchMock = jest.fn().mockResolvedValue({ tracks: [] })
-        const queue = { player: { search: searchMock } } as never
-        const currentTrack = {
+        const queue = asFixture<GuildQueue>({ player: { search: searchMock } })
+        const currentTrack = asFixture<AutoplayContext['currentTrack']>({
             author: 'Artist',
             title: 'Song',
             url: 'u1',
             durationMS: 200_000,
-        } as never
+        })
         const ctx = createAutoplayContext({ queue, currentTrack })
         await collectBroadFallbackCandidates(ctx, new Map())
 
@@ -726,13 +737,13 @@ describe('collectBroadFallbackCandidates', () => {
         const searchMock = jest
             .fn()
             .mockRejectedValue(new Error('network error'))
-        const queue = { player: { search: searchMock } } as never
-        const currentTrack = {
+        const queue = asFixture<GuildQueue>({ player: { search: searchMock } })
+        const currentTrack = asFixture<AutoplayContext['currentTrack']>({
             author: 'Artist',
             title: 'Song',
             url: 'u1',
             durationMS: 200_000,
-        } as never
+        })
         const ctx = createAutoplayContext({ queue, currentTrack })
         await collectBroadFallbackCandidates(ctx, new Map())
 

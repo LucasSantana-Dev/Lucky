@@ -5,6 +5,7 @@ import {
     type Interaction,
 } from 'discord.js'
 import handleEvents from './eventHandler'
+import { asClient } from '../../tests/utils/handlers/handlerFixtures'
 
 const interactionReplyMock = jest.fn()
 const createUserFriendlyErrorMock = jest.fn()
@@ -274,7 +275,7 @@ describe('eventHandler', () => {
 
     it('replies with command-not-found message when command is missing', async () => {
         const { client, onMock } = createMockClient()
-        handleEvents(client as unknown as never)
+        handleEvents(asClient(client))
 
         const interactionHandler = getInteractionCreateHandler(onMock)
         expect(interactionHandler).toBeDefined()
@@ -320,7 +321,7 @@ describe('eventHandler', () => {
                 recordedAt = Date.now()
             })
             const { client, onMock } = createMockClient()
-            handleEvents(client as unknown as never)
+            handleEvents(asClient(client))
 
             getInteractionCreateHandler(onMock)?.({
                 isAutocomplete: () => false,
@@ -348,7 +349,7 @@ describe('eventHandler', () => {
     it('routes a chat-input command through executeCommand (spam-cooldown, feature-toggle and permission guard, #2483)', async () => {
         const { client, onMock } = createMockClient()
         client.commands.set('play', { execute: jest.fn() })
-        handleEvents(client as unknown as never)
+        handleEvents(asClient(client))
 
         const interactionHandler = getInteractionCreateHandler(onMock)
         const interaction = {
@@ -375,7 +376,7 @@ describe('eventHandler', () => {
 
     it('does not call executeCommand when the command is not found', async () => {
         const { client, onMock } = createMockClient()
-        handleEvents(client as unknown as never)
+        handleEvents(asClient(client))
         const interactionHandler = getInteractionCreateHandler(onMock)
 
         interactionHandler?.({
@@ -397,7 +398,7 @@ describe('eventHandler', () => {
 
     it('routes a message context-menu interaction to executeContextMenu', async () => {
         const { client, onMock } = createMockClient()
-        handleEvents(client as unknown as never)
+        handleEvents(asClient(client))
         const interactionHandler = getInteractionCreateHandler(onMock)
 
         const interaction = {
@@ -425,7 +426,7 @@ describe('eventHandler', () => {
         // simulates it rethrowing to exercise the generic safety-net catch
         // in runInteraction.
         executeCommandMock.mockRejectedValueOnce(new Error('raw failure'))
-        handleEvents(client as unknown as never)
+        handleEvents(asClient(client))
 
         const interactionHandler = getInteractionCreateHandler(onMock)
         expect(interactionHandler).toBeDefined()
@@ -464,7 +465,7 @@ describe('eventHandler', () => {
         const replyError = new Error('Discord API unavailable')
         interactionReplyMock.mockRejectedValueOnce(replyError)
 
-        handleEvents(client as unknown as never)
+        handleEvents(asClient(client))
 
         const interactionHandler = getInteractionCreateHandler(onMock)
         expect(interactionHandler).toBeDefined()
@@ -516,7 +517,7 @@ describe('eventHandler', () => {
             throw new Error('Failed to sanitize error')
         })
 
-        handleEvents(client as unknown as never)
+        handleEvents(asClient(client))
 
         const interactionHandler = getInteractionCreateHandler(onMock)
         expect(interactionHandler).toBeDefined()
@@ -562,7 +563,7 @@ describe('eventHandler', () => {
             interaction: Interaction,
         ): Promise<void> {
             const { client, onMock } = createMockClient()
-            handleEvents(client as unknown as never)
+            handleEvents(asClient(client))
             const handler = getInteractionCreateHandler(onMock)
             handler?.(interaction)
             await flushAsyncHandlers()
@@ -836,7 +837,7 @@ describe('eventHandler', () => {
 
         async function dispatchButton(customId: string): Promise<void> {
             const { client, onMock } = createMockClient()
-            handleEvents(client as unknown as never)
+            handleEvents(asClient(client))
             const handler = getInteractionCreateHandler(onMock)
             handler?.(createButtonInteraction(customId))
             await flushAsyncHandlers()
@@ -901,7 +902,7 @@ describe('eventHandler', () => {
 
         async function dispatch(interaction: Record<string, unknown>) {
             const { client, onMock } = createMockClient()
-            handleEvents(client as unknown as never)
+            handleEvents(asClient(client))
             const handler = getInteractionCreateHandler(onMock)
             handler?.({
                 isAutocomplete: () => false,
@@ -1105,7 +1106,7 @@ describe('eventHandler', () => {
         describe('handleGuildDelete', () => {
             it('calls cleanupGuildState when guild is deleted', async () => {
                 const { client, onMock } = createMockClient()
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getGuildDeleteHandler(onMock)
                 expect(handler).toBeDefined()
@@ -1124,7 +1125,7 @@ describe('eventHandler', () => {
                     throw new Error('Cleanup failed')
                 })
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getGuildDeleteHandler(onMock)
                 const mockGuild = { id: 'guild-789' }
@@ -1144,7 +1145,7 @@ describe('eventHandler', () => {
         describe('handleChannelDelete', () => {
             it('calls cleanupGuildState when text channel is deleted', () => {
                 const { client, onMock } = createMockClient()
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getChannelDeleteHandler(onMock)
                 expect(handler).toBeDefined()
@@ -1163,7 +1164,7 @@ describe('eventHandler', () => {
 
             it('skips cleanup when channel is DM-based', () => {
                 const { client, onMock } = createMockClient()
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getChannelDeleteHandler(onMock)
                 const mockChannel = {
@@ -1198,7 +1199,7 @@ describe('eventHandler', () => {
                 user: { tag: 'TestBot#0001' },
             }
 
-            handleEvents(mockClient as unknown as never)
+            handleEvents(asClient(mockClient))
 
             const handler = getClientReadyHandler(onceMock)
             handler?.(mockClient)
@@ -1237,7 +1238,7 @@ describe('eventHandler', () => {
                     cache: { size: 42 },
                 } as any
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getGuildCreateHandler(onMock)
                 expect(handler).toBeDefined()
@@ -1265,7 +1266,7 @@ describe('eventHandler', () => {
                     cache: { size: 10 },
                 } as any
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getGuildCreateHandler(onMock)
                 handler?.({
@@ -1284,7 +1285,7 @@ describe('eventHandler', () => {
                 } as any
                 recordGuildJoinMock.mockResolvedValue(undefined)
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getGuildCreateHandler(onMock)
                 handler?.({
@@ -1310,7 +1311,7 @@ describe('eventHandler', () => {
                 const dbError = new Error('Database error')
                 recordGuildJoinMock.mockRejectedValueOnce(dbError)
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getGuildCreateHandler(onMock)
                 handler?.({
@@ -1341,7 +1342,7 @@ describe('eventHandler', () => {
                     permissionsFor: jest.fn(() => ({ has: () => true })),
                 }
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
                 getGuildCreateHandler(onMock)?.({
                     id: 'g-onboard',
                     name: 'Onboard Guild',
@@ -1387,7 +1388,7 @@ describe('eventHandler', () => {
                     permissionsFor: jest.fn(() => ({ has: () => false })),
                 }
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
                 getGuildCreateHandler(onMock)?.({
                     id: 'g-nopost',
                     name: 'No Post Guild',
@@ -1427,7 +1428,7 @@ describe('eventHandler', () => {
                     permissionsFor: jest.fn(() => ({ has: () => true })),
                 }
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
                 getGuildCreateHandler(onMock)?.({
                     id: 'g-rec-fail',
                     name: 'Rec Fail Guild',
@@ -1461,7 +1462,7 @@ describe('eventHandler', () => {
                     permissionsFor: jest.fn(() => ({ has: () => true })),
                 }
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
                 getGuildCreateHandler(onMock)?.({
                     id: 'g-perm',
                     name: 'Perm Guild',
@@ -1496,7 +1497,7 @@ describe('eventHandler', () => {
                     permissionsFor: jest.fn(() => ({ has: () => true })),
                 }
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
                 getGuildCreateHandler(onMock)?.({
                     id: 'g-send-fail',
                     name: 'Send Fail Guild',
@@ -1534,7 +1535,7 @@ describe('eventHandler', () => {
                     cache: { size: 41 },
                 } as any
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getGuildDeleteHandler(onMock)
                 expect(handler).toBeDefined()
@@ -1562,7 +1563,7 @@ describe('eventHandler', () => {
                     cache: { size: 5 },
                 } as any
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getGuildDeleteHandler(onMock)
                 await handler?.({
@@ -1581,7 +1582,7 @@ describe('eventHandler', () => {
                 } as any
                 recordGuildLeaveMock.mockResolvedValue(undefined)
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getGuildDeleteHandler(onMock)
                 await handler?.({
@@ -1605,7 +1606,7 @@ describe('eventHandler', () => {
                 guildLeavesTotalIncMock.mockClear()
                 cleanupGuildStateMock.mockClear()
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getGuildDeleteHandler(onMock)
                 await handler?.({
@@ -1627,7 +1628,7 @@ describe('eventHandler', () => {
                 const dbError = new Error('Database connection lost')
                 recordGuildLeaveMock.mockRejectedValueOnce(dbError)
 
-                handleEvents(client as unknown as never)
+                handleEvents(asClient(client))
 
                 const handler = getGuildDeleteHandler(onMock)
                 await handler?.({

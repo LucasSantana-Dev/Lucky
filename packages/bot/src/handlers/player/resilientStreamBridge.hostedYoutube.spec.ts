@@ -302,12 +302,13 @@ describe('createResilientStream: kill-switch guardrail', () => {
             return proc
         })
         mockGetInnertube.mockRejectedValue(new Error('innertube down'))
+        // yt-dlp and the SoundCloud searches race (#2871); youtubei is only
+        // reached once both of them came back empty.
+        mockStreamViaSoundCloud.mockResolvedValue(null)
 
-        const result = await createResilientStream(
-            makeTrack(SPOTIFY_URL) as never,
-        )
-
-        expect(result).toBe('soundcloud-stream')
+        await expect(
+            createResilientStream(makeTrack(SPOTIFY_URL) as never),
+        ).rejects.toThrow('Bridge exhausted')
         expect(mockSpawn).toHaveBeenCalled()
         expect(mockGetInnertube).toHaveBeenCalled()
     })
