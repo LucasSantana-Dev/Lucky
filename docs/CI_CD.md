@@ -44,6 +44,7 @@ The root `package-lock.json` must be committed. CI uses `cache: 'npm'` and `npm 
 Before each commit the following run automatically:
 
 1. **lint-staged**: ESLint (with autofix), Prettier, and Secretlint on staged files. Secretlint scans for credentials (AWS/GCP/GitHub tokens, private keys, etc.); commit is blocked if a secret is detected.
+   ESLint runs with `--report-unused-disable-directives-severity off`: from the repo root the per-package rule globs (`src/**/*.ts`) do not match, so a directive such as `eslint-disable-next-line no-console` looks unused there and `--fix` used to delete it, while the per-package lint in CI still required it (#2366). Unused directives are reported by the per-package lint instead.
 2. **audit:critical**: `npm audit --audit-level=critical` — commit is blocked only if critical vulnerabilities exist. High-severity issues are still reported in CI (Quality Gates).
 
 **Commit message**: The `commit-msg` hook runs Commitlint (Angular conventional commits). Subject must use a valid type (`feat`, `fix`, `docs`, etc.), lower-case, no trailing period, max 72 characters.

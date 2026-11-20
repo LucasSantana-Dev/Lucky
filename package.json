@@ -57,7 +57,7 @@
     },
     "lint-staged": {
         "*.{ts,tsx}": [
-            "eslint --fix -c eslint.config.js",
+            "eslint --fix -c eslint.config.js --report-unused-disable-directives-severity off",
             "prettier --write"
         ],
         "*.{js,json,md}": [
