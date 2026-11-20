@@ -163,6 +163,11 @@ describe('LogService', () => {
         const forged = 'x\n[ERROR] forged record'
         const flat = 'x [ERROR] forged record'
 
+        // Pinned so a LOG_FORMAT=json environment cannot change the sink.
+        beforeEach(() => {
+            ;(service as any).config.format = 'pretty'
+        })
+
         it('keeps a data value with a newline on its own JSON line', () => {
             const consoleSpy = jest.spyOn(console, 'log')
             consoleSpy.mockClear()
