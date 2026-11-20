@@ -519,6 +519,34 @@ services:
                 max-file: "3"
                 tag: "{{.Name}}"
 
+    # Alloy never gets the Docker socket: full socket access is root on the
+    # host whatever the mount flags (`:ro` only protects the socket file, not
+    # the API). This proxy is the only holder and answers GET on /containers
+    # (list, inspect, logs) and /networks (discovery labels) plus /_ping,
+    # /version and /events; every POST, exec, image or volume call is
+    # refused. Reachable only on lucky-network, no host port.
+    docker-socket-proxy:
+        <<: *small-svc
+        mem_limit: 64m
+        image: tecnativa/docker-socket-proxy:0.3.0
+        container_name: lucky-docker-socket-proxy
+        environment:
+            CONTAINERS: 1
+            NETWORKS: 1
+            POST: 0
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:ro
+        networks:
+            - lucky-network
+        profiles:
+            - observability
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+                tag: "{{.Name}}"
+
     alloy:
         <<: *small-svc
         mem_limit: 192m
@@ -526,6 +554,7 @@ services:
         container_name: lucky-alloy
         depends_on:
             - loki
+            - docker-socket-proxy
         command:
             - "run"
             - "--storage.path=/var/lib/alloy/data"
@@ -534,8 +563,6 @@ services:
             LUCKY_ENV: ${LUCKY_ENV:-production}
         volumes:
             - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
-            # Read-only socket: container discovery and log reads only.
-            - /var/run/docker.sock:/var/run/docker.sock:ro
             # Read positions, so a restart does not resend or skip lines.
             - alloy_data:/var/lib/alloy/data
         networks:

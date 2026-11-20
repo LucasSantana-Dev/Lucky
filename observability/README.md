@@ -13,7 +13,7 @@ docker compose --profile observability up -d
 ```
 
 This starts `prometheus`, `alertmanager` (plus the one-shot
-`alertmanager-config` renderer), `grafana`, `loki`, `alloy`, `node-exporter`,
+`alertmanager-config` renderer), `grafana`, `loki`, `alloy` (with its `docker-socket-proxy`), `node-exporter`,
 and `cadvisor` in
 addition to whatever other profile(s)/services you already run. None of them
 bind a host port.
@@ -125,11 +125,11 @@ so no rule expression changes were needed.
 
 ## Dashboards (for a non-technical operator)
 
-Five dashboards, all tagged `lucky` and cross-linked at the top nav, generated
+Six dashboards, all tagged `lucky` and cross-linked at the top nav, generated
 by `observability/grafana/build_dashboards.py` (edit the script, rerun it,
 commit both): `lucky-inicio` ("Lucky: comece aqui", the org home dashboard via
-`GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH`), `lucky-negocio`, `lucky-produto`, `lucky-erros`
-and `lucky-sistema`. They reference datasources through hidden datasource
+`GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH`), `lucky-negocio`, `lucky-produto`, `lucky-erros`,
+`lucky-sistema` and `lucky-logs`. They reference datasources through hidden datasource
 variables, so the same JSON loads here and in the homelab Grafana (which
 mounts this directory from the host checkout). The Postgres panels need the
 `grafana_ro` role (`observability/postgres/grafana-ro.sql`) and a Postgres
@@ -235,14 +235,26 @@ values:
 
 `loki` (`grafana/loki:3.7.2`, 512m) stores 30 days of logs on the disposable
 `loki_data` volume (`observability/loki/loki.yaml`). Retention is by time only:
-Loki has no size cap, so ingestion limits stop a log loop and the disk alerts
-watch the rest. `alloy` (`grafana/alloy:v1.10.0`, 192m) reads the Docker socket
-read-only and ships only `lucky-bot`, `lucky-backend` and `lucky-render`
-(`observability/alloy/config.alloy`, explicit allowlist, so staging, tunnel,
-webhook and Postgres are never ingested).
+Loki has no size cap. The ingestion limits (1 MB/s global) do not bound disk
+use: a log loop at the cap writes about 86 GB a day. The real backstop is the
+disk alerts (`LuckyDiskSpaceLow` at 20% free, `LuckyDiskSpaceCritical` at 10%).
+`alloy` (`grafana/alloy:v1.10.0`, 192m) ships only `lucky-bot`,
+`lucky-backend` and `lucky-render` (`observability/alloy/config.alloy`,
+explicit allowlist, so staging, tunnel, webhook and Postgres are never
+ingested).
 
-Alloy splits the `[LEVEL] ` token off each line, so the stored line is pure
-JSON and LogQL `| json` works. Labels: `service`, `env` (`LUCKY_ENV`, default
+Alloy never mounts the Docker socket. Access to the socket is root on the host
+whatever the mount flags (`:ro` protects the socket file, not the API), so the
+only holder is `docker-socket-proxy` (`tecnativa/docker-socket-proxy:0.3.0`,
+64m, on `lucky-network` only), which answers GET on `/containers` (list,
+inspect, logs) and `/networks` (discovery labels) and refuses every POST,
+exec, image and volume call.
+Alloy talks to it over `tcp://lucky-docker-socket-proxy:2375`.
+
+Alloy splits the `[LEVEL] ` token off each `[LEVEL] {json}` line, so those
+lines are stored as pure JSON and LogQL `| json` works on them. Lines that do
+not have that shape (pretty-format output, a crash stack trace) are stored
+unchanged with no `level` label, and `| json` does not apply to them. Labels: `service`, `env` (`LUCKY_ENV`, default
 `production`), `level`, plus `container_name` with the same value as `service`:
 the homelab promtail sets `container_name` and the dashboards select on it, so
 the same dashboard JSON reads both Lokis. Error and warning panels match both

@@ -84,7 +84,7 @@
                 "label": "Nível",
                 "description": "Gravidade da linha.",
                 "type": "custom",
-                "query": "erro : (?i)^\\[(error|fatal|critical)\\] |^\\{\"ts\":\"[^\"]*\",\"level\":\"(error|fatal|critical)\",aviso : (?i)^\\[(warn)\\] |^\\{\"ts\":\"[^\"]*\",\"level\":\"(warn)\",info : (?i)^\\[(info)\\] |^\\{\"ts\":\"[^\"]*\",\"level\":\"(info)\",debug : (?i)^\\[(debug)\\] |^\\{\"ts\":\"[^\"]*\",\"level\":\"(debug)\"",
+                "query": "erro : (?i)^\\[(error|fatal|critical)\\] |^\\{\"ts\":\"[^\"]*\".\"level\":\"(error|fatal|critical)\",aviso : (?i)^\\[(warn)\\] |^\\{\"ts\":\"[^\"]*\".\"level\":\"(warn)\",info : (?i)^\\[(info)\\] |^\\{\"ts\":\"[^\"]*\".\"level\":\"(info)\",debug : (?i)^\\[(debug)\\] |^\\{\"ts\":\"[^\"]*\".\"level\":\"(debug)\"",
                 "includeAll": true,
                 "allValue": ".*",
                 "multi": false,

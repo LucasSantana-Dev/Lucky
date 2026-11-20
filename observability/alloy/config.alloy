@@ -9,13 +9,16 @@
 // the repo dashboards select on, so the same dashboard JSON works against both
 // Lokis during the cutover. It adds no cardinality (one value per service).
 // guildId, userId and correlationId stay in the JSON body, never labels.
+//
+// Docker is reached through lucky-docker-socket-proxy (GET on containers and
+// networks only), never the socket itself: socket access is root on the host.
 
 logging {
   level = "warn"
 }
 
 discovery.docker "lucky" {
-  host             = "unix:///var/run/docker.sock"
+  host             = "tcp://lucky-docker-socket-proxy:2375"
   refresh_interval = "30s"
 }
 
@@ -44,7 +47,7 @@ discovery.relabel "lucky" {
 }
 
 loki.source.docker "lucky" {
-  host             = "unix:///var/run/docker.sock"
+  host             = "tcp://lucky-docker-socket-proxy:2375"
   targets          = discovery.relabel.lucky.output
   refresh_interval = "30s"
   forward_to       = [loki.process.lucky.receiver]

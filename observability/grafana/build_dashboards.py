@@ -753,6 +753,9 @@ def sistema():
 # --------------------------------------------------------------------------- logs
 def custom_var(name, label, options, all_value, desc):
     """Visible dropdown; options are "texto : valor" pairs (Grafana custom variable syntax)."""
+    for o in options:
+        if "," in o:
+            raise SystemExit(f"custom variable {name!r}: Grafana splits options on commas, {o!r} has one")
     return {"name": name, "label": label, "description": desc, "type": "custom", "query": ",".join(options),
             "includeAll": True, "allValue": all_value, "multi": False, "hide": 0,
             "current": {"selected": True, "text": "All", "value": "$__all"}, "options": []}
@@ -764,8 +767,12 @@ def text_var(name, label, desc):
 
 
 def level_re(levels):
-    """Line regex for the given lower-case levels, with or without the `[LEVEL] ` token."""
-    return r'(?i)^\[(' + levels + r')\] |^\{"ts":"[^"]*","level":"(' + levels + r')"'
+    """Line regex for the given lower-case levels, with or without the `[LEVEL] ` token.
+
+    No comma in it: Grafana splits custom-variable options on commas, so the separator
+    between the "ts" and "level" keys is matched with `.` instead of a literal comma.
+    """
+    return r'(?i)^\[(' + levels + r')\] |^\{"ts":"[^"]*"."level":"(' + levels + r')"'
 
 
 def logs():
