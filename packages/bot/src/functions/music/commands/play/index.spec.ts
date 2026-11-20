@@ -131,6 +131,11 @@ jest.mock('../../../../utils/general/embeds', () => ({
         createErrorEmbedMock(title, message),
     createSuccessEmbed: (title: string, message: string) =>
         createSuccessEmbedMock(title, message),
+    createWarningEmbed: (title: string, message: string) => ({
+        type: 'warning',
+        title,
+        message,
+    }),
     EMBED_COLORS: { ERROR: '#F44336' },
 }))
 
@@ -1277,6 +1282,187 @@ describe('play command: early reply and start failure (#2741)', () => {
 
         expect(buildPlayResponseEmbedMock).toHaveBeenLastCalledWith(
             expect.objectContaining({ queuePosition: 1 }),
+        )
+    })
+})
+
+describe('play command: characterization of remaining handler branches', () => {
+    const track = {
+        id: 'track-1',
+        title: 'Song A',
+        author: 'Artist A',
+        url: 'https://example.com/a',
+        metadata: null,
+        setMetadata: jest.fn(),
+    }
+    const searchResult = {
+        playlist: null,
+        tracks: [track],
+        hasPlaylist: () => false,
+        isEmpty: () => false,
+    }
+    const queueOf = (guildId: string) => ({ guild: { id: guildId } })
+    const afterSearchOf = (opts: unknown) =>
+        (opts as { afterSearch: (r: unknown) => Promise<unknown> }).afterSearch
+    const originalYoutubeFlag = process.env.HOSTED_YOUTUBE_ENABLED
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        requireVoiceChannelMock.mockResolvedValue(true)
+        requireDJRoleMock.mockResolvedValue(true)
+        blendAutoplayTracksMock.mockResolvedValue(undefined)
+        canAddTracksMock.mockReturnValue({ allowed: true, limit: 3 })
+        getGuildSettingsMock.mockResolvedValue(null)
+        resolveGuildQueueMock.mockReturnValue({ queue: null })
+        interactionReplyMock.mockResolvedValue(undefined)
+        buildPlayResponseEmbedMock.mockReturnValue({ title: 'embed' })
+    })
+
+    afterEach(() => {
+        if (originalYoutubeFlag === undefined) {
+            delete process.env.HOSTED_YOUTUBE_ENABLED
+        } else {
+            process.env.HOSTED_YOUTUBE_ENABLED = originalYoutubeFlag
+        }
+    })
+
+    it('answers a disabled YouTube provider with its own reply, before deferring', async () => {
+        process.env.HOSTED_YOUTUBE_ENABLED = 'false'
+        const interaction = createInteraction('guild-1')
+        interaction.options.getString = jest.fn((name: string) =>
+            name === 'provider' ? 'youtube' : 'test query',
+        )
+        const client = createClient(async () => ({ track, searchResult }))
+
+        await playCommand.execute({ client, interaction } as any)
+
+        expect(interaction.deferReply).not.toHaveBeenCalled()
+        expect(client.player.play).not.toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({ ephemeral: true }),
+            }),
+        )
+        expect(takeCommandOutcome(interaction)).toEqual({
+            outcome: 'user_error',
+        })
+    })
+
+    it('rethrows a deferReply failure that is not an expired interaction', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.deferReply.mockRejectedValue(new Error('gateway down'))
+        const client = createClient(async () => ({ track, searchResult }))
+
+        await expect(
+            playCommand.execute({ client, interaction } as any),
+        ).rejects.toThrow('gateway down')
+        expect(client.player.play).not.toHaveBeenCalled()
+    })
+
+    it('replies with the stream failure itself when no early reply was sent', async () => {
+        const interaction = createInteraction('guild-1')
+        const client = createClient(async () => {
+            client.player.events.emit(
+                'playerError',
+                queueOf('guild-1'),
+                new Error('Could not extract stream'),
+                track,
+            )
+            return { track, searchResult }
+        })
+
+        await playCommand.execute({ client, interaction } as any)
+
+        expect(interaction.editReply).not.toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledTimes(1)
+        const sent = interactionReplyMock.mock.calls[0][0] as {
+            content: { embeds: { data: { description?: string } }[] }
+        }
+        expect(sent.content.embeds[0].data.description).toContain(
+            "Couldn't find the original of **Song A**",
+        )
+        expect(recordContributionMock).not.toHaveBeenCalled()
+        expect(takeCommandOutcome(interaction)).toEqual({
+            outcome: 'error',
+            errorClass: 'StreamStartFailed',
+        })
+    })
+
+    it('warns instead of throwing when the ephemeral error reply fails', async () => {
+        const interaction = createInteraction('guild-1')
+        interactionReplyMock.mockRejectedValue(new Error('reply failed'))
+        const client = createClient(async () => {
+            throw new Error('Search failed')
+        })
+
+        await expect(
+            playCommand.execute({ client, interaction } as any),
+        ).resolves.toBeUndefined()
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Failed to send play command error reply',
+            }),
+        )
+    })
+
+    it('still finishes the command when the early reply itself fails', async () => {
+        const interaction = createInteraction('guild-1')
+        interactionReplyMock.mockRejectedValue(new Error('reply failed'))
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                return { track, searchResult }
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+
+        expect(interactionReplyMock).toHaveBeenCalledTimes(1)
+        expect(recordContributionMock).toHaveBeenCalledTimes(1)
+        expect(takeCommandOutcome(interaction)).toBeUndefined()
+    })
+
+    it('warns when the channel send of a play failure also fails', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.editReply.mockRejectedValue(new Error('token expired'))
+        interaction.channel = {
+            id: 'channel-1',
+            send: jest.fn().mockRejectedValue(new Error('no permission')),
+        }
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                throw new Error('Voice connection timed out')
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Failed to send play failure follow-up to channel',
+            }),
+        )
+    })
+
+    it('warns when a play failure has no way to reach the user', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.editReply.mockRejectedValue(new Error('token expired'))
+        interaction.channel = null
+        const client = createClient(
+            async (_channel: unknown, _query: unknown, opts: unknown) => {
+                await afterSearchOf(opts)(searchResult)
+                throw new Error('Voice connection timed out')
+            },
+        )
+
+        await playCommand.execute({ client, interaction } as any)
+
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'No way to report play failure to the user',
+            }),
         )
     })
 })
