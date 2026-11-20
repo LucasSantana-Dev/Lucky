@@ -63,13 +63,12 @@ Logical dump of the database, kept outside `/var/lib/docker`. It contains user
 data: keep it out of the repo, encrypt it if it leaves the host, delete it when the
 migration is verified.
 
-````bash
 (zsh: `pipefail` makes a failed `pg_dumpall` fail the line instead of leaving a
 partial dump; the subshell keeps `umask 077` and `pipefail` out of your shell.)
 
 ```bash
 (umask 077; setopt pipefail; docker exec lucky-postgres pg_dumpall -U discordbot | gzip > ~/lucky-pre-luks-$(date +%F).sql.gz) && ls -lh ~/lucky-pre-luks-*.sql.gz
-````
+```
 
 ## 2. Create and open the encrypted container
 

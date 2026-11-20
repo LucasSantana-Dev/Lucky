@@ -69,5 +69,11 @@ echo ">> checks"
 findmnt /var/lib/docker
 docker inspect lucky-bot --format '{{.Config.Image}}'
 docker exec lucky-postgres psql -U discordbot -d discordbot -c 'select count(*) from guilds;'
+# Same check as the runbook: a dead monitoring stack fails the run (#3153).
+MON_UP=$(docker ps --format '{{.Names}}' | grep -cE '^(prometheus|grafana|alertmanager)$' || true)
+if [ "$MON_UP" -ne 3 ]; then
+    echo "!! monitoring stack not up ($MON_UP of prometheus, grafana, alertmanager running)"
+    exit 1
+fi
 echo ">> done. After every reboot, unlock with:"
 echo "sudo cryptsetup open /srv/docker-crypt.img dockercrypt && sudo mount /dev/mapper/dockercrypt /var/lib/docker && sudo systemctl start containerd docker && cd ~/Lucky && IMAGE_TAG=\$(cut -c1-7 .deploy-last-good-sha) docker compose up -d && cd ~/homelab && docker compose up -d $MONITORING"
