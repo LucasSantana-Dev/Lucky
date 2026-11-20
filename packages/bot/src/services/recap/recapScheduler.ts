@@ -64,8 +64,10 @@ function isChannelGone(error: unknown): boolean {
  * or the text chat of a voice channel qualifies (#3062). Only a definite answer
  * from Discord becomes a reason; a transient failure (5xx, rate limit, network)
  * throws so the caller retries instead of opting out.
- * `missing_channel` means it does not exist; `unsupported_channel_type` means
- * it exists but cannot carry a recap (category, forum, stage, thread...).
+ * `missing_channel` means it is gone or the bot cannot see it (deleted, or
+ * Discord answered Unknown Channel, Missing Access or Missing Permissions);
+ * `unsupported_channel_type` means it exists but cannot carry a recap
+ * (category, forum, stage, thread...).
  */
 export async function resolveRecapChannel(
     guild: Guild,

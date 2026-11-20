@@ -1,3 +1,4 @@
+import { ChannelType } from 'discord.js'
 type AnyFn = (...args: any[]) => any
 const requireGuildMock = jest.fn()
 const interactionReplyMock = jest.fn()
@@ -56,6 +57,17 @@ describe('recap command (#2678)', () => {
         expect(recapCommand.category).toBe('music')
     })
 
+    it('lets the channel option pick a voice channel text chat (#3062)', () => {
+        const json = recapCommand.data.toJSON() as any
+        const option = json.options[0].options[0]
+        expect(option.channel_types).toEqual(
+            expect.arrayContaining([
+                ChannelType.GuildText,
+                ChannelType.GuildVoice,
+            ]),
+        )
+    })
+
     it('enables the recap in a channel the bot can post in', async () => {
         resolveRecapChannelMock.mockResolvedValue({ channel: { id: 'c-1' } })
 
@@ -73,6 +85,7 @@ describe('recap command (#2678)', () => {
 
     it.each([
         ['missing_channel', 'music.recap.notTextChannel'],
+        ['unsupported_channel_type', 'music.recap.notTextChannel'],
         ['missing_permissions', 'music.recap.missingPermissions'],
     ])('refuses on %s without saving', async (reason, key) => {
         resolveRecapChannelMock.mockResolvedValue({ reason })
