@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 
 /**
  * Tracks which of the supplied heading IDs is currently most visible in the
- * viewport. Returns its ID, or null when nothing is visible.
+ * viewport. Returns its ID. It is null until a heading first becomes visible,
+ * and keeps the last active ID when no heading is visible afterwards.
  *
  * Used by docs/changelog/legal pages to drive the right-rail TOC active state.
  */
