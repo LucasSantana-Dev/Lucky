@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.72.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.71.1...v2.72.0) (2026-11-20)
+
+
+### Features
+
+* **analytics:** record invite clicks and top.gg vote history ([#3212](https://github.com/LucasSantana-Dev/Lucky/issues/3212)) ([3b42900](https://github.com/LucasSantana-Dev/Lucky/commit/3b4290030e3fdcf9f0018580681cef2bfe789a0a))
+* **bot:** purge departed-guild data after a grace period behind a flag ([#3210](https://github.com/LucasSantana-Dev/Lucky/issues/3210)) ([fee3a9c](https://github.com/LucasSantana-Dev/Lucky/commit/fee3a9cae74e39265229fbd3df1105f617acd9c7)), closes [#2377](https://github.com/LucasSantana-Dev/Lucky/issues/2377)
+* **observability:** product dashboard and command event drop alert ([#3216](https://github.com/LucasSantana-Dev/Lucky/issues/3216)) ([911c307](https://github.com/LucasSantana-Dev/Lucky/commit/911c307d69ffb13f48ab2e92a6423df2b2ba1ca0))
+
+
+### Bug Fixes
+
+* **frontend:** cover storage, processors, retention and rights in privacy policy ([#3214](https://github.com/LucasSantana-Dev/Lucky/issues/3214)) ([4a86c0b](https://github.com/LucasSantana-Dev/Lucky/commit/4a86c0b2992c7f171e32a3b97579daecfc895aaf))
+
 ## [2.71.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.71.0...v2.71.1) (2026-11-20)
 
 
