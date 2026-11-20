@@ -63,13 +63,13 @@ Logical dump of the database, kept outside `/var/lib/docker`. It contains user
 data: keep it out of the repo, encrypt it if it leaves the host, delete it when the
 migration is verified.
 
-```bash
+````bash
 (zsh: `pipefail` makes a failed `pg_dumpall` fail the line instead of leaving a
 partial dump; the subshell keeps `umask 077` and `pipefail` out of your shell.)
 
 ```bash
 (umask 077; setopt pipefail; docker exec lucky-postgres pg_dumpall -U discordbot | gzip > ~/lucky-pre-luks-$(date +%F).sql.gz) && ls -lh ~/lucky-pre-luks-*.sql.gz
-```
+````
 
 ## 2. Create and open the encrypted container
 
@@ -122,21 +122,28 @@ sudo systemctl unmask --runtime docker.socket docker.service containerd.service 
 IMAGE_TAG=$(cut -c1-7 .deploy-last-good-sha) docker compose up -d
 ```
 
+```bash
+cd ~/homelab && docker compose up -d alertmanager prometheus grafana node-exporter cadvisor loki promtail blackbox-exporter && cd ~/Lucky
+```
+
 Checks, all must pass:
 
 ```bash
 findmnt /var/lib/docker
 ```
+
 (source must be `/dev/mapper/dockercrypt`)
 
 ```bash
 docker inspect lucky-bot --format '{{.Config.Image}}'
 ```
+
 (must show the SHA tag from step 0, not `:latest`)
 
 ```bash
 docker exec lucky-postgres psql -U discordbot -d discordbot -c 'select count(*) from guilds;'
 ```
+
 (count must match what the bot is in, about 67)
 
 Then in Discord: run a slash command, play a track, open the dashboard. Watch
@@ -158,8 +165,15 @@ sudo systemctl disable docker.service docker.socket containerd.service
 After each reboot, SSH in and run:
 
 ```bash
-sudo cryptsetup open /srv/docker-crypt.img dockercrypt && sudo mount /dev/mapper/dockercrypt /var/lib/docker && sudo systemctl start containerd docker && cd ~/Lucky && IMAGE_TAG=$(cut -c1-7 .deploy-last-good-sha) docker compose up -d
+sudo cryptsetup open /srv/docker-crypt.img dockercrypt && sudo mount /dev/mapper/dockercrypt /var/lib/docker && sudo systemctl start containerd docker && cd ~/Lucky && IMAGE_TAG=$(cut -c1-7 .deploy-last-good-sha) docker compose up -d && cd ~/homelab && docker compose up -d alertmanager prometheus grafana node-exporter cadvisor loki promtail blackbox-exporter
 ```
+
+The last part starts the homelab monitoring stack (Prometheus, Grafana, Alertmanager,
+Loki). It is a separate compose project, so nothing else brings it back: after the
+2026-11-16 migration it stayed down for four days with no alert (#3153). It runs after
+Lucky because its Prometheus joins the `lucky-monitoring` network Lucky creates. Check it
+with `docker ps --format '{{.Names}}' | grep -E '^(prometheus|grafana|alertmanager)$'`
+(three lines).
 
 Trade-off: the bot stays offline after a power cut until you do this.
 
