@@ -8,6 +8,7 @@ import {
     createSuccessEmbed,
 } from '../../../utils/general/embeds'
 import { buildCommandTrackEmbed } from '../../../utils/general/responseEmbeds'
+import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
 import {
     requireGuild,
     requireDJRoleInGuild,
@@ -80,9 +81,10 @@ async function sendSkipSuccess(
         return
     }
 
+    const t = await translatorForInteraction(interaction)
     const trackEmbed = buildCommandTrackEmbed(
         nextTrack,
-        '⏭️ Song skipped - Now playing',
+        t('music.messages.statusSkipped'),
         interaction.user,
         'skipped',
     )
