@@ -468,6 +468,35 @@ describe('ServerLogsPage', () => {
         expect(screen.queryByText(mockLogs[1].message)).not.toBeInTheDocument()
     })
 
+    test('drops an in-flight response once no guild is selected (#2465)', async () => {
+        const { toast } = await import('sonner')
+        mockGuildStoreFn(mockGuild)
+        let rejectPending: (reason: unknown) => void = () => {}
+        vi.mocked(api.serverLogs.search).mockImplementation(
+            () =>
+                new Promise((_resolve, reject) => {
+                    rejectPending = reject
+                }) as any,
+        )
+
+        const { rerender } = renderPage()
+        await waitFor(() => expect(api.serverLogs.search).toHaveBeenCalled())
+
+        mockGuildStoreFn(null)
+        rerender(
+            <MemoryRouter>
+                <ServerLogsPage />
+            </MemoryRouter>,
+        )
+
+        await act(async () => {
+            rejectPending(new Error('late failure'))
+            await new Promise((resolve) => setTimeout(resolve, 0))
+        })
+
+        expect(toast.error).not.toHaveBeenCalled()
+    })
+
     test('exports logs as JSON when export button clicked', async () => {
         const user = userEvent.setup()
         const { toast } = await import('sonner')

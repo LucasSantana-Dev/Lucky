@@ -69,6 +69,20 @@ export function logTypesForLevel(level: ServerLogLevel): LogType[] {
     )
 }
 
+/**
+ * Prisma `type` condition for a level bucket. A stored type missing from
+ * LOG_LEVEL_BY_TYPE is serialized as `info`, so `info` is everything that is
+ * not mapped to another bucket; an inclusion list would hide those rows.
+ */
+function typeConditionForLevel(level: ServerLogLevel) {
+    if (level !== 'info') return { in: logTypesForLevel(level) }
+    return {
+        notIn: (Object.keys(LOG_LEVEL_BY_TYPE) as LogType[]).filter(
+            (type) => LOG_LEVEL_BY_TYPE[type] !== 'info',
+        ),
+    }
+}
+
 /** Filters accepted by {@link ServerLogService.searchLogs}. */
 export interface ServerLogSearchFilters {
     q?: string
@@ -233,10 +247,15 @@ export class ServerLogService {
             }),
             // `level` expands to the raw types in that bucket; a bucket with
             // no types (warn, error) matches nothing rather than everything.
-            ...(filters.level && {
-                type: { in: logTypesForLevel(filters.level) },
-            }),
-            ...(filters.type && { type: filters.type }),
+            // `type` narrows within the level (AND) instead of replacing it.
+            ...(filters.level
+                ? {
+                      type: {
+                          ...typeConditionForLevel(filters.level),
+                          ...(filters.type && { equals: filters.type }),
+                      },
+                  }
+                : filters.type && { type: filters.type }),
             ...(filters.userId && { userId: filters.userId }),
             ...(filters.channelId && { channelId: filters.channelId }),
             ...(filters.moderatorId && {

@@ -193,7 +193,12 @@ export default function ServerLogsPage() {
     const latestRequestRef = useRef(0)
 
     const fetchLogs = useCallback(async () => {
-        if (!selectedGuild?.id) return
+        if (!selectedGuild?.id) {
+            // Invalidate whatever is still in flight for the previous guild.
+            latestRequestRef.current++
+            setLoading(false)
+            return
+        }
         const requestId = ++latestRequestRef.current
         const isStale = () => latestRequestRef.current !== requestId
         setLoading(true)
