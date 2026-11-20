@@ -218,8 +218,9 @@ describe('album command album resolution', () => {
                 ([track]) => (track as { title: string }).title,
             ),
         ]
-        expect([...played].sort()).toEqual([...titles].sort())
-        expect(played).not.toEqual(titles)
+        // What Fisher-Yates gives with random pinned to 0: the played track
+        // moves too, not just the queued ones.
+        expect(played).toEqual(['Two', 'Three', 'Four', 'One'])
         expect(lastReply().content.embeds[0].description).toContain('Shuffled')
     })
 
