@@ -59,8 +59,16 @@ type FakeProc = EventEmitter & {
     kill: jest.Mock
 }
 
+// Every fake child ends its lifecycle after the test, so the shared
+// live-process gauge and the kill timers do not carry over to the next one.
+const fakeProcs: FakeProc[] = []
+afterEach(() => {
+    for (const proc of fakeProcs.splice(0)) proc.emit('exit', null, null)
+})
+
 function makeFakeProc(): FakeProc {
     const proc = new EventEmitter() as FakeProc
+    fakeProcs.push(proc)
     proc.stdout = new PassThrough()
     proc.stderr = new PassThrough()
     proc.kill = jest.fn()
@@ -930,6 +938,7 @@ describe('streamViaYtDlp – process lifecycle', () => {
         await tick()
         expect(proc.kill).toHaveBeenCalledTimes(1)
         expect(stream.destroyed).toBe(true)
+        expect(proc.stdout.destroyed).toBe(true)
     })
 
     // #3119: a track skipped while its stream was still resolving gets a
