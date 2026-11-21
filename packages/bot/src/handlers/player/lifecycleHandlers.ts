@@ -32,16 +32,12 @@ export const setupVoiceKickDetection = (client: Client): void => {
         const nowDisconnected = !newState.channelId
         if (wasInChannel && nowDisconnected && oldState.guild) {
             musicWatchdogService.markIntentionalStop(oldState.guild.id)
-            // Without this, the intentional-stop flag auto-clears after the
-            // watchdog timeout (by design, so it doesn't block a future
-            // session) while the snapshot from the disconnected session
-            // survives — the orphan-session monitor then rejoins and replays
-            // it as if the disconnect never happened.
-            await musicSessionSnapshotService.deleteSnapshot(oldState.guild.id)
             // A kick ends the session: drop the queue too, like /leave does.
             // Left alive, the next /play reused it and the kicked session's
             // requests and autoplay picks kept playing (prod 2026-11-15).
             // Lookup only (never creates), through every store /play uses.
+            // Runs before the await below, so a /play landing meanwhile
+            // cannot have its fresh session torn down.
             const { queue } = resolveGuildQueue(
                 client as CustomClient,
                 oldState.guild.id,
@@ -49,6 +45,12 @@ export const setupVoiceKickDetection = (client: Client): void => {
             if (queue && !queue.deleted) queue.delete()
             // Same per-session state /leave and idle disconnect drop.
             collaborativePlaylistService.clearGuildState(oldState.guild.id)
+            // Without this, the intentional-stop flag auto-clears after the
+            // watchdog timeout (by design, so it doesn't block a future
+            // session) while the snapshot from the disconnected session
+            // survives — the orphan-session monitor then rejoins and replays
+            // it as if the disconnect never happened.
+            await musicSessionSnapshotService.deleteSnapshot(oldState.guild.id)
             infoLog({
                 message: `Bot was disconnected from voice in ${oldState.guild.name} — marked intentional`,
             })

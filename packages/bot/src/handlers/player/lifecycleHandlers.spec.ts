@@ -844,8 +844,11 @@ describe('setupVoiceKickDetection', () => {
         expect(live.delete).toHaveBeenCalledTimes(1)
         expect(gone.delete).not.toHaveBeenCalled()
         // Collaborative-playlist state goes too, as on /leave.
-        expect(clearCollabStateMock).toHaveBeenCalledWith('guild-1')
-        expect(clearCollabStateMock).toHaveBeenCalledTimes(3)
+        expect(clearCollabStateMock.mock.calls).toEqual([
+            ['guild-1'],
+            ['guild-2'],
+            ['guild-3'],
+        ])
     })
 
     it('ignores voiceStateUpdate for non-bot members', () => {
