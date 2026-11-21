@@ -47,6 +47,13 @@ jest.mock('../../services/musicManagement/watchdog', () => ({
     },
 }))
 
+const clearCollabStateMock = jest.fn()
+jest.mock('../../services/musicRecommendation/collaborativePlaylist', () => ({
+    collaborativePlaylistService: {
+        clearGuildState: (...a: unknown[]) => clearCollabStateMock(...a),
+    },
+}))
+
 jest.mock('../../services/musicManagement/queueOperations', () => ({
     replenishQueue: (...args: unknown[]) => replenishQueueMock(...args),
     waitForReplenish: (...args: Parameters<typeof waitForReplenishMock>) =>
@@ -800,8 +807,16 @@ describe('setupVoiceKickDetection', () => {
         // Kicked at 21:35:38; the next /play reused the old queue and its
         // earlier requests and autoplay picks kept playing.
         const listeners: Array<(o: any, n: any) => Promise<void>> = []
-        const live = { deleted: false, delete: jest.fn() }
-        const gone = { deleted: true, delete: jest.fn() }
+        const live = {
+            guild: { id: 'guild-1' },
+            deleted: false,
+            delete: jest.fn(),
+        }
+        const gone = {
+            guild: { id: 'guild-2' },
+            deleted: true,
+            delete: jest.fn(),
+        }
         const queues = new Map<string, unknown>([
             ['guild-1', live],
             ['guild-2', gone],
@@ -828,6 +843,12 @@ describe('setupVoiceKickDetection', () => {
 
         expect(live.delete).toHaveBeenCalledTimes(1)
         expect(gone.delete).not.toHaveBeenCalled()
+        // Collaborative-playlist state goes too, as on /leave.
+        expect(clearCollabStateMock.mock.calls).toEqual([
+            ['guild-1'],
+            ['guild-2'],
+            ['guild-3'],
+        ])
     })
 
     it('ignores voiceStateUpdate for non-bot members', () => {
