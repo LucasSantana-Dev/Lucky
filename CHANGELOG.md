@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.74.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.74.0...v2.74.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **bot:** close the yt-dlp pipe on kill, end fake children in spec ([#3254](https://github.com/LucasSantana-Dev/Lucky/issues/3254)) ([c08b295](https://github.com/LucasSantana-Dev/Lucky/commit/c08b295a2b435b58b5aae09a40ab57f24f707d9d))
+* **bot:** resolve kicked queue via resolver, clear collab state ([#3256](https://github.com/LucasSantana-Dev/Lucky/issues/3256)) ([27e7042](https://github.com/LucasSantana-Dev/Lucky/commit/27e70429805662347e5c63a2cd2de1652f8cdaa5))
+* **deps:** give soundcloud.ts its own undici 6 so api v2 calls work ([#3250](https://github.com/LucasSantana-Dev/Lucky/issues/3250)) ([dad7962](https://github.com/LucasSantana-Dev/Lucky/commit/dad79627f7bfac8d59ed8180376fa431d89a3abf))
+* **test:** cap jest max workers in bot and shared ([#3249](https://github.com/LucasSantana-Dev/Lucky/issues/3249)) ([c1a5117](https://github.com/LucasSantana-Dev/Lucky/commit/c1a51174511061dce44a98b083d6a0eb5236d68f))
+
 ## [2.74.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.73.1...v2.74.0) (2026-11-20)
 
 
