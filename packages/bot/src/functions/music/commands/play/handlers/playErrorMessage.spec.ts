@@ -186,8 +186,31 @@ describe('resolvePlayErrorMessage for YouTube links', () => {
             'No results found for "some song" (Extractor: com.discord-player.attachmentextractor)',
         )
 
-        expect(resolvePlayErrorMessage(error, 'some song', t)).not.toBe(
+        expect(resolvePlayErrorMessage(error, 'some song', t)).toMatch(
+            /^No results found for "some song"/,
+        )
+    })
+
+    it('does not blame the link when the url only mentions attachmentextractor', () => {
+        const query = 'https://example.com/attachmentextractor'
+        const error = new Error(
+            `No results found for "${query}" (Extractor: com.discord-player.soundcloudextractor)`,
+        )
+
+        expect(resolvePlayErrorMessage(error, query, t)).not.toBe(
             't:music.errors.unsupportedLink',
+        )
+    })
+
+    it('reports an outage, not an unsupported link, for a youtube url while youtube is degraded', () => {
+        isExtractorDegradedMock.mockReturnValue(true)
+        const query = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        const error = new Error(
+            `No results found for "${query}" (Extractor: com.discord-player.attachmentextractor)`,
+        )
+
+        expect(resolvePlayErrorMessage(error, query, t)).toMatch(
+            /currently unreachable/,
         )
     })
 

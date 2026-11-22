@@ -27,7 +27,9 @@ function isUnsupportedLinkFailure(
         isNoResultsError &&
         query !== undefined &&
         /^https?:\/\//i.test(query.trim()) &&
-        /attachmentextractor/i.test((error as Error).message)
+        /\(Extractor: com\.discord-player\.attachmentextractor\)\s*$/i.test(
+            (error as Error).message,
+        )
     )
 }
 
@@ -65,12 +67,6 @@ export function resolvePlayErrorMessage(
     const isNoResultsError =
         error instanceof Error && /no results found/i.test(error.message)
 
-    if (isUnsupportedLinkFailure(isNoResultsError, error, query)) {
-        return t
-            ? t('music.errors.unsupportedLink')
-            : "That link isn't supported. Lucky plays Spotify tracks, albums and playlists, SoundCloud, Apple Music and Vimeo links, or direct audio files. You can also type the song name."
-    }
-
     // Without a query we cannot tell the two cases apart, so fall back to the
     // accurate generic message rather than guessing "outage".
     const onlyYoutubeCouldServe =
@@ -83,6 +79,12 @@ export function resolvePlayErrorMessage(
     ) {
         return 'Music sources are currently unreachable. Please try again in a few minutes.'
     }
+    if (isUnsupportedLinkFailure(isNoResultsError, error, query)) {
+        return t
+            ? t('music.errors.unsupportedLink')
+            : "That link isn't supported. Lucky plays Spotify tracks, albums and playlists, SoundCloud, Apple Music and Vimeo links, or direct audio files. You can also type the song name."
+    }
+
     return createUserFriendlyError(error)
 }
 
