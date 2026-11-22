@@ -169,12 +169,16 @@ route").
    no `Origin`, so the origin check could not stop it, and the `SameSite=None` cookie rode
    along: any page could log a user out. The "no state-changing GET routes" claim above was
    wrong about this one route.
-2. **`express.urlencoded()` is removed.** No inbound route takes form bodies (every
-   urlencoded use in the backend is an outbound OAuth call), so a forged form post that
-   somehow passed the origin check would arrive with an empty body.
+2. **The global `express.urlencoded()` parser is removed.** No route reads form-encoded
+   bodies (every urlencoded use in the backend is an outbound OAuth call), so a forged
+   urlencoded form post that somehow passed the origin check would arrive with an empty
+   body. Two routes do accept `multipart/form-data` on purpose, through route-scoped
+   multer: `POST /api/support` (screenshot upload) and the reaction-role image upload in
+   `routes/roles.ts`. Those stay behind the same origin rejection; `/api/support` is public
+   and unauthenticated, so CSRF does not apply to it.
 
 ### Still true
 
-No CSRF token is added. The origin rejection, JSON-only bodies, and no state-changing GETs
-are the controls. Revisit if a route must accept requests that carry no `Origin` header from
+No CSRF token is added. The origin rejection, JSON bodies (plus the two route-scoped
+multipart uploads above), and no state-changing GETs are the controls. Revisit if a route must accept requests that carry no `Origin` header from
 a browser, or if the triggers below fire.
