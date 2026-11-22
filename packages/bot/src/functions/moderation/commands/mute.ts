@@ -9,6 +9,7 @@ import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 import { formatDurationHuman } from '../../../utils/general/formatDuration'
 import { postToModLog } from '../helpers/modLogPoster.js'
+import { checkModerationHierarchy } from '../helpers/moderationHierarchy.js'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -75,6 +76,21 @@ export default new Command({
                 await interactionReply({
                     interaction,
                     content: { content: '❌ User not found in this server.' },
+                })
+                return
+            }
+
+            const hierarchyBlock = await checkModerationHierarchy(
+                interaction,
+                member,
+            )
+            if (hierarchyBlock) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        content: `❌ ${hierarchyBlock}`,
+                        ephemeral: true,
+                    },
                 })
                 return
             }

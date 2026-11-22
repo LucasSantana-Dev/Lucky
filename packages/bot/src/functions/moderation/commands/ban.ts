@@ -8,6 +8,7 @@ import { moderationService } from '@lucky/shared/services'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 import { postToModLog } from '../helpers/modLogPoster.js'
+import { checkModerationHierarchy } from '../helpers/moderationHierarchy.js'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -68,6 +69,24 @@ export default new Command({
         const silent = interaction.options.getBoolean('silent') || false
 
         try {
+            const targetMember = await interaction.guild.members
+                .fetch(user.id)
+                .catch(() => null)
+            const hierarchyBlock = await checkModerationHierarchy(
+                interaction,
+                targetMember,
+            )
+            if (hierarchyBlock) {
+                await interactionReply({
+                    interaction,
+                    content: {
+                        content: `❌ ${hierarchyBlock}`,
+                        ephemeral: true,
+                    },
+                })
+                return
+            }
+
             if (!silent) {
                 try {
                     const dmEmbed = new EmbedBuilder()
