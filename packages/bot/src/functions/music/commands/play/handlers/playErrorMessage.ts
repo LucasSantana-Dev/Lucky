@@ -14,6 +14,23 @@ import { AsmrBlockedError } from '../../../../../utils/music/asmrFilter'
 
 type Translate = (key: string) => string
 
+// A link no real extractor recognizes (a Spotify artist page, Deezer,
+// TikTok...) is claimed by AttachmentExtractor, which accepts any URL and then
+// finds nothing. "No results" plus its extractor id hides the real problem:
+// this kind of link is not supported.
+function isUnsupportedLinkFailure(
+    isNoResultsError: boolean,
+    error: unknown,
+    query: string | undefined,
+): boolean {
+    return (
+        isNoResultsError &&
+        query !== undefined &&
+        /^https?:\/\//i.test(query.trim()) &&
+        /attachmentextractor/i.test((error as Error).message)
+    )
+}
+
 // "No results found" is misleading when it's actually a degraded extractor
 // (e.g. YouTube session init silently failed but registration still
 // reported success) — say so instead (#1929).
@@ -47,6 +64,12 @@ export function resolvePlayErrorMessage(
 
     const isNoResultsError =
         error instanceof Error && /no results found/i.test(error.message)
+
+    if (isUnsupportedLinkFailure(isNoResultsError, error, query)) {
+        return t
+            ? t('music.errors.unsupportedLink')
+            : "That link isn't supported. Lucky plays Spotify tracks, albums and playlists, SoundCloud, Apple Music and Vimeo links, or direct audio files. You can also type the song name."
+    }
 
     // Without a query we cannot tell the two cases apart, so fall back to the
     // accurate generic message rather than guessing "outage".

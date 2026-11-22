@@ -163,6 +163,34 @@ describe('resolvePlayErrorMessage for YouTube links', () => {
         ).toBe('t:music.errors.youtubeVideoUnavailable')
     })
 
+    it('says a link is unsupported when only the attachment extractor claimed it', () => {
+        // Prod 2026-11-22: a pasted link no real extractor handles fell to
+        // AttachmentExtractor and the user saw its raw extractor id.
+        const error = new Error(
+            'No results found for "https://example.com/song" (Extractor: com.discord-player.attachmentextractor)',
+        )
+
+        expect(
+            resolvePlayErrorMessage(error, 'https://example.com/song', t),
+        ).toBe('t:music.errors.unsupportedLink')
+        const fallback = resolvePlayErrorMessage(
+            error,
+            'https://example.com/song',
+        )
+        expect(fallback).toMatch(/link isn't supported/i)
+        expect(fallback).not.toContain('attachmentextractor')
+    })
+
+    it('keeps the no-results message for a text search', () => {
+        const error = new Error(
+            'No results found for "some song" (Extractor: com.discord-player.attachmentextractor)',
+        )
+
+        expect(resolvePlayErrorMessage(error, 'some song', t)).not.toBe(
+            't:music.errors.unsupportedLink',
+        )
+    })
+
     it('falls back to English without a translator', () => {
         expect(
             resolvePlayErrorMessage(new YoutubePlaylistUnavailableError()),
