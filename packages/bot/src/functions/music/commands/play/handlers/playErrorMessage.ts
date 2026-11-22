@@ -33,6 +33,20 @@ function isUnsupportedLinkFailure(
     )
 }
 
+// Without a query we cannot tell an outage from a real no-match, so the
+// caller falls back to the accurate generic message rather than guessing.
+function isDegradedYoutubeOutage(
+    isNoResultsError: boolean,
+    query: string | undefined,
+): boolean {
+    return (
+        isNoResultsError &&
+        query !== undefined &&
+        detectQueryType(query) === 'youtube' &&
+        isExtractorDegraded('youtube')
+    )
+}
+
 // "No results found" is misleading when it's actually a degraded extractor
 // (e.g. YouTube session init silently failed but registration still
 // reported success) — say so instead (#1929).
@@ -67,16 +81,7 @@ export function resolvePlayErrorMessage(
     const isNoResultsError =
         error instanceof Error && /no results found/i.test(error.message)
 
-    // Without a query we cannot tell the two cases apart, so fall back to the
-    // accurate generic message rather than guessing "outage".
-    const onlyYoutubeCouldServe =
-        query !== undefined && detectQueryType(query) === 'youtube'
-
-    if (
-        isNoResultsError &&
-        onlyYoutubeCouldServe &&
-        isExtractorDegraded('youtube')
-    ) {
+    if (isDegradedYoutubeOutage(isNoResultsError, query)) {
         return 'Music sources are currently unreachable. Please try again in a few minutes.'
     }
     if (isUnsupportedLinkFailure(isNoResultsError, error, query)) {
