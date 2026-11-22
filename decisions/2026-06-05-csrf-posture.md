@@ -143,3 +143,38 @@ practical surface stays narrow. But the defence is single-layered where it used 
 
 If any of the tightened triggers below become true, revisit the token decision rather than
 re-deriving this from scratch.
+
+---
+
+## Amendment 2026-11-22: the load-bearing control is the CORS origin rejection
+
+**Trigger:** backlog audit 2026-11-22, which flagged
+`SameSite=None` plus `express.urlencoded()` as a cross-site form-POST hole.
+
+### Correction to the 2026-08-21 control stack
+
+The 2026-08-21 amendment said "mutations use `application/json`, which forces a CORS
+preflight". That is true for `fetch`, but an HTML form needs no preflight: it sends a
+simple request (`application/x-www-form-urlencoded`, `multipart/form-data`, `text/plain`).
+What actually stops a forged form post is that the `cors()` origin callback in
+`packages/backend/src/middleware/index.ts` returns `AppError.forbidden` for any request whose
+`Origin` header is not allowlisted, and browsers always send `Origin` on a cross-site POST.
+The request is answered 403 before any route runs. This is now locked by
+`tests/unit/middleware/index.test.ts` ("rejects a cross-site form POST before it reaches a
+route").
+
+### Two gaps closed
+
+1. **`GET /api/auth/logout` is now `POST`.** A cross-site `<img>` or link sends a GET with
+   no `Origin`, so the origin check could not stop it, and the `SameSite=None` cookie rode
+   along: any page could log a user out. The "no state-changing GET routes" claim above was
+   wrong about this one route.
+2. **`express.urlencoded()` is removed.** No inbound route takes form bodies (every
+   urlencoded use in the backend is an outbound OAuth call), so a forged form post that
+   somehow passed the origin check would arrive with an empty body.
+
+### Still true
+
+No CSRF token is added. The origin rejection, JSON-only bodies, and no state-changing GETs
+are the controls. Revisit if a route must accept requests that carry no `Origin` header from
+a browser, or if the triggers below fire.

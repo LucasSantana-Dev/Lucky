@@ -162,7 +162,9 @@ export function setupMiddleware(app: Express): void {
             },
         }),
     )
-    app.use(express.urlencoded({ extended: true }))
+    // No urlencoded parser: every inbound route takes JSON, and an HTML form
+    // can only send form-encoded bodies. Not parsing them means a forged form
+    // post has no fields to act on even if it got past the origin check.
     app.use(cookieParser())
     setupSessionMiddleware(app)
 
