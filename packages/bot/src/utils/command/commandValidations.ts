@@ -74,6 +74,7 @@ export async function requireVoiceChannel(
 
 type VoiceGuardInteraction = {
     member: unknown
+    memberPermissions?: Readonly<PermissionsBitField> | null
     guild?: {
         members?: { me?: { voice?: { channelId?: string | null } } | null }
     } | null
@@ -99,8 +100,17 @@ function botVoiceChannelId(
     )
 }
 
-function canManageGuild(member: unknown): boolean {
-    const permissions = (member as GuildMember | null)?.permissions
+/**
+ * Manage Server, read from `memberPermissions` first: a raw or uncached
+ * `member` carries its permissions as a bitfield string, not a bitfield.
+ */
+function canManageGuild(interaction: {
+    member: unknown
+    memberPermissions?: Readonly<PermissionsBitField> | null
+}): boolean {
+    const permissions =
+        interaction.memberPermissions ??
+        (interaction.member as GuildMember | null)?.permissions
     return (
         permissions instanceof PermissionsBitField &&
         permissions.has(PermissionFlagsBits.ManageGuild)
@@ -111,13 +121,15 @@ function canManageGuild(member: unknown): boolean {
  * Why a member may not control the music, or null when they may. The bot's
  * channel comes from the queue, else from its own voice state; when the bot is
  * in no channel, any member in some voice channel passes (#3266). Members with
- * Manage Server pass from anywhere, so they can stop a session they are not in.
+ * Manage Server pass from anywhere, so they can stop a session they are not in,
+ * unless the caller sets `allowManagers: false` (ratings stay with listeners).
  */
 export function voiceChannelRefusal(
     interaction: VoiceGuardInteraction,
     queue: GuildQueue | null,
+    { allowManagers = true }: { allowManagers?: boolean } = {},
 ): VoiceChannelRefusal | null {
-    if (canManageGuild(interaction.member)) return null
+    if (allowManagers && canManageGuild(interaction)) return null
 
     const userChannelId = memberVoiceChannelId(interaction.member)
     if (!userChannelId) return { reason: 'notInVoice' }
@@ -299,7 +311,7 @@ export async function requireDJRole(
     const member = interaction.member as GuildMember | null
     if (!member) return true
 
-    if (canManageGuild(member)) return true
+    if (canManageGuild(interaction)) return true
 
     const settings = await guildSettingsService.getGuildSettings(guildId)
     if (!settings?.djRoleId) return true

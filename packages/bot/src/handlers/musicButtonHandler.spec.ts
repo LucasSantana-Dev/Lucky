@@ -628,6 +628,48 @@ describe('handleMusicButtonInteraction - voice channel guard (#3266)', () => {
         expect(interaction.followUp).not.toHaveBeenCalled()
     })
 
+    it('keeps 👍/👎 for listeners even when the clicker manages the server', async () => {
+        const { PermissionsBitField, PermissionFlagsBits } =
+            jest.requireActual('discord.js')
+        const queue = createQueue({ channel: { id: 'vc-bot' } })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const interaction = {
+            ...createInteraction(MUSIC_BUTTON_IDS.LIKE),
+            memberPermissions: new PermissionsBitField(
+                PermissionFlagsBits.ManageGuild,
+            ),
+        }
+
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
+
+        expect(setFeedbackMock).not.toHaveBeenCalled()
+        expect(interaction.followUp).toHaveBeenCalledWith(
+            expect.objectContaining({ ephemeral: true }),
+        )
+    })
+
+    it('lets a manager outside the bot channel use the controls', async () => {
+        const { PermissionsBitField, PermissionFlagsBits } =
+            jest.requireActual('discord.js')
+        const queue = createQueue({
+            channel: { id: 'vc-bot' },
+            node: { skip: jest.fn() },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const interaction = {
+            ...createInteraction(MUSIC_BUTTON_IDS.SKIP),
+            memberPermissions: new PermissionsBitField(
+                PermissionFlagsBits.ManageGuild,
+            ),
+        }
+
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
+
+        expect((queue.node as { skip: jest.Mock }).skip).toHaveBeenCalledTimes(
+            1,
+        )
+    })
+
     it('lets a member in the bot voice channel skip', async () => {
         const queue = createQueue({
             channel: { id: 'vc-1' },

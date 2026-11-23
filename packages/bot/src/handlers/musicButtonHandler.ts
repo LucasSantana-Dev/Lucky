@@ -57,7 +57,13 @@ export async function handleMusicButtonInteraction(
             interaction.guildId ?? '',
         )
         // Only members listening with the bot may drive it (#3266).
-        const refusal = voiceChannelRefusal(interaction, queue)
+        // A rating belongs to someone listening, manager or not.
+        const isRating =
+            interaction.customId === MUSIC_BUTTON_IDS.LIKE ||
+            interaction.customId === MUSIC_BUTTON_IDS.DISLIKE
+        const refusal = voiceChannelRefusal(interaction, queue, {
+            allowManagers: !isRating,
+        })
         if (refusal) {
             const t = await translatorForInteraction(interaction)
             await interaction.followUp({

@@ -188,6 +188,35 @@ describe('voiceChannelRefusal', () => {
         ).toBeNull()
     })
 
+    it('reads Manage Server from memberPermissions when the member is raw', () => {
+        const interaction = {
+            ...makeVoiceInteraction('vc-other'),
+            memberPermissions: new PermissionsBitField(
+                PermissionFlagsBits.ManageGuild,
+            ),
+        }
+        ;(interaction.member as Record<string, unknown>).permissions = '32'
+
+        expect(
+            voiceChannelRefusal(asCommand(interaction), makeQueue('vc-bot')),
+        ).toBeNull()
+    })
+
+    it('refuses a manager outside the channel when managers are not exempt', () => {
+        const interaction = {
+            ...makeVoiceInteraction('vc-other'),
+            memberPermissions: new PermissionsBitField(
+                PermissionFlagsBits.ManageGuild,
+            ),
+        }
+
+        expect(
+            voiceChannelRefusal(asCommand(interaction), makeQueue('vc-bot'), {
+                allowManagers: false,
+            }),
+        ).toEqual({ reason: 'otherChannel', botChannelId: 'vc-bot' })
+    })
+
     it('still refuses a member whose permissions lack Manage Server', () => {
         const interaction = makeVoiceInteraction('vc-other')
         ;(interaction.member as Record<string, unknown>).permissions =
