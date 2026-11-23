@@ -1,5 +1,15 @@
 import { describe, expect, it, jest } from '@jest/globals'
-import { checkModerationHierarchy } from './moderationHierarchy'
+
+const interactionReplyMock = jest.fn()
+jest.mock('../../../utils/general/interactionReply', () => ({
+    interactionReply: (...args: unknown[]) => interactionReplyMock(...args),
+}))
+
+import {
+    checkModerationHierarchy,
+    fetchMemberOrNull,
+    refuseIfOutranked,
+} from './moderationHierarchy'
 
 function member(id: string, position: number) {
     return { id, roles: { highest: { position } } }
@@ -9,7 +19,7 @@ function guild(ownerId = 'owner', fetched: unknown = null) {
     return {
         ownerId,
         members: {
-            fetch: jest.fn(async () => fetched),
+            fetch: jest.fn(async (_id?: string) => fetched),
         },
     }
 }
@@ -99,5 +109,78 @@ describe('checkModerationHierarchy', () => {
             member('user', 1) as never,
         )
         expect(result).not.toBeNull()
+    })
+
+    it('blocks when the target has no role data', async () => {
+        const g = guild()
+        const result = await checkModerationHierarchy(
+            interaction(member('mod', 5), g),
+            { id: 'user' } as never,
+        )
+        expect(result).not.toBeNull()
+    })
+
+    it('blocks when fetching the moderator fails', async () => {
+        const g = {
+            ownerId: 'owner',
+            members: {
+                fetch: jest.fn(async (_id?: string) => {
+                    throw new Error('rate limited')
+                }),
+            },
+        }
+        const result = await checkModerationHierarchy(
+            interaction(undefined, g),
+            member('user', 1) as never,
+        )
+        expect(result).not.toBeNull()
+    })
+})
+
+describe('fetchMemberOrNull', () => {
+    function guildFetching(impl: () => Promise<unknown>) {
+        return { members: { fetch: jest.fn(impl) } } as never
+    }
+
+    it('returns null when Discord says the member is unknown', async () => {
+        const g = guildFetching(async () => {
+            throw Object.assign(new Error('Unknown Member'), { code: 10007 })
+        })
+        await expect(fetchMemberOrNull(g, 'u1')).resolves.toBeNull()
+    })
+
+    it('rethrows any other failure so the command aborts', async () => {
+        const g = guildFetching(async () => {
+            throw Object.assign(new Error('Service unavailable'), { code: 0 })
+        })
+        await expect(fetchMemberOrNull(g, 'u1')).rejects.toThrow(
+            'Service unavailable',
+        )
+    })
+})
+
+describe('refuseIfOutranked', () => {
+    it('replies privately and returns true when the moderator is outranked', async () => {
+        interactionReplyMock.mockClear()
+        const refused = await refuseIfOutranked(
+            interaction(member('mod', 5), guild()),
+            member('admin', 10) as never,
+        )
+        expect(refused).toBe(true)
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({ ephemeral: true }),
+            }),
+        )
+    })
+
+    it('returns false and stays silent when the moderator may act', async () => {
+        interactionReplyMock.mockClear()
+        const refused = await refuseIfOutranked(
+            interaction(member('mod', 5), guild()),
+            member('user', 1) as never,
+        )
+        expect(refused).toBe(false)
+        expect(interactionReplyMock).not.toHaveBeenCalled()
     })
 })

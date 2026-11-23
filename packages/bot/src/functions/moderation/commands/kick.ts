@@ -8,7 +8,7 @@ import { moderationService } from '@lucky/shared/services'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 import { postToModLog } from '../helpers/modLogPoster.js'
-import { checkModerationHierarchy } from '../helpers/moderationHierarchy.js'
+import { refuseIfOutranked } from '../helpers/moderationHierarchy.js'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -62,20 +62,7 @@ export default new Command({
                 return
             }
 
-            const hierarchyBlock = await checkModerationHierarchy(
-                interaction,
-                member,
-            )
-            if (hierarchyBlock) {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        content: `❌ ${hierarchyBlock}`,
-                        ephemeral: true,
-                    },
-                })
-                return
-            }
+            if (await refuseIfOutranked(interaction, member)) return
 
             if (!silent) {
                 try {

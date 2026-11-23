@@ -1,4 +1,12 @@
-import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
+import type {
+    ChatInputCommandInteraction,
+    Guild,
+    GuildMember,
+} from 'discord.js'
+import { interactionReply } from '../../../utils/general/interactionReply.js'
+
+const UNKNOWN_MEMBER = 10007
+const UNKNOWN_USER = 10013
 
 type RankedMember = Pick<GuildMember, 'id'> & {
     roles: { highest: { position: number } }
@@ -53,4 +61,36 @@ export async function checkModerationHierarchy(
         return "You can't moderate someone with an equal or higher role than yours."
     }
     return null
+}
+
+/**
+ * The member, or null only when Discord confirms they are not in the server.
+ * Any other failure (rate limit, outage) is rethrown so the caller aborts
+ * instead of treating the target as an unranked outsider.
+ */
+export async function fetchMemberOrNull(
+    guild: Guild,
+    userId: string,
+): Promise<GuildMember | null> {
+    try {
+        return await guild.members.fetch(userId)
+    } catch (error) {
+        const code = (error as { code?: number })?.code
+        if (code === UNKNOWN_MEMBER || code === UNKNOWN_USER) return null
+        throw error
+    }
+}
+
+/** Replies with the refusal and returns true when the moderator may not act. */
+export async function refuseIfOutranked(
+    interaction: ChatInputCommandInteraction,
+    target: GuildMember | null,
+): Promise<boolean> {
+    const reason = await checkModerationHierarchy(interaction, target)
+    if (!reason) return false
+    await interactionReply({
+        interaction,
+        content: { content: `❌ ${reason}`, ephemeral: true },
+    })
+    return true
 }
