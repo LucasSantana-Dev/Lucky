@@ -1880,6 +1880,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(backend): Discord OAuth tokens in webapp sessions are encrypted at rest (AES-256-GCM, new `SESSION_TOKEN_KEY`, required in production), and the session file fallback now writes asynchronously and atomically
 - fix(backend): editing, toggling or deleting an auto message from the dashboard only works on that guild's own messages; an id from another guild returns not found
 - fix(backend,bot): Twitch notifications and auto messages only accept a channel from the same guild; the dashboard refuses another guild's channel and the bot skips stored notifications that point outside their guild
 - fix(backend): the public support form caps report text at 4000 characters and short fields at 64, checks that an attached screenshot really is a PNG, JPEG or WebP image, and allows 10 reports per hour from one address
