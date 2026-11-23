@@ -1,4 +1,4 @@
-import repeatCommand, { guildRepeatCounts } from './repeat'
+import repeatCommand from './repeat'
 
 const QueueRepeatMode = {
     OFF: 0,
@@ -50,20 +50,13 @@ jest.mock('../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...args: unknown[]) => resolveGuildQueueMock(...args),
 }))
 
-function createInteraction(
-    mode: string,
-    times: number | null = null,
-    guildId = 'guild-1',
-) {
+function createInteraction(mode: string, guildId = 'guild-1') {
     return {
         guildId,
         user: { id: 'user-1' },
         options: {
             getString: jest.fn((name: string) => {
                 if (name === 'mode') return mode
-            }),
-            getInteger: jest.fn((name: string) => {
-                if (name === 'times') return times
             }),
         },
     } as any
@@ -92,7 +85,6 @@ function createClient() {
 describe('repeat command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        guildRepeatCounts.clear()
         requireQueueMock.mockResolvedValue(true)
     })
 
@@ -113,6 +105,11 @@ describe('repeat command', () => {
         )
         expect(requireQueueMock).not.toHaveBeenCalled()
         expect(queue.setRepeatMode).not.toHaveBeenCalled()
+    })
+
+    it('offers no times option, since nothing counts repeats down (#3268)', () => {
+        const options = repeatCommand.data.toJSON().options ?? []
+        expect(options.map((o) => o.name)).toEqual(['mode'])
     })
 
     it('turns off repeat mode', async () => {
@@ -136,7 +133,7 @@ describe('repeat command', () => {
     it('sets repeat mode to track infinitely', async () => {
         const queue = createQueue()
         const client = createClient()
-        const interaction = createInteraction('track', null)
+        const interaction = createInteraction('track')
         resolveGuildQueueMock.mockReturnValue({ queue })
 
         await repeatCommand.execute({
@@ -147,37 +144,14 @@ describe('repeat command', () => {
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.TRACK)
         expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🔁 Repeat mode',
-            'Repeating current song **infinitely**',
+            'Repeating current song **until turned off**',
         )
-        expect(guildRepeatCounts.has('guild-1')).toBe(false)
-    })
-
-    it('sets repeat mode to track N times', async () => {
-        const queue = createQueue()
-        const client = createClient()
-        const interaction = createInteraction('track', 5)
-        resolveGuildQueueMock.mockReturnValue({ queue })
-
-        await repeatCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.TRACK)
-        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
-            '🔁 Repeat mode',
-            'Repeating current song **5 times**',
-        )
-        expect(guildRepeatCounts.get('guild-1')).toEqual({
-            count: 5,
-            originalMode: QueueRepeatMode.TRACK,
-        })
     })
 
     it('sets repeat mode to queue infinitely', async () => {
         const queue = createQueue()
         const client = createClient()
-        const interaction = createInteraction('queue', null)
+        const interaction = createInteraction('queue')
         resolveGuildQueueMock.mockReturnValue({ queue })
 
         await repeatCommand.execute({
@@ -188,30 +162,8 @@ describe('repeat command', () => {
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.QUEUE)
         expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🔁 Repeat mode',
-            'Repeating queue **infinitely**',
+            'Repeating queue **until turned off**',
         )
-    })
-
-    it('sets repeat mode to queue N times', async () => {
-        const queue = createQueue()
-        const client = createClient()
-        const interaction = createInteraction('queue', 3)
-        resolveGuildQueueMock.mockReturnValue({ queue })
-
-        await repeatCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.QUEUE)
-        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
-            '🔁 Repeat mode',
-            'Repeating queue **3 times**',
-        )
-        expect(guildRepeatCounts.get('guild-1')).toEqual({
-            count: 3,
-            originalMode: QueueRepeatMode.QUEUE,
-        })
     })
 
     it('sets repeat mode to infinite autoplay', async () => {
@@ -251,28 +203,6 @@ describe('repeat command', () => {
         expect(interactionReplyMock).not.toHaveBeenCalled()
     })
 
-    it('clears previous repeat count when changing modes', async () => {
-        const queue = createQueue()
-        const client = createClient()
-        guildRepeatCounts.set('guild-1', {
-            count: 5,
-            originalMode: QueueRepeatMode.TRACK,
-        })
-
-        const interaction = createInteraction('queue', 3)
-        resolveGuildQueueMock.mockReturnValue({ queue })
-
-        await repeatCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(guildRepeatCounts.get('guild-1')).toEqual({
-            count: 3,
-            originalMode: QueueRepeatMode.QUEUE,
-        })
-    })
-
     it('defaults to off mode when invalid mode is provided', async () => {
         const queue = createQueue()
         const client = createClient()
@@ -289,69 +219,5 @@ describe('repeat command', () => {
             '🔁 Repeat mode',
             'Repeat **turned off**',
         )
-    })
-
-    it('handles track repeat with minimum repeat count', async () => {
-        const queue = createQueue()
-        const client = createClient()
-        const interaction = createInteraction('track', 1)
-        resolveGuildQueueMock.mockReturnValue({ queue })
-
-        await repeatCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.TRACK)
-        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
-            '🔁 Repeat mode',
-            'Repeating current song **infinitely**',
-        )
-        expect(guildRepeatCounts.has('guild-1')).toBe(false)
-    })
-
-    it('handles track repeat with maximum repeat count', async () => {
-        const queue = createQueue()
-        const client = createClient()
-        const interaction = createInteraction('track', 100)
-        resolveGuildQueueMock.mockReturnValue({ queue })
-
-        await repeatCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(guildRepeatCounts.get('guild-1')).toEqual({
-            count: 100,
-            originalMode: QueueRepeatMode.TRACK,
-        })
-    })
-
-    it('does not store repeat count for infinite modes', async () => {
-        const queue = createQueue()
-        const client = createClient()
-        const interaction = createInteraction('track', null)
-        resolveGuildQueueMock.mockReturnValue({ queue })
-
-        await repeatCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(guildRepeatCounts.has('guild-1')).toBe(false)
-    })
-
-    it('does not store repeat count for off mode', async () => {
-        const queue = createQueue()
-        const client = createClient()
-        const interaction = createInteraction('off')
-        resolveGuildQueueMock.mockReturnValue({ queue })
-
-        await repeatCommand.execute({
-            client,
-            interaction,
-        } as any)
-
-        expect(guildRepeatCounts.has('guild-1')).toBe(false)
     })
 })
