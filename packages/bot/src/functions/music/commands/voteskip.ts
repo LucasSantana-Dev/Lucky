@@ -65,10 +65,12 @@ export default new Command({
             return
         }
 
-        const voiceMembers = [...voiceChannel.members.values()].filter(
-            (m: GuildMember) => !m.user.bot,
+        const listenerIds = new Set(
+            [...voiceChannel.members.entries()]
+                .filter(([, m]: [string, GuildMember]) => !m.user.bot)
+                .map(([id]) => id),
         )
-        const eligibleCount = voiceMembers.length
+        const eligibleCount = listenerIds.size
 
         if (eligibleCount === 0) {
             await interactionReply({
@@ -105,7 +107,8 @@ export default new Command({
         }
 
         const votes = addVote(guildId, userId)
-        const voteCount = votes.size
+        // Only users still in the channel count; a voter who left drops out.
+        const voteCount = [...votes].filter((id) => listenerIds.has(id)).length
 
         const settings = await guildSettingsService.getGuildSettings(guildId)
         const threshold = settings?.voteSkipThreshold ?? DEFAULT_THRESHOLD
