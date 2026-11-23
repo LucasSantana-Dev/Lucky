@@ -81,7 +81,8 @@ const IMAGE_SIGNATURES: Record<string, (buf: Buffer) => boolean> = {
 }
 
 export function imageBytesMatchMime(buf: Buffer, mimetype: string): boolean {
-    return IMAGE_SIGNATURES[mimetype]?.(buf) ?? false
+    if (!Object.hasOwn(IMAGE_SIGNATURES, mimetype)) return false
+    return IMAGE_SIGNATURES[mimetype](buf)
 }
 
 /**
@@ -217,8 +218,13 @@ export function setupSupportRoutes(app: Express): void {
             // Validate body fields
             const parseResult = createSupportSchema.safeParse(req.body)
             if (!parseResult.success) {
+                const field = String(
+                    parseResult.error.issues[0]?.path[0] ?? 'context',
+                )
                 throw AppError.badRequest(
-                    'context is required (max 4000 characters)',
+                    field === 'context'
+                        ? 'context is required (max 4000 characters)'
+                        : `Invalid ${field}`,
                 )
             }
 

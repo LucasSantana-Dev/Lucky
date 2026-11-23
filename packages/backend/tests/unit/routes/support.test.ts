@@ -260,6 +260,24 @@ describe('POST /api/support', () => {
         expect(createMock).not.toHaveBeenCalled()
     })
 
+    it('accepts cid and category at the 64 char limit', async () => {
+        const res = await request(app)
+            .post('/api/support')
+            .field('context', 'ctx')
+            .field('cid', 'x'.repeat(64))
+            .field('category', 'c'.repeat(64))
+        expect(res.status).toBe(201)
+    })
+
+    it('names the invalid field in the 400 message', async () => {
+        const res = await request(app)
+            .post('/api/support')
+            .field('context', 'ctx')
+            .field('cid', 'bad id!')
+        expect(res.status).toBe(400)
+        expect(JSON.stringify(res.body)).toContain('Invalid cid')
+    })
+
     it.each([
         ['image/jpeg', JPEG_BYTES, 'a.jpg'],
         ['image/webp', WEBP_BYTES, 'a.webp'],
