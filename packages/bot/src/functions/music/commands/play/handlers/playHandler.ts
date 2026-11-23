@@ -39,8 +39,8 @@ import {
 } from './resolveProvider'
 import { runPostPlayBackgroundOps } from './postPlayBackgroundOps'
 import {
-    recordCollaborativeContribution,
-    rejectOverCollaborativeLimit,
+    reserveCollaborativeRequest,
+    type CollaborativeReservation,
 } from './collaborativeLimit'
 import {
     classifyPlayFailure,
@@ -182,6 +182,7 @@ type PlayContext = {
     provider: string | null
     t: TFunction
     commandStartedAt: number
+    reservation: CollaborativeReservation
 }
 
 /** Written by the search callback while play() is still awaiting voice. */
@@ -450,7 +451,6 @@ async function completePlay(
         t,
     })
 
-    recordCollaborativeContribution(interaction, guildId)
     await sendFinalReply(interaction, early.reply, embed, track, queuePosition)
 
     // Fire-and-forget: each op is isolated inside runPostPlayBackgroundOps so a
@@ -534,6 +534,8 @@ async function runPlay(ctx: PlayContext, early: EarlyState): Promise<void> {
         return
     }
 
+    // Something was queued and started: the request counts.
+    ctx.reservation.commit()
     await completePlay(ctx, early, { result, isPlaylist, hadQueueBeforePlay })
 }
 
@@ -637,9 +639,9 @@ export async function executePlayHandler({
     if (!(await deferPlayReply(interaction))) return
 
     const t = await resolveTranslator(interaction)
+    const reservation = await reserveCollaborativeRequest(interaction, guildId)
+    if (!reservation) return
     const query = await prepareQuery(rawQuery, provider)
-
-    if (await rejectOverCollaborativeLimit(interaction, guildId)) return
 
     const ctx: PlayContext = {
         client,
@@ -650,6 +652,7 @@ export async function executePlayHandler({
         provider,
         t,
         commandStartedAt,
+        reservation,
     }
     // Written by the search callback while play() is still awaiting voice
     // and stream; read by the final reconcile and by the catch below.
@@ -661,6 +664,7 @@ export async function executePlayHandler({
         await reportPlayFailure(ctx, early, error)
     } finally {
         if (early.watch) closePlayStartWatch(early.watch)
+        reservation.settle()
     }
 }
 

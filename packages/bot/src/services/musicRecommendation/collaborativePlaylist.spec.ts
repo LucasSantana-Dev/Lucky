@@ -14,6 +14,33 @@ describe('collaborativePlaylistService', () => {
         return `${name}-${testCounter}`
     }
 
+    describe('releaseContribution (#3269)', () => {
+        it('gives back a counted request and drops an empty counter', () => {
+            const id = guildId('release')
+            collaborativePlaylistService.setMode(id, true, 3)
+            collaborativePlaylistService.recordContribution(id, 'user-1', 2)
+
+            collaborativePlaylistService.releaseContribution(id, 'user-1', 1)
+            expect(
+                collaborativePlaylistService.getState(id).contributions,
+            ).toEqual({ 'user-1': 1 })
+
+            collaborativePlaylistService.releaseContribution(id, 'user-1', 1)
+            expect(
+                collaborativePlaylistService.getState(id).contributions,
+            ).toEqual({})
+        })
+
+        it('does nothing while the mode is off', () => {
+            const id = guildId('release-off')
+            collaborativePlaylistService.releaseContribution(id, 'user-1', 1)
+
+            expect(
+                collaborativePlaylistService.getState(id).contributions,
+            ).toEqual({})
+        })
+    })
+
     describe('setMode', () => {
         it('enables mode with default limit', () => {
             const state = collaborativePlaylistService.setMode(

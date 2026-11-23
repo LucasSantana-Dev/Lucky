@@ -20,10 +20,7 @@ import {
 } from './handlers/resolveProvider'
 import { ensureTrackMetadata } from './handlers/trackMetadataHydration'
 import { resolveAlbumIntent } from './handlers/albumIntent'
-import {
-    recordCollaborativeContribution,
-    rejectOverCollaborativeLimit,
-} from './handlers/collaborativeLimit'
+import { reserveCollaborativeRequest } from './handlers/collaborativeLimit'
 import {
     classifyPlayFailure,
     logPlayFailure,
@@ -546,10 +543,14 @@ export async function executePlayAtTop({
 
     if (!(await deferPublicReply(interaction))) return
 
+    const reservation = await reserveCollaborativeRequest(
+        interaction,
+        interaction.guildId,
+    )
+    if (!reservation) return
+
     // After the defer: short link expansion can take a few seconds.
     const query = await prepareQuery(rawQuery, null)
-    if (await rejectOverCollaborativeLimit(interaction, interaction.guildId))
-        return
 
     try {
         const result = await playWithFallbacks({
@@ -560,6 +561,7 @@ export async function executePlayAtTop({
             afterSearch: buildAfterSearch(query),
         })
         const track = result.track
+        reservation.commit()
         stampPlaylistTracks(result.searchResult)
 
         const { queue } = resolveGuildQueue(client, interaction.guildId)
@@ -577,7 +579,6 @@ export async function executePlayAtTop({
         }
 
         moveTrackToTop(queue, track, skipCurrent)
-        recordCollaborativeContribution(interaction, interaction.guildId)
 
         // The controls live on the now-playing message, not on this reply.
         const embed = buildPlayResponseEmbed(
@@ -612,5 +613,7 @@ export async function executePlayAtTop({
             return
         }
         await replyPlayAtTopError(interaction, commandName, query, error)
+    } finally {
+        reservation.settle()
     }
 }

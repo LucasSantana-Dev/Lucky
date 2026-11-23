@@ -21,10 +21,7 @@ import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
-import {
-    recordCollaborativeContribution,
-    rejectOverCollaborativeLimit,
-} from './play/handlers/collaborativeLimit'
+import { reserveCollaborativeRequest } from './play/handlers/collaborativeLimit'
 import { pickAlbum } from './play/handlers/albumIntent'
 import { QUEUE_LEAVE_OPTIONS } from '../../../services/musicManagement/queueLeaveOptions'
 import { AsmrBlockedError, isAsmrTrack } from '../../../utils/music/asmrFilter'
@@ -132,10 +129,11 @@ export default new Command({
             throw error
         }
 
-        if (
-            await rejectOverCollaborativeLimit(interaction, interaction.guildId)
+        const reservation = await reserveCollaborativeRequest(
+            interaction,
+            interaction.guildId,
         )
-            return
+        if (!reservation) return
 
         try {
             // A free-text query cannot reach an extractor's album branch: every
@@ -266,6 +264,8 @@ export default new Command({
                     },
                 },
             )
+            // The first track is queued: the request counts.
+            reservation.commit()
 
             const { queue } = resolveGuildQueue(client, interaction.guildId)
             if (!queue) {
@@ -301,7 +301,6 @@ export default new Command({
             }
 
             moveUserTrackToPriority(queue, playResult.track)
-            recordCollaborativeContribution(interaction, interaction.guildId)
 
             const albumTitle = searchResult.playlist?.title ?? query
 
@@ -339,6 +338,8 @@ export default new Command({
             } catch {
                 // interaction already replied
             }
+        } finally {
+            reservation.settle()
         }
     },
 })

@@ -520,6 +520,70 @@ describe('executePlayAtTop — fallback chain', () => {
             )
         })
 
+        it('lets only one of two racing requests through a limit of one', async () => {
+            collaborativePlaylistService.setMode('guild-1', true, 1)
+            const client = makeClient(() =>
+                Promise.resolve({ track: fakeTrack }),
+            )
+
+            await Promise.all([
+                executePlayAtTop({
+                    client,
+                    interaction: makeInteraction(),
+                    skipCurrent: false,
+                    commandName: 'playtop',
+                }),
+                executePlayAtTop({
+                    client,
+                    interaction: makeInteraction(),
+                    skipCurrent: false,
+                    commandName: 'playtop',
+                }),
+            ])
+
+            expect(client.player.play).toHaveBeenCalledTimes(1)
+            expect(
+                collaborativePlaylistService.getState('guild-1').contributions,
+            ).toEqual({ 'user-1': 1 })
+        })
+
+        it('gives the request back when nothing was queued', async () => {
+            collaborativePlaylistService.setMode('guild-1', true, 1)
+            const client = makeClient(() =>
+                Promise.reject(new Error('nothing found')),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction(),
+                skipCurrent: false,
+                commandName: 'playtop',
+            })
+
+            expect(
+                collaborativePlaylistService.getState('guild-1').contributions,
+            ).toEqual({})
+        })
+
+        it('checks the limit before preparing the query', async () => {
+            collaborativePlaylistService.setMode('guild-1', true, 1)
+            collaborativePlaylistService.recordContribution(
+                'guild-1',
+                'user-1',
+                1,
+            )
+            fetchMock.mockReset()
+
+            await executePlayAtTop({
+                client: makeClient(() => Promise.resolve({ track: fakeTrack })),
+                interaction: makeInteraction('https://on.soundcloud.com/abc'),
+                skipCurrent: false,
+                commandName: 'playtop',
+            })
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
         it('records the request once it is queued', async () => {
             collaborativePlaylistService.setMode('guild-1', true, 3)
             const client = makeClient(() =>

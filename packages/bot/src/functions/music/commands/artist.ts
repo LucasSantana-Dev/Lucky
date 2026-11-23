@@ -27,10 +27,7 @@ import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
-import {
-    recordCollaborativeContribution,
-    rejectOverCollaborativeLimit,
-} from './play/handlers/collaborativeLimit'
+import { reserveCollaborativeRequest } from './play/handlers/collaborativeLimit'
 import {
     SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
     TEXT_SEARCH_BLOCKED_EXTRACTORS,
@@ -219,18 +216,24 @@ export default new Command({
             throw error
         }
 
-        if (
-            await rejectOverCollaborativeLimit(interaction, interaction.guildId)
+        const reservation = await reserveCollaborativeRequest(
+            interaction,
+            interaction.guildId,
         )
-            return
+        if (!reservation) return
 
         if (discography) {
-            await handleArtistDiscography({
-                client,
-                interaction,
-                voiceChannel,
-                artistName,
-            })
+            try {
+                await handleArtistDiscography({
+                    client,
+                    interaction,
+                    voiceChannel,
+                    artistName,
+                    reservation,
+                })
+            } finally {
+                reservation.settle()
+            }
             return
         }
 
@@ -409,6 +412,8 @@ export default new Command({
                             : QueryType.AUTO,
                 },
             )
+            // The first track is queued: the request counts.
+            reservation.commit()
 
             const { queue } = resolveGuildQueue(client, interaction.guildId)
             if (!queue) {
@@ -433,7 +438,6 @@ export default new Command({
             }
 
             moveUserTrackToPriority(queue, playResult.track)
-            recordCollaborativeContribution(interaction, interaction.guildId)
 
             const displayArtist =
                 tracks.find((t) => t.author.toLowerCase().includes(artistLower))
@@ -473,6 +477,8 @@ export default new Command({
             } catch {
                 // interaction already replied
             }
+        } finally {
+            reservation.settle()
         }
     },
 })

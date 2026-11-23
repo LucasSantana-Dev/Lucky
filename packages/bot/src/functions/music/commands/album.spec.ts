@@ -477,16 +477,18 @@ describe('album command collaborative limit (#3269)', () => {
     it('refuses the album when the user already used their requests', async () => {
         collaborativePlaylistService.setMode('guild-1', true, 1)
         collaborativePlaylistService.recordContribution('guild-1', 'user-1', 1)
+        searchSpotifyAlbumsMock.mockClear()
         const search = jest.fn()
         const play = jest.fn()
 
         await albumCommand.execute(
             createCommandParams({
                 client: { player: { search, play } },
-                interaction: createInteraction(ALBUM_URL),
+                interaction: createInteraction('Abbey Road'),
             }),
         )
 
+        expect(searchSpotifyAlbumsMock).not.toHaveBeenCalled()
         expect(search).not.toHaveBeenCalled()
         expect(play).not.toHaveBeenCalled()
         expect(lastReply().content.embeds[0].title).toBe(

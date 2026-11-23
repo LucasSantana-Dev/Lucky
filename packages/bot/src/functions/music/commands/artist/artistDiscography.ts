@@ -19,7 +19,7 @@ import {
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { isUnknownInteractionError } from '../play/queryUtils'
-import { recordCollaborativeContribution } from '../play/handlers/collaborativeLimit'
+import type { CollaborativeReservation } from '../play/handlers/collaborativeLimit'
 import { QUEUE_LEAVE_OPTIONS } from '../../../../services/musicManagement/queueLeaveOptions'
 import {
     AsmrBlockedError,
@@ -81,11 +81,14 @@ export async function handleArtistDiscography({
     interaction,
     voiceChannel,
     artistName,
+    reservation,
 }: {
     client: CustomClient
     interaction: ChatInputCommandInteraction
     voiceChannel: VoiceBasedChannel
     artistName: string
+    /** Committed once the first track is queued (#3269). */
+    reservation?: CollaborativeReservation
 }): Promise<void> {
     try {
         const accessToken = await getSpotifyClientToken()
@@ -215,6 +218,7 @@ export async function handleArtistDiscography({
                 searchEngine: QueryType.SPOTIFY_SONG,
             },
         )
+        reservation?.commit()
 
         const { queue } = resolveGuildQueue(
             client,
@@ -241,10 +245,6 @@ export async function handleArtistDiscography({
         if (playResult.track) {
             moveUserTrackToPriority(queue, playResult.track)
         }
-        recordCollaborativeContribution(
-            interaction,
-            interaction.guildId as string,
-        )
 
         await interactionReply({
             interaction,

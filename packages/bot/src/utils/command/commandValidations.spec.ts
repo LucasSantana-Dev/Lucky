@@ -138,6 +138,20 @@ describe('requireMusicManager (#3269)', () => {
         expect(getGuildSettingsMock).not.toHaveBeenCalled()
     })
 
+    it('grants a raw member whose Manage Server comes from memberPermissions', async () => {
+        const interaction = makeInteraction({
+            member: { permissions: '0', roles: [] },
+            memberPermissions: new PermissionsBitField(
+                PermissionFlagsBits.ManageGuild,
+            ),
+        })
+
+        await expect(requireMusicManager(interaction, 'guild-1')).resolves.toBe(
+            true,
+        )
+        expect(getGuildSettingsMock).not.toHaveBeenCalled()
+    })
+
     it('grants a DJ role holder', async () => {
         getGuildSettingsMock.mockResolvedValueOnce({ djRoleId: 'dj-role' })
         const interaction = makeInteraction({

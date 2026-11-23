@@ -1887,8 +1887,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - perf(backend): the dashboard server list (`GET /api/guilds`) reuses each member's Discord roles for 30 seconds per server and resolves at most 5 servers at a time, so reloading it no longer repeats one Discord member lookup per server (#3286)
 - fix(bot): ending a music session (stop, leave, idle disconnect, a voice disconnect or the bot leaving the server) clears that server's autoplay refill counter, settled refill lock and session mood cache, so they no longer pile up per server or carry into the next session (#3280)
 - fix(bot): autoplay no longer rejects every Spanish candidate while the session history is still empty: the cross-locale veto now lets through the playing artist's own tracks, and Latin candidates when the playing track itself reads Spanish (by title or a language-specific Last.fm tag). A restored session where every source returns nothing can still stall (#3277)
-- fix(bot): `/playlist collaborative` enable, disable and reset need the DJ role or Manage Server (Manage Server when no DJ role is set), and the per-user request limit now also applies to `/playtop`, `/playskip`, `/album` and `/artist`
-- fix(bot): `/playtop` and `/playskip` expand SoundCloud short links and strip SoundCloud `?in=` and YouTube Mix context like `/play` does, so a link that works on `/play` works on them too
 - fix(backend): Discord OAuth tokens in webapp sessions are encrypted at rest (AES-256-GCM, new `SESSION_TOKEN_KEY`, required in production), and the session file fallback now writes asynchronously and atomically
 - fix(backend): editing, toggling or deleting an auto message from the dashboard only works on that guild's own messages; an id from another guild returns not found
 - fix(backend,bot): Twitch notifications and auto messages only accept a channel from the same guild; the dashboard refuses another guild's channel and the bot skips stored notifications that point outside their guild
@@ -1928,6 +1926,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(bot): after `/skip`, a requested song that is still loading now plays instead of being replaced by the autoplay pick queued behind it (#2996)
 - fix(bot): YouTube plays start in about 3 s again: yt-dlp asks for the visionos client first, since the default clients now wait out a pre-roll ad and most starts timed out at 8 s
 - fix(bot): `/playtop` and `/playskip` expand SoundCloud short links and strip SoundCloud `?in=` and YouTube Mix context like `/play` does, so a link that works on `/play` works on them too
+- fix(bot): `/playlist collaborative` enable, disable and reset need the DJ role or Manage Server (Manage Server when no DJ role is set), and the per-user request limit now also applies to `/playtop`, `/playskip`, `/album` and `/artist`
 
 ## [2.17.0] - 2026-06-08
 
