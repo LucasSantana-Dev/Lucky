@@ -337,7 +337,17 @@ describe('Auto Message Routes Integration', () => {
                 })
                 .expect(201)
 
-            expect(autoMessageService.createMessage).toHaveBeenCalled()
+            expect(autoMessageService.createMessage).toHaveBeenCalledWith(
+                '111111111111111111',
+                'welcome',
+                { message: 'hi' },
+                {
+                    channelId: OWN_CHANNEL,
+                    trigger: undefined,
+                    exactMatch: undefined,
+                    cronSchedule: undefined,
+                },
+            )
         })
 
         test('PATCH rejects a channel from another guild', async () => {
@@ -361,6 +371,9 @@ describe('Auto Message Routes Integration', () => {
                 .send({ channelId: null })
                 .expect(200)
 
+            expect(autoMessageService.updateMessage).toHaveBeenCalledWith('1', {
+                channelId: null,
+            })
             expect(
                 guildService.getGuildTextChannelOptions,
             ).not.toHaveBeenCalled()
