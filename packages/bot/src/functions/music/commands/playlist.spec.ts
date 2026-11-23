@@ -2,6 +2,10 @@ import type { ChatInputCommandInteraction } from 'discord.js'
 
 const interactionReplyMock = jest.fn()
 const requireGuildMock = jest.fn<Promise<boolean>, [interaction: unknown]>()
+const requireMusicManagerMock = jest.fn<
+    Promise<boolean>,
+    [interaction: unknown, guildId: string]
+>()
 const collaborativePlaylistServiceMock = {
     setMode: jest.fn(),
     getState: jest.fn(),
@@ -17,6 +21,8 @@ jest.mock('../../../utils/general/interactionReply.js', () => ({
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (interaction: unknown) => requireGuildMock(interaction),
+    requireMusicManager: (interaction: unknown, guildId: string) =>
+        requireMusicManagerMock(interaction, guildId),
 }))
 
 jest.mock(
@@ -60,6 +66,7 @@ describe('playlist command', () => {
         jest.clearAllMocks()
         interactionReplyMock.mockResolvedValue(undefined)
         requireGuildMock.mockResolvedValue(true)
+        requireMusicManagerMock.mockResolvedValue(true)
         createInfoEmbedMock.mockReturnValue({
             title: 'Info',
             description: 'Info embed',
@@ -107,6 +114,42 @@ describe('playlist command', () => {
             )
 
             expect(collaborativeSubcommand).toBeDefined()
+        })
+    })
+
+    describe('permissions (#3269)', () => {
+        it.each(['enable', 'disable', 'reset'])(
+            'refuses %s without the DJ role or Manage Server',
+            async (action) => {
+                requireMusicManagerMock.mockResolvedValue(false)
+
+                await playlistCommand.execute({
+                    interaction: createInteraction(action, 10),
+                } as any)
+
+                expect(requireMusicManagerMock).toHaveBeenCalledWith(
+                    expect.anything(),
+                    'guild-123',
+                )
+                expect(
+                    collaborativePlaylistServiceMock.setMode,
+                ).not.toHaveBeenCalled()
+                expect(
+                    collaborativePlaylistServiceMock.resetContributions,
+                ).not.toHaveBeenCalled()
+                expect(interactionReplyMock).not.toHaveBeenCalled()
+            },
+        )
+
+        it('lets anyone read the status', async () => {
+            requireMusicManagerMock.mockResolvedValue(false)
+
+            await playlistCommand.execute({
+                interaction: createInteraction('status'),
+            } as any)
+
+            expect(requireMusicManagerMock).not.toHaveBeenCalled()
+            expect(collaborativePlaylistServiceMock.getState).toHaveBeenCalled()
         })
     })
 

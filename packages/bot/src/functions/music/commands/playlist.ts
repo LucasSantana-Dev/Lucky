@@ -7,7 +7,10 @@ import {
     createWarningEmbed,
 } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
-import { requireGuild } from '../../../utils/command/commandValidations'
+import {
+    requireGuild,
+    requireMusicManager,
+} from '../../../utils/command/commandValidations'
 import { collaborativePlaylistService } from '../../../services/musicRecommendation/collaborativePlaylist'
 
 export default new Command({
@@ -71,6 +74,10 @@ export default new Command({
             })
             return
         }
+
+        // Status is read-only; the rest change a limit that applies to
+        // everyone else, so they need the DJ role or Manage Server (#3269).
+        if (!(await requireMusicManager(interaction, guildId))) return
 
         if (action === 'reset') {
             collaborativePlaylistService.resetContributions(guildId)

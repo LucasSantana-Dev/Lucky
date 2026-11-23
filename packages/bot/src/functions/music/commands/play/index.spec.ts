@@ -39,6 +39,7 @@ const createSuccessEmbedMock = jest.fn<
     title,
     message,
 }))
+const releaseContributionMock = jest.fn()
 const canAddTracksMock = jest.fn<{ allowed: boolean; limit: number }, []>()
 const recordContributionMock = jest.fn<
     void,
@@ -149,6 +150,8 @@ jest.mock(
                 userId: string,
                 amount: number,
             ) => recordContributionMock(guildId, userId, amount),
+            releaseContribution: (...args: unknown[]) =>
+                releaseContributionMock(...args),
         },
     }),
 )
@@ -224,6 +227,7 @@ function createClient(
 describe('play command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
+        recordContributionMock.mockReset()
         requireVoiceChannelMock.mockResolvedValue(true)
         requireDJRoleMock.mockResolvedValue(true)
         blendAutoplayTracksMock.mockResolvedValue(undefined)
@@ -1011,7 +1015,7 @@ describe('play command: early reply and start failure (#2741)', () => {
         expect(buildPlayResponseEmbedMock).toHaveBeenCalledWith(
             expect.objectContaining({ kind: 'nowPlaying', track }),
         )
-        expect(recordContributionMock).not.toHaveBeenCalled()
+        expect(releaseContributionMock).not.toHaveBeenCalled()
 
         releasePlay()
         await pending
@@ -1071,7 +1075,7 @@ describe('play command: early reply and start failure (#2741)', () => {
         // The early "added" reply went through interactionReply once; the
         // failure is an edit, not a stacked follow-up.
         expect(interactionReplyMock).toHaveBeenCalledTimes(1)
-        expect(recordContributionMock).not.toHaveBeenCalled()
+        expect(releaseContributionMock).toHaveBeenCalledTimes(1)
         expect(takeCommandOutcome(interaction)).toEqual({
             outcome: 'error',
             errorClass: 'StreamStartFailed',
@@ -1381,7 +1385,7 @@ describe('play command: characterization of remaining handler branches', () => {
         expect(sent.content.embeds[0].data.description).toContain(
             "Couldn't find the original of **Song A**",
         )
-        expect(recordContributionMock).not.toHaveBeenCalled()
+        expect(releaseContributionMock).toHaveBeenCalledTimes(1)
         expect(takeCommandOutcome(interaction)).toEqual({
             outcome: 'error',
             errorClass: 'StreamStartFailed',

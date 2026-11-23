@@ -17,7 +17,6 @@ import { markCommandOutcome } from '../../../../../utils/monitoring/commandOutco
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { createErrorEmbed } from '../../../../../utils/general/embeds'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
-import { collaborativePlaylistService } from '../../../../../services/musicRecommendation/collaborativePlaylist'
 import { moveUserTrackToPriority } from '../../../../../services/musicManagement/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../../utils/music/nowPlayingEmbed'
 import { registerNowPlayingMessage } from '../../../../../handlers/player/nowPlayingDisplay'
@@ -39,6 +38,10 @@ import {
     type ResolveQueryParams,
 } from './resolveProvider'
 import { runPostPlayBackgroundOps } from './postPlayBackgroundOps'
+import {
+    reserveCollaborativeRequest,
+    type CollaborativeReservation,
+} from './collaborativeLimit'
 import {
     classifyPlayFailure,
     logPlayFailure,
@@ -179,6 +182,7 @@ type PlayContext = {
     provider: string | null
     t: TFunction
     commandStartedAt: number
+    reservation: CollaborativeReservation
 }
 
 /** Written by the search callback while play() is still awaiting voice. */
@@ -220,32 +224,6 @@ async function deferPlayReply(
         }
         throw error
     }
-}
-
-/** Replies and returns true when the collaborative request limit is hit. */
-async function rejectOverCollaborativeLimit(
-    interaction: ChatInputCommandInteraction,
-    guildId: string,
-): Promise<boolean> {
-    const collaborativeCheck = collaborativePlaylistService.canAddTracks(
-        guildId,
-        interaction.user.id,
-        1,
-    )
-    if (collaborativeCheck.allowed) return false
-    markCommandOutcome(interaction, { outcome: 'user_error' })
-    await interactionReply({
-        interaction,
-        content: {
-            embeds: [
-                createErrorEmbed(
-                    'Contribution limit reached',
-                    `Collaborative mode limit reached (${collaborativeCheck.limit} track requests per user).`,
-                ),
-            ],
-        },
-    })
-    return true
 }
 
 async function registerDeferredNowPlaying(
@@ -418,24 +396,6 @@ function resolveQueuePosition(
     return 0
 }
 
-function recordPlayContribution(
-    interaction: ChatInputCommandInteraction,
-    guildId: string,
-): void {
-    try {
-        collaborativePlaylistService.recordContribution(
-            guildId,
-            interaction.user.id,
-            1,
-        )
-    } catch (err) {
-        errorLog({
-            message: 'Failed to record contribution',
-            error: err,
-        })
-    }
-}
-
 async function sendFinalReply(
     interaction: ChatInputCommandInteraction,
     earlyReply: EarlyReply | null,
@@ -491,7 +451,6 @@ async function completePlay(
         t,
     })
 
-    recordPlayContribution(interaction, guildId)
     await sendFinalReply(interaction, early.reply, embed, track, queuePosition)
 
     // Fire-and-forget: each op is isolated inside runPostPlayBackgroundOps so a
@@ -575,6 +534,8 @@ async function runPlay(ctx: PlayContext, early: EarlyState): Promise<void> {
         return
     }
 
+    // Something was queued and started: the request counts.
+    ctx.reservation.commit()
     await completePlay(ctx, early, { result, isPlaylist, hadQueueBeforePlay })
 }
 
@@ -678,9 +639,9 @@ export async function executePlayHandler({
     if (!(await deferPlayReply(interaction))) return
 
     const t = await resolveTranslator(interaction)
+    const reservation = await reserveCollaborativeRequest(interaction, guildId)
+    if (!reservation) return
     const query = await prepareQuery(rawQuery, provider)
-
-    if (await rejectOverCollaborativeLimit(interaction, guildId)) return
 
     const ctx: PlayContext = {
         client,
@@ -691,6 +652,7 @@ export async function executePlayHandler({
         provider,
         t,
         commandStartedAt,
+        reservation,
     }
     // Written by the search callback while play() is still awaiting voice
     // and stream; read by the final reconcile and by the catch below.
@@ -702,6 +664,7 @@ export async function executePlayHandler({
         await reportPlayFailure(ctx, early, error)
     } finally {
         if (early.watch) closePlayStartWatch(early.watch)
+        reservation.settle()
     }
 }
 

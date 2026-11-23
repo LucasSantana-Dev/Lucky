@@ -1927,6 +1927,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(bot): after `/skip`, a requested song that is still loading now plays instead of being replaced by the autoplay pick queued behind it (#2996)
 - fix(bot): YouTube plays start in about 3 s again: yt-dlp asks for the visionos client first, since the default clients now wait out a pre-roll ad and most starts timed out at 8 s
 - fix(bot): `/playtop` and `/playskip` expand SoundCloud short links and strip SoundCloud `?in=` and YouTube Mix context like `/play` does, so a link that works on `/play` works on them too
+- fix(bot): `/playlist collaborative` enable, disable and reset need the DJ role or Manage Server (Manage Server when no DJ role is set), and the per-user request limit now also applies to `/playtop`, `/playskip`, `/album` and `/artist`
 
 ## [2.17.0] - 2026-06-08
 
