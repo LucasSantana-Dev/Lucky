@@ -92,11 +92,15 @@ jobs:
                   const kb = (b) => (typeof b === 'number' ? `${(b / 1000).toFixed(2)} kB` : 'n/a')
                   const rows = data.map((r) => {
                       const ok = r.passed !== false
-                      if (!ok) {
-                          const over = r.size - r.sizeLimit
-                          console.log(`::error title=Size limit exceeded::${r.name}: ${kb(r.size)} > ${kb(r.sizeLimit)} (+${kb(over)})`)
+                      const exceeded = typeof r.size === 'number' && typeof r.sizeLimit === 'number' && r.size > r.sizeLimit
+                      if (exceeded) {
+                          console.log(`::error title=Size limit exceeded::${r.name}: ${kb(r.size)} > ${kb(r.sizeLimit)} (+${kb(r.size - r.sizeLimit)})`)
+                      } else if (!ok) {
+                          // e.g. a glob that matched no built chunk
+                          console.log(`::error title=Size limit check failed::${r.name}: failed without exceeding its limit (check the path glob)`)
                       }
-                      return `| ${ok ? 'pass' : 'FAIL'} | ${r.name} | ${kb(r.size)} | ${kb(r.sizeLimit)} |`
+                      const status = r.passed === true ? 'pass' : r.passed === false ? 'FAIL' : 'n/a'
+                      return `| ${status} | ${r.name} | ${kb(r.size)} | ${kb(r.sizeLimit)} |`
                   })
                   const table = ['| Status | Entry | Size | Limit |', '|---|---|---|---|', ...rows].join('\n')
                   console.log(table)
