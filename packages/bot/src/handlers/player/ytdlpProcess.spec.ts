@@ -572,6 +572,22 @@ describe('streamViaYtDlp – cookies only on a sign-in challenge (#2653)', () =>
         expect(spawnArgs(7)).not.toContain('--cookies')
     })
 
+    it('a 403 from the cookies retry also clears the shortcut it just armed', async () => {
+        readableCookies()
+        // Play 1: plain → bot-check → cookies → ok.
+        // Play 2: plain → bot-check (arms the shortcut) → cookies → 403 (clears it).
+        script(SIGN_IN, 'ok', SIGN_IN, FORBIDDEN)
+        await streamViaYtDlp(validUrl)
+        await expect(streamViaYtDlp(validUrl)).rejects.toThrow('HTTP Error 403')
+
+        // Play 3: shortcut cleared → plain first.
+        script('ok')
+        await streamViaYtDlp(validUrl)
+
+        expect(mockSpawn).toHaveBeenCalledTimes(5)
+        expect(spawnArgs(4)).not.toContain('--cookies')
+    })
+
     it('reverts to plain after the bot-check window expires', async () => {
         readableCookies()
         jest.useFakeTimers({ doNotFake: ['setImmediate'] })
