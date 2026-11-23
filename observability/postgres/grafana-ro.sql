@@ -3,9 +3,9 @@
 -- Idempotent: rerun after restoring a dump on a new host (roles are not in
 -- pg_dump) or after a migration that drops and recreates a granted table.
 -- Expects psql variable `pw` (the password). Pass it on stdin, never in argv.
--- Refuses to run (exit 3, nothing changed) when `pw` is unset or empty: an
--- empty value would make psql clear the grafana_ro password and break the
--- Grafana datasource.
+-- Without `pw` (unset or empty) it only refreshes the grants of an existing
+-- grafana_ro and leaves its password alone; with no role yet it refuses to run
+-- (exit 3, nothing changed). The deploy runs it that way after migrations.
 --
 -- On the homelab the secret is owned by Grafana (uid 472), so reading it needs
 -- sudo, and `cat` may be aliased (hence `command cat`):
@@ -26,21 +26,30 @@
 -- maxOpenConns at 5 or below (the homelab one uses 2), or panels fail with
 -- "too many connections for role grafana_ro".
 
--- Guard: abort before touching any role when `pw` is unset or empty.
+-- Guard: with `pw` unset or empty, never touch the password. If the role
+-- already exists, only the grants below are refreshed (scripts/deploy.sh runs
+-- it this way after every migration, so a table added by a migration gets its
+-- grant without a manual rerun, #3295). With no role yet, abort.
 \set ON_ERROR_STOP on
 \if :{?pw}
 \else
     \set pw ''
 \endif
-SELECT (:'pw' = '') AS pw_empty \gset
+SELECT (:'pw' = '') AS pw_empty,
+       EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'grafana_ro') AS role_exists \gset
 \if :pw_empty
-    \echo 'grafana-ro.sql: psql variable pw is empty or unset; refusing to run (would clear the grafana_ro password).'
-    DO $$ BEGIN RAISE EXCEPTION 'grafana-ro.sql aborted: empty pw'; END $$;
+    \if :role_exists
+        \echo 'grafana-ro.sql: pw unset, refreshing grafana_ro grants only (password unchanged).'
+    \else
+        \echo 'grafana-ro.sql: psql variable pw is empty or unset and grafana_ro does not exist; refusing to run.'
+        DO $$ BEGIN RAISE EXCEPTION 'grafana-ro.sql aborted: empty pw'; END $$;
+    \endif
+\else
+    SELECT format('CREATE ROLE grafana_ro LOGIN PASSWORD %L', :'pw')
+    WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'grafana_ro') \gexec
+    ALTER ROLE grafana_ro LOGIN PASSWORD :'pw';
 \endif
-
-SELECT format('CREATE ROLE grafana_ro LOGIN PASSWORD %L', :'pw')
-WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'grafana_ro') \gexec
-ALTER ROLE grafana_ro LOGIN PASSWORD :'pw' CONNECTION LIMIT 5
+ALTER ROLE grafana_ro LOGIN CONNECTION LIMIT 5
     NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS;
 ALTER ROLE grafana_ro SET default_transaction_read_only = on;
 ALTER ROLE grafana_ro SET statement_timeout = '15s';
