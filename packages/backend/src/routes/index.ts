@@ -111,6 +111,11 @@ const routeSetups = [
 ]
 
 export function setupRoutes(app: Express): void {
+    // Routes mounted above the shared /api limiter carry their own limiter
+    // (apiLimiter, writeLimiter or a stricter one). The service key and
+    // webhook routes use writeLimiter, 30/min per IP, which also slows key
+    // guessing. Keep it that way for any route added here; /metrics is the
+    // one exception and is restricted at the network layer instead.
     setupInviteRoute(app)
     setupAddRoute(app)
     setupHealthRoutes(app)
