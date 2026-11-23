@@ -75,6 +75,21 @@ describe('sessionTokenCipher', () => {
             )
         })
 
+        test('rejects extra segments and non canonical base64', () => {
+            const sealed = encryptToken('discord-access-token', KEY)
+
+            expect(() => decryptToken(`${sealed}.junk`, KEY)).toThrow(
+                'Malformed',
+            )
+            expect(() => decryptToken(`${sealed}!`, KEY)).toThrow('Malformed')
+        })
+
+        test('rejects unknown enc: versions instead of treating them as plaintext', () => {
+            expect(() => decryptToken('enc:v2:abc.def.ghi', KEY)).toThrow(
+                'Unsupported',
+            )
+        })
+
         test('refuses to read an encrypted token without a key', () => {
             const sealed = encryptToken('discord-access-token', KEY)
 

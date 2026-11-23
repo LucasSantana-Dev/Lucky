@@ -1,13 +1,14 @@
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, open, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { redisClient } from '@lucky/shared/services'
-import { debugLog, errorLog } from '@lucky/shared/utils'
+import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
 import type { DiscordUser } from './DiscordOAuthService'
 import {
     decryptToken,
     encryptToken,
+    isSealedToken,
     loadSessionTokenKey,
 } from './sessionTokenCipher'
 
@@ -29,7 +30,15 @@ async function writeFileAtomically(file: string, data: string): Promise<void> {
     await mkdir(dirname(file), { recursive: true })
     const tmp = `${file}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`
     try {
-        await writeFile(tmp, data, { encoding: 'utf-8', mode: 0o600 })
+        const handle = await open(tmp, 'w', 0o600)
+        try {
+            await handle.writeFile(data, 'utf-8')
+            // Flush to disk before the rename so a power loss cannot leave an
+            // empty file under the final name.
+            await handle.sync()
+        } finally {
+            await handle.close()
+        }
         await rename(tmp, file)
     } catch (error) {
         await rm(tmp, { force: true })
@@ -48,7 +57,20 @@ export class SessionService {
     constructor(options: SessionServiceOptions = {}) {
         this.sessionFile = options.sessionFile ?? SESSION_FILE
         this.tokenKey = loadSessionTokenKey()
-        this.memoryStore = this.loadFromFile()
+        const { store, needsWrite } = this.loadFromFile()
+        this.memoryStore = store
+        if (needsWrite) {
+            void this.persistToFile()
+        }
+    }
+
+    private static isEntry(value: unknown): value is [string, string] {
+        return (
+            Array.isArray(value) &&
+            value.length === 2 &&
+            typeof value[0] === 'string' &&
+            typeof value[1] === 'string'
+        )
     }
 
     private serialize(sessionData: SessionData): string {
@@ -80,30 +102,63 @@ export class SessionService {
         return redisClient.isHealthy()
     }
 
-    private loadFromFile(): Map<string, string> {
-        let entries: [string, string][]
+    private hasLegacyTokens(raw: string): boolean {
+        if (!this.tokenKey) {
+            return false
+        }
+        const stored = JSON.parse(raw) as SessionData
+        return !(
+            isSealedToken(stored.accessToken) &&
+            isSealedToken(stored.refreshToken)
+        )
+    }
+
+    private loadFromFile(): {
+        store: Map<string, string>
+        needsWrite: boolean
+    } {
+        const store = new Map<string, string>()
+        let entries: unknown
         try {
             // One-time read at startup, before the server accepts requests.
-            entries = JSON.parse(readFileSync(this.sessionFile, 'utf-8')) as [
-                string,
-                string,
-            ][]
+            entries = JSON.parse(readFileSync(this.sessionFile, 'utf-8'))
         } catch {
-            return new Map()
+            return { store, needsWrite: false }
+        }
+        if (!Array.isArray(entries)) {
+            warnLog({ message: 'Ignored a sessions file that is not a list' })
+            return { store, needsWrite: false }
         }
 
-        // Re-seal legacy plaintext entries in memory so the next write never
-        // puts them back on disk unencrypted. Unreadable entries are dropped.
-        const store = new Map<string, string>()
-        for (const [key, raw] of entries) {
+        // Legacy plaintext entries are re-sealed, and the constructor writes
+        // the file once so they leave the disk. Entries that are malformed or
+        // fail decryption (wrong or rotated key, tampering) are dropped.
+        let dropped = 0
+        let resealed = 0
+        for (const entry of entries) {
             try {
-                store.set(key, this.serialize(this.deserialize(raw)))
+                if (!SessionService.isEntry(entry)) {
+                    throw new Error('Malformed session entry')
+                }
+                const [key, raw] = entry
+                const session = this.deserialize(raw)
+                if (this.hasLegacyTokens(raw)) {
+                    store.set(key, this.serialize(session))
+                    resealed++
+                } else {
+                    store.set(key, raw)
+                }
             } catch {
-                debugLog({ message: 'Dropped unreadable session from disk' })
+                dropped++
             }
         }
+        if (dropped > 0) {
+            warnLog({
+                message: `Dropped ${dropped} unreadable sessions from disk (malformed, tampered, or sealed with another SESSION_TOKEN_KEY)`,
+            })
+        }
         debugLog({ message: `Loaded ${store.size} sessions from disk` })
-        return store
+        return { store, needsWrite: dropped > 0 || resealed > 0 }
     }
 
     /**

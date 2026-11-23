@@ -11,6 +11,7 @@ import {
     readFileSync,
     readdirSync,
     rmSync,
+    statSync,
     writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -21,6 +22,10 @@ import {
     MOCK_EXPIRED_SESSION_DATA,
 } from '../../fixtures/mock-data'
 import type { AsyncMockFn } from '../../fixtures/mock-types'
+
+// The live module object (not an import namespace) so jest.spyOn can patch it.
+const fsPromises =
+    jest.requireActual<typeof import('node:fs/promises')>('node:fs/promises')
 
 const mockRedisClient = {
     isHealthy: jest.fn(() => true),
@@ -290,6 +295,9 @@ describe('SessionService', () => {
             expect(raw).not.toContain(MOCK_SESSION_DATA.accessToken)
             expect(raw).not.toContain(MOCK_SESSION_DATA.refreshToken)
             expect(readdirSync(join(dir, 'nested'))).toEqual(['sessions.json'])
+            if (process.platform !== 'win32') {
+                expect(statSync(sessionFile).mode & 0o777).toBe(0o600)
+            }
 
             const reloaded = new SessionService({ sessionFile })
             expect(await reloaded.getSession(MOCK_SESSION_ID)).toEqual(
@@ -297,8 +305,35 @@ describe('SessionService', () => {
             )
         })
 
+        test('keeps the previous file intact when a write fails', async () => {
+            const service = new SessionService({ sessionFile })
+            await service.setSession('a', MOCK_SESSION_DATA)
+            const before = readFileSync(sessionFile, 'utf-8')
+            const renameSpy = jest
+                .spyOn(fsPromises, 'rename')
+                .mockRejectedValueOnce(new Error('disk full'))
+
+            await service.setSession('b', MOCK_SESSION_DATA)
+
+            renameSpy.mockRestore()
+            expect(readFileSync(sessionFile, 'utf-8')).toBe(before)
+            expect(readdirSync(join(dir, 'nested'))).toEqual(['sessions.json'])
+        })
+
         test('keeps the last write when writes overlap', async () => {
             const service = new SessionService({ sessionFile })
+            const realRename = fsPromises.rename
+            let calls = 0
+            // Delay the first rename so an unserialized writer would finish it
+            // last and leave the oldest snapshot on disk.
+            const renameSpy = jest
+                .spyOn(fsPromises, 'rename')
+                .mockImplementation(async (from, to) => {
+                    if (calls++ === 0) {
+                        await new Promise((resolve) => setTimeout(resolve, 50))
+                    }
+                    return realRename(from, to)
+                })
 
             await Promise.all([
                 service.setSession('a', MOCK_SESSION_DATA),
@@ -310,7 +345,38 @@ describe('SessionService', () => {
                 string,
                 string,
             ][]
+            renameSpy.mockRestore()
             expect(entries.map(([key]) => key)).toEqual(['webapp:session:b'])
+        })
+
+        test('drops malformed entries without failing startup', async () => {
+            const file = join(dir, 'sessions.json')
+            writeFileSync(
+                file,
+                JSON.stringify([
+                    null,
+                    ['only-key'],
+                    [
+                        `webapp:session:${MOCK_SESSION_ID}`,
+                        JSON.stringify(MOCK_SESSION_DATA),
+                    ],
+                ]),
+            )
+
+            const service = new SessionService({ sessionFile: file })
+
+            expect(await service.getSession(MOCK_SESSION_ID)).toEqual(
+                MOCK_SESSION_DATA,
+            )
+        })
+
+        test('ignores a sessions file that is not an array', () => {
+            const file = join(dir, 'sessions.json')
+            writeFileSync(file, JSON.stringify({ not: 'an array' }))
+
+            expect(
+                () => new SessionService({ sessionFile: file }),
+            ).not.toThrow()
         })
 
         test('reads a legacy plaintext file and re-encrypts it on write', async () => {
@@ -330,7 +396,8 @@ describe('SessionService', () => {
                 MOCK_SESSION_DATA,
             )
 
-            await service.setSession('other', MOCK_SESSION_DATA)
+            // The re-seal is persisted at startup; a no-op delete waits for it.
+            await service.deleteSession('missing')
 
             const raw = readFileSync(legacyFile, 'utf-8')
             expect(raw).not.toContain(MOCK_SESSION_DATA.accessToken)

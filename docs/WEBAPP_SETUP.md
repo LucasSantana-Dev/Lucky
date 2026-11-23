@@ -65,7 +65,8 @@ WEBAPP_PORT=3000
 WEBAPP_FRONTEND_URL=http://localhost:5173
 WEBAPP_BACKEND_URL=http://localhost:3000
 WEBAPP_SESSION_SECRET=your_random_session_secret_here
-SESSION_TOKEN_KEY=your_token_key_here
+# Optional in development, required in production: openssl rand -base64 32
+# SESSION_TOKEN_KEY=
 
 # Developer Access
 DEVELOPER_USER_IDS=user_id_1,user_id_2

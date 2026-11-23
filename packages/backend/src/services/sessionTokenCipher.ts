@@ -10,6 +10,7 @@ import { warnLog } from '@lucky/shared/utils'
  */
 
 const PREFIX = 'enc:v1:'
+const SEALED_MARKER = 'enc:'
 const ALGORITHM = 'aes-256-gcm'
 const KEY_BYTES = 32
 const IV_BYTES = 12
@@ -20,9 +21,10 @@ export const SESSION_TOKEN_KEY_ENV = 'SESSION_TOKEN_KEY'
 /**
  * Reads the token key from the environment.
  *
- * Production refuses to start without a key (same policy as
- * WEBAPP_SESSION_SECRET). Elsewhere a missing key logs a warning and tokens
- * are stored unencrypted. A key that is set but not 32 bytes always throws.
+ * Production refuses to start without a key. In development and test a
+ * missing key logs a warning and tokens are stored unencrypted (unlike
+ * WEBAPP_SESSION_SECRET, which is required everywhere). A key that is set but
+ * not 32 bytes always throws.
  */
 export function loadSessionTokenKey(
     env: NodeJS.ProcessEnv = process.env,
@@ -61,9 +63,25 @@ export function encryptToken(plaintext: string, key: Buffer): string {
     return `${PREFIX}${iv.toString('base64')}.${tag.toString('base64')}.${data.toString('base64')}`
 }
 
+function decodeBase64Strict(part: string | undefined, bytes?: number): Buffer {
+    const decoded = Buffer.from(part ?? '', 'base64')
+    const canonical =
+        part !== undefined &&
+        part.length > 0 &&
+        decoded.toString('base64') === part &&
+        (bytes === undefined || decoded.length === bytes)
+    if (!canonical) {
+        throw new Error('Malformed encrypted session token')
+    }
+    return decoded
+}
+
 export function decryptToken(value: string, key: Buffer | null): string {
-    if (!value.startsWith(PREFIX)) {
+    if (!value.startsWith(SEALED_MARKER)) {
         return value
+    }
+    if (!value.startsWith(PREFIX)) {
+        throw new Error('Unsupported encrypted session token version')
     }
     if (!key) {
         throw new Error(
@@ -71,22 +89,23 @@ export function decryptToken(value: string, key: Buffer | null): string {
         )
     }
 
-    const [iv, tag, data] = value.slice(PREFIX.length).split('.')
-    if (!iv || !tag || data === undefined) {
+    const parts = value.slice(PREFIX.length).split('.')
+    if (parts.length !== 3) {
         throw new Error('Malformed encrypted session token')
     }
+    const iv = decodeBase64Strict(parts[0], IV_BYTES)
+    const tag = decodeBase64Strict(parts[1], TAG_BYTES)
+    const data = decodeBase64Strict(parts[2])
 
-    const decipher = createDecipheriv(
-        ALGORITHM,
-        key,
-        Buffer.from(iv, 'base64'),
-        {
-            authTagLength: TAG_BYTES,
-        },
+    const decipher = createDecipheriv(ALGORITHM, key, iv, {
+        authTagLength: TAG_BYTES,
+    })
+    decipher.setAuthTag(tag)
+    return Buffer.concat([decipher.update(data), decipher.final()]).toString(
+        'utf8',
     )
-    decipher.setAuthTag(Buffer.from(tag, 'base64'))
-    return Buffer.concat([
-        decipher.update(Buffer.from(data, 'base64')),
-        decipher.final(),
-    ]).toString('utf8')
+}
+
+export function isSealedToken(value: string): boolean {
+    return value.startsWith(PREFIX)
 }
