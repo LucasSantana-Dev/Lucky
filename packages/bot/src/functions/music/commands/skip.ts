@@ -27,6 +27,35 @@ import {
 } from '../../../services/musicRecommendation/autoplayFeedbackPrompt'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
+// A second /skip that resolves while the first is still switching tracks
+// sees the same currentTrack; without this it would skip the next song too.
+const SKIP_DEDUPE_MS = 5_000
+const recentSkips = new Map<string, { track: unknown; at: number }>()
+
+function claimSkip(guildId: string, track: unknown): boolean {
+    const last = recentSkips.get(guildId)
+    const now = Date.now()
+    if (last && last.track === track && now - last.at < SKIP_DEDUPE_MS)
+        return false
+    recentSkips.set(guildId, { track, at: now })
+    return true
+}
+
+async function promptFeedbackSafely(
+    interaction: ChatInputCommandInteraction,
+    skippedAutoplay: ReturnType<typeof captureAutoplayTrack>,
+): Promise<void> {
+    try {
+        await maybePromptAutoplayFeedback(interaction, skippedAutoplay)
+    } catch (error) {
+        // The skip already worked; a failed prompt must not report an error.
+        errorLog({
+            message: 'Autoplay feedback prompt failed after skip',
+            error,
+        })
+    }
+}
+
 async function skipCurrentSong(
     queue: GuildQueue,
     guildId: string,
@@ -147,15 +176,35 @@ export default new Command({
             })
         }
 
+        const guildId = interaction.guildId ?? ''
+        // No await between the claim and node.skip(), so a concurrent /skip
+        // on the same track is refused instead of skipping the next song.
+        if (!claimSkip(guildId, queue.currentTrack)) {
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createSuccessEmbed(
+                            '⏭️ Song skipped',
+                            'That song was already skipped.',
+                        ),
+                    ],
+                },
+            })
+            return
+        }
+
         // Before the skip: afterwards currentTrack is the next song.
         const skippedAutoplay = captureAutoplayTrack(queue.currentTrack)
 
         try {
-            await skipCurrentSong(queue, interaction.guildId ?? '')
+            await skipCurrentSong(queue, guildId)
             await sendSkipSuccess(interaction, queue)
-            await maybePromptAutoplayFeedback(interaction, skippedAutoplay)
         } catch (error) {
+            recentSkips.delete(guildId)
             await handleSkipError(error, interaction)
+            return
         }
+        await promptFeedbackSafely(interaction, skippedAutoplay)
     },
 })

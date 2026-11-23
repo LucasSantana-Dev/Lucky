@@ -1880,6 +1880,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(bot): `/skip` no longer reports an error when only the autoplay feedback prompt fails after a successful skip, and two `/skip` calls racing on the same song skip it once instead of also skipping the next one (#3279)
 - fix(bot): the `/skip` "DJ Only" refusal is private again: the DJ check runs before the public defer, so only the member who tried sees it (#3278)
 - fix(backend): Discord OAuth tokens in webapp sessions are encrypted at rest (AES-256-GCM, new `SESSION_TOKEN_KEY`, required in production), and the session file fallback now writes asynchronously and atomically
 - fix(backend): editing, toggling or deleting an auto message from the dashboard only works on that guild's own messages; an id from another guild returns not found

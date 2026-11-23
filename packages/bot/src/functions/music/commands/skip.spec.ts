@@ -343,4 +343,41 @@ describe('skip command', () => {
 
         expect(maybePromptAutoplayFeedbackMock).not.toHaveBeenCalled()
     })
+
+    it('does not report an error when only the feedback prompt fails (#3279)', async () => {
+        maybePromptAutoplayFeedbackMock.mockRejectedValueOnce(new Error('dm'))
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+
+        expect(queue.node.skip).toHaveBeenCalledTimes(1)
+        expect(buildCommandTrackEmbedMock).toHaveBeenCalled()
+        expect(createErrorEmbedMock).not.toHaveBeenCalled()
+    })
+
+    it('skips once when two /skip calls race on the same track (#3279)', async () => {
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await Promise.all([
+            skipCommand.execute({
+                interaction: createInteraction('guild-1'),
+                client: {} as any,
+            }),
+            skipCommand.execute({
+                interaction: createInteraction('guild-1'),
+                client: {} as any,
+            }),
+        ])
+
+        expect(queue.node.skip).toHaveBeenCalledTimes(1)
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.stringContaining('already skipped'),
+        )
+    })
 })
