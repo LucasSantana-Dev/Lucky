@@ -162,7 +162,10 @@ export function setupMiddleware(app: Express): void {
             },
         }),
     )
-    app.use(express.urlencoded({ extended: true }))
+    // No global urlencoded parser: no route reads form-encoded bodies, so a
+    // forged urlencoded form post arrives with no fields even if it got past
+    // the origin check. Uploads (support, reaction-role images) parse
+    // multipart/form-data with route-scoped multer instead.
     app.use(cookieParser())
     setupSessionMiddleware(app)
 

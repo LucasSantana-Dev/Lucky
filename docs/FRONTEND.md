@@ -829,7 +829,7 @@ Response: {
 #### Logout
 
 ```typescript
-GET /api/auth/logout
+POST /api/auth/logout
 Response: void
 ```
 

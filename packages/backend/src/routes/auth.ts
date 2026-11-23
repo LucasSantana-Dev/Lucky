@@ -77,7 +77,10 @@ export function setupAuthRoutes(app: Express): void {
 
     app.get('/api/auth/callback', handleOAuthCallback)
 
-    app.get(
+    // POST, not GET: a GET carries no Origin header from an <img> or link on
+    // another site, so the CORS origin check could not stop a forced logout
+    // (decisions/2026-06-05-csrf-posture.md, amendment 2026-11-22).
+    app.post(
         '/api/auth/logout',
         requireAuth,
         asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
