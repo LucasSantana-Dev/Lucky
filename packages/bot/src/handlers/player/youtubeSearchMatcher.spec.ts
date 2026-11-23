@@ -1,5 +1,6 @@
 import {
     pickYouTubeCandidate,
+    missingVersionMarkers,
     requestedVersionMarkers,
     youtubeWatchUrl,
 } from './youtubeSearchMatcher'
@@ -329,5 +330,19 @@ describe('requestedVersionMarkers (#3276)', () => {
         ['Song', []],
     ])('reads %j', (title, markers) => {
         expect(requestedVersionMarkers(title)).toEqual(markers)
+    })
+})
+
+describe('missingVersionMarkers (#3276)', () => {
+    it('matches whole words, not substrings', () => {
+        expect(
+            missingVersionMarkers('Deliver Me - Live', 'Deliver Me Artist'),
+        ).toEqual(['live'])
+    })
+
+    it('folds accents when the query already carries the word', () => {
+        expect(
+            missingVersionMarkers('Song (Acústico)', 'Song Acústico Artist'),
+        ).toEqual([])
     })
 })

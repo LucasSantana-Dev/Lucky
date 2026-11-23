@@ -35,7 +35,7 @@ import { isHostedYoutubeEnabled } from '../../config/featureFlags'
 import { extractYouTubeVideoId } from '../../services/musicRecommendation/autoplay/scoringUtils'
 import {
     pickYouTubeCandidate,
-    requestedVersionMarkers,
+    missingVersionMarkers,
     youtubeWatchUrl,
     type RejectedYouTubeCandidate,
     type ScoredYouTubeCandidate,
@@ -413,11 +413,7 @@ function buildBroadYtQuery(
         leadArtist,
     )
     if (!query) return query
-    const lower = query.toLowerCase()
-    const missing = requestedVersionMarkers(sourceTitle).filter(
-        (marker) => !lower.includes(marker),
-    )
-    return [query, ...missing].join(' ')
+    return [query, ...missingVersionMarkers(sourceTitle, query)].join(' ')
 }
 
 async function attemptBroadYtDlpSearch(

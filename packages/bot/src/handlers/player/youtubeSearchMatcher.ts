@@ -141,6 +141,21 @@ export function requestedVersionMarkers(sourceTitle: string): string[] {
     )
 }
 
+/**
+ * The requested version words a search query lacks, matched as whole words
+ * with accents folded: "Deliver Me - Live" still needs "live", and
+ * "acústico" in the query already counts as "acustico".
+ */
+export function missingVersionMarkers(
+    sourceTitle: string,
+    query: string,
+): string[] {
+    const queryNorm = normalize(query)
+    return requestedVersionMarkers(sourceTitle).filter(
+        (m) => !hasPhrase(queryNorm, m),
+    )
+}
+
 type MatchContext = {
     gateTokens: string[]
     fullTokens: string[]

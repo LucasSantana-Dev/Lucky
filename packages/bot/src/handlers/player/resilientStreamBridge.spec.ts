@@ -1459,8 +1459,10 @@ describe('empty YouTube search retry', () => {
     })
 
     // #3276: "Duvet - Acoustic" by bôa (5:14, prod 2026-11-22). cleanTitle
-    // drops the version suffix, both searches found only the 3:24 original,
-    // and the play failed while "bôa - Duvet (Acoustic)" was on YouTube.
+    // drops the version suffix, so in prod both searches found only the
+    // original (3:24 to 3:33) and the play failed. Here the primary search
+    // returns that original, and the broad one, now asking for "acoustic",
+    // returns "bôa - Duvet (Acoustic)".
     it('puts the version the Spotify title asks for back into the broad query', async () => {
         mockCleanTitle.mockReturnValue('Duvet')
         mockCleanAuthor.mockReturnValue('bôa')
