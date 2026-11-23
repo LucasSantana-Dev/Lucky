@@ -312,7 +312,12 @@ function isCrossLocale(
     if (seedArtist && primaryArtistKey(candidate.author) === seedArtist)
         return false
     const seedText = `${currentTrack.title ?? ''} ${currentTrack.author ?? ''}`
-    return !detectSpanishMarkers(seedText, currentTrackTags)
+    // A bare "latin" tag also lands on Brazilian artists, so it is no proof
+    // that the seed is Spanish: only language-specific tags count here.
+    const seedTags = currentTrackTags.filter(
+        (tag) => tag.trim().toLowerCase() !== 'latin',
+    )
+    return !detectSpanishMarkers(seedText, seedTags)
 }
 
 export function calculateRecommendationScore(ctx: ScoringContext): {

@@ -321,6 +321,42 @@ describe('candidateScorer', () => {
                 expect(result.veto).toBeUndefined()
             })
 
+            it('keeps a Latin candidate when only the seed title reads Spanish', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Me Rehúso',
+                        author: 'Danny Ocean',
+                    }),
+                    currentTrack: createTrack({
+                        title: 'KAROL G - Mañana Será Bonito',
+                        author: 'KAROL G',
+                    }),
+                    recentArtists: new Set(),
+                    autoplayMode: 'similar',
+                    sessionMood: emptyHistoryMood,
+                    genreContext: { candidateTags: ['latin pop'] },
+                })
+                expect(result.veto).toBeUndefined()
+            })
+
+            it('does not count a bare latin tag on the seed as Spanish', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Me Rehúso',
+                        author: 'Danny Ocean',
+                    }),
+                    currentTrack: createTrack({ author: 'Racionais MCs' }),
+                    recentArtists: new Set(),
+                    autoplayMode: 'similar',
+                    sessionMood: emptyHistoryMood,
+                    genreContext: {
+                        candidateTags: ['latin pop'],
+                        currentTrackTags: ['latin', 'brazilian rap'],
+                    },
+                })
+                expect(result.veto).toBe('cross-locale')
+            })
+
             it('still rejects a Latin candidate on a non-Latin playing track', () => {
                 const result = calculateRecommendationScore({
                     candidate: createTrack({

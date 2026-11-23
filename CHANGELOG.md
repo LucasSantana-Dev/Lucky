@@ -1881,7 +1881,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - fix(bot): `/voteskip` counts only votes from members still in the voice channel, so a voter who left no longer helps pass the skip (#3267)
-- fix(bot): autoplay no longer stalls on a fresh or restored Latin session: the cross-locale veto now lets through the playing artist's own tracks and Latin candidates when the playing track itself reads Spanish (by title or Last.fm tags), instead of rejecting every Spanish candidate whenever the session history is still empty (#3277)
+- fix(bot): autoplay no longer rejects every Spanish candidate while the session history is still empty: the cross-locale veto now lets through the playing artist's own tracks, and Latin candidates when the playing track itself reads Spanish (by title or a language-specific Last.fm tag). A restored session where every source returns nothing can still stall (#3277)
 - fix(backend): Discord OAuth tokens in webapp sessions are encrypted at rest (AES-256-GCM, new `SESSION_TOKEN_KEY`, required in production), and the session file fallback now writes asynchronously and atomically
 - fix(backend): editing, toggling or deleting an auto message from the dashboard only works on that guild's own messages; an id from another guild returns not found
 - fix(backend,bot): Twitch notifications and auto messages only accept a channel from the same guild; the dashboard refuses another guild's channel and the bot skips stored notifications that point outside their guild
