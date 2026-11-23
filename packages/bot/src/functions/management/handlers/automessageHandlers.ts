@@ -10,6 +10,34 @@ async function getMessageByType(guildId: string, type: MessageType) {
     return null
 }
 
+type ExistingMessage = { id: string; guildId: string }
+type MessageUpdate = { enabled: boolean; message?: string; channelId?: string }
+
+/**
+ * Updates the stored message. When it was deleted in the meantime, tells the
+ * user and returns false so no success embed is sent.
+ */
+async function updateExisting(
+    interaction: ChatInputCommandInteraction,
+    existing: ExistingMessage,
+    data: MessageUpdate,
+): Promise<boolean> {
+    const updated = await autoMessageService.updateMessage(
+        existing.guildId,
+        existing.id,
+        data,
+    )
+    if (updated) return true
+    await interactionReply({
+        interaction,
+        content: {
+            content:
+                '❌ This message was removed while saving. Please run the command again.',
+        },
+    })
+    return false
+}
+
 export async function handleAutoMessageConfig(
     interaction: ChatInputCommandInteraction,
     type: MessageType,
@@ -41,15 +69,12 @@ export async function handleAutoMessageConfig(
             type,
         )
         if (existing) {
-            await autoMessageService.updateMessage(
-                existing.guildId,
-                existing.id,
-                {
-                    enabled: true,
-                    message,
-                    channelId: channel.id,
-                },
-            )
+            const saved = await updateExisting(interaction, existing, {
+                enabled: true,
+                message,
+                channelId: channel.id,
+            })
+            if (!saved) return
         } else {
             await autoMessageService.createMessage(
                 assertDefined(interaction.guild, 'Guild required for handler')
@@ -65,15 +90,12 @@ export async function handleAutoMessageConfig(
             type,
         )
         if (existing) {
-            await autoMessageService.updateMessage(
-                existing.guildId,
-                existing.id,
-                {
-                    enabled: true,
-                    ...(message && { message }),
-                    ...(channel && { channelId: channel.id }),
-                },
-            )
+            const saved = await updateExisting(interaction, existing, {
+                enabled: true,
+                ...(message && { message }),
+                ...(channel && { channelId: channel.id }),
+            })
+            if (!saved) return
         } else {
             await interactionReply({
                 interaction,
@@ -89,14 +111,11 @@ export async function handleAutoMessageConfig(
             assertDefined(interaction.guild, 'Guild required for handler').id,
             type,
         )
-        if (existing)
-            await autoMessageService.updateMessage(
-                existing.guildId,
-                existing.id,
-                {
-                    enabled: false,
-                },
-            )
+        if (
+            existing &&
+            !(await updateExisting(interaction, existing, { enabled: false }))
+        )
+            return
     }
 
     const embed = new EmbedBuilder()

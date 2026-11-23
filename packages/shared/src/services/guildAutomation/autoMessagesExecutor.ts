@@ -146,11 +146,20 @@ export function createAutoMessagesExecutor(deps: {
                         continue
                     }
                     if (op.kind === 'update') {
-                        await svc.updateMessage(ctx.guildId, op.id, {
-                            message: op.message,
-                            channelId: op.channelId,
-                            enabled: op.enabled,
-                        })
+                        const updated = await svc.updateMessage(
+                            ctx.guildId,
+                            op.id,
+                            {
+                                message: op.message,
+                                channelId: op.channelId,
+                                enabled: op.enabled,
+                            },
+                        )
+                        if (!updated) {
+                            throw new Error(
+                                `Auto message ${op.id} no longer exists`,
+                            )
+                        }
                         applied.push({ type: op.type, action: 'update' })
                         continue
                     }

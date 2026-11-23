@@ -26,6 +26,16 @@ export interface AutoMessageData {
     embedData?: EmbedData
 }
 
+/**
+ * Column updates for an existing auto message. Relation writes and moving a
+ * message to another guild are excluded, so a not-found error from an update
+ * can only mean the target row itself is missing.
+ */
+export type AutoMessageUpdate = Omit<
+    Prisma.AutoMessageUncheckedUpdateInput,
+    'id' | 'guildId'
+>
+
 type AutoMessageOptions = {
     trigger?: string
     exactMatch?: boolean
@@ -175,11 +185,7 @@ export class AutoMessageService {
      * Update a message in a guild. Returns null when no message with this id
      * exists in that guild (the id and guild are matched in one query).
      */
-    async updateMessage(
-        guildId: string,
-        id: string,
-        data: Prisma.AutoMessageUpdateInput,
-    ) {
+    async updateMessage(guildId: string, id: string, data: AutoMessageUpdate) {
         return await nullIfNotFound(
             prisma.autoMessage.update({ where: { id, guildId }, data }),
         )
