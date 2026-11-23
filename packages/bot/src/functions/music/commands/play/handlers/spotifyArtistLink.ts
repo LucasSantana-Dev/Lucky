@@ -3,6 +3,7 @@ import { getSpotifyArtist, getSpotifyClientToken } from '@lucky/shared/utils'
 import type { CustomClient } from '../../../../../types/CustomClient'
 import { createErrorEmbed } from '../../../../../utils/general/embeds'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
+import { markCommandOutcome } from '../../../../../utils/monitoring/commandOutcome'
 import { queueArtistTopTracks } from '../../artist'
 import type { CollaborativeReservation } from './collaborativeLimit'
 
@@ -19,7 +20,9 @@ export function spotifyArtistId(query: string): string | null {
     } catch {
         return null
     }
-    if (url.hostname.toLowerCase() !== 'open.spotify.com') return null
+    // A fully qualified host keeps its trailing root dot in URL.hostname.
+    const host = url.hostname.toLowerCase().replace(/\.$/, '')
+    if (host !== 'open.spotify.com') return null
     const match = /^\/(?:intl-[a-z-]+\/)?artist\/([A-Za-z0-9]+)\/?$/i.exec(
         url.pathname,
     )
@@ -30,6 +33,7 @@ async function replyArtistLinkError(
     interaction: ChatInputCommandInteraction,
     message: string,
 ): Promise<void> {
+    markCommandOutcome(interaction, { outcome: 'user_error' })
     await interactionReply({
         interaction,
         content: { embeds: [createErrorEmbed('Spotify artist', message)] },

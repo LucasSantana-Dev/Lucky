@@ -1872,13 +1872,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- feat(bot): `/play` expands Spotify share links (`spotify.link`, `spotify.app.link`) to the open.spotify.com link, and a Spotify artist link queues that artist's top tracks like `/artist` instead of replying that the link is not supported
 - feat(bot): when a new song starts and 5 or more messages have buried the music controls, the bot posts them again at the bottom and takes the buttons off the old message (it is never deleted); in a quiet channel it still updates the same message (#3057)
 - feat(bot): `/play` queues a whole album when asked for one ("album esquinas anavitória completo"): it finds the Spotify album whose name is in the request and plays all its tracks, and falls back to the normal song search when none matches (#3053)
 - feat(bot): the bot posts its public slash commands to discordbotlist.com once per start (with `DISCORDBOTLIST_TOKEN`), so its listing page shows the command list, retrying each 30-minute tick until the site accepts it (#3015)
 - feat(bot): the server count is also posted to discordbotlist.com and discord.bots.gg every 30 minutes, each enabled by its own `DISCORDBOTLIST_TOKEN` / `DISCORD_BOTS_GG_TOKEN`, with one info log and no requests when neither is set (#2751)
 - feat(bot): music messages are compact: `/play`, now playing, `/skip`-style replies and stream failures are one line each, `/queue` is a single card with a "N songs in queue • Total duration" footer, the now-playing message has one button row with a "More" button for the full controls, and skip-reason reactions only appear on autoplay picks; the `/play` reply, now-playing message, `/queue` card and failure notices follow the server language (en, es, pt-BR), while the `/skip`-style status labels stay English for now (#3009) (#3007)
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
+- feat(bot): `/play` expands Spotify share links (`spotify.link`, `spotify.app.link`) to the open.spotify.com link, and a Spotify artist link queues that artist's top tracks like `/artist` instead of replying that the link is not supported
 
 ### Fixed
 - fix(bot): SoundCloud results whose audio is DRM encrypted are skipped before matching, so the bridge no longer spends a yt-dlp attempt on an upload that can never play (#3281)

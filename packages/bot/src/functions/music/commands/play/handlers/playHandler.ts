@@ -644,7 +644,9 @@ export async function executePlayHandler({
     if (!reservation) return
     const query = await prepareQuery(rawQuery, provider)
 
-    const artistId = spotifyArtistId(query)
+    // A YouTube or SoundCloud provider choice keeps its own search.
+    const artistId =
+        provider && provider !== 'spotify' ? null : spotifyArtistId(query)
     if (artistId) {
         try {
             await playSpotifyArtistLink({

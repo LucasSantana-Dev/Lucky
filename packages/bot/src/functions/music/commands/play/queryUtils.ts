@@ -115,27 +115,49 @@ function findTargetInPage(page: string, rule: ShortLinkRule): string | null {
     return null
 }
 
+const MAX_SHORT_LINK_HOPS = 5
+
+/**
+ * Follows the short link one redirect at a time and checks every `Location`
+ * before requesting it: only the rule's short hosts are ever fetched, and the
+ * first target-host URL is returned without fetching it. Following redirects
+ * blindly would let a crafted short link make the bot request any URL,
+ * including internal ones.
+ */
 async function resolveShortLink(
     url: string,
     rule: ShortLinkRule,
 ): Promise<string> {
-    const response = await (global.fetch as typeof fetch)(url, {
-        method: rule.method,
-        redirect: 'follow',
-    })
-    const finalHost = hostOf(response.url)
-    if (finalHost && rule.isTargetHost(finalHost)) return response.url
+    let current = url
+    for (let hop = 0; hop < MAX_SHORT_LINK_HOPS; hop++) {
+        const response = await (global.fetch as typeof fetch)(current, {
+            method: rule.method,
+            redirect: 'manual',
+        })
+        const location = response.headers?.get('location')
+        if (response.status >= 300 && response.status < 400 && location) {
+            const next = new URL(location, current).toString()
+            const nextHost = hostOf(next)
+            if (nextHost && rule.isTargetHost(nextHost)) return next
+            if (!nextHost || !rule.shortHosts.includes(nextHost)) {
+                throw new Error(
+                    `Redirect destination is not a ${rule.label} URL: ${next}`,
+                )
+            }
+            current = next
+            continue
+        }
 
-    const fromPage =
-        rule.method === 'GET'
-            ? findTargetInPage(await response.text(), rule)
-            : null
-    if (fromPage) return fromPage
-
-    // Redirect went somewhere unexpected: reject and fall back
-    throw new Error(
-        `Redirect destination is not a ${rule.label} URL: ${response.url}`,
-    )
+        const fromPage =
+            rule.method === 'GET'
+                ? findTargetInPage(await response.text(), rule)
+                : null
+        if (fromPage) return fromPage
+        throw new Error(
+            `${rule.label} short link did not redirect (status ${response.status})`,
+        )
+    }
+    throw new Error(`${rule.label} short link redirected too many times`)
 }
 
 /**
@@ -143,8 +165,8 @@ async function resolveShortLink(
  * Returns the original URL when it is not one of the rule's short links or
  * when expansion fails.
  *
- * Security: only the rule's exact short hosts are requested, and the result
- * must land on one of its target hosts.
+ * Security: only the rule's exact short hosts are requested, redirects are
+ * checked hop by hop, and the result must land on one of its target hosts.
  */
 async function expandShortLink(
     url: string,

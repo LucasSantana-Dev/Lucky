@@ -43,6 +43,10 @@ import { isHostedYoutubeEnabled } from '../../../config/featureFlags'
 import type { CustomClient } from '../../../types/CustomClient'
 import { QUEUE_LEAVE_OPTIONS } from '../../../services/musicManagement/queueLeaveOptions'
 import { AsmrBlockedError, isAsmrTrack } from '../../../utils/music/asmrFilter'
+import {
+    classifyOutcome,
+    markCommandOutcome,
+} from '../../../utils/monitoring/commandOutcome'
 
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 20
@@ -282,6 +286,18 @@ function pickArtistTracks(
         .slice(0, limit)
 }
 
+/** Replies that nothing playable was found; a user error, not a failure. */
+async function replyNoArtistResults(
+    interaction: ChatInputCommandInteraction,
+    message: string,
+): Promise<void> {
+    markCommandOutcome(interaction, { outcome: 'user_error' })
+    await interactionReply({
+        interaction,
+        content: { embeds: [createErrorEmbed('No results', message)] },
+    })
+}
+
 async function reportArtistError(
     interaction: ChatInputCommandInteraction,
     artistName: string,
@@ -289,6 +305,7 @@ async function reportArtistError(
     error: unknown,
 ): Promise<void> {
     if (isUnknownInteractionError(error)) return
+    markCommandOutcome(interaction, classifyOutcome({ error }))
     errorLog({
         message: 'Artist command error:',
         error,
@@ -334,17 +351,10 @@ export async function queueArtistTopTracks({
     try {
         const found = await searchArtistArms(client, interaction, artistName)
         if (!found) {
-            await interactionReply({
+            await replyNoArtistResults(
                 interaction,
-                content: {
-                    embeds: [
-                        createErrorEmbed(
-                            'No results',
-                            `No tracks found for artist **${artistName}**.`,
-                        ),
-                    ],
-                },
-            })
+                `No tracks found for artist **${artistName}**.`,
+            )
             return
         }
 
@@ -362,17 +372,10 @@ export async function queueArtistTopTracks({
 
         const firstTrack = tracks[0]
         if (!firstTrack) {
-            await interactionReply({
+            await replyNoArtistResults(
                 interaction,
-                content: {
-                    embeds: [
-                        createErrorEmbed(
-                            'No results',
-                            new AsmrBlockedError().message,
-                        ),
-                    ],
-                },
-            })
+                new AsmrBlockedError().message,
+            )
             return
         }
 
@@ -401,6 +404,10 @@ export async function queueArtistTopTracks({
 
         const { queue } = resolveGuildQueue(client, guildId)
         if (!queue) {
+            markCommandOutcome(interaction, {
+                outcome: 'error',
+                errorClass: 'QueueUnavailable',
+            })
             await interactionReply({
                 interaction,
                 content: {

@@ -22,6 +22,7 @@ jest.mock('../../../../../utils/general/embeds', () => ({
 }))
 
 import { playSpotifyArtistLink, spotifyArtistId } from './spotifyArtistLink'
+import { takeCommandOutcome } from '../../../../../utils/monitoring/commandOutcome'
 
 describe('spotifyArtistId (#3274)', () => {
     it.each([
@@ -34,6 +35,7 @@ describe('spotifyArtistId (#3274)', () => {
             '0oSGxfWSnnOXhD2fKuz2Gy',
         ],
         ['  https://open.spotify.com/artist/abc123  ', 'abc123'],
+        ['https://open.spotify.com./artist/abc123', 'abc123'],
     ])('reads the id from %s', (url, id) => {
         expect(spotifyArtistId(url)).toBe(id)
     })
@@ -102,12 +104,16 @@ describe('playSpotifyArtistLink (#3274)', () => {
         )
     })
 
-    it('says so when the artist is not found', async () => {
+    it('says so when the artist is not found, as a user error', async () => {
         getSpotifyArtistMock.mockResolvedValue(null)
+        const interaction = { guildId: 'guild-1' } as never
 
-        await playSpotifyArtistLink(params)
+        await playSpotifyArtistLink({ ...params, interaction })
 
         expect(queueArtistTopTracksMock).not.toHaveBeenCalled()
         expect(interactionReplyMock).toHaveBeenCalled()
+        expect(takeCommandOutcome(interaction)).toEqual({
+            outcome: 'user_error',
+        })
     })
 })

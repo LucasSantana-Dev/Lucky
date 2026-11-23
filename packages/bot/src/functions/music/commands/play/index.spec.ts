@@ -292,6 +292,22 @@ describe('play command', () => {
         expect(client.player.play).not.toHaveBeenCalled()
     })
 
+    it('keeps a YouTube provider choice for a Spotify artist link (#3274)', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.options.getString = jest.fn((name: string) =>
+            name === 'query'
+                ? 'https://open.spotify.com/artist/0oSGxfWSnnOXhD2fKuz2Gy'
+                : 'youtube',
+        )
+        const client = createClient(async () => {
+            throw new Error('no results')
+        })
+
+        await playCommand.execute({ client, interaction } as any)
+
+        expect(playSpotifyArtistLinkMock).not.toHaveBeenCalled()
+    })
+
     it('rejects when collaborative limit reached', async () => {
         const interaction = createInteraction('guild-1')
         canAddTracksMock.mockReturnValue({

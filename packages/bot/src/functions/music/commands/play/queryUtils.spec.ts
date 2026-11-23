@@ -71,6 +71,15 @@ Object.defineProperty(global, 'fetch', {
     value: fetchMock,
 })
 
+function redirectTo(location: string) {
+    return {
+        status: 301,
+        headers: {
+            get: (name: string) => (name === 'location' ? location : null),
+        },
+    }
+}
+
 // Don't mock withTimeout - let it work with the real implementation
 // which will properly await and resolve promises
 
@@ -256,16 +265,14 @@ describe('expandSoundCloudShortUrl', () => {
         const shortUrl = 'https://on.soundcloud.com/abc123'
         const fullUrl = 'https://soundcloud.com/artist/track'
 
-        fetchMock.mockResolvedValueOnce({
-            url: fullUrl,
-        })
+        fetchMock.mockResolvedValueOnce(redirectTo(fullUrl))
 
         const result = await expandSoundCloudShortUrl(shortUrl)
 
         expect(result).toBe(fullUrl)
         expect(fetchMock).toHaveBeenCalledWith(shortUrl, {
             method: 'HEAD',
-            redirect: 'follow',
+            redirect: 'manual',
         })
     })
 
@@ -280,9 +287,7 @@ describe('expandSoundCloudShortUrl', () => {
         const shortUrl = 'https://on.soundcloud.com/abc123'
         const suspiciousUrl = 'https://attacker.com/malware'
 
-        fetchMock.mockResolvedValueOnce({
-            url: suspiciousUrl,
-        })
+        fetchMock.mockResolvedValueOnce(redirectTo(suspiciousUrl))
 
         const result = await expandSoundCloudShortUrl(shortUrl)
 
@@ -308,9 +313,7 @@ describe('expandSoundCloudShortUrl', () => {
         const shortUrl = 'https://on.soundcloud.com/abc123'
         const bypassUrl = 'https://soundcloud.com.attacker.com/x'
 
-        fetchMock.mockResolvedValueOnce({
-            url: bypassUrl,
-        })
+        fetchMock.mockResolvedValueOnce(redirectTo(bypassUrl))
 
         const result = await expandSoundCloudShortUrl(shortUrl)
 
@@ -333,23 +336,26 @@ describe('expandSpotifyShortUrl (#3274)', () => {
     it.each(['https://spotify.link/AbC123', 'https://spotify.app.link/AbC123'])(
         'follows the redirect of %s to open.spotify.com',
         async (shortUrl) => {
-            fetchMock.mockResolvedValueOnce({
-                url: 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=x',
-            })
+            fetchMock.mockResolvedValueOnce(
+                redirectTo(
+                    'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=x',
+                ),
+            )
 
             await expect(expandSpotifyShortUrl(shortUrl)).resolves.toBe(
                 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=x',
             )
             expect(fetchMock).toHaveBeenCalledWith(
                 shortUrl,
-                expect.objectContaining({ redirect: 'follow' }),
+                expect.objectContaining({ redirect: 'manual' }),
             )
         },
     )
 
     it('reads the open.spotify.com link from the page when there is no redirect', async () => {
         fetchMock.mockResolvedValueOnce({
-            url: 'https://spotify.link/AbC123',
+            status: 200,
+            headers: { get: () => null },
             text: async () =>
                 '<html><meta property="og:url" content="https://open.spotify.com/artist/0oSGxfWSnnOXhD2fKuz2Gy?si=a&amp;b=c"></html>',
         })
@@ -362,10 +368,9 @@ describe('expandSpotifyShortUrl (#3274)', () => {
     })
 
     it('keeps the short link when the redirect leaves Spotify', async () => {
-        fetchMock.mockResolvedValueOnce({
-            url: 'https://open.spotify.com.attacker.example/track/1',
-            text: async () => 'nothing here',
-        })
+        fetchMock.mockResolvedValueOnce(
+            redirectTo('https://open.spotify.com.attacker.example/track/1'),
+        )
 
         await expect(
             expandSpotifyShortUrl('https://spotify.link/AbC123'),
@@ -379,6 +384,32 @@ describe('expandSpotifyShortUrl (#3274)', () => {
         )
     })
 
+    it('never requests a redirect hop outside the short and target hosts', async () => {
+        fetchMock.mockResolvedValueOnce(
+            redirectTo('http://169.254.169.254/latest/meta-data'),
+        )
+
+        await expect(
+            expandSpotifyShortUrl('https://spotify.link/AbC123'),
+        ).resolves.toBe('https://spotify.link/AbC123')
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('follows a hop between Spotify short hosts', async () => {
+        fetchMock
+            .mockResolvedValueOnce(
+                redirectTo('https://spotify.app.link/AbC123'),
+            )
+            .mockResolvedValueOnce(
+                redirectTo('https://open.spotify.com/track/1?si=x'),
+            )
+
+        await expect(
+            expandSpotifyShortUrl('https://spotify.link/AbC123'),
+        ).resolves.toBe('https://open.spotify.com/track/1?si=x')
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
     it('leaves other links alone without a request', async () => {
         await expect(
             expandSpotifyShortUrl('https://open.spotify.com/track/1'),
@@ -390,9 +421,9 @@ describe('expandSpotifyShortUrl (#3274)', () => {
     })
 
     it('is part of the shared prepare step', async () => {
-        fetchMock.mockResolvedValueOnce({
-            url: 'https://open.spotify.com/album/1A2GTWGtFfWp7KSQTwWOyo',
-        })
+        fetchMock.mockResolvedValueOnce(
+            redirectTo('https://open.spotify.com/album/1A2GTWGtFfWp7KSQTwWOyo'),
+        )
 
         await expect(
             prepareQuery('https://spotify.link/AbC123', null),
@@ -725,9 +756,11 @@ describe('executePlayAtTop — fallback chain', () => {
         })
 
         it('expands a SoundCloud short link and drops ?in=', async () => {
-            fetchMock.mockResolvedValueOnce({
-                url: 'https://soundcloud.com/artist/track?in=artist/sets/x',
-            })
+            fetchMock.mockResolvedValueOnce(
+                redirectTo(
+                    'https://soundcloud.com/artist/track?in=artist/sets/x',
+                ),
+            )
             const client = makeClient(() =>
                 Promise.resolve({ track: fakeTrack }),
             )

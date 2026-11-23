@@ -352,4 +352,12 @@ describe('getSpotifyArtist (#3274)', () => {
 
         await expect(getSpotifyArtist('token', 'abc')).resolves.toBeNull()
     })
+
+    it('returns null when the request rejects', async () => {
+        global.fetch = jest.fn(async () => {
+            throw new Error('network down')
+        }) as unknown as typeof fetch
+
+        await expect(getSpotifyArtist('token', 'abc')).resolves.toBeNull()
+    })
 })
