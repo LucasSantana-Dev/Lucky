@@ -1,6 +1,6 @@
 import { getRecapCardTracks } from '@lucky/shared/services'
 import type { RecapPayload } from '@lucky/shared/services'
-import { debugLog, warnLog } from '@lucky/shared/utils'
+import { infoLog, warnLog } from '@lucky/shared/utils'
 import { fetchCovers, sanitizeCardText } from './recapCovers'
 import { requestRecapCard, type RenderResult } from './recapRenderClient'
 
@@ -67,18 +67,27 @@ export async function buildRecapCardPayload(
     const unique = [
         ...new Set(tracks.map((t) => t.thumbnail).filter(Boolean)),
     ] as string[]
+    const started = Date.now()
     const fetched = await fetchCovers(unique, { fetch: deps.fetch })
+    const durationMs = Date.now() - started
     const byUrl = new Map(unique.map((url, i) => [url, fetched[i]]))
     const covers = tracks.map((t) =>
         t.thumbnail ? (byUrl.get(t.thumbnail) ?? null) : null,
     )
 
-    // Counts only: no URLs or titles in logs.
+    // Counts and timing only: no URLs or titles in logs. Info level so a
+    // weekly run shows in Loki whether covers dropped and how long it took.
     const wanted = tracks.filter((t) => t.thumbnail).length
     const got = covers.filter(Boolean).length
-    debugLog({
+    infoLog({
         message: 'recap card: covers fetched',
-        data: { guildId: recap.guildId, wanted, got, dropped: wanted - got },
+        data: {
+            guildId: recap.guildId,
+            wanted,
+            got,
+            dropped: wanted - got,
+            durationMs,
+        },
     })
 
     return {
