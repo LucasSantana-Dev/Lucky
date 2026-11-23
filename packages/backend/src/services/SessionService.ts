@@ -1,5 +1,14 @@
 import { randomBytes } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import {
+    closeSync,
+    fsyncSync,
+    mkdirSync,
+    openSync,
+    readFileSync,
+    renameSync,
+    rmSync,
+    writeFileSync,
+} from 'node:fs'
 import { mkdir, open, rename, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { redisClient } from '@lucky/shared/services'
@@ -26,9 +35,32 @@ export interface SessionServiceOptions {
     sessionFile?: string
 }
 
+function tempPathFor(file: string): string {
+    return `${file}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`
+}
+
+/** Startup-only twin of writeFileAtomically, run before requests are served. */
+function writeFileAtomicallySync(file: string, data: string): void {
+    mkdirSync(dirname(file), { recursive: true })
+    const tmp = tempPathFor(file)
+    try {
+        const fd = openSync(tmp, 'w', 0o600)
+        try {
+            writeFileSync(fd, data, 'utf-8')
+            fsyncSync(fd)
+        } finally {
+            closeSync(fd)
+        }
+        renameSync(tmp, file)
+    } catch (error) {
+        rmSync(tmp, { force: true })
+        throw error
+    }
+}
+
 async function writeFileAtomically(file: string, data: string): Promise<void> {
     await mkdir(dirname(file), { recursive: true })
-    const tmp = `${file}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`
+    const tmp = tempPathFor(file)
     try {
         const handle = await open(tmp, 'w', 0o600)
         try {
@@ -60,7 +92,19 @@ export class SessionService {
         const { store, needsWrite } = this.loadFromFile()
         this.memoryStore = store
         if (needsWrite) {
-            void this.persistToFile()
+            this.persistReseal()
+        }
+    }
+
+    /** Rewrites the file once at startup so legacy plaintext leaves the disk. */
+    private persistReseal(): void {
+        try {
+            writeFileAtomicallySync(
+                this.sessionFile,
+                JSON.stringify(Array.from(this.memoryStore.entries())),
+            )
+        } catch (error) {
+            errorLog({ message: 'Failed to re-seal sessions on disk', error })
         }
     }
 

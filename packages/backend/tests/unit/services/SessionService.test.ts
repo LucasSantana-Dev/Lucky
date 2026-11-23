@@ -421,9 +421,7 @@ describe('SessionService', () => {
                 MOCK_SESSION_DATA,
             )
 
-            // The re-seal is persisted at startup; a no-op delete waits for it.
-            await service.deleteSession('missing')
-
+            // The re-seal is written during construction, before any request.
             const raw = readFileSync(legacyFile, 'utf-8')
             expect(raw).not.toContain(MOCK_SESSION_DATA.accessToken)
             expect(raw).not.toContain(MOCK_SESSION_DATA.refreshToken)
