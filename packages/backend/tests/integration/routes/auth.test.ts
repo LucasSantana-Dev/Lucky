@@ -407,9 +407,9 @@ describe('Auth Routes Integration', () => {
                 }),
             )
 
-            const seenIds: Record<string, string> = {}
+            const seenIds = new Map<string, string>()
             discordApp.use((req, _res, next) => {
-                seenIds[req.path] = req.sessionID
+                seenIds.set(req.path, req.sessionID)
                 next()
             })
 
@@ -428,7 +428,7 @@ describe('Auth Routes Integration', () => {
             const state = new URL(start.headers.location).searchParams.get(
                 'state',
             )
-            const preLoginId = seenIds['/api/auth/discord']
+            const preLoginId = seenIds.get('/api/auth/discord')
             const preLoginCookie = String(start.headers['set-cookie'])
                 .split(';')[0]
                 .trim()
@@ -439,7 +439,7 @@ describe('Auth Routes Integration', () => {
                 .expect(302)
 
             expect(callback.headers.location).toContain('authenticated=true')
-            expect(seenIds['/api/auth/callback']).toBe(preLoginId)
+            expect(seenIds.get('/api/auth/callback')).toBe(preLoginId)
 
             const storedId =
                 getSessionServiceMock().setSession.mock.calls[0]?.[0]
