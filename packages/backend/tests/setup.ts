@@ -185,7 +185,8 @@ jest.mock('express-session', () => {
                     },
                     regenerate(cb: (err?: Error) => void) {
                         // Like express-session: new id, data dropped.
-                        const session = req.session ?? {}
+                        const session: Record<string, unknown> =
+                            req.session ?? {}
                         for (const key of Object.keys(session)) {
                             if (typeof session[key] !== 'function') {
                                 if (key !== 'cookie') delete session[key]

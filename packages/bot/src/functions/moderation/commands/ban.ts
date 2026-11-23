@@ -8,6 +8,10 @@ import { moderationService } from '@lucky/shared/services'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 import { postToModLog } from '../helpers/modLogPoster.js'
+import {
+    fetchMemberOrNull,
+    refuseIfOutranked,
+} from '../helpers/moderationHierarchy.js'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -68,6 +72,12 @@ export default new Command({
         const silent = interaction.options.getBoolean('silent') || false
 
         try {
+            const targetMember = await fetchMemberOrNull(
+                interaction.guild,
+                user.id,
+            )
+            if (await refuseIfOutranked(interaction, targetMember)) return
+
             if (!silent) {
                 try {
                     const dmEmbed = new EmbedBuilder()
