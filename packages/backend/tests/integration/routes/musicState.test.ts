@@ -9,7 +9,7 @@ import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { guildAccessService } from '../../../src/services/GuildAccessService'
 import { MOCK_SESSION_DATA, MOCK_GUILD_CONTEXT } from '../../fixtures/mock-data'
-import { sseClients } from '../../../src/routes/music/helpers'
+import { sseClients, sseStreamCounts } from '../../../src/routes/music/helpers'
 import { createSseTestFinish } from '../../fixtures/test-helpers'
 import type { AsyncMockFn } from '../../fixtures/mock-types'
 
@@ -49,6 +49,7 @@ describe('Music State Routes', () => {
         jest.clearAllTimers()
         // Clear SSE clients to prevent cross-test pollution
         sseClients.clear()
+        sseStreamCounts.clear()
         // Use real timers by default, but tests can call jest.useFakeTimers()
         jest.useRealTimers()
     })
@@ -58,6 +59,7 @@ describe('Music State Routes', () => {
         jest.useRealTimers()
         // Clear SSE clients after each test
         sseClients.clear()
+        sseStreamCounts.clear()
     })
 
     const GUILD_ID = '111111111111111111'

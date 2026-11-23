@@ -4,7 +4,7 @@ import { interactionReply } from '../../../utils/general/interactionReply'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import {
     requireQueue,
-    requireVoiceChannel,
+    requireSameVoiceChannel,
 } from '../../../utils/command/commandValidations'
 import {
     captureAutoplayTrack,
@@ -21,9 +21,8 @@ export default new Command({
         .setDescription('⏸️ Toggle pause/resume music.'),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
-        if (!(await requireVoiceChannel(interaction))) return
-
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        if (!(await requireSameVoiceChannel(queue, interaction))) return
 
         if (!(await requireQueue(queue, interaction))) return
 

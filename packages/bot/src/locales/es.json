@@ -42,6 +42,9 @@
         "errors": {
             "notInGuild": "Este comando solo funciona dentro de un servidor.",
             "notInVoice": "Únete a un canal de voz primero.",
+            "notInVoiceTitle": "No estás en un canal de voz",
+            "notSameVoiceTitle": "Canal de voz incorrecto",
+            "notSameVoice": "Únete a {{channel}} para controlar la música.",
             "nothingPlaying": "No se está reproduciendo nada ahora mismo.",
             "youtubeDisabledTitle": "YouTube no disponible",
             "youtubeDisabledDescription": "YouTube no está disponible en este bot por ahora. Prueba con un enlace de Spotify o SoundCloud, o busca por el nombre de la canción y el artista.",
