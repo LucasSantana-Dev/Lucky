@@ -107,8 +107,33 @@ describe('music stream route lifecycle', () => {
 
         expect(jest.getTimerCount()).toBe(0)
         expect(sseClients.get(GUILD_ID)?.size ?? 0).toBe(0)
+        expect(sseStreamCounts.has(`user-1:${GUILD_ID}`)).toBe(false)
         jest.advanceTimersByTime(120_000)
         expect(res.write).not.toHaveBeenCalled()
+    })
+
+    test('a failed state lookup ends the stream and frees the slot', async () => {
+        mockGetState.mockRejectedValue(new Error('redis down'))
+        const res = makeRes()
+        await handler(makeReq(), res)
+
+        expect(res.end).toHaveBeenCalled()
+        expect(jest.getTimerCount()).toBe(0)
+        expect(sseStreamCounts.has(`user-1:${GUILD_ID}`)).toBe(false)
+        expect(sseClients.get(GUILD_ID)?.size ?? 0).toBe(0)
+    })
+
+    test('a client that left during auth gets no slot or heartbeat', async () => {
+        mockGetState.mockResolvedValue(null)
+        const req = makeReq()
+        req.destroyed = true
+        const res = makeRes()
+        await handler(req, res)
+
+        expect(res.writeHead).not.toHaveBeenCalled()
+        expect(mockGetState).not.toHaveBeenCalled()
+        expect(jest.getTimerCount()).toBe(0)
+        expect(sseStreamCounts.size).toBe(0)
     })
 
     test('clears the heartbeat when a write throws', async () => {

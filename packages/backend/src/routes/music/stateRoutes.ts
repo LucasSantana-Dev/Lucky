@@ -17,6 +17,10 @@ export function setupStateRoutes(app: Express): void {
         requireGuildModuleAccess('music', 'view'),
         validateParams(guildIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
+            // The client may have left during the async auth middleware, before
+            // a close listener existed here; do not reserve a slot for it.
+            if (req.destroyed || res.destroyed || res.writableEnded) return
+
             const guildId = param(req.params.guildId)
             const capKey = `${req.userId ?? req.sessionId}:${guildId}`
             const openStreams = sseStreamCounts.get(capKey) ?? 0
