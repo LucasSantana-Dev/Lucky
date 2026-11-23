@@ -1881,9 +1881,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - fix(bot): SoundCloud results whose audio is DRM encrypted are skipped before matching, so the bridge no longer spends a yt-dlp attempt on an upload that can never play (#3281)
+- fix(bot): the SoundCloud fallback accepts a re-upload that names the artist and runs within 3 s of the track (or the artist's own upload under a shorter title), and a stage that simply finds no match logs at debug; the rejected candidates are reported once, in `Bridge: all stages exhausted` (#3275)
 - fix(bot): `/repeat` drops its `times` option, which promised a fixed number of repeats but looped forever; track and queue repeat now say plainly that they repeat until turned off (#3268)
 - fix(bot): `/voteskip` counts only votes from members still in the voice channel, so a voter who left no longer helps pass the skip (#3267)
 - perf(backend): the dashboard server list (`GET /api/guilds`) reuses each member's Discord roles for 30 seconds per server and resolves at most 5 servers at a time, so reloading it no longer repeats one Discord member lookup per server (#3286)
+- fix(bot): ending a music session (stop, leave, idle disconnect, a voice disconnect or the bot leaving the server) clears that server's autoplay refill counter, settled refill lock and session mood cache, so they no longer pile up per server or carry into the next session (#3280)
 - fix(backend): Discord OAuth tokens in webapp sessions are encrypted at rest (AES-256-GCM, new `SESSION_TOKEN_KEY`, required in production), and the session file fallback now writes asynchronously and atomically
 - fix(backend): editing, toggling or deleting an auto message from the dashboard only works on that guild's own messages; an id from another guild returns not found
 - fix(backend,bot): Twitch notifications and auto messages only accept a channel from the same guild; the dashboard refuses another guild's channel and the bot skips stored notifications that point outside their guild

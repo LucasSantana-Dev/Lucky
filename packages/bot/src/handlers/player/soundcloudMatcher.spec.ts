@@ -7,6 +7,7 @@ const mockGetFreeClientID = jest.fn()
 const mockSetToken = jest.fn()
 const mockInfoLog = jest.fn()
 const mockWarnLog = jest.fn()
+const mockDebugLog = jest.fn()
 const mockStreamViaYtDlp = jest.fn()
 
 jest.mock('play-dl', () => ({
@@ -21,6 +22,7 @@ jest.mock('./ytdlpProcess', () => ({
 jest.mock('@lucky/shared/utils', () => ({
     infoLog: (...args: unknown[]) => mockInfoLog(...args),
     warnLog: (...args: unknown[]) => mockWarnLog(...args),
+    debugLog: (...args: unknown[]) => mockDebugLog(...args),
 }))
 
 import {
@@ -30,6 +32,7 @@ import {
     findMatchingSoundCloudResult,
     parseDurationString,
     __resetSoundCloudRefreshStateForTests,
+    SoundCloudNoMatchError,
 } from './soundcloudMatcher.js'
 
 // ---------------------------------------------------------------------------
@@ -360,6 +363,151 @@ describe('findMatchingSoundCloudResult - suffix stripping edge cases (#2866)', (
                 results,
             ),
         ).toBe(results[0])
+    })
+})
+
+// #3275: real rejected candidates from prod Loki (2026-11-21 to 2026-11-23).
+// The official upload is often DRM or missing, and a re-upload that names the
+// artist in its title with the same length is the same recording.
+describe('findMatchingSoundCloudResult – tight duration (#3275)', () => {
+    const url = 'https://soundcloud.com/x'
+    const upload = (name: string, uploader: string, durationInSec: number) => ({
+        name,
+        url: `${url}/${uploader}`,
+        durationInSec,
+        user: { name: uploader },
+    })
+
+    it('accepts a re-upload that names the artist and matches the length', () => {
+        const results = [
+            upload(
+                'Sidoka " louis v, menina linda "',
+                'Trap Brasileiro ®',
+                217,
+            ),
+            upload(
+                'MTG - LOUIS V, MENINA LINDA [[ DJ DAVI FXP ]] insta: @djdavifxp',
+                'DJ DAVI FXP',
+                296,
+            ),
+            upload(
+                'Louis V,Menina Linda (Speed Up)',
+                'Marco Tulio Vilarim',
+                159,
+            ),
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Louis V, Menina Linda',
+                '03:35',
+                results,
+                {
+                    expectedArtists: ['Sidoka'],
+                },
+            ),
+        ).toBe(results[0])
+    })
+
+    it('uses the lead artist of a credit list', () => {
+        const results = [upload('5 . Djonga - SOLTO pt. Hot', 'HenriqueH', 183)]
+        expect(
+            findMatchingSoundCloudResult('SOLTO', '03:00', results, {
+                expectedArtists: ['Djonga, Hot, Coyote Beatz'],
+            }),
+        ).toBe(results[0])
+    })
+
+    it('still rejects a re-upload that misses the length by more than 3s', () => {
+        const results = [upload('Djonga - SOLTO.', 'DNS', 199)]
+        expect(
+            findMatchingSoundCloudResult('SOLTO', '03:03', results, {
+                expectedArtists: ['Djonga'],
+            }),
+        ).toBeUndefined()
+    })
+
+    it('still rejects a same-length upload that does not name the artist', () => {
+        // A different song (a DJ "mega") with the same length.
+        const results = [
+            upload(
+                'MEGA HOJE A NOITE É UMA CRIANÇA (DJ KN DA NS)',
+                'DEJOTA KN DA NS 2',
+                204,
+            ),
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'A noite é uma criança',
+                '03:22',
+                results,
+                {
+                    expectedArtists: ['FOTO EM GRUPO'],
+                },
+            ),
+        ).toBeUndefined()
+    })
+
+    it('needs a track duration to accept a re-upload', () => {
+        const results = [
+            upload(
+                'Sidoka " louis v, menina linda "',
+                'Trap Brasileiro ®',
+                217,
+            ),
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'Louis V, Menina Linda',
+                undefined,
+                results,
+                {
+                    expectedArtists: ['Sidoka'],
+                },
+            ),
+        ).toBeUndefined()
+    })
+
+    it('prefers the artist account over a re-upload', () => {
+        const results = [
+            upload('Calma na Alma - ConeCrewDiretoria', 'Julia Bianchi', 240),
+            upload('Calma na Alma', 'ConeCrewDiretoria', 241),
+        ]
+        expect(
+            findMatchingSoundCloudResult('Calma na Alma', '04:00', results, {
+                expectedArtists: ['ConeCrewDiretoria'],
+            }),
+        ).toBe(results[1])
+    })
+
+    it('ignores the artist words of the query for the artist account', () => {
+        const results = [
+            upload('Tiffany - Remix', 'MD Chefe', 226),
+            upload('Tiffany', 'Md Chefe', 181),
+        ]
+        expect(
+            findMatchingSoundCloudResult(
+                'MD Chefe - Tiffany',
+                '03:00',
+                results,
+                {
+                    expectedArtists: ['MD Chefe'],
+                },
+            ),
+        ).toBe(results[1])
+    })
+
+    it('keeps the full title gate for the artist account off the tight length', () => {
+        const results = [upload('Tiffany', 'MD Chefe', 200)]
+        expect(
+            findMatchingSoundCloudResult(
+                'MD Chefe - Tiffany',
+                '03:00',
+                results,
+                {
+                    expectedArtists: ['MD Chefe'],
+                },
+            ),
+        ).toBeUndefined()
     })
 })
 
@@ -977,7 +1125,7 @@ describe('streamViaSoundCloud', () => {
                 expectedArtists: ['Kanye West'],
             }),
         ).rejects.toThrow('SoundCloud: no validated match')
-        expect(mockWarnLog).toHaveBeenCalledWith(
+        expect(mockDebugLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 data: expect.objectContaining({
                     rejected: [
@@ -1010,12 +1158,57 @@ describe('streamViaSoundCloud', () => {
         ).resolves.toBe(fakeReadable)
     })
 
+    // #3275: an expected miss of one fallback stage is not a warning; the
+    // bridge reports the candidates once if the whole play fails.
+    it('throws a typed miss with the rejected candidates and no warn', async () => {
+        mockSearch.mockResolvedValue([makeResult('Completely Different', 300)])
+        const error = await streamViaSoundCloud('song name', '3:30').catch(
+            (e: unknown) => e,
+        )
+        expect(error).toBeInstanceOf(SoundCloudNoMatchError)
+        expect((error as SoundCloudNoMatchError).rejected).toEqual([
+            expect.objectContaining({ name: 'Completely Different' }),
+        ])
+        expect(mockWarnLog).not.toHaveBeenCalled()
+    })
+
+    it('reports the rejected candidates with the same checks the matcher ran', async () => {
+        mockSearch.mockResolvedValue([
+            {
+                name: 'Artist - Another Song',
+                url: 'https://soundcloud.com/fan/another',
+                durationInSec: 211,
+                user: { name: 'Fan' },
+            },
+        ])
+        const error = (await streamViaSoundCloud('Some Song', '3:30', {
+            expectedArtists: ['Artist'],
+        }).catch((e: unknown) => e)) as SoundCloudNoMatchError
+        expect(error.rejected).toEqual([
+            {
+                name: 'Artist - Another Song',
+                uploader: 'Fan',
+                titleScore: 0.5,
+                durationDeltaSec: 1,
+                artistMatch: false,
+                reupload: true,
+            },
+        ])
+    })
+
+    it('throws a typed miss when the search finds nothing', async () => {
+        mockSearch.mockResolvedValue([])
+        await expect(
+            streamViaSoundCloud('song name', '3:30'),
+        ).rejects.toBeInstanceOf(SoundCloudNoMatchError)
+    })
+
     it('logs rejected candidates when nothing validates', async () => {
         mockSearch.mockResolvedValue([makeResult('Completely Different', 300)])
         await expect(streamViaSoundCloud('song name', '3:30')).rejects.toThrow(
             'SoundCloud: no validated match for "song name" (title/duration mismatch)',
         )
-        expect(mockWarnLog).toHaveBeenCalledWith(
+        expect(mockDebugLog).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'SoundCloud: no validated match',
                 data: expect.objectContaining({

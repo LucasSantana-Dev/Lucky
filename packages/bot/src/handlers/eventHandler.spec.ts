@@ -149,6 +149,12 @@ jest.mock('./player/nowPlayingDisplay', () => ({
     cleanupGuildState: (...args: unknown[]) => cleanupGuildStateMock(...args),
 }))
 
+const clearAutoplayGuildStateMock = jest.fn()
+jest.mock('../services/musicRecommendation/autoplay/replenisher', () => ({
+    clearAutoplayGuildState: (...args: unknown[]) =>
+        clearAutoplayGuildStateMock(...args),
+}))
+
 jest.mock('@lucky/shared/utils', () => ({
     searchSpotifyAlbums: (...args: unknown[]) =>
         searchSpotifyAlbumsMock(...args),
@@ -1116,6 +1122,17 @@ describe('eventHandler', () => {
 
                 expect(cleanupGuildStateMock).toHaveBeenCalledWith(
                     'guild-delete-123',
+                )
+            })
+
+            it('clears the per-guild autoplay state (#3280)', async () => {
+                const { client, onMock } = createMockClient()
+                handleEvents(asClient(client))
+
+                await getGuildDeleteHandler(onMock)?.({ id: 'guild-gone' })
+
+                expect(clearAutoplayGuildStateMock).toHaveBeenCalledWith(
+                    'guild-gone',
                 )
             })
 
