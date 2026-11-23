@@ -627,6 +627,112 @@ describe('GuildAccessService', () => {
         expect(mockGetUserGuilds).toHaveBeenCalledTimes(1)
     })
 
+    describe('member context cache (#3286)', () => {
+        const memberGuilds = [makeGuild('111'), makeGuild('222')]
+
+        beforeEach(() => {
+            mockGetUserGuilds.mockResolvedValue(memberGuilds)
+            mockHasBotInGuild.mockResolvedValue(true)
+            mockResolveEffectiveAccess.mockResolvedValue(MANAGE_ALL_ACCESS)
+            mockGetGuildMemberContext.mockResolvedValue({
+                nickname: null,
+                roleIds: ['role-mod'],
+            })
+        })
+
+        test('a second dashboard load within the TTL makes no new member lookups', async () => {
+            await guildAccessService.listAuthorizedGuilds(SESSION)
+            await guildAccessService.listAuthorizedGuilds(SESSION)
+
+            expect(mockGetGuildMemberContext).toHaveBeenCalledTimes(
+                memberGuilds.length,
+            )
+            // Effective access is still resolved per load, so grant changes
+            // apply without waiting for the member cache to expire.
+            expect(mockResolveEffectiveAccess).toHaveBeenCalledTimes(
+                memberGuilds.length * 2,
+            )
+        })
+
+        test('resolveGuildContext reuses member context cached by listAuthorizedGuilds', async () => {
+            await guildAccessService.listAuthorizedGuilds(SESSION)
+            const context = await guildAccessService.resolveGuildContext(
+                SESSION,
+                '111',
+            )
+
+            expect(context).toMatchObject({ roleIds: ['role-mod'] })
+            expect(mockGetGuildMemberContext).toHaveBeenCalledTimes(
+                memberGuilds.length,
+            )
+        })
+
+        test('member context is looked up again once the TTL expires', async () => {
+            const now = Date.now()
+            const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(now)
+            await guildAccessService.listAuthorizedGuilds(SESSION)
+
+            nowSpy.mockReturnValue(now + 31_000)
+            await guildAccessService.listAuthorizedGuilds(SESSION)
+            nowSpy.mockRestore()
+
+            expect(mockGetGuildMemberContext).toHaveBeenCalledTimes(
+                memberGuilds.length * 2,
+            )
+        })
+
+        test('does not share cached member context across users', async () => {
+            await guildAccessService.listAuthorizedGuilds(SESSION)
+            await guildAccessService.listAuthorizedGuilds({
+                ...SESSION,
+                userId: 'user-2',
+                accessToken: 'other-token',
+                user: { ...SESSION.user, id: 'user-2' },
+            })
+
+            expect(mockGetGuildMemberContext).toHaveBeenCalledTimes(
+                memberGuilds.length * 2,
+            )
+        })
+
+        test('does not cache an empty member context', async () => {
+            mockGetGuildMemberContext.mockResolvedValue({
+                nickname: null,
+                roleIds: [],
+            })
+
+            await guildAccessService.listAuthorizedGuilds(SESSION)
+            await guildAccessService.listAuthorizedGuilds(SESSION)
+
+            expect(mockGetGuildMemberContext).toHaveBeenCalledTimes(
+                memberGuilds.length * 2,
+            )
+        })
+
+        test('bounds concurrent member lookups for users in many guilds', async () => {
+            const manyGuilds = Array.from({ length: 20 }, (_, index) =>
+                makeGuild(String(1000 + index)),
+            )
+            mockGetUserGuilds.mockResolvedValue(manyGuilds)
+            let inFlight = 0
+            let peak = 0
+            mockGetGuildMemberContext.mockImplementation(async () => {
+                inFlight += 1
+                peak = Math.max(peak, inFlight)
+                await new Promise((resolve) => setImmediate(resolve))
+                inFlight -= 1
+                return { nickname: null, roleIds: ['role-mod'] }
+            })
+
+            const result =
+                await guildAccessService.listAuthorizedGuilds(SESSION)
+
+            expect(result).toHaveLength(manyGuilds.length)
+            expect(peak).toBeGreaterThan(1)
+            expect(peak).toBeLessThanOrEqual(5)
+        })
+    })
+
     test('hasAccess delegates to guild role access service', () => {
         const access: EffectiveAccessMap = {
             ...EMPTY_ACCESS,
