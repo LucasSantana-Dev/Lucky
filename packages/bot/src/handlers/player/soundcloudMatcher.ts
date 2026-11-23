@@ -125,6 +125,8 @@ export type RejectedCandidate = {
     titleScore: number
     durationDeltaSec: number | null
     artistMatch?: boolean
+    /** A re-upload accepted on artist name and length (#3275). */
+    reupload?: true
     alteredVersion?: true
 }
 
@@ -382,25 +384,16 @@ export function findMatchingSoundCloudResult(
     results: readonly SoundCloudSearchResult[],
     { expectedArtists, sourceTitle }: SoundCloudMatchOptions = {},
 ): SoundCloudSearchResult | undefined {
+    const context = buildMatchContext(query, trackDuration, {
+        expectedArtists,
+        sourceTitle,
+    })
+
     // Gate on the query with trailing parenthetical suffixes stripped so
     // version/comment suffixes ("(Comentário)", "(En Vivo)") do not inflate the
     // token count (#2866). Ranking below still looks at the full query tokens.
-    const { tokens, fullTokens, hasStripped } = getQueryTokens(
-        query,
-        expectedArtists,
-    )
-    if (tokens.length === 0) return undefined
-
-    const trackSec = parseDurationString(trackDuration)
-    const context: MatchContext = {
-        tokens,
-        fullTokens,
-        hasStripped,
-        trackSec,
-        artistKeys: toArtistKeys(expectedArtists),
-        artistNames: toArtistNames(expectedArtists),
-        requested: toRequestedText(query, sourceTitle),
-    }
+    if (context.tokens.length === 0) return undefined
+    const { trackSec } = context
 
     const candidates = results
         .map((result) => scoreCandidate(result, context))
@@ -473,38 +466,74 @@ type ScoredCandidate = {
     byArtist: boolean
 }
 
-function scoreCandidate(
+function buildMatchContext(
+    query: string,
+    trackDuration: string | undefined,
+    { expectedArtists, sourceTitle }: SoundCloudMatchOptions,
+): MatchContext {
+    return {
+        ...getQueryTokens(query, expectedArtists),
+        trackSec: parseDurationString(trackDuration),
+        artistKeys: toArtistKeys(expectedArtists),
+        artistNames: toArtistNames(expectedArtists),
+        requested: toRequestedText(query, sourceTitle),
+    }
+}
+
+type CandidateAssessment = {
+    resultNorm: string
+    delta: number | null
+    byArtist: boolean
+    reupload: boolean
+    titleScore: number
+    altered: boolean
+}
+
+// Every check the matcher applies, computed once, so the rejected list in the
+// logs reports exactly what scoreCandidate decided on.
+function assessCandidate(
     result: SoundCloudSearchResult,
     context: MatchContext,
-): ScoredCandidate | null {
+): CandidateAssessment {
     const resultNorm = normalizeForMatch(result.name)
-    if (!resultNorm) return null
-    if (isUnrequestedAlteredVersion(resultNorm, context.requested)) return null
-
     const delta = durationDelta(result, context.trackSec)
-    if (delta !== null && delta > 30) return null
     const tight = delta !== null && delta <= TIGHT_DURATION_SEC
-
     const byArtist =
         context.artistKeys.length === 0 ||
         uploadedByArtist(context.artistKeys, result)
     // #3275: when the artist's own upload is DRM or missing, a re-upload
     // that names the artist in its title and has the same length is the same
     // recording. Off the tight length, the account stays the only proof.
-    if (!byArtist && !(tight && namesArtist(resultNorm, context.artistNames))) {
-        return null
-    }
-
+    const reupload =
+        !byArtist && tight && namesArtist(resultNorm, context.artistNames)
     // The artist account already proves the artist: with the same length,
     // "MD Chefe - Tiffany" matches its upload titled just "Tiffany".
     const artistFreeScore =
         byArtist && tight
             ? tokenScore(withoutArtistWords(context), resultNorm)
             : 0
-    const titleScore = Math.max(
-        tokenScore(context.tokens, resultNorm),
-        artistFreeScore,
-    )
+    return {
+        resultNorm,
+        delta,
+        byArtist,
+        reupload,
+        titleScore: Math.max(
+            tokenScore(context.tokens, resultNorm),
+            artistFreeScore,
+        ),
+        altered: isUnrequestedAlteredVersion(resultNorm, context.requested),
+    }
+}
+
+function scoreCandidate(
+    result: SoundCloudSearchResult,
+    context: MatchContext,
+): ScoredCandidate | null {
+    const assessment = assessCandidate(result, context)
+    const { resultNorm, delta, byArtist, titleScore } = assessment
+    if (!resultNorm || assessment.altered) return null
+    if (delta !== null && delta > 30) return null
+    if (!byArtist && !assessment.reupload) return null
     if (titleScore < TITLE_MATCH_THRESHOLD) return null
 
     // Only meaningful when a suffix was stripped: how much of the full
@@ -559,33 +588,21 @@ function describeRejectedCandidates(
     query: string,
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
-    { expectedArtists, sourceTitle }: SoundCloudMatchOptions = {},
+    options: SoundCloudMatchOptions = {},
 ): RejectedCandidate[] {
-    const { tokens } = getQueryTokens(query, expectedArtists)
-    const trackSec = parseDurationString(trackDuration)
-    const artistKeys = toArtistKeys(expectedArtists)
-    const requested = toRequestedText(query, sourceTitle)
+    const context = buildMatchContext(query, trackDuration, options)
     return results.slice(0, 5).map((result) => {
-        const resultNorm = normalizeForMatch(result.name)
-        const matched = tokens.filter((token) =>
-            resultNorm.includes(token),
-        ).length
+        const assessment = assessCandidate(result, context)
         return {
             name: result.name,
             uploader: result.user?.name,
-            titleScore: tokens.length
-                ? Number((matched / tokens.length).toFixed(2))
-                : 0,
-            durationDeltaSec:
-                trackSec !== null && result.durationInSec
-                    ? Math.abs(result.durationInSec - trackSec)
-                    : null,
-            ...(artistKeys.length > 0 && {
-                artistMatch: uploadedByArtist(artistKeys, result),
+            titleScore: Number(assessment.titleScore.toFixed(2)),
+            durationDeltaSec: assessment.delta,
+            ...(context.artistKeys.length > 0 && {
+                artistMatch: assessment.byArtist,
             }),
-            ...(isUnrequestedAlteredVersion(resultNorm, requested) && {
-                alteredVersion: true as const,
-            }),
+            ...(assessment.reupload && { reupload: true as const }),
+            ...(assessment.altered && { alteredVersion: true as const }),
         }
     })
 }

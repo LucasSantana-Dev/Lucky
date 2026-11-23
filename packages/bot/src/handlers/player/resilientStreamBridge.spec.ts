@@ -783,6 +783,35 @@ describe('fallback stage stamping', () => {
         )
     })
 
+    it('forgets the previous play misses when the same track plays again', async () => {
+        const miss = Object.assign(
+            new Error('SoundCloud: no validated match'),
+            {
+                name: 'SoundCloudNoMatchError',
+                rejected: [{ name: 'old' }],
+            },
+        )
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
+        mockCleanTitle.mockReturnValue('Song (Official) Mix')
+        const track = makeTrack({ title: 'Song (Official) Mix' })
+        mockStreamViaSoundCloud.mockRejectedValue(miss)
+        await expect(createResilientStream(track)).rejects.toThrow()
+
+        mockWarnLog.mockClear()
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('socket hang up'))
+        await expect(createResilientStream(track)).rejects.toThrow()
+
+        const exhausted = mockWarnLog.mock.calls
+            .map(([entry]) => entry as { message: string; data?: object })
+            .filter((entry) => entry.message === 'Bridge: all stages exhausted')
+        expect(exhausted.length).toBeGreaterThan(0)
+        for (const entry of exhausted) {
+            expect(entry.data).toEqual(
+                expect.objectContaining({ soundCloudRejected: undefined }),
+            )
+        }
+    })
+
     // #2142: the stage used to be gated on "title has a parenthetical to
     // strip", so titles like "Michael Jackson - Human Nature" never got a
     // third attempt. It must now run whenever stage 2 fails, broadening via

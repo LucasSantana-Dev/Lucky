@@ -1294,6 +1294,7 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     // failure class so this play's event is fingerprinted by its own cause.
     firstYouTubeFailure.delete(track)
     reportedExhausted.delete(track)
+    soundCloudMisses.delete(track)
     clearBridgeStamps(track)
 
     // YouTube is answering media downloads with 403: skip yt-dlp instead of

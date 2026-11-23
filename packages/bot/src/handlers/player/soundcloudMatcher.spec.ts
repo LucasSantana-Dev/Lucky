@@ -1172,6 +1172,30 @@ describe('streamViaSoundCloud', () => {
         expect(mockWarnLog).not.toHaveBeenCalled()
     })
 
+    it('reports the rejected candidates with the same checks the matcher ran', async () => {
+        mockSearch.mockResolvedValue([
+            {
+                name: 'Artist - Another Song',
+                url: 'https://soundcloud.com/fan/another',
+                durationInSec: 211,
+                user: { name: 'Fan' },
+            },
+        ])
+        const error = (await streamViaSoundCloud('Some Song', '3:30', {
+            expectedArtists: ['Artist'],
+        }).catch((e: unknown) => e)) as SoundCloudNoMatchError
+        expect(error.rejected).toEqual([
+            {
+                name: 'Artist - Another Song',
+                uploader: 'Fan',
+                titleScore: 0.5,
+                durationDeltaSec: 1,
+                artistMatch: false,
+                reupload: true,
+            },
+        ])
+    })
+
     it('throws a typed miss when the search finds nothing', async () => {
         mockSearch.mockResolvedValue([])
         await expect(
