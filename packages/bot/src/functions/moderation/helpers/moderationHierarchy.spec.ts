@@ -247,13 +247,31 @@ describe('resolveModeratorCeiling', () => {
         expect(await resolveModeratorCeiling(g as never, 'mod')).toBeNull()
     })
 
-    it('returns null when the fetch rejects', async () => {
+    it('returns null when Discord says the moderator is unknown', async () => {
         const g = {
             ownerId: 'owner',
             members: {
-                fetch: jest.fn(async () => Promise.reject(new Error('x'))),
+                fetch: jest.fn(async () => {
+                    throw Object.assign(new Error('Unknown Member'), {
+                        code: 10007,
+                    })
+                }),
             },
         }
         expect(await resolveModeratorCeiling(g as never, 'mod')).toBeNull()
+    })
+
+    it('rethrows other lookup failures', async () => {
+        const g = {
+            ownerId: 'owner',
+            members: {
+                fetch: jest.fn(async () => {
+                    throw new Error('rate limited')
+                }),
+            },
+        }
+        await expect(
+            resolveModeratorCeiling(g as never, 'mod'),
+        ).rejects.toThrow('rate limited')
     })
 })

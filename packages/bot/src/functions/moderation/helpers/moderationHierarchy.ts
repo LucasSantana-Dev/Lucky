@@ -124,13 +124,16 @@ export async function checkRoleHierarchy(
  * after the interaction is gone: Infinity for the server owner, the
  * moderator's top role position otherwise (members at or above it are off
  * limits), or null when the moderator can no longer be resolved (left the
- * server), in which case the caller should refuse to act.
+ * server), in which case the caller should refuse to act. Other lookup
+ * failures are rethrown.
  */
 export async function resolveModeratorCeiling(
-    guild: Pick<Guild, 'ownerId' | 'members'>,
+    guild: Guild,
     moderatorId: string,
 ): Promise<number | null> {
     if (moderatorId === guild.ownerId) return Infinity
-    const moderator = await guild.members.fetch(moderatorId).catch(() => null)
+    // Transient failures (rate limit, outage) rethrow so the job fails with
+    // the real cause instead of reporting the moderator as gone.
+    const moderator = await fetchMemberOrNull(guild, moderatorId)
     return isRanked(moderator) ? moderator.roles.highest.position : null
 }
