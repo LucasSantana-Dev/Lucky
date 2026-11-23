@@ -143,14 +143,16 @@ async function resolveShortLink(
         if (response.status >= 300 && response.status < 400 && location) {
             const next = new URL(location, current).toString()
             const nextHost = hostOf(next)
-            if (nextHost && rule.isTargetHost(nextHost)) return next
-            if (!nextHost || !rule.shortHosts.includes(nextHost)) {
-                throw new Error(
-                    `Redirect destination is not a ${rule.label} URL: ${next}`,
-                )
+            // Short hosts first: on.soundcloud.com is also a soundcloud.com
+            // subdomain, and a hop between short links is not the target.
+            if (nextHost && rule.shortHosts.includes(nextHost)) {
+                current = next
+                continue
             }
-            current = next
-            continue
+            if (nextHost && rule.isTargetHost(nextHost)) return next
+            throw new Error(
+                `Redirect destination is not a ${rule.label} URL: ${next}`,
+            )
         }
 
         const fromPage =

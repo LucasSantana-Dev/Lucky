@@ -276,6 +276,19 @@ describe('expandSoundCloudShortUrl', () => {
         })
     })
 
+    it('follows a hop that stays on on.soundcloud.com', async () => {
+        fetchMock
+            .mockResolvedValueOnce(redirectTo('https://on.soundcloud.com/xyz'))
+            .mockResolvedValueOnce(
+                redirectTo('https://soundcloud.com/artist/track'),
+            )
+
+        await expect(
+            expandSoundCloudShortUrl('https://on.soundcloud.com/abc123'),
+        ).resolves.toBe('https://soundcloud.com/artist/track')
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
     it('returns original URL if not a short link', async () => {
         const fullUrl = 'https://soundcloud.com/artist/track'
         const result = await expandSoundCloudShortUrl(fullUrl)
