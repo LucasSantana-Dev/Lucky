@@ -301,6 +301,19 @@ async function dispatchToChannels(
                 })
                 continue
             }
+            if (channel.guildId !== notif.guildId) {
+                warnLog({
+                    message:
+                        'Twitch EventSub: channel belongs to another guild, skipping',
+                    data: {
+                        discordChannelId: notif.discordChannelId,
+                        guildId: notif.guildId,
+                        channelGuildId: channel.guildId,
+                        twitchLogin: notif.twitchLogin,
+                    },
+                })
+                continue
+            }
             const content = notif.mentionRoleId
                 ? `<@&${notif.mentionRoleId}>`
                 : undefined

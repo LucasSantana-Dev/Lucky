@@ -14,6 +14,7 @@ import { AppError } from '../errors/AppError'
 import { z } from 'zod'
 import { paramToString as p } from '../utils/paramCoerce'
 import { snowflakeId } from '../schemas/common'
+import { assertChannelInGuild } from '../utils/assertChannelInGuild'
 
 const addTwitchBody = z
     .object({
@@ -194,6 +195,7 @@ export function setupTwitchRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const body = addTwitchBody.parse(req.body)
             const { twitchUserId, twitchLogin, discordChannelId } = body
+            await assertChannelInGuild(guildId, discordChannelId)
             const success = await twitchNotificationService.add(
                 guildId,
                 discordChannelId,
