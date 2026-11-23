@@ -17,11 +17,11 @@ const REPEAT_MODES: Record<
 > = {
     track: {
         mode: QueueRepeatMode.TRACK,
-        description: 'Repeating current song **infinitely**',
+        description: 'Repeating current song **until turned off**',
     },
     queue: {
         mode: QueueRepeatMode.QUEUE,
-        description: 'Repeating queue **infinitely**',
+        description: 'Repeating queue **until turned off**',
     },
     infinite: {
         mode: QueueRepeatMode.AUTOPLAY,

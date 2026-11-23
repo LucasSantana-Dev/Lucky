@@ -144,7 +144,7 @@ describe('repeat command', () => {
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.TRACK)
         expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🔁 Repeat mode',
-            'Repeating current song **infinitely**',
+            'Repeating current song **until turned off**',
         )
     })
 
@@ -162,7 +162,7 @@ describe('repeat command', () => {
         expect(queue.setRepeatMode).toHaveBeenCalledWith(QueueRepeatMode.QUEUE)
         expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🔁 Repeat mode',
-            'Repeating queue **infinitely**',
+            'Repeating queue **until turned off**',
         )
     })
 
