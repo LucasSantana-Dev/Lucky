@@ -11,7 +11,11 @@ const infoLogMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 
+const requireSameVoiceChannelMock = jest.fn(async (..._args: unknown[]) => true)
+
 jest.mock('../../../utils/command/commandValidations', () => ({
+    requireSameVoiceChannel: (...args: unknown[]) =>
+        requireSameVoiceChannelMock(...args),
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
 }))
@@ -59,6 +63,23 @@ describe('leave command', () => {
         requireGuildMock.mockResolvedValue(true)
         interactionReplyMock.mockResolvedValue(undefined)
         createSuccessEmbedMock.mockReturnValue({ title: 'Goodbye!' })
+    })
+
+    it('refuses a member outside the bot voice channel (#3266)', async () => {
+        requireSameVoiceChannelMock.mockResolvedValueOnce(false)
+        const queue = createQueue()
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = createInteraction()
+
+        await leaveCommand.execute({ interaction, client: {} as any })
+
+        expect(requireSameVoiceChannelMock).toHaveBeenCalledWith(
+            queue,
+            interaction,
+        )
+        expect(requireQueueMock).not.toHaveBeenCalled()
+        expect(markIntentionalStopMock).not.toHaveBeenCalled()
+        expect(queue.delete).not.toHaveBeenCalled()
     })
 
     it('marks intentional stop and deletes queue', async () => {

@@ -15,6 +15,7 @@ import {
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
+    requireSameVoiceChannel,
 } from '../../../utils/command/commandValidations'
 import { clearSessionMoodCache } from '../../../services/musicRecommendation/autoplay/replenisher'
 import type { CommandExecuteParams } from '../../../types/CommandData'
@@ -118,6 +119,7 @@ export default new Command({
         if (!(await requireGuild(interaction))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        if (!(await requireSameVoiceChannel(queue, interaction))) return
 
         // Cheap synchronous checks run before the defer so their errors keep
         // replying ephemerally (a deferred reply cannot turn ephemeral).

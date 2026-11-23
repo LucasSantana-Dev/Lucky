@@ -2,6 +2,7 @@ import type {
     ChatInputCommandInteraction,
     Guild,
     GuildMember,
+    Role,
 } from 'discord.js'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 
@@ -93,4 +94,64 @@ export async function refuseIfOutranked(
         content: { content: `❌ ${reason}`, ephemeral: true },
     })
     return true
+}
+
+/**
+ * Bulk variant of {@link checkModerationHierarchy}: a moderator may only run a
+ * role-scoped bulk action (bulk kick, bulk role removal) on a role below their
+ * own top role, otherwise they could reach members ranked above them through
+ * the role. The owner may target any role. Returns the reason to refuse, or
+ * null when the moderator may act.
+ */
+export async function checkRoleHierarchy(
+    interaction: ChatInputCommandInteraction,
+    role: Pick<Role, 'position'>,
+): Promise<string | null> {
+    if (interaction.user.id === interaction.guild?.ownerId) return null
+
+    const invoker = await resolveInvoker(interaction)
+    if (!invoker) {
+        return "Couldn't verify your roles in this server. Try again."
+    }
+    if (role.position >= invoker.roles.highest.position) {
+        return "You can't target a role equal to or higher than your highest role."
+    }
+    return null
+}
+
+/**
+ * Highest role position a moderator outranks, for background jobs that run
+ * after the interaction is gone: Infinity for the server owner, the
+ * moderator's top role position otherwise (members at or above it are off
+ * limits), or null when the moderator can no longer be resolved (left the
+ * server), in which case the caller should refuse to act. Other lookup
+ * failures are rethrown.
+ */
+export async function resolveModeratorCeiling(
+    guild: Guild,
+    moderatorId: string,
+): Promise<number | null> {
+    if (moderatorId === guild.ownerId) return Infinity
+    // Transient failures (rate limit, outage) rethrow so the job fails with
+    // the real cause instead of reporting the moderator as gone.
+    const moderator = await fetchMemberOrNull(guild, moderatorId)
+    return isRanked(moderator) ? moderator.roles.highest.position : null
+}
+
+/**
+ * {@link resolveModeratorCeiling} for batch executors, which call it before
+ * every member so a moderator demoted mid-run loses reach at once. Throws
+ * (failing the job) when the moderator can't be found in the guild.
+ */
+export async function requireModeratorCeiling(
+    guild: Guild,
+    moderatorId: string,
+): Promise<number> {
+    const ceiling = await resolveModeratorCeiling(guild, moderatorId)
+    if (ceiling === null) {
+        throw new Error(
+            `Initiating moderator ${moderatorId} could not be found in the guild`,
+        )
+    }
+    return ceiling
 }

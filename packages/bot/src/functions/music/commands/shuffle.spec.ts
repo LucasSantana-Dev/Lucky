@@ -17,7 +17,7 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: jest.fn(async () => true),
     requireQueue: jest.fn(async () => true),
     requireCurrentTrack: jest.fn(async () => true),
-    requireVoiceChannel: jest.fn(async () => true),
+    requireSameVoiceChannel: jest.fn(async () => true),
 }))
 
 jest.mock('../../../services/musicManagement/queueResolver', () => ({
@@ -42,7 +42,7 @@ import {
     requireGuild,
     requireQueue,
     requireCurrentTrack,
-    requireVoiceChannel,
+    requireSameVoiceChannel,
 } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { smartShuffle } from '../../../utils/music/queue/smartShuffle'
@@ -71,7 +71,7 @@ describe('shuffle command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         ;(requireGuild as jest.Mock).mockResolvedValue(true)
-        ;(requireVoiceChannel as jest.Mock).mockResolvedValue(true)
+        ;(requireSameVoiceChannel as jest.Mock).mockResolvedValue(true)
         ;(requireQueue as jest.Mock).mockResolvedValue(true)
         ;(requireCurrentTrack as jest.Mock).mockResolvedValue(true)
     })
@@ -87,15 +87,16 @@ describe('shuffle command', () => {
         expect(resolveGuildQueue).not.toHaveBeenCalled()
     })
 
-    it('stops when the caller is not in a voice channel', async () => {
-        ;(requireVoiceChannel as jest.Mock).mockResolvedValue(false)
+    it('stops when the caller is outside the bot voice channel (#3266)', async () => {
+        const queue = { channel: { id: 'vc-bot' } }
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({ queue })
+        ;(requireSameVoiceChannel as jest.Mock).mockResolvedValue(false)
+        const interaction = createInteraction('random') as any
 
-        await execute({
-            client: {},
-            interaction: createInteraction('random') as any,
-        })
+        await execute({ client: {}, interaction })
 
-        expect(resolveGuildQueue).not.toHaveBeenCalled()
+        expect(requireSameVoiceChannel).toHaveBeenCalledWith(queue, interaction)
+        expect(requireQueue).not.toHaveBeenCalled()
     })
 
     it('stops when there is no active queue', async () => {

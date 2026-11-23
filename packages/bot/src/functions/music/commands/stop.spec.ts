@@ -3,6 +3,7 @@ import stopCommand from './stop'
 const requireGuildMock = jest.fn()
 const requireQueueMock = jest.fn()
 const requireDJRoleMock = jest.fn()
+const requireSameVoiceChannelMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createSuccessEmbedMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
@@ -13,6 +14,8 @@ const clearSessionMoodCacheMock = jest.fn()
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
+    requireSameVoiceChannel: (...args: unknown[]) =>
+        requireSameVoiceChannelMock(...args),
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
     requireDJRoleInGuild: (...args: unknown[]) => requireDJRoleMock(...args),
 }))
@@ -82,12 +85,31 @@ describe('stop command', () => {
         jest.clearAllMocks()
         requireGuildMock.mockResolvedValue(true)
         requireQueueMock.mockResolvedValue(true)
+        requireSameVoiceChannelMock.mockResolvedValue(true)
         requireDJRoleMock.mockResolvedValue(true)
         interactionReplyMock.mockResolvedValue(undefined)
         createSuccessEmbedMock.mockReturnValue({ title: 'Playback stopped' })
         deleteSnapshotMock.mockResolvedValue(undefined)
         const queue = createQueue('guild-1')
         resolveGuildQueueMock.mockReturnValue({ queue })
+    })
+
+    it('refuses a member outside the bot voice channel without stopping (#3266)', async () => {
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        requireSameVoiceChannelMock.mockResolvedValue(false)
+        const interaction = createInteraction('guild-1')
+
+        await stopCommand.execute({ interaction, client: {} as any })
+
+        expect(requireSameVoiceChannelMock).toHaveBeenCalledWith(
+            queue,
+            interaction,
+        )
+        expect(queue.node.stop).not.toHaveBeenCalled()
+        expect(queue.delete).not.toHaveBeenCalled()
+        expect(markIntentionalStopMock).not.toHaveBeenCalled()
+        expect(interactionReplyMock).not.toHaveBeenCalled()
     })
 
     it('clears session mood cache on successful stop', async () => {
