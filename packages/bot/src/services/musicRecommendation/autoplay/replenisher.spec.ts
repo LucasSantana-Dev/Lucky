@@ -11,6 +11,7 @@ jest.mock('lru-cache', () => ({
 }))
 
 import {
+    enqueueAndFinalize,
     replenishQueue,
     popularityBoost,
     REPLENISH_DEADLINE_MS,
@@ -79,6 +80,7 @@ jest.mock('./diversitySelector', () => ({
     selectDiverseCandidates: jest.fn(),
     addSelectedTracks: jest.fn(),
     purgeDuplicatesOfCurrentTrack: jest.fn(),
+    isDuplicateCandidate: jest.fn().mockReturnValue(false),
 }))
 
 jest.mock('../candidateFallback', () => ({
@@ -513,6 +515,52 @@ describe('replenishQueue', () => {
                 replayed: ['Persisted'],
             }),
         )
+    })
+
+    // The persisted searches can outlive the refill deadline (#3277).
+    it('does not enqueue a persisted replay once the run is cancelled', async () => {
+        const { addSelectedTracks } = require('./diversitySelector')
+        let cancelled = false
+        const search = jest.fn(async () => {
+            cancelled = true
+            return { tracks: [createTrack({ url: 'https://x/late' })] }
+        })
+        const queue = createGuildQueue({
+            player: { search },
+        } as unknown as Partial<GuildQueue>)
+
+        await enqueueAndFinalize(
+            {
+                queue,
+                currentTrack: queue.currentTrack,
+                excludedUrls: new Set(),
+                excludedKeys: new Set(),
+                autoplayMode: 'similar',
+            } as any,
+            [],
+            new Map(),
+            null,
+            {},
+            Date.now(),
+            {
+                persisted: [
+                    {
+                        trackId: 'l',
+                        title: 'Late',
+                        author: 'C',
+                        duration: '3:00',
+                        url: 'https://x/late',
+                        timestamp: 1,
+                        guildId: 'guildid',
+                    },
+                ],
+                isCancelled: () => cancelled,
+            },
+        )
+
+        expect(search).toHaveBeenCalledTimes(1)
+        expect(addSelectedTracks).not.toHaveBeenCalled()
+        expect(queue.addTrack).not.toHaveBeenCalled()
     })
 
     it('does not attempt history replay when history is also empty', async () => {

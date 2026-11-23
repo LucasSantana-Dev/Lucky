@@ -402,7 +402,11 @@ async function _replenishQueue(
             requestedBy,
             sourcesCounts,
             startTime,
-            { session: allHistoryTracks, persisted: persistentHistory },
+            {
+                session: allHistoryTracks,
+                persisted: persistentHistory,
+                isCancelled: () => run.cancelled,
+            },
         )
         return true
     } catch (error) {
@@ -1178,6 +1182,7 @@ export async function enqueueAndFinalize(
     replayHistory: {
         session?: Track[]
         persisted?: TrackHistoryEntry[]
+        isCancelled?: () => boolean
     } = {},
 ): Promise<void> {
     const queue = autoplayContext.queue
@@ -1244,15 +1249,25 @@ export async function enqueueAndFinalize(
         let replaySource = 'session'
         // A restored session has no in-session history: fall back to the
         // guild history persisted across restarts (#3277).
-        if (historyReplay.length === 0) {
+        if (historyReplay.length === 0 && currentTrack) {
             historyReplay = await resolvePersistentHistoryReplay(
                 queue,
+                currentTrack,
                 replayHistory.persisted ?? [],
-                { urls: replayExcluded, keys: replayKeys },
                 HISTORY_REPLAY_LIMIT,
                 requestedBy,
             )
             replaySource = 'persisted'
+            // The searches awaited above can outlive the refill deadline;
+            // a cancelled run must not enqueue after a retry has started.
+            if (replayHistory.isCancelled?.()) {
+                debugLog({
+                    message:
+                        'Autoplay: refill passed its deadline, not enqueueing replay',
+                    data: { guildId },
+                })
+                return
+            }
         }
         if (historyReplay.length > 0) {
             // Same path as selected candidates: autoplay marking, buffer

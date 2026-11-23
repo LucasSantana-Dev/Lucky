@@ -5,6 +5,11 @@ import type { TrackHistoryEntry } from '@lucky/shared/services'
 import { normalizeTrackKey } from '../../../utils/music/trackNormalization'
 import { isHostedYoutubeEnabled } from '../../../config/featureFlags'
 import { isHost } from '../../../utils/general/urlHost'
+import {
+    buildExcludedKeys,
+    buildExcludedUrls,
+    isDuplicateCandidate,
+} from './diversitySelector'
 
 // Budget for resolving persisted history URLs. Same order as the broad
 // fallback so the refill cycle stays bounded when a source stalls (#2870).
@@ -65,29 +70,40 @@ async function resolveEntry(
 /**
  * Last-resort autoplay source when the session has no history to replay, as
  * after a restart restores a queue (#3277): resolve a few shuffled, non-skipped
- * URLs from the guild history persisted across restarts. Searches run in
- * parallel under one deadline; on timeout nothing is returned, so a stalled
- * source cannot enqueue into a later pass.
+ * URLs from the guild history persisted across restarts. What is playing or
+ * queued is excluded with the same url, video id and song identity keys as
+ * queue duplicate detection, before and after search. Searches run in parallel
+ * under one deadline; on timeout nothing is returned, so a stalled source
+ * cannot enqueue into a later pass.
  */
 export async function resolvePersistentHistoryReplay(
     queue: GuildQueue,
+    currentTrack: Track,
     persistentHistory: TrackHistoryEntry[],
-    excluded: { urls: Set<string>; keys: Set<string> },
     limit: number,
     requestedBy: User | null,
     timeoutMs = PERSISTENT_REPLAY_TIMEOUT_MS,
 ): Promise<Track[]> {
+    // Only playing/queued state: passing persistentHistory here would
+    // exclude every entry this replay could pick.
+    const excludedUrls = buildExcludedUrls(queue, currentTrack, [])
+    const excludedKeys = buildExcludedKeys(queue, currentTrack, [])
     // No YouTube extractor is registered when hosted YouTube is off, so
     // those entries are guaranteed misses (#2486).
     const youtubeOff = !isHostedYoutubeEnabled()
     const playable = persistentHistory.filter(
         (e) =>
             !e.skipped &&
-            !(youtubeOff && isHost(e.url, 'youtube.com', 'youtu.be')),
+            !(youtubeOff && isHost(e.url, 'youtube.com', 'youtu.be')) &&
+            !isDuplicateCandidate(
+                { url: e.url, title: e.title, author: e.author } as Track,
+                excludedUrls,
+                excludedKeys,
+            ),
     )
     // Over-fetch once: a search can miss or resolve to something queued.
     const picks = shuffleInPlace(
-        dedupeReplayPool(playable, excluded.urls, excluded.keys),
+        dedupeReplayPool(playable, excludedUrls, excludedKeys),
     ).slice(0, limit * 2)
     if (picks.length === 0) return []
 
@@ -101,6 +117,9 @@ export async function resolvePersistentHistoryReplay(
     clearTimeout(timer)
     if (!resolved) return []
 
-    const found = resolved.filter((t): t is Track => t !== null)
-    return dedupeReplayPool(found, excluded.urls, excluded.keys).slice(0, limit)
+    const found = resolved.filter(
+        (t): t is Track =>
+            t !== null && !isDuplicateCandidate(t, excludedUrls, excludedKeys),
+    )
+    return dedupeReplayPool(found, excludedUrls, excludedKeys).slice(0, limit)
 }

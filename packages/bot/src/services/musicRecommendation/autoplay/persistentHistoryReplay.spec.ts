@@ -29,14 +29,16 @@ function trackFor(url: string, title = url): Track {
     return { url, title, author: 'Artist' } as Track
 }
 
-function queueWithSearch(search: jest.Mock): GuildQueue {
-    return { player: { search } } as unknown as GuildQueue
+function queueWith(search: jest.Mock, queued: Track[] = []): GuildQueue {
+    return {
+        guild: { id: 'guildid' },
+        player: { search },
+        tracks: { toArray: () => queued },
+        history: { tracks: { toArray: () => [] } },
+    } as unknown as GuildQueue
 }
 
-const noExclusions = (): { urls: Set<string>; keys: Set<string> } => ({
-    urls: new Set<string>(),
-    keys: new Set<string>(),
-})
+const current = trackFor('https://x/playing', 'Playing')
 
 describe('dedupeReplayPool', () => {
     it('drops excluded urls and keys and repeated songs', () => {
@@ -62,15 +64,14 @@ describe('resolvePersistentHistoryReplay', () => {
         const search = jest.fn(async (query: string) => ({
             tracks: [trackFor(query)],
         }))
-        const ex = noExclusions()
 
         const tracks = await resolvePersistentHistoryReplay(
-            queueWithSearch(search),
+            queueWith(search),
+            current,
             [
                 entry({ url: 'https://x/skipped', title: 'S', skipped: true }),
                 entry({ url: 'https://x/kept', title: 'K' }),
             ],
-            ex,
             2,
             null,
         )
@@ -82,16 +83,28 @@ describe('resolvePersistentHistoryReplay', () => {
 
     it('skips entries that are playing or queued, before and after search', async () => {
         const search = jest.fn(async (_query: string) => ({
-            tracks: [trackFor('https://x/playing')],
+            tracks: [trackFor('https://x/playing', 'Playing')],
         }))
+        // Same song as the queued track under another url: excluded by its
+        // song identity, not by url.
+        const queued = {
+            url: 'https://y/queued',
+            title: 'Queued Song',
+            author: 'Other',
+        } as Track
 
         const tracks = await resolvePersistentHistoryReplay(
-            queueWithSearch(search),
+            queueWith(search, [queued]),
+            current,
             [
-                entry({ url: 'https://x/playing', title: 'P' }),
+                entry({ url: 'https://x/playing', title: 'Playing' }),
+                entry({
+                    url: 'https://x/queued-old',
+                    title: 'Queued Song',
+                    author: 'Other',
+                }),
                 entry({ url: 'https://x/other', title: 'O' }),
             ],
-            { urls: new Set(['https://x/playing']), keys: new Set() },
             2,
             null,
         )
@@ -107,15 +120,14 @@ describe('resolvePersistentHistoryReplay', () => {
             if (query.endsWith('/bad')) throw new Error('boom')
             return { tracks: [trackFor(query)] }
         })
-        const ex = noExclusions()
-        const history = ['bad', 'a', 'b', 'c'].map((s) =>
+        const history = ['bad', 'alpha', 'bravo', 'charlie'].map((s) =>
             entry({ url: `https://x/${s}`, title: s }),
         )
 
         const tracks = await resolvePersistentHistoryReplay(
-            queueWithSearch(search),
+            queueWith(search),
+            current,
             history,
-            ex,
             2,
             null,
         )
@@ -128,16 +140,16 @@ describe('resolvePersistentHistoryReplay', () => {
         jest.useFakeTimers()
         try {
             const search = jest.fn(() => new Promise<never>(() => {}))
-            const ex = noExclusions()
             const pending = resolvePersistentHistoryReplay(
-                queueWithSearch(search),
+                queueWith(search),
+                current,
                 [entry()],
-                ex,
                 2,
                 null,
                 1_000,
             )
             await jest.advanceTimersByTimeAsync(1_000)
+            expect(search).toHaveBeenCalledTimes(1)
             await expect(pending).resolves.toEqual([])
         } finally {
             jest.useRealTimers()
@@ -146,11 +158,10 @@ describe('resolvePersistentHistoryReplay', () => {
 
     it('does not search when there is no persisted history', async () => {
         const search = jest.fn()
-        const ex = noExclusions()
         const tracks = await resolvePersistentHistoryReplay(
-            queueWithSearch(search),
+            queueWith(search),
+            current,
             [],
-            ex,
             2,
             null,
         )
