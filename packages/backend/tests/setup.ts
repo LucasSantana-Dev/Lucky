@@ -232,6 +232,7 @@ jest.mock('../src/middleware/rateLimit', () => ({
     apiLimiter: passthrough,
     authLimiter: passthrough,
     writeLimiter: passthrough,
+    supportLimiter: passthrough,
 }))
 
 jest.mock('@lucky/shared/utils/database/prismaClient', () => ({

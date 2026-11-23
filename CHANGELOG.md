@@ -1880,6 +1880,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(backend): the public support form caps report text at 4000 characters and short fields at 64, checks that an attached screenshot really is a PNG, JPEG or WebP image, and allows 10 reports per hour from one address
 - fix(bot): `/play` with a link no source can play (a Spotify artist page, Deezer, TikTok...) now says the link isn't supported and lists what plays, instead of showing an internal extractor error (#3264)
 - fix(bot): autoplay no longer plays karaoke backing tracks: its artist fallback keeps only the current artist's songs, and titles like "(made popular by …)", "(In the Style of …)" or "[backing version]" count as another version (#3065)
 - fix(bot): after a restart the restored session keeps autoplay on (the guild's setting), so music continues after the restored song instead of stopping (#3061)

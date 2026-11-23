@@ -2,7 +2,7 @@ import type { Express, Response, Request, NextFunction } from 'express'
 import { createHash } from 'crypto'
 import multer, { type Multer } from 'multer'
 import { z } from 'zod'
-import { writeLimiter } from '../middleware/rateLimit'
+import { supportLimiter } from '../middleware/rateLimit'
 import { asyncHandler } from '../middleware/asyncHandler'
 import { AppError } from '../errors/AppError'
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth'
@@ -59,6 +59,30 @@ function uploadSingleImage(
 }
 
 const DISCORD_API = 'https://discord.com/api/v10'
+
+const startsWith = (buf: Buffer, sig: readonly number[], offset = 0) =>
+    buf.length >= offset + sig.length &&
+    sig.every((byte, i) => buf[offset + i] === byte)
+
+const ascii = (text: string) => [...text].map((c) => c.charCodeAt(0))
+
+/**
+ * The multipart Content-Type is client-controlled, so confirm the bytes are
+ * really the declared image format before persisting or serving them back.
+ */
+const IMAGE_SIGNATURES: Record<string, (buf: Buffer) => boolean> = {
+    'image/png': (buf) =>
+        startsWith(buf, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    'image/jpeg': (buf) => startsWith(buf, [0xff, 0xd8, 0xff]),
+    'image/gif': (buf) =>
+        startsWith(buf, ascii('GIF87a')) || startsWith(buf, ascii('GIF89a')),
+    'image/webp': (buf) =>
+        startsWith(buf, ascii('RIFF')) && startsWith(buf, ascii('WEBP'), 8),
+}
+
+export function imageBytesMatchMime(buf: Buffer, mimetype: string): boolean {
+    return IMAGE_SIGNATURES[mimetype]?.(buf) ?? false
+}
 
 /**
  * Hash the client IP into a non-reversible token for rate-limiting purposes.
@@ -148,10 +172,15 @@ async function notifyStaffChannel(
 
 // Zod schema for POST /api/support body
 const createSupportSchema = z.object({
-    context: z.string().min(1, 'Context required'),
-    cid: z.string().optional(), // correlationId
+    context: z.string().min(1, 'Context required').max(4000),
+    // correlationId: minted as 8 URL-safe chars; allow headroom, not free text
+    cid: z
+        .string()
+        .max(64)
+        .regex(/^[\w-]+$/)
+        .optional(),
     guildId: snowflakeId.optional(),
-    category: z.string().optional(), // errorCategory
+    category: z.string().max(64).optional(), // errorCategory
     // Client-generated dedup key (#1319): same key → same report, one ping.
     sid: z
         .string()
@@ -182,13 +211,15 @@ export function setupSupportRoutes(app: Express): void {
      */
     app.post(
         '/api/support',
-        writeLimiter,
+        supportLimiter,
         uploadSingleImage,
         asyncHandler(async (req, res: Response) => {
             // Validate body fields
             const parseResult = createSupportSchema.safeParse(req.body)
             if (!parseResult.success) {
-                throw AppError.badRequest('context is required')
+                throw AppError.badRequest(
+                    'context is required (max 4000 characters)',
+                )
             }
 
             const { context, cid, guildId, category, sid } = parseResult.data
@@ -213,6 +244,11 @@ export function setupSupportRoutes(app: Express): void {
                             validation.error || 'Invalid image',
                         )
                     }
+                }
+                if (!imageBytesMatchMime(req.file.buffer, req.file.mimetype)) {
+                    throw AppError.badRequest(
+                        'Image content does not match its declared type',
+                    )
                 }
             }
 

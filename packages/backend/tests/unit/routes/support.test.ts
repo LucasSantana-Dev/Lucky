@@ -46,8 +46,14 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 
 // Rate limiter and admin gate: pass-through; auth injects a test user.
+// supportLimiter counts hits so the route-specific limiter is provably wired.
+const supportLimiterHits = { count: 0 }
 jest.mock('../../../src/middleware/rateLimit', () => ({
     writeLimiter: (_req: unknown, _res: unknown, next: () => void) => next(),
+    supportLimiter: (_req: unknown, _res: unknown, next: () => void) => {
+        supportLimiterHits.count += 1
+        next()
+    },
 }))
 
 jest.mock('../../../src/middleware/auth', () => ({
@@ -82,6 +88,16 @@ function buildApp(): express.Express {
 
 const app = buildApp()
 const ADMIN = ['x-test-user', 'admin-1'] as const
+
+const PNG_BYTES = Buffer.from([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00,
+])
+const JPEG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10])
+const WEBP_BYTES = Buffer.concat([
+    Buffer.from('RIFF'),
+    Buffer.from([0x24, 0x00, 0x00, 0x00]),
+    Buffer.from('WEBPVP8 '),
+])
 
 beforeEach(() => {
     jest.clearAllMocks()
@@ -152,7 +168,7 @@ describe('POST /api/support', () => {
         const res = await request(app)
             .post('/api/support')
             .field('context', 'ctx')
-            .attach('image', Buffer.from([0x89, 0x50, 0x4e, 0x47]), {
+            .attach('image', PNG_BYTES, {
                 filename: 'shot.png',
                 contentType: 'image/png',
             })
@@ -209,6 +225,69 @@ describe('POST /api/support', () => {
         expect(res.status).toBe(413)
         expect(createMock).not.toHaveBeenCalled()
     })
+
+    it('runs the route-specific support limiter', async () => {
+        supportLimiterHits.count = 0
+        await request(app).post('/api/support').field('context', 'ctx')
+        expect(supportLimiterHits.count).toBe(1)
+    })
+
+    it('rejects an oversized context with 400', async () => {
+        const res = await request(app)
+            .post('/api/support')
+            .field('context', 'a'.repeat(4001))
+        expect(res.status).toBe(400)
+        expect(createMock).not.toHaveBeenCalled()
+    })
+
+    it('accepts a context at the 4000 char limit', async () => {
+        const res = await request(app)
+            .post('/api/support')
+            .field('context', 'a'.repeat(4000))
+        expect(res.status).toBe(201)
+    })
+
+    it.each([
+        ['cid', 'x'.repeat(65)],
+        ['cid', 'bad id!'],
+        ['category', 'c'.repeat(65)],
+    ])('rejects an out-of-bounds %s with 400', async (field, value) => {
+        const res = await request(app)
+            .post('/api/support')
+            .field('context', 'ctx')
+            .field(field, value)
+        expect(res.status).toBe(400)
+        expect(createMock).not.toHaveBeenCalled()
+    })
+
+    it.each([
+        ['image/jpeg', JPEG_BYTES, 'a.jpg'],
+        ['image/webp', WEBP_BYTES, 'a.webp'],
+    ])('accepts %s whose bytes match', async (mime, bytes, filename) => {
+        const res = await request(app)
+            .post('/api/support')
+            .field('context', 'ctx')
+            .attach('image', bytes, { filename, contentType: mime })
+        expect(res.status).toBe(201)
+    })
+
+    it.each([
+        ['image/png', Buffer.from('<svg onload=alert(1)>'), 'x.png'],
+        ['image/png', JPEG_BYTES, 'x.png'],
+        ['image/jpeg', PNG_BYTES, 'x.jpg'],
+        ['image/webp', Buffer.from('RIFF\0\0\0\0WAVEfmt '), 'x.webp'],
+        ['image/png', Buffer.from([0x89, 0x50]), 'tiny.png'],
+    ])(
+        'rejects a %s upload whose bytes do not match with 400',
+        async (mime, bytes, filename) => {
+            const res = await request(app)
+                .post('/api/support')
+                .field('context', 'ctx')
+                .attach('image', bytes, { filename, contentType: mime })
+            expect(res.status).toBe(400)
+            expect(createMock).not.toHaveBeenCalled()
+        },
+    )
 
     it('still returns 201 when staff notification is unconfigured', async () => {
         // env unset in beforeEach → notifyStaffChannel no-ops, request succeeds
