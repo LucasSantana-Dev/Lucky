@@ -120,6 +120,10 @@ export async function handleOAuthCallback(
             // and asked again with the same, now consumed, state. The session
             // is logged in, so send the user on instead of showing an error.
             // The code is never used here, so this cannot log anyone in.
+            // Login regenerates the session id, so this only matches when
+            // the browser already holds the new cookie. A retry carrying the
+            // pre-login cookie gets invalid_state: linking that old id to
+            // the logged-in session would undo the regeneration.
             if (req.session.authenticated && req.session.userId) {
                 debugLog({
                     message:
@@ -192,6 +196,21 @@ export async function handleOAuthCallback(
         const userInfo = await discordOAuthService.getUserInfo(
             tokenData.access_token,
         )
+
+        // The pre-login session id may have been set by someone else, so
+        // the login gets a fresh one. The old session only held the OAuth
+        // state and redirect uri, both already used above, so nothing is
+        // carried over.
+        await new Promise<void>((resolve, reject) => {
+            req.session.regenerate((err) => {
+                if (err) {
+                    reject(err)
+                    return
+                }
+                resolve()
+            })
+        })
+
         const sessionId = req.sessionID
 
         if (!sessionId) {
