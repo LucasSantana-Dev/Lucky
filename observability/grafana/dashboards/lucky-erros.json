@@ -972,7 +972,7 @@
         {
             "type": "state-timeline",
             "title": "Extratores de música degradados",
-            "description": "YouTube/Spotify fora ou limitados.",
+            "description": "YouTube/Spotify fora ou limitados. Verde \"ok\" = funcionando; vermelho = degradado.",
             "gridPos": {
                 "x": 12,
                 "y": 30,
@@ -1017,7 +1017,7 @@
                 "overrides": []
             },
             "options": {
-                "showValue": "never",
+                "showValue": "auto",
                 "legend": {
                     "showLegend": false
                 }
