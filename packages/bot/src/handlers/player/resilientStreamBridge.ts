@@ -777,7 +777,12 @@ async function attemptSoundCloud(
             startedAt,
             'fail',
         )
-        warnLog({
+        // A search that matched nothing is expected while other stages may
+        // still play the track; it surfaces in the exhausted line (#3275).
+        const log = recordSoundCloudMiss(track, stageLabel, error)
+            ? debugLog
+            : warnLog
+        log({
             message: failureMessage,
             data: {
                 error: (error as Error).message,
@@ -787,6 +792,39 @@ async function attemptSoundCloud(
         })
         return null
     }
+}
+
+type SoundCloudMissStage =
+    'soundcloud-full' | 'soundcloud-title' | 'soundcloud-core'
+
+// Why each SoundCloud stage of a play rejected its candidates, for the
+// exhausted line. Only expected misses (the matcher's typed errors) land here.
+const soundCloudMisses = new WeakMap<
+    BridgeTrack,
+    Partial<Record<SoundCloudMissStage, unknown>>
+>()
+const EXPECTED_SOUNDCLOUD_MISSES = new Set([
+    'SoundCloudNoMatchError',
+    'SoundCloudDrmError',
+])
+
+/** Records an expected miss and says whether it was one. */
+function recordSoundCloudMiss(
+    track: BridgeTrack,
+    stage: StreamBridgeFallbackStage,
+    error: unknown,
+): boolean {
+    if (
+        !(error instanceof Error) ||
+        !EXPECTED_SOUNDCLOUD_MISSES.has(error.name)
+    ) {
+        return false
+    }
+    const misses = soundCloudMisses.get(track) ?? {}
+    misses[stage as SoundCloudMissStage] =
+        (error as Error & { rejected?: unknown }).rejected ?? []
+    soundCloudMisses.set(track, misses)
+    return true
 }
 
 // Accounts a SoundCloud upload may come from: the track author and, for a
@@ -856,6 +894,7 @@ async function attemptCoreStageOrLogExhausted(
         })
         return stream
     } catch (coreError) {
+        recordSoundCloudMiss(track, 'soundcloud-core', coreError)
         const coreDurationMs = observeStage(
             'soundcloud_core',
             startedAt,
@@ -940,6 +979,7 @@ function logAllStagesExhausted(
             durationMs: extra.durationMs,
             url: track.url,
             stages,
+            soundCloudRejected: soundCloudMisses.get(track),
         },
     })
 }

@@ -733,6 +733,56 @@ describe('fallback stage stamping', () => {
         )
     })
 
+    // #3275: a stage that searched fine but matched nothing is an expected
+    // miss. It logs at debug, and the candidates reach the one warn that
+    // matters, the exhausted line, only when the play fails.
+    it('logs expected SoundCloud misses at debug and reports them once', async () => {
+        const miss = (rejected: unknown[]) =>
+            Object.assign(new Error('SoundCloud: no validated match'), {
+                name: 'SoundCloudNoMatchError',
+                rejected,
+            })
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
+        mockStreamViaSoundCloud
+            .mockRejectedValueOnce(miss([{ name: 'full' }]))
+            .mockRejectedValueOnce(miss([{ name: 'title' }]))
+            .mockRejectedValueOnce(miss([{ name: 'core' }]))
+        mockCleanTitle.mockReturnValue('Song (Official) Mix')
+        const track = makeTrack({ title: 'Song (Official) Mix' })
+
+        await expect(createResilientStream(track)).rejects.toThrow(
+            'Bridge exhausted',
+        )
+
+        const warned = mockWarnLog.mock.calls.map(
+            ([entry]) => (entry as { message: string }).message,
+        )
+        expect(warned).not.toContain(
+            'Bridge: SoundCloud primary search failed, retrying with title only',
+        )
+        expect(warned).not.toContain(
+            'Bridge: title-only SoundCloud failed, retrying without parentheticals',
+        )
+        expect(mockDebugLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message:
+                    'Bridge: SoundCloud primary search failed, retrying with title only',
+            }),
+        )
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Bridge: all stages exhausted',
+                data: expect.objectContaining({
+                    soundCloudRejected: {
+                        'soundcloud-full': [{ name: 'full' }],
+                        'soundcloud-title': [{ name: 'title' }],
+                        'soundcloud-core': [{ name: 'core' }],
+                    },
+                }),
+            }),
+        )
+    })
+
     // #2142: the stage used to be gated on "title has a parenthetical to
     // strip", so titles like "Michael Jackson - Human Nature" never got a
     // third attempt. It must now run whenever stage 2 fails, broadening via
