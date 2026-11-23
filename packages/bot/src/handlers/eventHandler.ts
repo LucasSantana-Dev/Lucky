@@ -689,7 +689,7 @@ function handleGuildDelete(client: Client): void {
                 }
             duplicateDetection.clearHistory(guild.id)
             duplicateDetection.clearAllGuildCaches(guild.id)
-            clearAutoplayGuildState(guild.id)
+            void clearAutoplayGuildState(guild.id)
             cleanupGuildState(guild.id)
         } catch (err) {
             errorLog({

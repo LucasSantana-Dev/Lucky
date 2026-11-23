@@ -21,6 +21,7 @@ import { premiumService } from '@lucky/shared/services'
 import {
     __autoplayGuildStateForTests,
     clearAutoplayGuildState,
+    enqueueAndFinalize,
     extractSeedAndSessionMood,
     replenishQueue,
 } from './replenisher'
@@ -35,48 +36,95 @@ function makeQueue(guildId: string): GuildQueue {
     } as unknown as GuildQueue
 }
 
+// An empty pass still advances the guild's refill counter.
+async function seedGuildState(queue: GuildQueue): Promise<void> {
+    await extractSeedAndSessionMood(queue, queue.currentTrack as Track)
+    await enqueueAndFinalize(
+        {
+            queue,
+            currentTrack: queue.currentTrack,
+            excludedUrls: new Set(),
+            excludedKeys: new Set(),
+            autoplayMode: 'similar',
+        } as unknown as Parameters<typeof enqueueAndFinalize>[0],
+        [],
+        new Map(),
+        null,
+        {},
+        Date.now(),
+    )
+}
+
+function stallPremiumCheck(): (v: boolean) => void {
+    let release!: (v: boolean) => void
+    jest.mocked(premiumService.isPremium).mockReturnValueOnce(
+        new Promise<boolean>((r) => {
+            release = r
+        }),
+    )
+    return (v) => release(v)
+}
+
 describe('clearAutoplayGuildState (#3280)', () => {
     beforeEach(() => detectSessionMoodMock.mockClear())
 
-    it('drops the cached session mood so the next session recomputes it', async () => {
-        const queue = makeQueue('mood-guild')
-        const track = queue.currentTrack as Track
+    it('drops the counter, mood and settled lock of the ended session', async () => {
+        const queue = makeQueue('ended-guild')
+        await replenishQueue(queue)
+        await seedGuildState(queue)
+        expect(__autoplayGuildStateForTests('ended-guild')).toEqual({
+            lock: true,
+            counter: true,
+            mood: true,
+        })
 
-        await extractSeedAndSessionMood(queue, track)
-        await extractSeedAndSessionMood(queue, track)
-        expect(detectSessionMoodMock).toHaveBeenCalledTimes(1)
+        await clearAutoplayGuildState('ended-guild')
 
-        clearAutoplayGuildState('mood-guild')
-        await extractSeedAndSessionMood(queue, track)
+        expect(__autoplayGuildStateForTests('ended-guild')).toEqual({
+            lock: false,
+            counter: false,
+            mood: false,
+        })
+        await extractSeedAndSessionMood(queue, queue.currentTrack as Track)
         expect(detectSessionMoodMock).toHaveBeenCalledTimes(2)
     })
 
-    it('leaves no per-guild entry behind once a refill settles and the guild is cleared', async () => {
-        await replenishQueue(makeQueue('settle-guild'))
+    it('waits for a refill still in flight before clearing', async () => {
+        const queue = makeQueue('busy-guild')
+        await seedGuildState(queue)
+        const release = stallPremiumCheck()
+        const pending = replenishQueue(queue)
+
+        const cleared = clearAutoplayGuildState('busy-guild')
         await new Promise((r) => setImmediate(r))
+        expect(__autoplayGuildStateForTests('busy-guild')).toEqual({
+            lock: true,
+            counter: true,
+            mood: true,
+        })
 
-        clearAutoplayGuildState('settle-guild')
-
-        expect(__autoplayGuildStateForTests('settle-guild')).toEqual({
+        release(false)
+        await pending
+        await cleared
+        expect(__autoplayGuildStateForTests('busy-guild')).toEqual({
             lock: false,
             counter: false,
             mood: false,
         })
     })
 
-    it('keeps the lock of a refill still in flight so the next one stays serialised', async () => {
-        let release!: (v: boolean) => void
-        jest.mocked(premiumService.isPremium).mockReturnValueOnce(
-            new Promise<boolean>((r) => {
-                release = r
-            }),
-        )
-        const pending = replenishQueue(makeQueue('busy-guild'))
-
-        clearAutoplayGuildState('busy-guild')
-        expect(__autoplayGuildStateForTests('busy-guild').lock).toBe(true)
+    it('leaves the state of a refill queued by a new session alone', async () => {
+        const queue = makeQueue('reused-guild')
+        await seedGuildState(queue)
+        const release = stallPremiumCheck()
+        const first = replenishQueue(queue)
+        const cleared = clearAutoplayGuildState('reused-guild')
+        const second = replenishQueue(queue)
 
         release(false)
-        await pending
+        await first
+        await cleared
+        expect(__autoplayGuildStateForTests('reused-guild').counter).toBe(true)
+        await second
     })
 })

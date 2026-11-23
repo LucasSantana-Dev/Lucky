@@ -441,7 +441,7 @@ const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
     clearIdleTimer(queue.guild.id)
     // Refill counter and mood cache belong to the session that just ended
     // (#3280); /leave and the idle disconnect both land here via delete().
-    clearAutoplayGuildState(queue.guild.id)
+    void clearAutoplayGuildState(queue.guild.id)
     try {
         const lastStarted = takeGuildLastStartedTrack(queue.guild.id)
         const track = queue.currentTrack ?? lastStarted
