@@ -1880,6 +1880,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(bot): `/voteskip` counts only votes from members still in the voice channel, so a voter who left no longer helps pass the skip (#3267)
 - fix(bot): autoplay no longer stalls on a fresh or restored Latin session: the cross-locale veto now lets through the playing artist's own tracks and Latin candidates when the playing track itself reads Spanish (by title or Last.fm tags), instead of rejecting every Spanish candidate whenever the session history is still empty (#3277)
 - fix(backend): Discord OAuth tokens in webapp sessions are encrypted at rest (AES-256-GCM, new `SESSION_TOKEN_KEY`, required in production), and the session file fallback now writes asynchronously and atomically
 - fix(backend): editing, toggling or deleting an auto message from the dashboard only works on that guild's own messages; an id from another guild returns not found

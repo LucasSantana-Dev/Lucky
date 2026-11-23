@@ -175,6 +175,19 @@ describe('voteskip command', () => {
         )
     })
 
+    it('ignores votes from users who left the voice channel (#3267)', async () => {
+        const queue = createQueue(4)
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        addVoteMock.mockReturnValue(new Set(['user-1', 'gone-1', 'gone-2']))
+        const interaction = createInteraction()
+        await voteskipCommand.execute({ client: {}, interaction } as any)
+        expect(queue.node.skip).not.toHaveBeenCalled()
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+            '🗳️ Vote recorded',
+            expect.stringContaining('1/2 votes'),
+        )
+    })
+
     it('skips when vote threshold is met', async () => {
         const queue = createQueue(2)
         resolveGuildQueueMock.mockReturnValue({ queue })
