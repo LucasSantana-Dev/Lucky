@@ -192,6 +192,21 @@ export async function handleOAuthCallback(
         const userInfo = await discordOAuthService.getUserInfo(
             tokenData.access_token,
         )
+
+        // The pre-login session id may have been set by someone else, so
+        // the login gets a fresh one. The old session only held the OAuth
+        // state and redirect uri, both already used above, so nothing is
+        // carried over.
+        await new Promise<void>((resolve, reject) => {
+            req.session.regenerate((err) => {
+                if (err) {
+                    reject(err)
+                    return
+                }
+                resolve()
+            })
+        })
+
         const sessionId = req.sessionID
 
         if (!sessionId) {

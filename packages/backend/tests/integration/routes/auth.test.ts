@@ -387,6 +387,75 @@ describe('Auth Routes Integration', () => {
             expect(getSessionServiceMock().setSession).toHaveBeenCalled()
         })
 
+        test('starts a new session id after a successful login', async () => {
+            mockSuccessfulOAuthFlow()
+
+            // The global express-session mock has no store, so this test
+            // uses the real module to see what a browser cookie points at.
+            const realSession =
+                jest.requireActual<typeof import('express-session')>(
+                    'express-session',
+                )
+            const discordApp = express()
+            discordApp.use(
+                realSession({
+                    secret: 'test-secret',
+                    name: 'sessionId',
+                    resave: false,
+                    saveUninitialized: false,
+                    store: new realSession.MemoryStore(),
+                }),
+            )
+
+            const seenIds: Record<string, string> = {}
+            discordApp.use((req, _res, next) => {
+                seenIds[req.path] = req.sessionID
+                next()
+            })
+
+            setupAuthRoutes(discordApp)
+            discordApp.get('/probe', (req, res) => {
+                res.json({
+                    id: req.sessionID,
+                    authenticated: req.session.authenticated === true,
+                })
+            })
+            discordApp.use(errorHandler)
+
+            const agent = request.agent(discordApp)
+
+            const start = await agent.get('/api/auth/discord').expect(302)
+            const state = new URL(start.headers.location).searchParams.get(
+                'state',
+            )
+            const preLoginId = seenIds['/api/auth/discord']
+            const preLoginCookie = String(start.headers['set-cookie'])
+                .split(';')[0]
+                .trim()
+
+            const callback = await agent
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state })
+                .expect(302)
+
+            expect(callback.headers.location).toContain('authenticated=true')
+            expect(seenIds['/api/auth/callback']).toBe(preLoginId)
+
+            const storedId =
+                getSessionServiceMock().setSession.mock.calls[0]?.[0]
+            expect(storedId).toBeDefined()
+            expect(storedId).not.toBe(preLoginId)
+
+            const probe = await agent.get('/probe').expect(200)
+            expect(probe.body).toEqual({ id: storedId, authenticated: true })
+
+            const planted = await request(discordApp)
+                .get('/probe')
+                .set('Cookie', preLoginCookie)
+                .expect(200)
+            expect(planted.body.authenticated).toBe(false)
+        })
+
         test('should return 400 when code is missing', async () => {
             const discordApp = express()
             setupSessionMiddleware(discordApp)
