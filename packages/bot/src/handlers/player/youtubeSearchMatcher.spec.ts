@@ -1,4 +1,8 @@
-import { pickYouTubeCandidate, youtubeWatchUrl } from './youtubeSearchMatcher'
+import {
+    pickYouTubeCandidate,
+    requestedVersionMarkers,
+    youtubeWatchUrl,
+} from './youtubeSearchMatcher'
 
 const target = (
     overrides: Partial<Parameters<typeof pickYouTubeCandidate>[0]> = {},
@@ -313,5 +317,17 @@ describe('youtubeWatchUrl', () => {
         expect(youtubeWatchUrl('abc_-1')).toBe(
             'https://www.youtube.com/watch?v=abc_-1',
         )
+    })
+})
+
+describe('requestedVersionMarkers (#3276)', () => {
+    it.each([
+        ['Duvet - Acoustic', ['acoustic']],
+        ['Song - Nirso Remix', ['remix']],
+        ['Song (Ao Vivo)', ['ao vivo']],
+        ['Live Forever', []],
+        ['Song', []],
+    ])('reads %j', (title, markers) => {
+        expect(requestedVersionMarkers(title)).toEqual(markers)
     })
 })

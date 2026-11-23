@@ -1458,6 +1458,45 @@ describe('empty YouTube search retry', () => {
         expect(mockSearchYtDlpCandidates.mock.calls[1][0]).toBe(`Song ${lead}`)
     })
 
+    // #3276: "Duvet - Acoustic" by bôa (5:14, prod 2026-11-22). cleanTitle
+    // drops the version suffix, both searches found only the 3:24 original,
+    // and the play failed while "bôa - Duvet (Acoustic)" was on YouTube.
+    it('puts the version the Spotify title asks for back into the broad query', async () => {
+        mockCleanTitle.mockReturnValue('Duvet')
+        mockCleanAuthor.mockReturnValue('bôa')
+        mockSearchYtDlpCandidates
+            .mockResolvedValueOnce([
+                hit({
+                    title: 'Bôa - Duvet (Official Video)',
+                    durationSec: 213,
+                }),
+            ])
+            .mockResolvedValueOnce([
+                hit({ title: 'bôa - Duvet (Acoustic)', durationSec: 315 }),
+            ])
+        const track = makeTrack({
+            title: 'Duvet - Acoustic',
+            author: 'bôa',
+            duration: '05:14',
+            url: 'https://open.spotify.com/track/0wlsgzAk1LaO8MMoXxpz7W',
+        })
+
+        await expect(createResilientStream(track)).resolves.toBe(fakeStream)
+        expect(mockSearchYtDlpCandidates.mock.calls[1][0]).toBe(
+            'Duvet bôa acoustic',
+        )
+    })
+
+    it('adds no version word when the Spotify title asks for none', async () => {
+        mockCleanTitle.mockReturnValue('Song')
+        mockCleanAuthor.mockReturnValue('Artist')
+        mockSearchYtDlpCandidates
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce(found('Song'))
+        await createResilientStream(spotifyTrack())
+        expect(mockSearchYtDlpCandidates.mock.calls[1][0]).toBe('Song Artist')
+    })
+
     it('logs the empty search as a retry, not a SoundCloud fallback', async () => {
         const lateStream = Object.assign(new EventEmitter(), {
             destroy: jest.fn(),
