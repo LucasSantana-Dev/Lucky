@@ -74,6 +74,7 @@ export async function requireVoiceChannel(
 
 type VoiceGuardInteraction = {
     member: unknown
+    memberPermissions?: Readonly<PermissionsBitField> | null
     guild?: {
         members?: { me?: { voice?: { channelId?: string | null } } | null }
     } | null
@@ -100,14 +101,36 @@ function botVoiceChannelId(
 }
 
 /**
+ * Manage Server, read from `memberPermissions` first: a raw or uncached
+ * `member` carries its permissions as a bitfield string, not a bitfield.
+ */
+function canManageGuild(interaction: {
+    member: unknown
+    memberPermissions?: Readonly<PermissionsBitField> | null
+}): boolean {
+    const permissions =
+        interaction.memberPermissions ??
+        (interaction.member as GuildMember | null)?.permissions
+    return (
+        permissions instanceof PermissionsBitField &&
+        permissions.has(PermissionFlagsBits.ManageGuild)
+    )
+}
+
+/**
  * Why a member may not control the music, or null when they may. The bot's
  * channel comes from the queue, else from its own voice state; when the bot is
- * in no channel, any member in some voice channel passes (#3266).
+ * in no channel, any member in some voice channel passes (#3266). Members with
+ * Manage Server pass from anywhere, so they can stop a session they are not in,
+ * unless the caller sets `allowManagers: false` (ratings stay with listeners).
  */
 export function voiceChannelRefusal(
     interaction: VoiceGuardInteraction,
     queue: GuildQueue | null,
+    { allowManagers = true }: { allowManagers?: boolean } = {},
 ): VoiceChannelRefusal | null {
+    if (allowManagers && canManageGuild(interaction)) return null
+
     const userChannelId = memberVoiceChannelId(interaction.member)
     if (!userChannelId) return { reason: 'notInVoice' }
 
@@ -281,6 +304,13 @@ export async function requireInteractionOptions(
     return true
 }
 
+/** A raw or uncached member lists its roles as an array of role ids. */
+function memberHasRole(member: GuildMember, roleId: string): boolean {
+    const roles = member.roles as GuildMemberRoleManager | string[] | undefined
+    if (roles instanceof GuildMemberRoleManager) return roles.cache.has(roleId)
+    return Array.isArray(roles) && roles.includes(roleId)
+}
+
 export async function requireDJRole(
     interaction: ChatInputCommandInteraction,
     guildId: string,
@@ -288,20 +318,12 @@ export async function requireDJRole(
     const member = interaction.member as GuildMember | null
     if (!member) return true
 
-    if (
-        member.permissions instanceof PermissionsBitField &&
-        member.permissions.has(PermissionFlagsBits.ManageGuild)
-    ) {
-        return true
-    }
+    if (canManageGuild(interaction)) return true
 
     const settings = await guildSettingsService.getGuildSettings(guildId)
     if (!settings?.djRoleId) return true
 
-    const hasDJRole =
-        member.roles instanceof GuildMemberRoleManager
-            ? member.roles.cache.has(settings.djRoleId)
-            : false
+    const hasDJRole = memberHasRole(member, settings.djRoleId)
 
     if (!hasDJRole) {
         await interactionReply({
