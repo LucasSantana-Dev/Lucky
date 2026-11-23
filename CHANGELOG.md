@@ -1878,6 +1878,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): the server count is also posted to discordbotlist.com and discord.bots.gg every 30 minutes, each enabled by its own `DISCORDBOTLIST_TOKEN` / `DISCORD_BOTS_GG_TOKEN`, with one info log and no requests when neither is set (#2751)
 - feat(bot): music messages are compact: `/play`, now playing, `/skip`-style replies and stream failures are one line each, `/queue` is a single card with a "N songs in queue • Total duration" footer, the now-playing message has one button row with a "More" button for the full controls, and skip-reason reactions only appear on autoplay picks; the `/play` reply, now-playing message, `/queue` card and failure notices follow the server language (en, es, pt-BR), while the `/skip`-style status labels stay English for now (#3009) (#3007)
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
+- feat(bot): `/play` expands Spotify share links (`spotify.link`, `spotify.app.link`) to the open.spotify.com link, and a Spotify artist link queues that artist's top tracks like `/artist` instead of replying that the link is not supported
 
 ### Fixed
 - fix(bot): `/skip` no longer reports an error when only the autoplay feedback prompt fails after a successful skip, and two `/skip` calls racing on the same song skip it once instead of also skipping the next one (#3279)

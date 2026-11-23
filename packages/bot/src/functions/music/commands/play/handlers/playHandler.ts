@@ -42,6 +42,7 @@ import {
     reserveCollaborativeRequest,
     type CollaborativeReservation,
 } from './collaborativeLimit'
+import { playSpotifyArtistLink, spotifyArtistId } from './spotifyArtistLink'
 import {
     classifyPlayFailure,
     logPlayFailure,
@@ -642,6 +643,24 @@ export async function executePlayHandler({
     const reservation = await reserveCollaborativeRequest(interaction, guildId)
     if (!reservation) return
     const query = await prepareQuery(rawQuery, provider)
+
+    // A YouTube or SoundCloud provider choice keeps its own search.
+    const artistId =
+        provider && provider !== 'spotify' ? null : spotifyArtistId(query)
+    if (artistId) {
+        try {
+            await playSpotifyArtistLink({
+                client,
+                interaction,
+                voiceChannel,
+                artistId,
+                reservation,
+            })
+        } finally {
+            reservation.settle()
+        }
+        return
+    }
 
     const ctx: PlayContext = {
         client,

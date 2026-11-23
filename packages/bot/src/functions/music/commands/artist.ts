@@ -1,6 +1,10 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
 import { QueryType } from 'discord-player'
-import type { GuildMember, ChatInputCommandInteraction } from 'discord.js'
+import type {
+    GuildMember,
+    ChatInputCommandInteraction,
+    VoiceBasedChannel,
+} from 'discord.js'
 import Command from '../../../models/Command'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import {
@@ -27,7 +31,10 @@ import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
-import { reserveCollaborativeRequest } from './play/handlers/collaborativeLimit'
+import {
+    reserveCollaborativeRequest,
+    type CollaborativeReservation,
+} from './play/handlers/collaborativeLimit'
 import {
     SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
     TEXT_SEARCH_BLOCKED_EXTRACTORS,
@@ -36,6 +43,10 @@ import { isHostedYoutubeEnabled } from '../../../config/featureFlags'
 import type { CustomClient } from '../../../types/CustomClient'
 import { QUEUE_LEAVE_OPTIONS } from '../../../services/musicManagement/queueLeaveOptions'
 import { AsmrBlockedError, isAsmrTrack } from '../../../utils/music/asmrFilter'
+import {
+    classifyOutcome,
+    markCommandOutcome,
+} from '../../../utils/monitoring/commandOutcome'
 
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 20
@@ -124,6 +135,317 @@ const SEARCH_ARMS = [
         blocked: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
     },
 ] as const
+
+type ArtistSearchResult = Awaited<ReturnType<CustomClient['player']['search']>>
+
+/** First search arm that finds tracks for the artist, or null. */
+async function searchArtistArms(
+    client: CustomClient,
+    interaction: ChatInputCommandInteraction,
+    artistName: string,
+): Promise<{
+    searchResult: ArtistSearchResult
+    resolvedEngine: QueryType
+} | null> {
+    for (const arm of SEARCH_ARMS) {
+        // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-
+        // positioning.md point 3): no extractor is registered to
+        // serve this engine, so skip the arm instead of paying for a
+        // guaranteed miss.
+        if (
+            arm.engine === QueryType.YOUTUBE_SEARCH &&
+            !isHostedYoutubeEnabled()
+        ) {
+            continue
+        }
+        let armResult: ArtistSearchResult
+        try {
+            armResult = await client.player.search(artistName, {
+                requestedBy: interaction.user,
+                searchEngine: arm.engine,
+                ...(arm.blocked ? { blockExtractors: [...arm.blocked] } : {}),
+            })
+        } catch (error) {
+            warnLog({
+                message: 'Artist search arm threw',
+                data: {
+                    artistName,
+                    engine: String(arm.engine),
+                    error: String(error),
+                },
+            })
+            continue
+        }
+
+        if (armResult?.tracks.length) {
+            return { searchResult: armResult, resolvedEngine: arm.engine }
+        }
+
+        warnLog({
+            message: 'Artist search arm returned no tracks',
+            data: { artistName, engine: String(arm.engine) },
+        })
+    }
+    return null
+}
+
+/** The search result, topped up past the Spotify arm cap when needed. */
+async function withSpotifyTopUp({
+    client,
+    interaction,
+    artistName,
+    limit,
+    resolvedEngine,
+    tracks,
+}: {
+    client: CustomClient
+    interaction: ChatInputCommandInteraction
+    artistName: string
+    limit: number
+    resolvedEngine: QueryType
+    tracks: ArtistTrack[]
+}): Promise<ArtistTrack[]> {
+    let tracksPool = tracks
+
+    // The Spotify arm is capped at SPOTIFY_SEARCH_CAP regardless of
+    // what was asked for (#2304). Only pay for a top-up when it's
+    // actually needed: the winning arm was Spotify, it hit the cap
+    // (a lower count means the artist genuinely has fewer results,
+    // not that more are being withheld), and more were requested.
+    if (
+        resolvedEngine === QueryType.SPOTIFY_SEARCH &&
+        tracksPool.length >= SPOTIFY_SEARCH_CAP &&
+        limit > SPOTIFY_SEARCH_CAP
+    ) {
+        const topUp = await topUpSpotifyTracks({
+            client,
+            interaction,
+            artistName,
+            limit,
+            existingUrls: new Set(tracksPool.map((t) => t.url)),
+        })
+        if (topUp.length) {
+            tracksPool = [...tracksPool, ...topUp]
+        }
+    }
+    return tracksPool
+}
+
+/** The tracks by the artist, best match tier first, ASMR left out. */
+function pickArtistTracks(
+    tracksPool: ArtistTrack[],
+    artistLower: string,
+    limit: number,
+): ArtistTrack[] {
+    // Prefer exact match, then word-boundary match, then substring match.
+    // This prevents "Prince" from routing to "Prince Royce".
+    const exactMatch = tracksPool.filter(
+        (t) => t.author.toLowerCase() === artistLower,
+    )
+    const wordMatch = tracksPool.filter((t) => {
+        const words = t.author.toLowerCase().split(/[\s,&/]+/)
+        return words.some((w) => w === artistLower)
+    })
+    const substringMatch = tracksPool.filter((t) =>
+        t.author.toLowerCase().includes(artistLower),
+    )
+    // Take the narrowest tier that matched anything. The thresholds
+    // used to be `>= 3`, which discarded the artist filter whenever an
+    // artist had fewer than three tracks in the top results and queued
+    // the raw search order instead. `/artist queen` hit exactly that in
+    // production on 2026-08-21: Spotify's results for "queen" put
+    // "Queencard" by i-dle among them, and with under three
+    // author-matched tracks the filter was dropped, so a K-pop track
+    // played after Bohemian Rhapsody.
+    //
+    // Two tracks genuinely by the artist beat ten by whoever the
+    // provider ranked highly: /artist promises tracks BY the artist.
+    // Exact author match is trusted at any count: one track that is
+    // definitely by the artist beats ten the provider merely ranked
+    // highly. `/artist queen` hit that in production on 2026-08-21 —
+    // Spotify's results for "queen" include "Queencard" by i-dle, and
+    // the old `>= 3` threshold dropped the filter entirely whenever
+    // fewer than three tracks matched, queueing the raw order.
+    //
+    // The fuzzy tiers keep the higher bar. `wordMatch` tokenises the
+    // author, so `/artist prince` matches "Prince Royce" on one token;
+    // trusting a single fuzzy hit would confidently queue the wrong
+    // artist, which is the failure the original threshold was written
+    // to prevent.
+    const byArtist =
+        exactMatch.length > 0
+            ? exactMatch
+            : wordMatch.length >= 3
+              ? wordMatch
+              : substringMatch.length >= 3
+                ? substringMatch
+                : []
+    // The queue drops ASMR as it is added, so count what stays (#3001).
+    return (byArtist.length > 0 ? byArtist : tracksPool)
+        .filter((track) => !isAsmrTrack(track))
+        .slice(0, limit)
+}
+
+/** Replies that nothing playable was found; a user error, not a failure. */
+async function replyNoArtistResults(
+    interaction: ChatInputCommandInteraction,
+    message: string,
+): Promise<void> {
+    markCommandOutcome(interaction, { outcome: 'user_error' })
+    await interactionReply({
+        interaction,
+        content: { embeds: [createErrorEmbed('No results', message)] },
+    })
+}
+
+async function reportArtistError(
+    interaction: ChatInputCommandInteraction,
+    artistName: string,
+    guildId: string,
+    error: unknown,
+): Promise<void> {
+    if (isUnknownInteractionError(error)) return
+    markCommandOutcome(interaction, classifyOutcome({ error }))
+    errorLog({
+        message: 'Artist command error:',
+        error,
+        data: { artistName, guildId },
+    })
+    try {
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createErrorEmbed('Error', createUserFriendlyError(error)),
+                ],
+                ephemeral: true,
+            },
+        })
+    } catch {
+        // interaction already replied
+    }
+}
+
+/**
+ * The /artist top-tracks flow after the reply was deferred: search the
+ * artist, queue the best matches and reply. Also used by /play for a
+ * Spotify artist link (#3274).
+ */
+export async function queueArtistTopTracks({
+    client,
+    interaction,
+    voiceChannel,
+    artistName,
+    limit = DEFAULT_LIMIT,
+    reservation,
+}: {
+    client: CustomClient
+    interaction: ChatInputCommandInteraction
+    voiceChannel: VoiceBasedChannel
+    artistName: string
+    limit?: number
+    /** Committed once the first track is queued (#3269). */
+    reservation?: CollaborativeReservation
+}): Promise<void> {
+    const guildId = assertDefined(interaction.guildId, 'artist guild id')
+    try {
+        const found = await searchArtistArms(client, interaction, artistName)
+        if (!found) {
+            await replyNoArtistResults(
+                interaction,
+                `No tracks found for artist **${artistName}**.`,
+            )
+            return
+        }
+
+        const tracksPool = await withSpotifyTopUp({
+            client,
+            interaction,
+            artistName,
+            limit,
+            resolvedEngine: found.resolvedEngine,
+            tracks: found.searchResult.tracks,
+        })
+
+        const artistLower = artistName.toLowerCase()
+        const tracks = pickArtistTracks(tracksPool, artistLower, limit)
+
+        const firstTrack = tracks[0]
+        if (!firstTrack) {
+            await replyNoArtistResults(
+                interaction,
+                new AsmrBlockedError().message,
+            )
+            return
+        }
+
+        const playResult = await client.player.play(
+            voiceChannel,
+            firstTrack.url,
+            {
+                nodeOptions: {
+                    metadata: {
+                        channel: interaction.channel,
+                        requestedBy: interaction.user,
+                    },
+                    connectionTimeout:
+                        ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
+                    ...QUEUE_LEAVE_OPTIONS,
+                },
+                requestedBy: interaction.user,
+                searchEngine:
+                    found.resolvedEngine === QueryType.SPOTIFY_SEARCH
+                        ? QueryType.SPOTIFY_SONG
+                        : QueryType.AUTO,
+            },
+        )
+        // The first track is queued: the request counts.
+        reservation?.commit()
+
+        const { queue } = resolveGuildQueue(client, guildId)
+        if (!queue) {
+            markCommandOutcome(interaction, {
+                outcome: 'error',
+                errorClass: 'QueueUnavailable',
+            })
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createErrorEmbed('Error', 'Could not create queue.'),
+                    ],
+                    ephemeral: true,
+                },
+            })
+            return
+        }
+
+        for (const track of tracks.slice(1)) {
+            track.requestedBy = interaction.user
+            queue.addTrack(track)
+        }
+
+        moveUserTrackToPriority(queue, playResult.track)
+
+        const displayArtist =
+            tracks.find((t) => t.author.toLowerCase().includes(artistLower))
+                ?.author ?? artistName
+
+        await interactionReply({
+            interaction,
+            content: {
+                embeds: [
+                    createSuccessEmbed(
+                        `🎤 ${displayArtist}`,
+                        `Queued **${tracks.length}** track${tracks.length === 1 ? '' : 's'} by **${displayArtist}**.`,
+                    ),
+                ],
+            },
+        })
+    } catch (error) {
+        await reportArtistError(interaction, artistName, guildId, error)
+    }
+}
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -222,8 +544,8 @@ export default new Command({
         )
         if (!reservation) return
 
-        if (discography) {
-            try {
+        try {
+            if (discography) {
                 await handleArtistDiscography({
                     client,
                     interaction,
@@ -231,251 +553,15 @@ export default new Command({
                     artistName,
                     reservation,
                 })
-            } finally {
-                reservation.settle()
-            }
-            return
-        }
-
-        try {
-            type ArtistSearchResult = Awaited<
-                ReturnType<typeof client.player.search>
-            >
-            let searchResult: ArtistSearchResult | null = null
-            let resolvedEngine: QueryType = QueryType.SPOTIFY_SEARCH
-
-            for (const arm of SEARCH_ARMS) {
-                // HOSTED_YOUTUBE_ENABLED (decisions/2026-09-27-music-first-
-                // positioning.md point 3): no extractor is registered to
-                // serve this engine, so skip the arm instead of paying for a
-                // guaranteed miss.
-                if (
-                    arm.engine === QueryType.YOUTUBE_SEARCH &&
-                    !isHostedYoutubeEnabled()
-                ) {
-                    continue
-                }
-                let armResult: ArtistSearchResult | null = null
-                try {
-                    armResult = await client.player.search(artistName, {
-                        requestedBy: interaction.user,
-                        searchEngine: arm.engine,
-                        ...(arm.blocked
-                            ? { blockExtractors: [...arm.blocked] }
-                            : {}),
-                    })
-                } catch (error) {
-                    warnLog({
-                        message: 'Artist search arm threw',
-                        data: {
-                            artistName,
-                            engine: String(arm.engine),
-                            error: String(error),
-                        },
-                    })
-                    continue
-                }
-
-                if (armResult?.tracks.length) {
-                    searchResult = armResult
-                    resolvedEngine = arm.engine
-                    break
-                }
-
-                warnLog({
-                    message: 'Artist search arm returned no tracks',
-                    data: { artistName, engine: String(arm.engine) },
-                })
-            }
-
-            if (!searchResult?.tracks.length) {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [
-                            createErrorEmbed(
-                                'No results',
-                                `No tracks found for artist **${artistName}**.`,
-                            ),
-                        ],
-                    },
-                })
-                return
-            }
-
-            let tracksPool: ArtistTrack[] = searchResult.tracks
-
-            // The Spotify arm is capped at SPOTIFY_SEARCH_CAP regardless of
-            // what was asked for (#2304). Only pay for a top-up when it's
-            // actually needed: the winning arm was Spotify, it hit the cap
-            // (a lower count means the artist genuinely has fewer results,
-            // not that more are being withheld), and more were requested.
-            if (
-                resolvedEngine === QueryType.SPOTIFY_SEARCH &&
-                tracksPool.length >= SPOTIFY_SEARCH_CAP &&
-                limit > SPOTIFY_SEARCH_CAP
-            ) {
-                const topUp = await topUpSpotifyTracks({
+            } else {
+                await queueArtistTopTracks({
                     client,
                     interaction,
+                    voiceChannel,
                     artistName,
                     limit,
-                    existingUrls: new Set(tracksPool.map((t) => t.url)),
+                    reservation,
                 })
-                if (topUp.length) {
-                    tracksPool = [...tracksPool, ...topUp]
-                }
-            }
-
-            const artistLower = artistName.toLowerCase()
-            // Prefer exact match, then word-boundary match, then substring match.
-            // This prevents "Prince" from routing to "Prince Royce".
-            const exactMatch = tracksPool.filter(
-                (t) => t.author.toLowerCase() === artistLower,
-            )
-            const wordMatch = tracksPool.filter((t) => {
-                const words = t.author.toLowerCase().split(/[\s,&/]+/)
-                return words.some((w) => w === artistLower)
-            })
-            const substringMatch = tracksPool.filter((t) =>
-                t.author.toLowerCase().includes(artistLower),
-            )
-            // Take the narrowest tier that matched anything. The thresholds
-            // used to be `>= 3`, which discarded the artist filter whenever an
-            // artist had fewer than three tracks in the top results and queued
-            // the raw search order instead. `/artist queen` hit exactly that in
-            // production on 2026-08-21: Spotify's results for "queen" put
-            // "Queencard" by i-dle among them, and with under three
-            // author-matched tracks the filter was dropped, so a K-pop track
-            // played after Bohemian Rhapsody.
-            //
-            // Two tracks genuinely by the artist beat ten by whoever the
-            // provider ranked highly: /artist promises tracks BY the artist.
-            // Exact author match is trusted at any count: one track that is
-            // definitely by the artist beats ten the provider merely ranked
-            // highly. `/artist queen` hit that in production on 2026-08-21 —
-            // Spotify's results for "queen" include "Queencard" by i-dle, and
-            // the old `>= 3` threshold dropped the filter entirely whenever
-            // fewer than three tracks matched, queueing the raw order.
-            //
-            // The fuzzy tiers keep the higher bar. `wordMatch` tokenises the
-            // author, so `/artist prince` matches "Prince Royce" on one token;
-            // trusting a single fuzzy hit would confidently queue the wrong
-            // artist, which is the failure the original threshold was written
-            // to prevent.
-            const byArtist =
-                exactMatch.length > 0
-                    ? exactMatch
-                    : wordMatch.length >= 3
-                      ? wordMatch
-                      : substringMatch.length >= 3
-                        ? substringMatch
-                        : []
-            // The queue drops ASMR as it is added, so count what stays (#3001).
-            const tracks = (byArtist.length > 0 ? byArtist : tracksPool)
-                .filter((track) => !isAsmrTrack(track))
-                .slice(0, limit)
-
-            const firstTrack = tracks[0]
-            if (!firstTrack) {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [
-                            createErrorEmbed(
-                                'No results',
-                                new AsmrBlockedError().message,
-                            ),
-                        ],
-                    },
-                })
-                return
-            }
-
-            const playResult = await client.player.play(
-                voiceChannel,
-                firstTrack.url,
-                {
-                    nodeOptions: {
-                        metadata: {
-                            channel: interaction.channel,
-                            requestedBy: interaction.user,
-                        },
-                        connectionTimeout:
-                            ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-                        ...QUEUE_LEAVE_OPTIONS,
-                    },
-                    requestedBy: interaction.user,
-                    searchEngine:
-                        resolvedEngine === QueryType.SPOTIFY_SEARCH
-                            ? QueryType.SPOTIFY_SONG
-                            : QueryType.AUTO,
-                },
-            )
-            // The first track is queued: the request counts.
-            reservation.commit()
-
-            const { queue } = resolveGuildQueue(client, interaction.guildId)
-            if (!queue) {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [
-                            createErrorEmbed(
-                                'Error',
-                                'Could not create queue.',
-                            ),
-                        ],
-                        ephemeral: true,
-                    },
-                })
-                return
-            }
-
-            for (const track of tracks.slice(1)) {
-                track.requestedBy = interaction.user
-                queue.addTrack(track)
-            }
-
-            moveUserTrackToPriority(queue, playResult.track)
-
-            const displayArtist =
-                tracks.find((t) => t.author.toLowerCase().includes(artistLower))
-                    ?.author ?? artistName
-
-            await interactionReply({
-                interaction,
-                content: {
-                    embeds: [
-                        createSuccessEmbed(
-                            `🎤 ${displayArtist}`,
-                            `Queued **${tracks.length}** track${tracks.length === 1 ? '' : 's'} by **${displayArtist}**.`,
-                        ),
-                    ],
-                },
-            })
-        } catch (error) {
-            if (isUnknownInteractionError(error)) return
-            errorLog({
-                message: 'Artist command error:',
-                error,
-                data: { artistName, guildId: interaction.guildId },
-            })
-            try {
-                await interactionReply({
-                    interaction,
-                    content: {
-                        embeds: [
-                            createErrorEmbed(
-                                'Error',
-                                createUserFriendlyError(error),
-                            ),
-                        ],
-                        ephemeral: true,
-                    },
-                })
-            } catch {
-                // interaction already replied
             }
         } finally {
             reservation.settle()
