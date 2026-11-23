@@ -19,7 +19,10 @@ export async function handleAutoMessageConfig(
     const message = interaction.options.getString('message')
 
     if (enabled && !message && !channel) {
-        const existing = await getMessageByType(assertDefined(interaction.guild, 'Guild required for handler').id, type)
+        const existing = await getMessageByType(
+            assertDefined(interaction.guild, 'Guild required for handler').id,
+            type,
+        )
         if (!existing) {
             await interactionReply({
                 interaction,
@@ -33,29 +36,44 @@ export async function handleAutoMessageConfig(
     }
 
     if (enabled && message && channel) {
-        const existing = await getMessageByType(assertDefined(interaction.guild, 'Guild required for handler').id, type)
+        const existing = await getMessageByType(
+            assertDefined(interaction.guild, 'Guild required for handler').id,
+            type,
+        )
         if (existing) {
-            await autoMessageService.updateMessage(existing.id, {
-                enabled: true,
-                message,
-                channelId: channel.id,
-            })
+            await autoMessageService.updateMessage(
+                existing.guildId,
+                existing.id,
+                {
+                    enabled: true,
+                    message,
+                    channelId: channel.id,
+                },
+            )
         } else {
             await autoMessageService.createMessage(
-                assertDefined(interaction.guild, 'Guild required for handler').id,
+                assertDefined(interaction.guild, 'Guild required for handler')
+                    .id,
                 type,
                 { message },
                 { channelId: channel.id },
             )
         }
     } else if (enabled && (message || channel)) {
-        const existing = await getMessageByType(assertDefined(interaction.guild, 'Guild required for handler').id, type)
+        const existing = await getMessageByType(
+            assertDefined(interaction.guild, 'Guild required for handler').id,
+            type,
+        )
         if (existing) {
-            await autoMessageService.updateMessage(existing.id, {
-                enabled: true,
-                ...(message && { message }),
-                ...(channel && { channelId: channel.id }),
-            })
+            await autoMessageService.updateMessage(
+                existing.guildId,
+                existing.id,
+                {
+                    enabled: true,
+                    ...(message && { message }),
+                    ...(channel && { channelId: channel.id }),
+                },
+            )
         } else {
             await interactionReply({
                 interaction,
@@ -67,11 +85,18 @@ export async function handleAutoMessageConfig(
             return
         }
     } else if (!enabled) {
-        const existing = await getMessageByType(assertDefined(interaction.guild, 'Guild required for handler').id, type)
+        const existing = await getMessageByType(
+            assertDefined(interaction.guild, 'Guild required for handler').id,
+            type,
+        )
         if (existing)
-            await autoMessageService.updateMessage(existing.id, {
-                enabled: false,
-            })
+            await autoMessageService.updateMessage(
+                existing.guildId,
+                existing.id,
+                {
+                    enabled: false,
+                },
+            )
     }
 
     const embed = new EmbedBuilder()

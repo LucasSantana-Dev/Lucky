@@ -380,6 +380,61 @@ describe('Auto Message Routes Integration', () => {
         })
     })
 
+    describe('guild ownership of the message id', () => {
+        const OTHER_GUILD_MSG =
+            '/api/guilds/111111111111111111/automessages/other-guild-msg'
+
+        test('PATCH returns 404 for a message outside the guild', async () => {
+            jest.mocked(autoMessageService.updateMessage).mockResolvedValue(
+                null,
+            )
+
+            await request(app)
+                .patch(OTHER_GUILD_MSG)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ message: 'hijacked' })
+                .expect(404)
+
+            expect(autoMessageService.updateMessage).toHaveBeenCalledWith(
+                '111111111111111111',
+                'other-guild-msg',
+                { message: 'hijacked' },
+            )
+            expect(serverLogService.logAutoMessageChange).not.toHaveBeenCalled()
+        })
+
+        test('toggle returns 404 for a message outside the guild', async () => {
+            jest.mocked(autoMessageService.toggleMessage).mockResolvedValue(
+                null,
+            )
+
+            await request(app)
+                .post(`${OTHER_GUILD_MSG}/toggle`)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ enabled: false })
+                .expect(404)
+
+            expect(serverLogService.logAutoMessageChange).not.toHaveBeenCalled()
+        })
+
+        test('DELETE returns 404 for a message outside the guild', async () => {
+            jest.mocked(autoMessageService.deleteMessage).mockResolvedValue(
+                null,
+            )
+
+            await request(app)
+                .delete(OTHER_GUILD_MSG)
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(404)
+
+            expect(autoMessageService.deleteMessage).toHaveBeenCalledWith(
+                '111111111111111111',
+                'other-guild-msg',
+            )
+            expect(serverLogService.logAutoMessageChange).not.toHaveBeenCalled()
+        })
+    })
+
     describe('PATCH /api/guilds/:guildId/automessages/:id', () => {
         test('should update auto message and log change', async () => {
             const mockSessionService = sessionService as jest.Mocked<
@@ -420,6 +475,7 @@ describe('Auto Message Routes Integration', () => {
 
             expect(response.body).toEqual(mockResponseMsg)
             expect(mockAutoMessageService.updateMessage).toHaveBeenCalledWith(
+                '111111111111111111',
                 '1',
                 updatedMsg,
             )
@@ -478,6 +534,7 @@ describe('Auto Message Routes Integration', () => {
 
             expect(response.body).toEqual(toggledMessage)
             expect(mockAutoMessageService.toggleMessage).toHaveBeenCalledWith(
+                '111111111111111111',
                 '1',
                 true,
             )
@@ -531,6 +588,7 @@ describe('Auto Message Routes Integration', () => {
 
             expect(response.body).toEqual({ success: true })
             expect(mockAutoMessageService.deleteMessage).toHaveBeenCalledWith(
+                '111111111111111111',
                 '1',
             )
             expect(mockServerLogService.logAutoMessageChange).toHaveBeenCalled()

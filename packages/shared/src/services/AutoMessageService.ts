@@ -5,6 +5,18 @@ import { assertDefined } from '../utils/guards.js'
 
 const prisma = getPrismaClient()
 
+/** Resolves to null when Prisma reports the record was not found (P2025). */
+async function nullIfNotFound<T>(query: Promise<T>): Promise<T | null> {
+    try {
+        return await query
+    } catch (error: unknown) {
+        if ((error as { code?: unknown } | null)?.code === 'P2025') {
+            return null
+        }
+        throw error
+    }
+}
+
 /** Type of auto message: welcome, leave, auto-response, or scheduled. */
 export type MessageType = 'welcome' | 'leave' | 'auto_response' | 'scheduled'
 
@@ -160,29 +172,34 @@ export class AutoMessageService {
     }
 
     /**
-     * Update a message
+     * Update a message in a guild. Returns null when no message with this id
+     * exists in that guild (the id and guild are matched in one query).
      */
-    async updateMessage(id: string, data: Prisma.AutoMessageUpdateInput) {
-        return await prisma.autoMessage.update({
-            where: { id },
-            data,
-        })
+    async updateMessage(
+        guildId: string,
+        id: string,
+        data: Prisma.AutoMessageUpdateInput,
+    ) {
+        return await nullIfNotFound(
+            prisma.autoMessage.update({ where: { id, guildId }, data }),
+        )
     }
 
     /**
-     * Delete a message
+     * Delete a message in a guild. Returns null when no message with this id
+     * exists in that guild.
      */
-    async deleteMessage(id: string) {
-        return await prisma.autoMessage.delete({
-            where: { id },
-        })
+    async deleteMessage(guildId: string, id: string) {
+        return await nullIfNotFound(
+            prisma.autoMessage.delete({ where: { id, guildId } }),
+        )
     }
 
     /**
-     * Toggle message enabled status
+     * Toggle message enabled status in a guild
      */
-    async toggleMessage(id: string, enabled: boolean) {
-        return await this.updateMessage(id, { enabled })
+    async toggleMessage(guildId: string, id: string, enabled: boolean) {
+        return await this.updateMessage(guildId, id, { enabled })
     }
 
     /**
@@ -209,17 +226,43 @@ export class AutoMessageService {
         if (data.guild || data.server) {
             const guildData = data.guild || data.server
             result = result
-                .replace(/{guild}/g, assertDefined(guildData, 'guildData present after guard').name)
-                .replace(/{guild\.name}/g, assertDefined(guildData, 'guildData present after guard').name)
+                .replace(
+                    /{guild}/g,
+                    assertDefined(guildData, 'guildData present after guard')
+                        .name,
+                )
+                .replace(
+                    /{guild\.name}/g,
+                    assertDefined(guildData, 'guildData present after guard')
+                        .name,
+                )
                 .replace(
                     /{guild\.memberCount}/g,
-                    String(assertDefined(guildData, 'guildData present after guard').memberCount),
+                    String(
+                        assertDefined(
+                            guildData,
+                            'guildData present after guard',
+                        ).memberCount,
+                    ),
                 )
-                .replace(/{server}/g, assertDefined(guildData, 'guildData present after guard').name)
-                .replace(/{server\.name}/g, assertDefined(guildData, 'guildData present after guard').name)
+                .replace(
+                    /{server}/g,
+                    assertDefined(guildData, 'guildData present after guard')
+                        .name,
+                )
+                .replace(
+                    /{server\.name}/g,
+                    assertDefined(guildData, 'guildData present after guard')
+                        .name,
+                )
                 .replace(
                     /{server\.memberCount}/g,
-                    String(assertDefined(guildData, 'guildData present after guard').memberCount),
+                    String(
+                        assertDefined(
+                            guildData,
+                            'guildData present after guard',
+                        ).memberCount,
+                    ),
                 )
         }
 

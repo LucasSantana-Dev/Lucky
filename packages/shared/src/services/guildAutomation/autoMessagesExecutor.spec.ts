@@ -16,6 +16,7 @@ type CreateMessageFn = (
     options?: { channelId?: string },
 ) => Promise<{ id: string }>
 type UpdateMessageFn = (
+    guildId: string,
     id: string,
     data: Record<string, unknown>,
 ) => Promise<void>
@@ -106,11 +107,15 @@ describe('autoMessagesExecutor', () => {
 
         expect(service.createMessage).not.toHaveBeenCalled()
         expect(service.updateMessage).toHaveBeenCalledTimes(1)
-        expect(service.updateMessage).toHaveBeenCalledWith('welcome-row', {
-            message: 'new hi',
-            channelId: 'new-1',
-            enabled: false,
-        })
+        expect(service.updateMessage).toHaveBeenCalledWith(
+            'guild-1',
+            'welcome-row',
+            {
+                message: 'new hi',
+                channelId: 'new-1',
+                enabled: false,
+            },
+        )
         expect(result).toEqual({
             status: 'success',
             applied: [

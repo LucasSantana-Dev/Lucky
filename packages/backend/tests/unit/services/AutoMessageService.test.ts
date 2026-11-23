@@ -168,62 +168,80 @@ describe('AutoMessageService', () => {
     })
 
     describe('updateMessage', () => {
-        test('should update message by id', async () => {
+        test('scopes the update to the guild', async () => {
             mockPrisma.autoMessage.update.mockResolvedValue({
                 id: 'msg-1',
                 message: 'Updated welcome!',
                 enabled: true,
             })
 
-            const result = await service.updateMessage('msg-1', {
+            const result = await service.updateMessage('guild-1', 'msg-1', {
                 message: 'Updated welcome!',
             })
 
-            expect(result.message).toBe('Updated welcome!')
+            expect(result?.message).toBe('Updated welcome!')
             expect(mockPrisma.autoMessage.update).toHaveBeenCalledWith({
-                where: { id: 'msg-1' },
+                where: { id: 'msg-1', guildId: 'guild-1' },
                 data: { message: 'Updated welcome!' },
             })
         })
 
-        test('should toggle message enabled state', async () => {
-            mockPrisma.autoMessage.update.mockResolvedValue({
-                id: 'msg-1',
-                enabled: false,
+        test('returns null when the message is not in the guild', async () => {
+            mockPrisma.autoMessage.update.mockRejectedValue({ code: 'P2025' })
+
+            const result = await service.updateMessage('guild-1', 'msg-2', {
+                message: 'x',
             })
 
-            const result = await service.updateMessage('msg-1', {
-                enabled: false,
-            })
+            expect(result).toBeNull()
+        })
 
-            expect(result.enabled).toBe(false)
+        test('rethrows other database errors', async () => {
+            mockPrisma.autoMessage.update.mockRejectedValue(
+                new Error('db down'),
+            )
+
+            await expect(
+                service.updateMessage('guild-1', 'msg-1', { message: 'x' }),
+            ).rejects.toThrow('db down')
         })
     })
 
     describe('deleteMessage', () => {
-        test('should delete message by id', async () => {
+        test('scopes the delete to the guild', async () => {
             mockPrisma.autoMessage.delete.mockResolvedValue({ id: 'msg-1' })
 
-            await service.deleteMessage('msg-1')
+            const result = await service.deleteMessage('guild-1', 'msg-1')
 
+            expect(result).toEqual({ id: 'msg-1' })
             expect(mockPrisma.autoMessage.delete).toHaveBeenCalledWith({
-                where: { id: 'msg-1' },
+                where: { id: 'msg-1', guildId: 'guild-1' },
             })
+        })
+
+        test('returns null when the message is not in the guild', async () => {
+            mockPrisma.autoMessage.delete.mockRejectedValue({ code: 'P2025' })
+
+            expect(await service.deleteMessage('guild-1', 'msg-2')).toBeNull()
         })
     })
 
     describe('toggleMessage', () => {
-        test('should toggle message enabled state', async () => {
+        test('scopes the toggle to the guild', async () => {
             mockPrisma.autoMessage.update.mockResolvedValue({
                 id: 'msg-1',
                 enabled: false,
             })
 
-            const result = await service.toggleMessage('msg-1', false)
+            const result = await service.toggleMessage(
+                'guild-1',
+                'msg-1',
+                false,
+            )
 
-            expect(result.enabled).toBe(false)
+            expect(result?.enabled).toBe(false)
             expect(mockPrisma.autoMessage.update).toHaveBeenCalledWith({
-                where: { id: 'msg-1' },
+                where: { id: 'msg-1', guildId: 'guild-1' },
                 data: { enabled: false },
             })
         })
