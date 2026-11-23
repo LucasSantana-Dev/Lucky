@@ -470,6 +470,35 @@ describe('Auth Routes Integration', () => {
             expect(getSessionServiceMock().setSession).toHaveBeenCalledTimes(1)
         })
 
+        test('redirects with authentication_error when the session id cannot be regenerated', async () => {
+            mockSuccessfulOAuthFlow()
+
+            const discordApp = express()
+            setupSessionMiddleware(discordApp)
+
+            discordApp.use((req, _res, next) => {
+                req.session.oauthState = MOCK_OAUTH_STATE
+                req.session.regenerate = (cb) => {
+                    cb(new Error('store unavailable'))
+                    return req.session
+                }
+                next()
+            })
+
+            setupAuthRoutes(discordApp)
+            discordApp.use(errorHandler)
+
+            const response = await request(discordApp)
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
+                .expect(302)
+
+            expect(response.headers.location).toContain(
+                'error=auth_failed&message=authentication_error',
+            )
+            expect(getSessionServiceMock().setSession).not.toHaveBeenCalled()
+        })
+
         test('should return 400 when code is missing', async () => {
             const discordApp = express()
             setupSessionMiddleware(discordApp)
