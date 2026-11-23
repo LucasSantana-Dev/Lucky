@@ -640,7 +640,8 @@ def erros():
     b.add("state-timeline", "Extratores de música degradados", [prom(
         "max by (extractor) (lucky_music_extractor_degraded)", "{{extractor}}")], w=12, h=8, mappings=UP_MAP[:0] or [
         {"type": "value", "options": {"0": {"text": "ok", "color": GREEN}, "1": {"text": "degradado", "color": RED}}}],
-        options={"showValue": "never", "legend": {"showLegend": False}}, desc="YouTube/Spotify fora ou limitados.")
+        options={"showValue": "auto", "legend": {"showLegend": False}},
+        desc="YouTube/Spotify fora ou limitados. Verde \"ok\" = funcionando; vermelho = degradado.")
     failed = ('(sum(increase(lucky_bot_play_stage_seconds_count{stage="bridge_total",outcome="fail"}[15m])) or vector(0)) '
               '- (sum(increase(lucky_bot_play_rescued_total[15m])) or vector(0))')
     b.add("timeseries", "Plays que falharam (% do total)", [prom(

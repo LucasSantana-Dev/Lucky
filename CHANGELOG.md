@@ -1882,10 +1882,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - fix(backend): editing, toggling or deleting an auto message from the dashboard only works on that guild's own messages; an id from another guild returns not found
 - fix(backend,bot): Twitch notifications and auto messages only accept a channel from the same guild; the dashboard refuses another guild's channel and the bot skips stored notifications that point outside their guild
+- fix(backend): the public support form caps report text at 4000 characters and short fields at 64, checks that an attached screenshot really is a PNG, JPEG or WebP image, and allows 10 reports per hour from one address
+- fix(bot): music controls (`/stop`, `/skip`, `/voteskip`, `/clear`, `/volume`, `/leave`, `/move`, `/repeat`, `/previous`, `/effects`, `/autoplay skip|clear`, `/pause`, `/seek`, `/shuffle` and the player buttons) only work for members in the bot's voice channel; others get a private, translated refusal (#3266)
+- fix(backend): the Twitch follower-link route only accepts `INTERNAL_API_KEY` (compared in constant time), internal notify posts only to channels in `LUCKY_NOTIFY_CHANNEL_IDS`, and bot messages sent through the backend never ping @everyone, roles or users (#3300)
+- fix(backend): the live music stream releases its heartbeat when the browser disconnects during the initial state load, and each user can keep at most 3 streams open per server (extras get 429)
 - fix(backend): logout is now `POST /api/auth/logout`, so a link or image on another site can no longer sign a dashboard user out, and the API no longer parses form-encoded bodies it never used
 - fix(bot): `/ban`, `/kick` and `/mute` refuse to act on the server owner, on yourself, or on a member whose top role is equal to or higher than the moderator's; before, any moderator could act on an admin whenever the bot's role was higher
+- fix(bot): `/bulk-kick` and `/bulk-remove-role` refuse a role equal to or higher than the moderator's top role, and the background job skips members at or above the top role of the moderator who started it (the guild owner is exempt from both); before, a moderator could mass-kick or strip a role above their own
+- fix(backend): signing in with Discord now issues a new session cookie instead of reusing the one from before login
 - fix(bot): `/play` with a link no source can play (a Spotify artist page, Deezer, TikTok...) now says the link isn't supported and lists what plays, instead of showing an internal extractor error (#3264)
 - fix(bot): autoplay no longer plays karaoke backing tracks: its artist fallback keeps only the current artist's songs, and titles like "(made popular by …)", "(In the Style of …)" or "[backing version]" count as another version (#3065)
+- fix(backend): the Discord sign-in callback no longer writes part of the login code to the debug log
 - fix(bot): after a restart the restored session keeps autoplay on (the guild's setting), so music continues after the restored song instead of stopping (#3061)
 - fix(bot): the `/play` album detection trims punctuation with a linear scan instead of a regex that could backtrack on long punctuation runs (#3059)
 - fix(bot): Spotify searches no longer rank for the US market, which buried Brazilian results ("album esquinas anavitória completo" played an unrelated US track); `SPOTIFY_MARKET` can still pin a market (#3055)

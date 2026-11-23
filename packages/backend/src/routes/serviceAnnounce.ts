@@ -7,6 +7,7 @@ import {
     postChannelMessage,
     type ChannelMessagePayload,
 } from '../utils/postChannelMessage'
+import { readChannelAllowlist } from '../utils/channelAllowlist'
 
 function requireAnnounceKey(req: Request): void {
     const provided = req.header('x-announce-key')?.trim()
@@ -14,19 +15,6 @@ function requireAnnounceKey(req: Request): void {
     if (!timingSafeKeyCompare(provided, expected)) {
         throw AppError.unauthorized('invalid announce key')
     }
-}
-
-function getChannelAllowlist(): Set<string> {
-    const allowlistEnv = process.env.LUCKY_ANNOUNCE_CHANNEL_IDS
-    if (!allowlistEnv || !allowlistEnv.trim()) {
-        return new Set()
-    }
-    return new Set(
-        allowlistEnv
-            .split(',')
-            .map((id) => id.trim())
-            .filter(Boolean),
-    )
 }
 
 type AnnounceBody = {
@@ -41,7 +29,7 @@ export function setupServiceAnnounceRoutes(app: Express): void {
         writeLimiter,
         asyncHandler(async (req: Request, res: Response) => {
             requireAnnounceKey(req)
-            const allowlist = getChannelAllowlist()
+            const allowlist = readChannelAllowlist('LUCKY_ANNOUNCE_CHANNEL_IDS')
             if (allowlist.size === 0) {
                 throw AppError.forbidden(
                     'announce channel allowlist not configured',

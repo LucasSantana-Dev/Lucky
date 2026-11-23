@@ -15,6 +15,7 @@ import { z } from 'zod'
 import { paramToString as p } from '../utils/paramCoerce'
 import { snowflakeId } from '../schemas/common'
 import { assertChannelInGuild } from '../utils/assertChannelInGuild'
+import { timingSafeKeyCompare } from '../utils/timingSafeKeyCompare'
 
 const addTwitchBody = z
     .object({
@@ -243,10 +244,12 @@ export function setupTwitchRoutes(app: Express): void {
         '/api/twitch/follower-link',
         writeLimiter,
         asyncHandler(async (req: Request, res: Response) => {
-            const apiKey = req.headers['x-internal-api-key']
-            const expectedKey =
-                process.env.INTERNAL_API_KEY ?? process.env.LUCKY_NOTIFY_API_KEY
-            if (!expectedKey || apiKey !== expectedKey) {
+            if (
+                !timingSafeKeyCompare(
+                    req.header('x-internal-api-key')?.trim(),
+                    process.env.INTERNAL_API_KEY?.trim(),
+                )
+            ) {
                 res.status(401).json({ error: 'Unauthorized' })
                 return
             }

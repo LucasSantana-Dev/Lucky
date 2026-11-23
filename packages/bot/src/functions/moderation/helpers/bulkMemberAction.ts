@@ -8,6 +8,7 @@ import { enqueueBatchJob } from '../../../utils/batch/batchQueue'
 import { showBatchConfirmation } from '../../../utils/batch/confirmationGate'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply'
+import { checkRoleHierarchy } from './moderationHierarchy'
 
 /**
  * Shared execute() body for "bulk role-scoped member action" slash commands
@@ -36,6 +37,25 @@ export interface BulkMemberActionConfig {
     createFailureReplyMessage: string
 }
 
+/** Why the chosen role can't be used, as reply content, or null when it can. */
+async function rejectRole(
+    interaction: ChatInputCommandInteraction,
+    config: BulkMemberActionConfig,
+    role: Role,
+    guild: Guild,
+): Promise<{ content: string; ephemeral?: boolean } | null> {
+    const validationError = config.validateRole?.(role, guild)
+    if (validationError) return { content: validationError }
+
+    // Discord only checks the bot's role, so without this a moderator could
+    // reach members ranked above them through a high role.
+    const hierarchyBlock = await checkRoleHierarchy(interaction, role)
+    if (hierarchyBlock) {
+        return { content: `❌ ${hierarchyBlock}`, ephemeral: true }
+    }
+    return null
+}
+
 export async function runBulkMemberAction(
     interaction: ChatInputCommandInteraction,
     config: BulkMemberActionConfig,
@@ -56,15 +76,10 @@ export async function runBulkMemberAction(
         interaction.options.getString('reason')?.slice(0, 512) ?? undefined
     const dryRun = interaction.options.getBoolean('dry_run') ?? false
 
-    if (config.validateRole) {
-        const validationError = config.validateRole(role, guild)
-        if (validationError) {
-            await interactionReply({
-                interaction,
-                content: { content: validationError },
-            })
-            return
-        }
+    const rejection = await rejectRole(interaction, config, role, guild)
+    if (rejection) {
+        await interactionReply({ interaction, content: rejection })
+        return
     }
 
     const botMember = guild.members.me
