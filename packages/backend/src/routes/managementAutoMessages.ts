@@ -21,6 +21,13 @@ function requireUserId(req: AuthenticatedRequest): string {
     return req.userId
 }
 
+async function requireMessageInGuild(guildId: string, id: string) {
+    const message = await autoMessageService.getMessageInGuild(guildId, id)
+    if (!message) {
+        throw AppError.notFound('Auto message not found')
+    }
+}
+
 export function setupAutoMessageRoutes(app: Express): void {
     app.get(
         '/api/guilds/:guildId/automessages',
@@ -106,6 +113,7 @@ export function setupAutoMessageRoutes(app: Express): void {
             const userId = requireUserId(req)
             const id = p(req.params.id)
             const body = s.updateMessageBody.parse(req.body)
+            await requireMessageInGuild(guildId, id)
             const updated = await autoMessageService.updateMessage(id, body)
             await serverLogService.logAutoMessageChange(
                 guildId,
@@ -129,6 +137,7 @@ export function setupAutoMessageRoutes(app: Express): void {
             const userId = requireUserId(req)
             const id = p(req.params.id)
             const { enabled } = s.toggleBody.parse(req.body)
+            await requireMessageInGuild(guildId, id)
             const updated = await autoMessageService.toggleMessage(id, enabled)
             await serverLogService.logAutoMessageChange(
                 guildId,
@@ -150,6 +159,7 @@ export function setupAutoMessageRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
             const id = p(req.params.id)
+            await requireMessageInGuild(guildId, id)
             await autoMessageService.deleteMessage(id)
             await serverLogService.logAutoMessageChange(
                 guildId,

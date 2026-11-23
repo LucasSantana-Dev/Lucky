@@ -160,6 +160,17 @@ export class AutoMessageService {
     }
 
     /**
+     * Find a message by id only if it belongs to the guild. Callers that take
+     * the id from a request must use this before update/toggle/delete, which
+     * match by id alone.
+     */
+    async getMessageInGuild(guildId: string, id: string) {
+        return await prisma.autoMessage.findFirst({
+            where: { id, guildId },
+        })
+    }
+
+    /**
      * Update a message
      */
     async updateMessage(id: string, data: Prisma.AutoMessageUpdateInput) {
@@ -209,17 +220,43 @@ export class AutoMessageService {
         if (data.guild || data.server) {
             const guildData = data.guild || data.server
             result = result
-                .replace(/{guild}/g, assertDefined(guildData, 'guildData present after guard').name)
-                .replace(/{guild\.name}/g, assertDefined(guildData, 'guildData present after guard').name)
+                .replace(
+                    /{guild}/g,
+                    assertDefined(guildData, 'guildData present after guard')
+                        .name,
+                )
+                .replace(
+                    /{guild\.name}/g,
+                    assertDefined(guildData, 'guildData present after guard')
+                        .name,
+                )
                 .replace(
                     /{guild\.memberCount}/g,
-                    String(assertDefined(guildData, 'guildData present after guard').memberCount),
+                    String(
+                        assertDefined(
+                            guildData,
+                            'guildData present after guard',
+                        ).memberCount,
+                    ),
                 )
-                .replace(/{server}/g, assertDefined(guildData, 'guildData present after guard').name)
-                .replace(/{server\.name}/g, assertDefined(guildData, 'guildData present after guard').name)
+                .replace(
+                    /{server}/g,
+                    assertDefined(guildData, 'guildData present after guard')
+                        .name,
+                )
+                .replace(
+                    /{server\.name}/g,
+                    assertDefined(guildData, 'guildData present after guard')
+                        .name,
+                )
                 .replace(
                     /{server\.memberCount}/g,
-                    String(assertDefined(guildData, 'guildData present after guard').memberCount),
+                    String(
+                        assertDefined(
+                            guildData,
+                            'guildData present after guard',
+                        ).memberCount,
+                    ),
                 )
         }
 

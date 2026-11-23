@@ -28,6 +28,7 @@ jest.mock('@lucky/shared/services', () => ({
         getLeaveMessage: jest.fn(),
         getAutoResponders: jest.fn(),
         createMessage: jest.fn(),
+        getMessageInGuild: jest.fn(),
         updateMessage: jest.fn(),
         toggleMessage: jest.fn(),
         deleteMessage: jest.fn(),
@@ -63,6 +64,53 @@ describe('Auto Message Routes Integration', () => {
             MOCK_GUILD_CONTEXT,
         )
         mockGuildAccessService.hasAccess.mockReturnValue(true)
+        jest.mocked(autoMessageService.getMessageInGuild).mockResolvedValue(
+            partial({ id: '1', guildId: '111111111111111111' }),
+        )
+    })
+
+    describe('message must belong to the guild in the URL', () => {
+        beforeEach(() => {
+            jest.mocked(autoMessageService.getMessageInGuild).mockResolvedValue(
+                null,
+            )
+        })
+
+        test('PATCH returns 404 and does not update', async () => {
+            await request(app)
+                .patch('/api/guilds/111111111111111111/automessages/foreign')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ message: 'hijacked' })
+                .expect(404)
+
+            expect(autoMessageService.getMessageInGuild).toHaveBeenCalledWith(
+                '111111111111111111',
+                'foreign',
+            )
+            expect(autoMessageService.updateMessage).not.toHaveBeenCalled()
+            expect(serverLogService.logAutoMessageChange).not.toHaveBeenCalled()
+        })
+
+        test('toggle returns 404 and does not toggle', async () => {
+            await request(app)
+                .post(
+                    '/api/guilds/111111111111111111/automessages/foreign/toggle',
+                )
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .send({ enabled: false })
+                .expect(404)
+
+            expect(autoMessageService.toggleMessage).not.toHaveBeenCalled()
+        })
+
+        test('DELETE returns 404 and does not delete', async () => {
+            await request(app)
+                .delete('/api/guilds/111111111111111111/automessages/foreign')
+                .set('Cookie', ['sessionId=valid_session_id'])
+                .expect(404)
+
+            expect(autoMessageService.deleteMessage).not.toHaveBeenCalled()
+        })
     })
 
     describe('GET /api/guilds/:guildId/automessages', () => {
