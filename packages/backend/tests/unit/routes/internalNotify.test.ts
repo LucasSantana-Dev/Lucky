@@ -191,4 +191,15 @@ describe('POST /api/internal/notify', () => {
         const body = JSON.parse(String(init?.body))
         expect(body.allowed_mentions).toEqual({ parse: [] })
     })
+
+    it('rejects a non-string channelId without calling Discord', async () => {
+        const fetchMock = jest.fn()
+        global.fetch = fetchMock as unknown as typeof fetch
+        const res = await request(buildApp())
+            .post('/api/internal/notify')
+            .set('x-notify-key', 'k')
+            .send({ channelId: ['999999999999999999'], content: 'hi' })
+        expect(res.status).toBe(400)
+        expect(fetchMock).not.toHaveBeenCalled()
+    })
 })

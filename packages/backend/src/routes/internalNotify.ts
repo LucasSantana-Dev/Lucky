@@ -36,17 +36,17 @@ export function setupInternalNotifyRoutes(app: Express): void {
                 )
             }
             const body = (req.body ?? {}) as NotifyBody
-            if (
-                typeof body.channelId === 'string' &&
-                body.channelId &&
-                !allowlist.has(body.channelId)
-            ) {
+            // Only a string id is checked and posted: any other JSON type
+            // becomes '' so postChannelMessage rejects it with 400.
+            const channelId =
+                typeof body.channelId === 'string' ? body.channelId : ''
+            if (channelId && !allowlist.has(channelId)) {
                 throw AppError.forbidden(
-                    `channel ${body.channelId} not in allowlist`,
+                    `channel ${channelId} not in allowlist`,
                 )
             }
             const payload: ChannelMessagePayload = {
-                channelId: body.channelId || '',
+                channelId,
                 content: body.content,
                 embeds: body.embeds,
             }
