@@ -387,6 +387,118 @@ describe('Auth Routes Integration', () => {
             expect(getSessionServiceMock().setSession).toHaveBeenCalled()
         })
 
+        test('starts a new session id after a successful login', async () => {
+            mockSuccessfulOAuthFlow()
+
+            // The global express-session mock has no store, so this test
+            // uses the real module to see what a browser cookie points at.
+            const realSession =
+                jest.requireActual<typeof import('express-session')>(
+                    'express-session',
+                )
+            const discordApp = express()
+            discordApp.use(
+                realSession({
+                    secret: 'test-secret',
+                    name: 'sessionId',
+                    resave: false,
+                    saveUninitialized: false,
+                    store: new realSession.MemoryStore(),
+                }),
+            )
+
+            const seenIds = new Map<string, string>()
+            discordApp.use((req, _res, next) => {
+                seenIds.set(req.path, req.sessionID)
+                next()
+            })
+
+            setupAuthRoutes(discordApp)
+            discordApp.get('/probe', (req, res) => {
+                res.json({
+                    id: req.sessionID,
+                    authenticated: req.session.authenticated === true,
+                })
+            })
+            discordApp.use(errorHandler)
+
+            const agent = request.agent(discordApp)
+
+            const start = await agent.get('/api/auth/discord').expect(302)
+            const state = new URL(start.headers.location).searchParams.get(
+                'state',
+            )
+            const preLoginId = seenIds.get('/api/auth/discord')
+            const preLoginCookie = String(start.headers['set-cookie'])
+                .split(';')[0]
+                .trim()
+
+            const callback = await agent
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state })
+                .expect(302)
+
+            expect(callback.headers.location).toContain('authenticated=true')
+            expect(seenIds.get('/api/auth/callback')).toBe(preLoginId)
+
+            const storedId =
+                getSessionServiceMock().setSession.mock.calls[0]?.[0]
+            expect(storedId).toBeDefined()
+            expect(storedId).not.toBe(preLoginId)
+
+            const probe = await agent.get('/probe').expect(200)
+            expect(probe.body).toEqual({ id: storedId, authenticated: true })
+
+            const planted = await request(discordApp)
+                .get('/probe')
+                .set('Cookie', preLoginCookie)
+                .expect(200)
+            expect(planted.body.authenticated).toBe(false)
+
+            const replay = await agent
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state })
+                .expect(302)
+            expect(replay.headers.location).toContain('authenticated=true')
+
+            const plantedReplay = await request(discordApp)
+                .get('/api/auth/callback')
+                .set('Cookie', preLoginCookie)
+                .query({ code: MOCK_AUTH_CODE, state })
+                .expect(302)
+            expect(plantedReplay.headers.location).toContain('invalid_state')
+            expect(getSessionServiceMock().setSession).toHaveBeenCalledTimes(1)
+        })
+
+        test('redirects with authentication_error when the session id cannot be regenerated', async () => {
+            mockSuccessfulOAuthFlow()
+
+            const discordApp = express()
+            setupSessionMiddleware(discordApp)
+
+            discordApp.use((req, _res, next) => {
+                req.session.oauthState = MOCK_OAUTH_STATE
+                req.session.regenerate = (cb) => {
+                    cb(new Error('store unavailable'))
+                    return req.session
+                }
+                next()
+            })
+
+            setupAuthRoutes(discordApp)
+            discordApp.use(errorHandler)
+
+            const response = await request(discordApp)
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
+                .expect(302)
+
+            expect(response.headers.location).toContain(
+                'error=auth_failed&message=authentication_error',
+            )
+            expect(getSessionServiceMock().setSession).not.toHaveBeenCalled()
+        })
+
         test('should return 400 when code is missing', async () => {
             const discordApp = express()
             setupSessionMiddleware(discordApp)
