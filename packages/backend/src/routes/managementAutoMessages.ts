@@ -12,6 +12,7 @@ import { AppError } from '../errors/AppError'
 import { autoMessageSchemas as s } from '../schemas/autoMessages'
 import { autoMessageService, serverLogService } from '@lucky/shared/services'
 import { paramToString as p } from '../utils/paramCoerce'
+import { assertChannelInGuild } from '../utils/assertChannelInGuild'
 
 function requireUserId(req: AuthenticatedRequest): string {
     if (!req.userId) {
@@ -78,6 +79,9 @@ export function setupAutoMessageRoutes(app: Express): void {
                 exactMatch,
                 cronSchedule,
             } = body
+            if (channelId) {
+                await assertChannelInGuild(guildId, channelId)
+            }
             const autoMsg = await autoMessageService.createMessage(
                 guildId,
                 type,
@@ -106,6 +110,9 @@ export function setupAutoMessageRoutes(app: Express): void {
             const userId = requireUserId(req)
             const id = p(req.params.id)
             const body = s.updateMessageBody.parse(req.body)
+            if (body.channelId) {
+                await assertChannelInGuild(guildId, body.channelId)
+            }
             const updated = await autoMessageService.updateMessage(id, body)
             await serverLogService.logAutoMessageChange(
                 guildId,

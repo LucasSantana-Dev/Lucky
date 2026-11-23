@@ -1881,6 +1881,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - fix(backend): Discord OAuth tokens in webapp sessions are encrypted at rest (AES-256-GCM, new `SESSION_TOKEN_KEY`, required in production), and the session file fallback now writes asynchronously and atomically
+- fix(backend,bot): Twitch notifications and auto messages only accept a channel from the same guild; the dashboard refuses another guild's channel and the bot skips stored notifications that point outside their guild
 - fix(backend): the public support form caps report text at 4000 characters and short fields at 64, checks that an attached screenshot really is a PNG, JPEG or WebP image, and allows 10 reports per hour from one address
 - fix(bot): music controls (`/stop`, `/skip`, `/voteskip`, `/clear`, `/volume`, `/leave`, `/move`, `/repeat`, `/previous`, `/effects`, `/autoplay skip|clear`, `/pause`, `/seek`, `/shuffle` and the player buttons) only work for members in the bot's voice channel; others get a private, translated refusal (#3266)
 - fix(backend): the Twitch follower-link route only accepts `INTERNAL_API_KEY` (compared in constant time), internal notify posts only to channels in `LUCKY_NOTIFY_CHANNEL_IDS`, and bot messages sent through the backend never ping @everyone, roles or users (#3300)
