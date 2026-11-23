@@ -7,6 +7,7 @@ import { errorLog } from '@lucky/shared/utils'
 import { PermissionFlagsBits, type GuildMember } from 'discord.js'
 import type { CustomClient } from '../../../types'
 import { getStoredClient } from '../../../bot/clientStore'
+import { resolveModeratorCeiling } from '../helpers/moderationHierarchy'
 
 // Discord REST error codes we treat as "already gone" rather than a failure.
 const UNKNOWN_MEMBER = 10007
@@ -52,10 +53,15 @@ export class BulkKickExecutor implements BatchJobExecutor {
         }
 
         const dbJob = await batchJobService.getById(jobId)
-        const queue = await this.resolveKickTargets(
+        const moderatorId = (dbJob as { initiatedBy?: string })?.initiatedBy
+        if (!moderatorId) {
+            throw new Error('bulk_kick job has no initiating moderator')
+        }
+        const { queue, ceiling } = await this.resolveKickTargets(
             client,
             guildId,
             roleId,
+            moderatorId,
             (dbJob as { nextCursor?: string })?.nextCursor || undefined,
         )
 
@@ -91,7 +97,7 @@ export class BulkKickExecutor implements BatchJobExecutor {
                 nextCursor: member.id,
             })
 
-            tally[await this.kickMember(member, reason)]++
+            tally[await this.kickMember(member, reason, ceiling)]++
         }
 
         await onProgress({
@@ -115,8 +121,9 @@ export class BulkKickExecutor implements BatchJobExecutor {
         client: CustomClient,
         guildId: string,
         roleId: string,
+        moderatorId: string,
         cursor: string | undefined,
-    ): Promise<GuildMember[]> {
+    ): Promise<{ queue: GuildMember[]; ceiling: number }> {
         const guild = await client.guilds.fetch(guildId).catch(() => null)
         if (!guild) {
             throw new Error(`Guild not found: ${guildId}`)
@@ -134,13 +141,23 @@ export class BulkKickExecutor implements BatchJobExecutor {
             throw new Error(`Role not found: ${roleId}`)
         }
 
+        // The bot may outrank members the moderator does not; members at or
+        // above the moderator's top role are skipped (see #3289).
+        const ceiling = await resolveModeratorCeiling(guild, moderatorId)
+        if (ceiling === null) {
+            throw new Error(
+                `Initiating moderator ${moderatorId} could not be found in the server`,
+            )
+        }
+
         const targets = [...role.members.values()]
             .filter((member) => !member.user.bot)
             .sort((a, b) => a.id.localeCompare(b.id))
 
-        return cursor
+        const queue = cursor
             ? targets.filter((member) => member.id.localeCompare(cursor) > 0)
             : targets
+        return { queue, ceiling }
     }
 
     private summary(tally: Record<KickOutcome, number>): {
@@ -159,9 +176,13 @@ export class BulkKickExecutor implements BatchJobExecutor {
     private async kickMember(
         member: GuildMember,
         reason: string | undefined,
+        ceiling: number,
     ): Promise<KickOutcome> {
         // Owner, higher role, or bot lacks perms for this specific member.
         if (!member.kickable) {
+            return 'skipped'
+        }
+        if (member.roles.highest.position >= ceiling) {
             return 'skipped'
         }
         try {

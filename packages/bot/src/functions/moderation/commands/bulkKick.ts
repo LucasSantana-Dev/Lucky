@@ -52,7 +52,7 @@ export default new Command({
             fidelityWarnings: (totalEstimate) => [
                 `All ${totalEstimate} non-bot member(s) with the role will be kicked`,
                 'Kicked members can rejoin with a new invite',
-                'The server owner and members above the bot are skipped',
+                'The server owner, members above the bot and members at or above your top role are skipped',
             ],
             queuedMessage: (jobId, totalEstimate) =>
                 `✅ Bulk kick queued (ID: \`${jobId}\`) — ${totalEstimate} member(s). Track progress on the **Batch Jobs** dashboard page.`,

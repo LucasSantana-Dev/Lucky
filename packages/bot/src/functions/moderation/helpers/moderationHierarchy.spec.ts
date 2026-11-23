@@ -9,6 +9,8 @@ import {
     checkModerationHierarchy,
     fetchMemberOrNull,
     refuseIfOutranked,
+    checkRoleHierarchy,
+    resolveModeratorCeiling,
 } from './moderationHierarchy'
 
 function member(id: string, position: number) {
@@ -182,5 +184,76 @@ describe('refuseIfOutranked', () => {
         )
         expect(refused).toBe(false)
         expect(interactionReplyMock).not.toHaveBeenCalled()
+    })
+})
+
+describe('checkRoleHierarchy', () => {
+    it('blocks a role above the moderator', async () => {
+        const result = await checkRoleHierarchy(
+            interaction(member('mod', 5), guild()),
+            { position: 10 } as never,
+        )
+        expect(result).toMatch(/equal to or higher than/i)
+    })
+
+    it('blocks a role equal to the moderator top role', async () => {
+        const result = await checkRoleHierarchy(
+            interaction(member('mod', 5), guild()),
+            { position: 5 } as never,
+        )
+        expect(result).toMatch(/equal to or higher than/i)
+    })
+
+    it('allows a role below the moderator', async () => {
+        const result = await checkRoleHierarchy(
+            interaction(member('mod', 5), guild()),
+            { position: 4 } as never,
+        )
+        expect(result).toBeNull()
+    })
+
+    it('lets the owner target any role', async () => {
+        const result = await checkRoleHierarchy(
+            interaction(member('mod', 1), guild('mod')),
+            { position: 50 } as never,
+        )
+        expect(result).toBeNull()
+    })
+
+    it('blocks when the moderator cannot be resolved', async () => {
+        const result = await checkRoleHierarchy(
+            interaction(undefined, guild('owner', null)),
+            { position: 1 } as never,
+        )
+        expect(result).toMatch(/couldn't verify your roles/i)
+    })
+})
+
+describe('resolveModeratorCeiling', () => {
+    it('returns Infinity for the server owner', async () => {
+        const g = guild('mod')
+        expect(await resolveModeratorCeiling(g as never, 'mod')).toBe(Infinity)
+        expect(g.members.fetch).not.toHaveBeenCalled()
+    })
+
+    it('returns the moderator top role position', async () => {
+        const g = guild('owner', member('mod', 7))
+        expect(await resolveModeratorCeiling(g as never, 'mod')).toBe(7)
+        expect(g.members.fetch).toHaveBeenCalledWith('mod')
+    })
+
+    it('returns null when the moderator left the server', async () => {
+        const g = guild('owner', null)
+        expect(await resolveModeratorCeiling(g as never, 'mod')).toBeNull()
+    })
+
+    it('returns null when the fetch rejects', async () => {
+        const g = {
+            ownerId: 'owner',
+            members: {
+                fetch: jest.fn(async () => Promise.reject(new Error('x'))),
+            },
+        }
+        expect(await resolveModeratorCeiling(g as never, 'mod')).toBeNull()
     })
 })

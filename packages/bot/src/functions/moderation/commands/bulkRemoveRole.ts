@@ -63,7 +63,7 @@ export default new Command({
             fidelityWarnings: (totalEstimate, role) => [
                 `<@&${role.id}> will be removed from all ${totalEstimate} non-bot member(s) holding it`,
                 'The role can be re-added manually afterward if needed',
-                'Members above the bot in the role hierarchy are skipped',
+                'Members above the bot or at or above your top role are skipped',
             ],
             queuedMessage: (jobId, totalEstimate) =>
                 `✅ Bulk role removal queued (ID: \`${jobId}\`) — ${totalEstimate} member(s). Track progress on the **Batch Jobs** dashboard page.`,
