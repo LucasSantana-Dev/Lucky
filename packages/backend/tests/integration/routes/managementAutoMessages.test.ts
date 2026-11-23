@@ -101,6 +101,11 @@ describe('Auto Message Routes Integration', () => {
                 .expect(404)
 
             expect(autoMessageService.toggleMessage).not.toHaveBeenCalled()
+            expect(autoMessageService.getMessageInGuild).toHaveBeenCalledWith(
+                '111111111111111111',
+                'foreign',
+            )
+            expect(serverLogService.logAutoMessageChange).not.toHaveBeenCalled()
         })
 
         test('DELETE returns 404 and does not delete', async () => {
@@ -110,6 +115,11 @@ describe('Auto Message Routes Integration', () => {
                 .expect(404)
 
             expect(autoMessageService.deleteMessage).not.toHaveBeenCalled()
+            expect(autoMessageService.getMessageInGuild).toHaveBeenCalledWith(
+                '111111111111111111',
+                'foreign',
+            )
+            expect(serverLogService.logAutoMessageChange).not.toHaveBeenCalled()
         })
     })
 
