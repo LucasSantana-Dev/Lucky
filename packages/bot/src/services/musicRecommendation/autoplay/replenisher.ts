@@ -195,10 +195,8 @@ export function replenishQueue(
             return false
         })
     })
-    replenishLocks.set(
-        guildId,
-        next.catch(() => false),
-    )
+    const lock = next.catch(() => false)
+    replenishLocks.set(guildId, lock)
     return next
 }
 
@@ -1435,6 +1433,37 @@ function buildArtistFrequency(
         }
     }
     return freq
+}
+
+/**
+ * Drops the per-guild autoplay state when a session ends (queue deleted,
+ * idle disconnect, /leave or the bot leaving the guild), so the maps do not
+ * grow with guild count and a stale mood cannot leak into the next session.
+ * The clear waits for the guild's refill chain to settle: an in-flight refill
+ * would otherwise write its counter and mood back afterwards. A refill queued
+ * meanwhile belongs to a new session, so its state is left alone.
+ */
+export function clearAutoplayGuildState(guildId: string): Promise<void> {
+    const lock = replenishLocks.get(guildId) ?? Promise.resolve(true)
+    return lock.then(() => {
+        const current = replenishLocks.get(guildId)
+        if (current !== undefined && current !== lock) return
+        replenishLocks.delete(guildId)
+        replenishCounters.delete(guildId)
+        clearSessionMoodCache(guildId)
+    })
+}
+
+export function __autoplayGuildStateForTests(guildId: string): {
+    lock: boolean
+    counter: boolean
+    mood: boolean
+} {
+    return {
+        lock: replenishLocks.has(guildId),
+        counter: replenishCounters.has(guildId),
+        mood: sessionMoodCache.has(guildId),
+    }
 }
 
 export function clearSessionMoodCache(guildId: string): void {
