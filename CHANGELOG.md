@@ -1880,6 +1880,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(backend): the Twitch follower-link route only accepts `INTERNAL_API_KEY` (compared in constant time), internal notify posts only to channels in `LUCKY_NOTIFY_CHANNEL_IDS`, and bot messages sent through the backend never ping @everyone, roles or users (#3300)
 - fix(backend): logout is now `POST /api/auth/logout`, so a link or image on another site can no longer sign a dashboard user out, and the API no longer parses form-encoded bodies it never used
 - fix(bot): `/ban`, `/kick` and `/mute` refuse to act on the server owner, on yourself, or on a member whose top role is equal to or higher than the moderator's; before, any moderator could act on an admin whenever the bot's role was higher
 - fix(backend): signing in with Discord now issues a new session cookie instead of reusing the one from before login

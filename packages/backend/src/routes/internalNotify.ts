@@ -7,6 +7,7 @@ import {
     postChannelMessage,
     type ChannelMessagePayload,
 } from '../utils/postChannelMessage'
+import { readChannelAllowlist } from '../utils/channelAllowlist'
 
 function requireKey(req: Request): void {
     const provided = req.header('x-notify-key')?.trim()
@@ -28,9 +29,24 @@ export function setupInternalNotifyRoutes(app: Express): void {
         writeLimiter,
         asyncHandler(async (req: Request, res: Response) => {
             requireKey(req)
+            const allowlist = readChannelAllowlist('LUCKY_NOTIFY_CHANNEL_IDS')
+            if (allowlist.size === 0) {
+                throw AppError.forbidden(
+                    'notify channel allowlist not configured',
+                )
+            }
             const body = (req.body ?? {}) as NotifyBody
+            // Only a string id is checked and posted: any other JSON type
+            // becomes '' so postChannelMessage rejects it with 400.
+            const channelId =
+                typeof body.channelId === 'string' ? body.channelId : ''
+            if (channelId && !allowlist.has(channelId)) {
+                throw AppError.forbidden(
+                    `channel ${channelId} not in allowlist`,
+                )
+            }
             const payload: ChannelMessagePayload = {
-                channelId: body.channelId || '',
+                channelId,
                 content: body.content,
                 embeds: body.embeds,
             }
