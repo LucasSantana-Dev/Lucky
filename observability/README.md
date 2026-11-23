@@ -114,6 +114,25 @@ native `${VAR}` expansion. Two mechanisms are used together:
   Docker volume with `envsubst` before `alertmanager` starts (`depends_on:
   condition: service_completed_successfully`).
 
+## Which rule files run where
+
+In production the homelab Prometheus is the only rule evaluator. It mounts
+`observability/prometheus/rules` and loads individual files: `recap-*.rules.yml`,
+`play-*.rules.yml` and `command-events.rules.yml`. Its own Prometheus and
+Alertmanager do not run on the host.
+
+- **Ownership:** Lucky owns the `Lucky*` application alerts. The homelab owns
+  host, container, pipeline and `Watchdog` alerts.
+- **Uniqueness rule:** a file is loaded by the homelab Prometheus only when every
+  alert name in it is unique across both repos. Duplicate names would page twice
+  or shadow each other.
+- **Standalone profile only:** `host-memory.rules.yml` (`HighMemoryUsage`,
+  `CriticalMemoryUsage`, `HostMemoryHigh`) and `disk.rules.yml` (with its
+  `Watchdog`) collide with homelab alerts, so they are for the standalone
+  `observability` profile and must never be loaded by the homelab Prometheus.
+- **Runbook annotation:** every `Lucky*` alert carries a `runbook` one-liner; the
+  homelab Discord template prints it as "Fix: ...".
+
 ## cAdvisor
 
 Added per operator decision to feed the `lucky-resource-pressure` rule group

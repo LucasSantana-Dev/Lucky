@@ -37,6 +37,7 @@ tests:
                 restarting in a loop (check docker ps and the restart count).
                 internal_error: a bug in the buffer, look for "Command event buffer
                 internal error" in the bot log and open an issue.
+              runbook: "Check lucky-postgres health and the lucky-bot log for Command event flush failed; restart the bot if it is looping."
 
   # One lost batch (a deploy restart) stays silent.
   - name: a single drop stays silent
