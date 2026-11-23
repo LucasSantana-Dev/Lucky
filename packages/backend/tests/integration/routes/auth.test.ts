@@ -454,6 +454,20 @@ describe('Auth Routes Integration', () => {
                 .set('Cookie', preLoginCookie)
                 .expect(200)
             expect(planted.body.authenticated).toBe(false)
+
+            const replay = await agent
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state })
+                .expect(302)
+            expect(replay.headers.location).toContain('authenticated=true')
+
+            const plantedReplay = await request(discordApp)
+                .get('/api/auth/callback')
+                .set('Cookie', preLoginCookie)
+                .query({ code: MOCK_AUTH_CODE, state })
+                .expect(302)
+            expect(plantedReplay.headers.location).toContain('invalid_state')
+            expect(getSessionServiceMock().setSession).toHaveBeenCalledTimes(1)
         })
 
         test('should return 400 when code is missing', async () => {

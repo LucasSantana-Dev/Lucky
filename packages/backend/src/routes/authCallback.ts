@@ -120,6 +120,10 @@ export async function handleOAuthCallback(
             // and asked again with the same, now consumed, state. The session
             // is logged in, so send the user on instead of showing an error.
             // The code is never used here, so this cannot log anyone in.
+            // Login regenerates the session id, so this only matches when
+            // the browser already holds the new cookie. A retry carrying the
+            // pre-login cookie gets invalid_state: linking that old id to
+            // the logged-in session would undo the regeneration.
             if (req.session.authenticated && req.session.userId) {
                 debugLog({
                     message:
