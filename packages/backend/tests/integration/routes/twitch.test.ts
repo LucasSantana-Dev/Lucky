@@ -36,6 +36,17 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
+// The POST route checks the channel belongs to the guild; every fixture here
+// uses the same in-guild channel.
+jest.mock('../../../src/services/GuildService', () => ({
+    guildService: {
+        getGuildTextChannelOptions: () =>
+            Promise.resolve([
+                { id: '444444444444444444', name: '#live', type: 0 },
+            ]),
+    },
+}))
+
 describe('GET /api/twitch/status', () => {
     let app: express.Express
 
