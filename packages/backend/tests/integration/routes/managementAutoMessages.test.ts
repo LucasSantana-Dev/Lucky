@@ -371,9 +371,11 @@ describe('Auto Message Routes Integration', () => {
                 .send({ channelId: null })
                 .expect(200)
 
-            expect(autoMessageService.updateMessage).toHaveBeenCalledWith('1', {
-                channelId: null,
-            })
+            expect(autoMessageService.updateMessage).toHaveBeenCalledWith(
+                '111111111111111111',
+                '1',
+                { channelId: null },
+            )
             expect(
                 guildService.getGuildTextChannelOptions,
             ).not.toHaveBeenCalled()
