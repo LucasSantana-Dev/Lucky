@@ -28,17 +28,22 @@ import {
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
 // A second /skip that resolves while the first is still switching tracks
-// sees the same currentTrack; without this it would skip the next song too.
+// would otherwise skip the next song too. Each command targets the track it
+// saw before any await; a claim on that track blocks duplicates for a while.
 const SKIP_DEDUPE_MS = 5_000
-const recentSkips = new Map<string, { track: unknown; at: number }>()
+type SkipClaim = { track: unknown }
+const recentSkips = new Map<string, SkipClaim>()
 
-function claimSkip(guildId: string, track: unknown): boolean {
-    const last = recentSkips.get(guildId)
-    const now = Date.now()
-    if (last && last.track === track && now - last.at < SKIP_DEDUPE_MS)
-        return false
-    recentSkips.set(guildId, { track, at: now })
-    return true
+function claimSkip(guildId: string, track: unknown): SkipClaim | null {
+    if (recentSkips.get(guildId)?.track === track) return null
+    const claim: SkipClaim = { track }
+    recentSkips.set(guildId, claim)
+    setTimeout(() => releaseSkip(guildId, claim), SKIP_DEDUPE_MS).unref?.()
+    return claim
+}
+
+function releaseSkip(guildId: string, claim: SkipClaim): void {
+    if (recentSkips.get(guildId) === claim) recentSkips.delete(guildId)
 }
 
 async function promptFeedbackSafely(
@@ -187,6 +192,8 @@ export default new Command({
         if (!(await requireGuild(interaction))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        // The song this /skip is aimed at, read before any await.
+        const target = queue?.currentTrack
         if (!(await requireSameVoiceChannel(queue, interaction))) return
 
         // Cheap synchronous checks run before the defer so their errors keep
@@ -205,9 +212,11 @@ export default new Command({
         if (!dj.deferred) await deferSkip(interaction)
 
         const guildId = interaction.guildId ?? ''
-        // No await between the claim and node.skip(), so a concurrent /skip
-        // on the same track is refused instead of skipping the next song.
-        if (!claimSkip(guildId, queue.currentTrack)) {
+        // No await between the claim and node.skip(). A /skip whose target
+        // already changed or is claimed was beaten by another skip.
+        const claim =
+            queue.currentTrack === target ? claimSkip(guildId, target) : null
+        if (!claim) {
             await interactionReply({
                 interaction,
                 content: {
@@ -227,11 +236,17 @@ export default new Command({
 
         try {
             await skipCurrentSong(queue, guildId)
-            await sendSkipSuccess(interaction, queue)
         } catch (error) {
-            recentSkips.delete(guildId)
+            // Nothing was skipped, so a retry must be allowed.
+            releaseSkip(guildId, claim)
             await handleSkipError(error, interaction)
             return
+        }
+        try {
+            await sendSkipSuccess(interaction, queue)
+        } catch (error) {
+            // The skip worked; keep the claim and only log the reply failure.
+            errorLog({ message: 'Skip success reply failed', error })
         }
         await promptFeedbackSafely(interaction, skippedAutoplay)
     },
