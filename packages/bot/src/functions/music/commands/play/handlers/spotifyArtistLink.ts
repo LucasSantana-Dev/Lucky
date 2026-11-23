@@ -23,7 +23,7 @@ export function spotifyArtistId(query: string): string | null {
     // A fully qualified host keeps its trailing root dot in URL.hostname.
     const host = url.hostname.toLowerCase().replace(/\.$/, '')
     if (host !== 'open.spotify.com') return null
-    const match = /^\/(?:intl-[a-z-]+\/)?artist\/([A-Za-z0-9]+)\/?$/i.exec(
+    const match = /^\/(?:intl-[a-z-]+\/)?artist\/([a-z0-9]+)\/?$/i.exec(
         url.pathname,
     )
     return match ? match[1] : null
