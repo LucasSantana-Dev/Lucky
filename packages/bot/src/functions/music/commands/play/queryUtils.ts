@@ -98,9 +98,14 @@ const SPOTIFY_SHORT_LINK: ShortLinkRule = {
     method: 'GET',
 }
 
+/** Host of an http(s) URL; null for anything else (file:, data:, junk). */
 function hostOf(url: string): string | null {
     try {
-        return new URL(url).hostname.toLowerCase().replace(/\.$/, '')
+        const parsed = new URL(url)
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+            return null
+        }
+        return parsed.hostname.toLowerCase().replace(/\.$/, '')
     } catch {
         return null
     }

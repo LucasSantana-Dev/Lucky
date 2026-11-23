@@ -395,6 +395,18 @@ describe('expandSpotifyShortUrl (#3274)', () => {
         expect(fetchMock).toHaveBeenCalledTimes(1)
     })
 
+    it.each([
+        'file://open.spotify.com/etc/passwd',
+        'javascript://open.spotify.com/%0Aalert(1)',
+    ])('refuses a non-http redirect to %s', async (location) => {
+        fetchMock.mockResolvedValueOnce(redirectTo(location))
+
+        await expect(
+            expandSpotifyShortUrl('https://spotify.link/AbC123'),
+        ).resolves.toBe('https://spotify.link/AbC123')
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
     it('follows a hop between Spotify short hosts', async () => {
         fetchMock
             .mockResolvedValueOnce(
