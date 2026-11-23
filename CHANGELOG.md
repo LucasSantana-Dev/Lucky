@@ -1880,8 +1880,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(backend): logout is now `POST /api/auth/logout`, so a link or image on another site can no longer sign a dashboard user out, and the API no longer parses form-encoded bodies it never used
 - fix(bot): `/ban`, `/kick` and `/mute` refuse to act on the server owner, on yourself, or on a member whose top role is equal to or higher than the moderator's; before, any moderator could act on an admin whenever the bot's role was higher
-- fix(bot): `/bulk-kick` and `/bulk-remove-role` refuse a role equal to or higher than the moderator's top role, and the background job skips members at or above the moderator who started it; before, a moderator could mass-kick or strip a role above their own
+- fix(bot): `/bulk-kick` and `/bulk-remove-role` refuse a role equal to or higher than the moderator's top role, and the background job skips members at or above the top role of the moderator who started it (the guild owner is exempt from both); before, a moderator could mass-kick or strip a role above their own
 - fix(bot): `/play` with a link no source can play (a Spotify artist page, Deezer, TikTok...) now says the link isn't supported and lists what plays, instead of showing an internal extractor error (#3264)
 - fix(bot): autoplay no longer plays karaoke backing tracks: its artist fallback keeps only the current artist's songs, and titles like "(made popular by …)", "(In the Style of …)" or "[backing version]" count as another version (#3065)
 - fix(bot): after a restart the restored session keeps autoplay on (the guild's setting), so music continues after the restored song instead of stopping (#3061)

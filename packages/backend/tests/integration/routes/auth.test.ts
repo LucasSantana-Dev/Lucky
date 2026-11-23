@@ -489,14 +489,14 @@ describe('Auth Routes Integration', () => {
         })
     })
 
-    describe('GET /api/auth/logout', () => {
+    describe('POST /api/auth/logout', () => {
         test('should logout successfully', async () => {
             const mockSessionService = getSessionServiceMock()
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
             mockSessionService.deleteSession.mockResolvedValue(undefined)
 
             const response = await request(app)
-                .get('/api/auth/logout')
+                .post('/api/auth/logout')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
@@ -509,12 +509,23 @@ describe('Auth Routes Integration', () => {
             mockSessionService.getSession.mockResolvedValue(null)
 
             const response = await request(app)
-                .get('/api/auth/logout')
+                .post('/api/auth/logout')
                 .expect(401)
 
             expect(response.body).toEqual({
                 error: 'Not authenticated',
             })
+        })
+
+        test('no longer logs out on GET, so an <img> on another site cannot end the session', async () => {
+            const mockSessionService = getSessionServiceMock()
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            await request(app)
+                .get('/api/auth/logout')
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(mockSessionService.deleteSession).not.toHaveBeenCalled()
         })
     })
 
