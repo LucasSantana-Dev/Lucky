@@ -137,3 +137,21 @@ export async function resolveModeratorCeiling(
     const moderator = await fetchMemberOrNull(guild, moderatorId)
     return isRanked(moderator) ? moderator.roles.highest.position : null
 }
+
+/**
+ * {@link resolveModeratorCeiling} for batch executors, which call it before
+ * every member so a moderator demoted mid-run loses reach at once. Throws
+ * (failing the job) when the moderator can't be found in the guild.
+ */
+export async function requireModeratorCeiling(
+    guild: Guild,
+    moderatorId: string,
+): Promise<number> {
+    const ceiling = await resolveModeratorCeiling(guild, moderatorId)
+    if (ceiling === null) {
+        throw new Error(
+            `Initiating moderator ${moderatorId} could not be found in the guild`,
+        )
+    }
+    return ceiling
+}

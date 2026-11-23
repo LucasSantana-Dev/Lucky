@@ -4,10 +4,10 @@ import {
     batchJobService,
 } from '@lucky/shared/services/batch'
 import { errorLog } from '@lucky/shared/utils'
-import { PermissionFlagsBits, type GuildMember } from 'discord.js'
+import { PermissionFlagsBits, type Guild, type GuildMember } from 'discord.js'
 import type { CustomClient } from '../../../types'
 import { getStoredClient } from '../../../bot/clientStore'
-import { resolveModeratorCeiling } from '../helpers/moderationHierarchy'
+import { requireModeratorCeiling } from '../helpers/moderationHierarchy'
 
 // Discord REST error codes we treat as "already gone" rather than a failure.
 const UNKNOWN_MEMBER = 10007
@@ -58,11 +58,10 @@ export class BulkRemoveRoleExecutor implements BatchJobExecutor {
         if (!moderatorId) {
             throw new Error('bulk_remove_role job has no initiating moderator')
         }
-        const { queue, ceiling } = await this.resolveTargets(
+        const { queue, guild } = await this.resolveTargets(
             client,
             guildId,
             roleId,
-            moderatorId,
             (dbJob as { nextCursor?: string })?.nextCursor || undefined,
         )
 
@@ -83,6 +82,11 @@ export class BulkRemoveRoleExecutor implements BatchJobExecutor {
             if (!getStoredClient()) {
                 return { ...this.summary(tally), paused: true }
             }
+
+            // Re-read the moderator's rank before every member: the bot may
+            // outrank members the moderator does not, and a moderator demoted
+            // mid-run must lose reach at once (see #3289).
+            const ceiling = await requireModeratorCeiling(guild, moderatorId)
 
             // Checkpoint BEFORE the destructive step to ensure crash-safety:
             // if a crash occurs between checkpoint and removal, resume skips
@@ -124,9 +128,8 @@ export class BulkRemoveRoleExecutor implements BatchJobExecutor {
         client: CustomClient,
         guildId: string,
         roleId: string,
-        moderatorId: string,
         cursor: string | undefined,
-    ): Promise<{ queue: GuildMember[]; ceiling: number }> {
+    ): Promise<{ queue: GuildMember[]; guild: Guild }> {
         const guild = await client.guilds.fetch(guildId).catch(() => null)
         if (!guild) {
             throw new Error(`Guild not found: ${guildId}`)
@@ -144,15 +147,6 @@ export class BulkRemoveRoleExecutor implements BatchJobExecutor {
             throw new Error(`Role not found: ${roleId}`)
         }
 
-        // The bot may outrank members the moderator does not; members at or
-        // above the moderator's top role are skipped (see #3289).
-        const ceiling = await resolveModeratorCeiling(guild, moderatorId)
-        if (ceiling === null) {
-            throw new Error(
-                `Initiating moderator ${moderatorId} could not be found in the server`,
-            )
-        }
-
         const targets = [...role.members.values()]
             .filter((member) => !member.user.bot)
             .sort((a, b) => a.id.localeCompare(b.id))
@@ -160,7 +154,7 @@ export class BulkRemoveRoleExecutor implements BatchJobExecutor {
         const queue = cursor
             ? targets.filter((member) => member.id.localeCompare(cursor) > 0)
             : targets
-        return { queue, ceiling }
+        return { queue, guild }
     }
 
     private summary(tally: Record<RemoveRoleOutcome, number>): {

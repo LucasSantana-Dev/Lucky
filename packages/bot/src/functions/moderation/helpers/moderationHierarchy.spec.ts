@@ -212,7 +212,7 @@ describe('checkRoleHierarchy', () => {
         expect(result).toBeNull()
     })
 
-    it('lets the owner target any role', async () => {
+    it('lets the guild owner target any role', async () => {
         const result = await checkRoleHierarchy(
             interaction(member('mod', 1), guild('mod')),
             { position: 50 } as never,
@@ -230,7 +230,7 @@ describe('checkRoleHierarchy', () => {
 })
 
 describe('resolveModeratorCeiling', () => {
-    it('returns Infinity for the server owner', async () => {
+    it('returns Infinity for the guild owner', async () => {
         const g = guild('mod')
         expect(await resolveModeratorCeiling(g as never, 'mod')).toBe(Infinity)
         expect(g.members.fetch).not.toHaveBeenCalled()
@@ -242,7 +242,7 @@ describe('resolveModeratorCeiling', () => {
         expect(g.members.fetch).toHaveBeenCalledWith('mod')
     })
 
-    it('returns null when the moderator left the server', async () => {
+    it('returns null when the moderator left the guild', async () => {
         const g = guild('owner', null)
         expect(await resolveModeratorCeiling(g as never, 'mod')).toBeNull()
     })

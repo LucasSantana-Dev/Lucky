@@ -45,9 +45,10 @@ function makeClient(
         ownerId,
         members: {
             me: { permissions: { has: () => true } },
-            fetch: jest.fn(async (id?: string) =>
-                id === undefined ? undefined : moderator,
-            ),
+            fetch: jest.fn(async (id?: string) => {
+                if (id === undefined) return undefined
+                return id === moderator?.id ? moderator : null
+            }),
         },
         roles: { fetch: jest.fn().mockResolvedValue(role) },
     }
@@ -260,7 +261,7 @@ describe('BulkKickExecutor', () => {
             expect(result).toMatchObject({ kicked: 1, skipped: 2, failed: 0 })
         })
 
-        test('lets a job started by the owner act on any member the bot can reach', async () => {
+        test('lets a job started by the guild owner act on any member the bot can reach', async () => {
             const act = jest.fn().mockResolvedValue(undefined)
             getClientMock.mockReturnValue(
                 makeClient([member('100', { position: 50, kick: act })], {
@@ -277,7 +278,7 @@ describe('BulkKickExecutor', () => {
             expect(result).toMatchObject({ kicked: 1 })
         })
 
-        test('throws when the initiating moderator left the server', async () => {
+        test('throws when the initiating moderator left the guild', async () => {
             const act = jest.fn()
             getClientMock.mockReturnValue(
                 makeClient([member('100', { kick: act })], { moderator: null }),
@@ -287,6 +288,32 @@ describe('BulkKickExecutor', () => {
                 new BulkKickExecutor().execute(JOB(), jest.fn() as any),
             ).rejects.toThrow(/initiating moderator/i)
             expect(act).not.toHaveBeenCalled()
+        })
+
+        test('stops reaching higher members once the moderator is demoted mid-run', async () => {
+            const moderator = rankedMember('mod', 10)
+            const actFirst = jest.fn(async () => {
+                moderator.roles.highest.position = 3
+            })
+            const actSecond = jest.fn()
+            getClientMock.mockReturnValue(
+                makeClient(
+                    [
+                        member('100', { position: 5, kick: actFirst }),
+                        member('200', { position: 5, kick: actSecond }),
+                    ],
+                    { moderator },
+                ),
+            )
+
+            const result = await new BulkKickExecutor().execute(
+                JOB({ totalItems: 2 }),
+                jest.fn() as any,
+            )
+
+            expect(actFirst).toHaveBeenCalled()
+            expect(actSecond).not.toHaveBeenCalled()
+            expect(result).toMatchObject({ skipped: 1 })
         })
 
         test('throws when the job has no initiating moderator', async () => {
