@@ -51,7 +51,7 @@ function makeRes() {
         headersSent: false,
         statusCode: 200,
         body: undefined as unknown,
-        writeHead: jest.fn(() => {
+        writeHead: jest.fn((_status: number, _headers?: unknown) => {
             res.headersSent = true
             return res
         }),
