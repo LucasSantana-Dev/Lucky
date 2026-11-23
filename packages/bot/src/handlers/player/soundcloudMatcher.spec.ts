@@ -1371,6 +1371,61 @@ describe('streamViaSoundCloud', () => {
             )
             expect(mockStreamViaYtDlp).toHaveBeenLastCalledWith(other.permalink)
         })
+
+        // #3281: search results list the transcodings, and a DRM upload has
+        // only encrypted ones ("Passa o Bong", prod 2026-11-22). Skipping it
+        // up front saves the ~6s yt-dlp attempt per stage.
+        const encrypted = (protocol: string) => ({ format: { protocol } })
+        const drmFormats = [
+            encrypted('cbc-encrypted-hls'),
+            encrypted('ctr-encrypted-hls'),
+        ]
+
+        it('never tries an upload whose transcodings are all encrypted', async () => {
+            const ytdlpReadable = new PassThrough()
+            mockStreamViaYtDlp.mockResolvedValue(ytdlpReadable)
+            const locked = { ...drmResult, formats: drmFormats }
+            const open = {
+                ...makeResult('Breathe (Official Audio)', 210),
+                permalink: 'https://soundcloud.com/artist/breathe-official',
+                formats: [encrypted('hls'), encrypted('hls')],
+            }
+            mockSearch.mockResolvedValue([locked, open])
+
+            await expect(streamViaSoundCloud('breathe', '3:30')).resolves.toBe(
+                ytdlpReadable,
+            )
+            expect(mockStreamViaYtDlp).toHaveBeenCalledTimes(1)
+            expect(mockStreamViaYtDlp).toHaveBeenCalledWith(open.permalink)
+        })
+
+        it('fails fast when every result is encrypted', async () => {
+            mockSearch.mockResolvedValue([
+                { ...drmResult, formats: drmFormats },
+            ])
+
+            await expect(
+                streamViaSoundCloud('breathe', '3:30'),
+            ).rejects.toThrow(
+                'SoundCloud: only DRM-protected results for "breathe"',
+            )
+            expect(mockStreamViaYtDlp).not.toHaveBeenCalled()
+        })
+
+        it('keeps an upload with at least one plain transcoding', async () => {
+            const ytdlpReadable = new PassThrough()
+            mockStreamViaYtDlp.mockResolvedValue(ytdlpReadable)
+            mockSearch.mockResolvedValue([
+                {
+                    ...drmResult,
+                    formats: [...drmFormats, encrypted('progressive')],
+                },
+            ])
+
+            await expect(streamViaSoundCloud('breathe', '3:30')).resolves.toBe(
+                ytdlpReadable,
+            )
+        })
     })
 
     it('successfully streams and passes correct search parameters', async () => {
