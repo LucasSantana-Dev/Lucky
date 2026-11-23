@@ -132,10 +132,12 @@ export default new Command({
             return
         }
 
-        // Acknowledge before the DJ lookup (a DB call) and the skip itself,
-        // which can exceed Discord's 3s window. If the defer fails (e.g. 10062
-        // Unknown interaction) the skip still runs; interactionReply swallows
-        // the later reply failures.
+        // The DJ check runs before the public defer so its "DJ Only" refusal
+        // stays ephemeral; the guild settings lookup is a primary-key read.
+        if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
+
+        // If the defer fails (e.g. 10062 Unknown interaction) the skip still
+        // runs; interactionReply swallows the later reply failures.
         try {
             await interaction.deferReply()
         } catch (error) {
@@ -144,8 +146,6 @@ export default new Command({
                 error,
             })
         }
-
-        if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
 
         // Before the skip: afterwards currentTrack is the next song.
         const skippedAutoplay = captureAutoplayTrack(queue.currentTrack)

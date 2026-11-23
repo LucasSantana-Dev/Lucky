@@ -149,7 +149,7 @@ describe('skip command', () => {
         expect(clearSessionMoodCacheMock).toHaveBeenCalledWith('guild-1')
     })
 
-    it('runs the voice guard and cheap queue checks before the defer and the DJ check after it (#2977)', async () => {
+    it('runs the voice guard, queue checks and the DJ check before the defer (#2977, #3278)', async () => {
         const order: string[] = []
         const queue = createQueue('guild-1')
         queue.node.skip.mockImplementation(() => {
@@ -183,8 +183,8 @@ describe('skip command', () => {
             'requireGuild',
             'requireSameVoiceChannel',
             'requireIsPlaying',
-            'defer',
             'requireDJRole',
+            'defer',
             'skip',
         ])
     })
@@ -291,13 +291,13 @@ describe('skip command', () => {
 
     it('returns early if DJ role check fails', async () => {
         requireDJRoleMock.mockResolvedValue(false)
+        const interaction = createInteraction('guild-1')
 
-        await skipCommand.execute({
-            interaction: createInteraction('guild-1'),
-            client: {} as any,
-        })
+        await skipCommand.execute({ interaction, client: {} as any })
 
         expect(clearSessionMoodCacheMock).not.toHaveBeenCalled()
+        // No public defer, so the DJ Only refusal stays ephemeral (#3278).
+        expect(interaction.deferReply).not.toHaveBeenCalled()
     })
 
     it('returns early if queue check fails', async () => {
