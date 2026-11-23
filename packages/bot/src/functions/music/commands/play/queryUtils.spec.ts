@@ -82,6 +82,8 @@ import {
     isYouTubeUrl,
     executePlayAtTop,
     expandSoundCloudShortUrl,
+    expandSpotifyShortUrl,
+    prepareQuery,
     resolveSearchEngine,
     moveTrackToTop,
     playWithFallbacks,
@@ -319,6 +321,82 @@ describe('expandSoundCloudShortUrl', () => {
                     'SoundCloud short URL expansion failed, using original URL',
             }),
         )
+    })
+})
+
+describe('expandSpotifyShortUrl (#3274)', () => {
+    beforeEach(() => {
+        fetchMock.mockReset()
+        warnLogMock.mockReset()
+    })
+
+    it.each(['https://spotify.link/AbC123', 'https://spotify.app.link/AbC123'])(
+        'follows the redirect of %s to open.spotify.com',
+        async (shortUrl) => {
+            fetchMock.mockResolvedValueOnce({
+                url: 'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=x',
+            })
+
+            await expect(expandSpotifyShortUrl(shortUrl)).resolves.toBe(
+                'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=x',
+            )
+            expect(fetchMock).toHaveBeenCalledWith(
+                shortUrl,
+                expect.objectContaining({ redirect: 'follow' }),
+            )
+        },
+    )
+
+    it('reads the open.spotify.com link from the page when there is no redirect', async () => {
+        fetchMock.mockResolvedValueOnce({
+            url: 'https://spotify.link/AbC123',
+            text: async () =>
+                '<html><meta property="og:url" content="https://open.spotify.com/artist/0oSGxfWSnnOXhD2fKuz2Gy?si=a&amp;b=c"></html>',
+        })
+
+        await expect(
+            expandSpotifyShortUrl('https://spotify.link/AbC123'),
+        ).resolves.toBe(
+            'https://open.spotify.com/artist/0oSGxfWSnnOXhD2fKuz2Gy?si=a&b=c',
+        )
+    })
+
+    it('keeps the short link when the redirect leaves Spotify', async () => {
+        fetchMock.mockResolvedValueOnce({
+            url: 'https://open.spotify.com.attacker.example/track/1',
+            text: async () => 'nothing here',
+        })
+
+        await expect(
+            expandSpotifyShortUrl('https://spotify.link/AbC123'),
+        ).resolves.toBe('https://spotify.link/AbC123')
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining(
+                    'Spotify short URL expansion failed',
+                ),
+            }),
+        )
+    })
+
+    it('leaves other links alone without a request', async () => {
+        await expect(
+            expandSpotifyShortUrl('https://open.spotify.com/track/1'),
+        ).resolves.toBe('https://open.spotify.com/track/1')
+        await expect(
+            expandSpotifyShortUrl('https://evil.example/spotify.link/x'),
+        ).resolves.toBe('https://evil.example/spotify.link/x')
+        expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('is part of the shared prepare step', async () => {
+        fetchMock.mockResolvedValueOnce({
+            url: 'https://open.spotify.com/album/1A2GTWGtFfWp7KSQTwWOyo',
+        })
+
+        await expect(
+            prepareQuery('https://spotify.link/AbC123', null),
+        ).resolves.toBe('https://open.spotify.com/album/1A2GTWGtFfWp7KSQTwWOyo')
     })
 })
 

@@ -95,6 +95,13 @@ jest.mock('../../../../services/musicManagement/queueResolver', () => ({
         resolveGuildQueueMock(client, guildId),
 }))
 
+const playSpotifyArtistLinkMock = jest.fn()
+jest.mock('./handlers/spotifyArtistLink', () => ({
+    ...jest.requireActual('./handlers/spotifyArtistLink'),
+    playSpotifyArtistLink: (...args: unknown[]) =>
+        playSpotifyArtistLinkMock(...args),
+}))
+
 jest.mock('../../../../utils/command/commandValidations', () => ({
     requireVoiceChannel: (interaction: unknown) =>
         requireVoiceChannelMock(interaction),
@@ -266,6 +273,23 @@ describe('play command', () => {
             }),
         )
         expect(requireVoiceChannelMock).not.toHaveBeenCalled()
+    })
+
+    it('routes a Spotify artist link to the artist top tracks (#3274)', async () => {
+        const interaction = createInteraction('guild-1')
+        interaction.options.getString = jest.fn((name: string) =>
+            name === 'query'
+                ? 'https://open.spotify.com/artist/0oSGxfWSnnOXhD2fKuz2Gy'
+                : null,
+        )
+        const client = createClient(async () => ({}))
+
+        await playCommand.execute({ client, interaction } as any)
+
+        expect(playSpotifyArtistLinkMock).toHaveBeenCalledWith(
+            expect.objectContaining({ artistId: '0oSGxfWSnnOXhD2fKuz2Gy' }),
+        )
+        expect(client.player.play).not.toHaveBeenCalled()
     })
 
     it('rejects when collaborative limit reached', async () => {

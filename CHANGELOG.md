@@ -1872,6 +1872,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- feat(bot): `/play` expands Spotify share links (`spotify.link`, `spotify.app.link`) to the open.spotify.com link, and a Spotify artist link queues that artist's top tracks like `/artist` instead of replying that the link is not supported
 - feat(bot): when a new song starts and 5 or more messages have buried the music controls, the bot posts them again at the bottom and takes the buttons off the old message (it is never deleted); in a quiet channel it still updates the same message (#3057)
 - feat(bot): `/play` queues a whole album when asked for one ("album esquinas anavitória completo"): it finds the Spotify album whose name is in the request and plays all its tracks, and falls back to the normal song search when none matches (#3053)
 - feat(bot): the bot posts its public slash commands to discordbotlist.com once per start (with `DISCORDBOTLIST_TOKEN`), so its listing page shows the command list, retrying each 30-minute tick until the site accepts it (#3015)

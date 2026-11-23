@@ -42,6 +42,7 @@ import {
     reserveCollaborativeRequest,
     type CollaborativeReservation,
 } from './collaborativeLimit'
+import { playSpotifyArtistLink, spotifyArtistId } from './spotifyArtistLink'
 import {
     classifyPlayFailure,
     logPlayFailure,
@@ -642,6 +643,22 @@ export async function executePlayHandler({
     const reservation = await reserveCollaborativeRequest(interaction, guildId)
     if (!reservation) return
     const query = await prepareQuery(rawQuery, provider)
+
+    const artistId = spotifyArtistId(query)
+    if (artistId) {
+        try {
+            await playSpotifyArtistLink({
+                client,
+                interaction,
+                voiceChannel,
+                artistId,
+                reservation,
+            })
+        } finally {
+            reservation.settle()
+        }
+        return
+    }
 
     const ctx: PlayContext = {
         client,

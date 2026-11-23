@@ -7,6 +7,7 @@ import {
     jest,
 } from '@jest/globals'
 import {
+    getSpotifyArtist,
     getSpotifyArtistTopTracks,
     getSpotifyArtistAlbums,
     searchSpotifyArtists,
@@ -319,5 +320,36 @@ describe('spotify market (#3124)', () => {
         await getSpotifyArtistAlbums('token', 'a1')
         expect(urls[0]).toContain('market=US')
         expect(urls[1]).not.toContain('market=')
+    })
+})
+
+describe('getSpotifyArtist (#3274)', () => {
+    const originalFetch = global.fetch
+
+    afterEach(() => {
+        global.fetch = originalFetch
+    })
+
+    it('fetches the artist by id', async () => {
+        const fetchMock = jest.fn(async (_url: string) => ({
+            ok: true,
+            json: async () => ({ id: 'abc', name: 'Anavitória', images: [] }),
+        }))
+        global.fetch = fetchMock as unknown as typeof fetch
+
+        const artist = await getSpotifyArtist('token', 'abc')
+
+        expect(fetchMock.mock.calls[0][0]).toBe(
+            'https://api.spotify.com/v1/artists/abc',
+        )
+        expect(artist).toMatchObject({ id: 'abc', name: 'Anavitória' })
+    })
+
+    it('returns null on a failed request', async () => {
+        global.fetch = jest.fn(async () => ({
+            ok: false,
+        })) as unknown as typeof fetch
+
+        await expect(getSpotifyArtist('token', 'abc')).resolves.toBeNull()
     })
 })
