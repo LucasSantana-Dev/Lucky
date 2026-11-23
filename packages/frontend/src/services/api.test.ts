@@ -323,7 +323,7 @@ describe('api service bootstrap', () => {
         await module.api.lyrics.search('Take On Me', 'a-ha')
 
         expect(apiClient.get).toHaveBeenCalledWith('/auth/status')
-        expect(apiClient.get).toHaveBeenCalledWith('/auth/logout')
+        expect(apiClient.post).toHaveBeenCalledWith('/auth/logout')
         expect(apiClient.get).toHaveBeenCalledWith('/guilds/guild-1/invite')
         expect(apiClient.get).toHaveBeenCalledWith(
             '/guilds/guild-1/autoplay/genres',
