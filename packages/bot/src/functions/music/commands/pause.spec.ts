@@ -7,7 +7,7 @@ jest.mock('../../../i18n/acknowledgeAndTranslate', () => ({
 }))
 import pauseCommand from './pause'
 
-const requireVoiceChannelMock = jest.fn()
+const requireSameVoiceChannelMock = jest.fn()
 const requireQueueMock = jest.fn()
 const interactionReplyMock = jest.fn()
 const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
@@ -21,8 +21,8 @@ const buildCommandTrackEmbedMock = jest.fn((track: any, action: string) => ({
 const resolveGuildQueueMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
-    requireVoiceChannel: (...args: unknown[]) =>
-        requireVoiceChannelMock(...args),
+    requireSameVoiceChannel: (...args: unknown[]) =>
+        requireSameVoiceChannelMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
 }))
 
@@ -82,7 +82,7 @@ function makeInteraction() {
 describe('pause command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        requireVoiceChannelMock.mockResolvedValue(true)
+        requireSameVoiceChannelMock.mockResolvedValue(true)
         requireQueueMock.mockResolvedValue(true)
     })
 
@@ -91,7 +91,7 @@ describe('pause command', () => {
     })
 
     it('returns early when voice channel validation fails', async () => {
-        requireVoiceChannelMock.mockResolvedValue(false)
+        requireSameVoiceChannelMock.mockResolvedValue(false)
         resolveGuildQueueMock.mockReturnValue({ queue: createQueue() })
 
         await pauseCommand.execute({
