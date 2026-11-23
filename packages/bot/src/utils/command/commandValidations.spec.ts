@@ -37,6 +37,7 @@ jest.mock('../../i18n/translatorForInteraction', () => ({
 import type { GuildQueue } from 'discord-player'
 import {
     requireDJRoleInGuild,
+    requireMusicManager,
     requireSameVoiceChannel,
     voiceChannelRefusal,
 } from './commandValidations'
@@ -122,6 +123,57 @@ describe('requireDJRoleInGuild', () => {
         await expect(
             requireDJRoleInGuild(interaction, 'someCheck'),
         ).resolves.toBe(false)
+    })
+})
+
+describe('requireMusicManager (#3269)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+    })
+
+    it('grants members with Manage Server', async () => {
+        await expect(
+            requireMusicManager(makeInteraction(), 'guild-1'),
+        ).resolves.toBe(true)
+        expect(getGuildSettingsMock).not.toHaveBeenCalled()
+    })
+
+    it('grants a DJ role holder', async () => {
+        getGuildSettingsMock.mockResolvedValueOnce({ djRoleId: 'dj-role' })
+        const interaction = makeInteraction({
+            member: { permissions: '0', roles: ['dj-role'] },
+        })
+
+        await expect(requireMusicManager(interaction, 'guild-1')).resolves.toBe(
+            true,
+        )
+    })
+
+    it('refuses everyone else when no DJ role is configured', async () => {
+        getGuildSettingsMock.mockResolvedValueOnce({ djRoleId: null })
+        const interaction = makeInteraction({
+            member: { permissions: '0', roles: [] },
+        })
+
+        await expect(requireMusicManager(interaction, 'guild-1')).resolves.toBe(
+            false,
+        )
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({ ephemeral: true }),
+            }),
+        )
+    })
+
+    it('refuses a member without the configured DJ role', async () => {
+        getGuildSettingsMock.mockResolvedValueOnce({ djRoleId: 'dj-role' })
+        const interaction = makeInteraction({
+            member: { permissions: '0', roles: ['other'] },
+        })
+
+        await expect(requireMusicManager(interaction, 'guild-1')).resolves.toBe(
+            false,
+        )
     })
 })
 

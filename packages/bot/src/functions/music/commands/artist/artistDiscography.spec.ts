@@ -67,6 +67,7 @@ import {
     asVoiceChannel,
 } from '../../../../../tests/utils/music/commandFixtures.js'
 import { asInteraction } from '../../../../../tests/utils/command/fixtures.js'
+import { collaborativePlaylistService } from '../../../../services/musicRecommendation/collaborativePlaylist'
 
 const createTrack = (title: string, author: string) => ({
     title,
@@ -206,6 +207,38 @@ describe('handleArtistDiscography', () => {
 
         const reply = (interactionReply as jest.Mock).mock.calls.at(-1)?.[0]
         expect(reply.content.embeds[0].description).toContain('**2**')
+    })
+
+    it('counts a queued discography as one collaborative request (#3269)', async () => {
+        collaborativePlaylistService.setMode('guild-1', true, 3)
+        searchSpotifyArtistsMock.mockResolvedValue([
+            { id: 'artist-1', name: 'Queen' },
+        ])
+        getSpotifyArtistTopTracksMock.mockResolvedValue([
+            { name: 'Bohemian Rhapsody', artist: 'Queen', url: 'spotify:1' },
+        ])
+        getSpotifyArtistAlbumsMock.mockResolvedValue([])
+        search.mockResolvedValueOnce({
+            tracks: [createTrack('Bohemian Rhapsody', 'Queen')],
+        })
+        play.mockResolvedValueOnce({
+            track: createTrack('Bohemian Rhapsody', 'Queen'),
+        })
+
+        try {
+            await handleArtistDiscography({
+                client: asClient(client),
+                interaction: asInteraction(interaction),
+                voiceChannel: asVoiceChannel(),
+                artistName: 'Queen',
+            })
+
+            expect(
+                collaborativePlaylistService.getState('guild-1').contributions,
+            ).toEqual({ 'user-1': 1 })
+        } finally {
+            collaborativePlaylistService.clearGuildState('guild-1')
+        }
     })
 
     it('leaves ASMR tracks out of the queue and the count (#3001)', async () => {

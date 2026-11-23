@@ -19,6 +19,7 @@ import {
 import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSanitizer'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { isUnknownInteractionError } from '../play/queryUtils'
+import { recordCollaborativeContribution } from '../play/handlers/collaborativeLimit'
 import { QUEUE_LEAVE_OPTIONS } from '../../../../services/musicManagement/queueLeaveOptions'
 import {
     AsmrBlockedError,
@@ -240,6 +241,10 @@ export async function handleArtistDiscography({
         if (playResult.track) {
             moveUserTrackToPriority(queue, playResult.track)
         }
+        recordCollaborativeContribution(
+            interaction,
+            interaction.guildId as string,
+        )
 
         await interactionReply({
             interaction,

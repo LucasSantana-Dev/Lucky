@@ -28,6 +28,10 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
 import {
+    recordCollaborativeContribution,
+    rejectOverCollaborativeLimit,
+} from './play/handlers/collaborativeLimit'
+import {
     SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
     TEXT_SEARCH_BLOCKED_EXTRACTORS,
 } from './play/handlers/resolveProvider'
@@ -214,6 +218,11 @@ export default new Command({
             if (isUnknownInteractionError(error)) return
             throw error
         }
+
+        if (
+            await rejectOverCollaborativeLimit(interaction, interaction.guildId)
+        )
+            return
 
         if (discography) {
             await handleArtistDiscography({
@@ -424,6 +433,7 @@ export default new Command({
             }
 
             moveUserTrackToPriority(queue, playResult.track)
+            recordCollaborativeContribution(interaction, interaction.guildId)
 
             const displayArtist =
                 tracks.find((t) => t.author.toLowerCase().includes(artistLower))

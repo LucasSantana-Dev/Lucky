@@ -21,6 +21,10 @@ import {
 import { ensureTrackMetadata } from './handlers/trackMetadataHydration'
 import { resolveAlbumIntent } from './handlers/albumIntent'
 import {
+    recordCollaborativeContribution,
+    rejectOverCollaborativeLimit,
+} from './handlers/collaborativeLimit'
+import {
     classifyPlayFailure,
     logPlayFailure,
     resolvePlayErrorMessage,
@@ -544,6 +548,8 @@ export async function executePlayAtTop({
 
     // After the defer: short link expansion can take a few seconds.
     const query = await prepareQuery(rawQuery, null)
+    if (await rejectOverCollaborativeLimit(interaction, interaction.guildId))
+        return
 
     try {
         const result = await playWithFallbacks({
@@ -571,6 +577,7 @@ export async function executePlayAtTop({
         }
 
         moveTrackToTop(queue, track, skipCurrent)
+        recordCollaborativeContribution(interaction, interaction.guildId)
 
         // The controls live on the now-playing message, not on this reply.
         const embed = buildPlayResponseEmbed(

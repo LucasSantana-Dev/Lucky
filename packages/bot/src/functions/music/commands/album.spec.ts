@@ -67,6 +67,7 @@ import albumCommand from './album'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { createCommandParams } from '../../../../tests/utils/music/commandFixtures.js'
+import { collaborativePlaylistService } from '../../../services/musicRecommendation/collaborativePlaylist'
 
 const ALBUM_URL = 'https://open.spotify.com/album/0ETFjACtuP2ADo6LFhL6HN'
 
@@ -467,5 +468,54 @@ describe('album command album resolution', () => {
         // which no text query could ever satisfy.
         expect(embed.description).not.toContain('more specific album search')
         expect(embed.description).toContain('zzzz not an album')
+    })
+})
+
+describe('album command collaborative limit (#3269)', () => {
+    afterEach(() => collaborativePlaylistService.clearGuildState('guild-1'))
+
+    it('refuses the album when the user already used their requests', async () => {
+        collaborativePlaylistService.setMode('guild-1', true, 1)
+        collaborativePlaylistService.recordContribution('guild-1', 'user-1', 1)
+        const search = jest.fn()
+        const play = jest.fn()
+
+        await albumCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(ALBUM_URL),
+            }),
+        )
+
+        expect(search).not.toHaveBeenCalled()
+        expect(play).not.toHaveBeenCalled()
+        expect(lastReply().content.embeds[0].title).toBe(
+            'Contribution limit reached',
+        )
+    })
+
+    it('counts a queued album as one request', async () => {
+        collaborativePlaylistService.setMode('guild-1', true, 3)
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({
+            queue: { addTrack: jest.fn(), tracks: { toArray: () => [] } },
+        })
+        const search = jest.fn(async () => ({
+            tracks: [createTrack('Come Together'), createTrack('Something')],
+            playlist: { title: 'Abbey Road' },
+        }))
+        const play = jest.fn(async () => ({
+            track: createTrack('Come Together'),
+        }))
+
+        await albumCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(ALBUM_URL),
+            }),
+        )
+
+        expect(
+            collaborativePlaylistService.getState('guild-1').contributions,
+        ).toEqual({ 'user-1': 1 })
     })
 })

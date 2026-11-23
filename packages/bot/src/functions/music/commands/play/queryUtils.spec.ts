@@ -86,6 +86,7 @@ import {
     moveTrackToTop,
     playWithFallbacks,
 } from './queryUtils'
+import { collaborativePlaylistService } from '../../../../services/musicRecommendation/collaborativePlaylist'
 
 describe('host matching', () => {
     it('leaves a foreign URL that merely mentions youtube alone', () => {
@@ -489,6 +490,53 @@ describe('executePlayAtTop — fallback chain', () => {
             'Play Error',
             't:music.errors.asmrBlocked',
         )
+    })
+
+    describe('collaborative limit (#3269)', () => {
+        afterEach(() => collaborativePlaylistService.clearGuildState('guild-1'))
+
+        it('refuses the request when the user already used their requests', async () => {
+            collaborativePlaylistService.setMode('guild-1', true, 1)
+            collaborativePlaylistService.recordContribution(
+                'guild-1',
+                'user-1',
+                1,
+            )
+            const client = makeClient(() =>
+                Promise.resolve({ track: fakeTrack }),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction(),
+                skipCurrent: true,
+                commandName: 'playskip',
+            })
+
+            expect(client.player.play).not.toHaveBeenCalled()
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Contribution limit reached',
+                expect.stringContaining('1'),
+            )
+        })
+
+        it('records the request once it is queued', async () => {
+            collaborativePlaylistService.setMode('guild-1', true, 3)
+            const client = makeClient(() =>
+                Promise.resolve({ track: fakeTrack }),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction(),
+                skipCurrent: false,
+                commandName: 'playtop',
+            })
+
+            expect(
+                collaborativePlaylistService.getState('guild-1').contributions,
+            ).toEqual({ 'user-1': 1 })
+        })
     })
 
     describe('link normalisation shared with /play (#3270)', () => {

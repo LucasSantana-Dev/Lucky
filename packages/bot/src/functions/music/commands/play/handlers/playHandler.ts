@@ -17,7 +17,6 @@ import { markCommandOutcome } from '../../../../../utils/monitoring/commandOutco
 import { assertDefined } from '@lucky/shared/utils/guards'
 import { createErrorEmbed } from '../../../../../utils/general/embeds'
 import { interactionReply } from '../../../../../utils/general/interactionReply'
-import { collaborativePlaylistService } from '../../../../../services/musicRecommendation/collaborativePlaylist'
 import { moveUserTrackToPriority } from '../../../../../services/musicManagement/queueManipulation'
 import { buildPlayResponseEmbed } from '../../../../../utils/music/nowPlayingEmbed'
 import { registerNowPlayingMessage } from '../../../../../handlers/player/nowPlayingDisplay'
@@ -39,6 +38,10 @@ import {
     type ResolveQueryParams,
 } from './resolveProvider'
 import { runPostPlayBackgroundOps } from './postPlayBackgroundOps'
+import {
+    recordCollaborativeContribution,
+    rejectOverCollaborativeLimit,
+} from './collaborativeLimit'
 import {
     classifyPlayFailure,
     logPlayFailure,
@@ -222,32 +225,6 @@ async function deferPlayReply(
     }
 }
 
-/** Replies and returns true when the collaborative request limit is hit. */
-async function rejectOverCollaborativeLimit(
-    interaction: ChatInputCommandInteraction,
-    guildId: string,
-): Promise<boolean> {
-    const collaborativeCheck = collaborativePlaylistService.canAddTracks(
-        guildId,
-        interaction.user.id,
-        1,
-    )
-    if (collaborativeCheck.allowed) return false
-    markCommandOutcome(interaction, { outcome: 'user_error' })
-    await interactionReply({
-        interaction,
-        content: {
-            embeds: [
-                createErrorEmbed(
-                    'Contribution limit reached',
-                    `Collaborative mode limit reached (${collaborativeCheck.limit} track requests per user).`,
-                ),
-            ],
-        },
-    })
-    return true
-}
-
 async function registerDeferredNowPlaying(
     interaction: ChatInputCommandInteraction,
     guildId: string,
@@ -418,24 +395,6 @@ function resolveQueuePosition(
     return 0
 }
 
-function recordPlayContribution(
-    interaction: ChatInputCommandInteraction,
-    guildId: string,
-): void {
-    try {
-        collaborativePlaylistService.recordContribution(
-            guildId,
-            interaction.user.id,
-            1,
-        )
-    } catch (err) {
-        errorLog({
-            message: 'Failed to record contribution',
-            error: err,
-        })
-    }
-}
-
 async function sendFinalReply(
     interaction: ChatInputCommandInteraction,
     earlyReply: EarlyReply | null,
@@ -491,7 +450,7 @@ async function completePlay(
         t,
     })
 
-    recordPlayContribution(interaction, guildId)
+    recordCollaborativeContribution(interaction, guildId)
     await sendFinalReply(interaction, early.reply, embed, track, queuePosition)
 
     // Fire-and-forget: each op is isolated inside runPostPlayBackgroundOps so a

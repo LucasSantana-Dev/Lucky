@@ -21,6 +21,10 @@ import { assertDefined } from '@lucky/shared/utils/guards'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
+import {
+    recordCollaborativeContribution,
+    rejectOverCollaborativeLimit,
+} from './play/handlers/collaborativeLimit'
 import { pickAlbum } from './play/handlers/albumIntent'
 import { QUEUE_LEAVE_OPTIONS } from '../../../services/musicManagement/queueLeaveOptions'
 import { AsmrBlockedError, isAsmrTrack } from '../../../utils/music/asmrFilter'
@@ -127,6 +131,11 @@ export default new Command({
             if (isUnknownInteractionError(error)) return
             throw error
         }
+
+        if (
+            await rejectOverCollaborativeLimit(interaction, interaction.guildId)
+        )
+            return
 
         try {
             // A free-text query cannot reach an extractor's album branch: every
@@ -292,6 +301,7 @@ export default new Command({
             }
 
             moveUserTrackToPriority(queue, playResult.track)
+            recordCollaborativeContribution(interaction, interaction.guildId)
 
             const albumTitle = searchResult.playlist?.title ?? query
 
