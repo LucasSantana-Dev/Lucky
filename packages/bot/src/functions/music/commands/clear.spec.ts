@@ -17,6 +17,7 @@ const errorLogMock = jest.fn()
 const setReplenishSuppressedMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
+    requireSameVoiceChannel: async () => true,
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
 }))

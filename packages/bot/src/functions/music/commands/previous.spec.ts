@@ -21,6 +21,7 @@ const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
+    requireSameVoiceChannel: async () => true,
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
     requireDJRoleInGuild: (...args: unknown[]) => requireDJRoleMock(...args),

@@ -4,7 +4,10 @@ import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
 import { createSuccessEmbed } from '../../../utils/general/embeds'
 import type { CommandExecuteParams } from '../../../types/CommandData'
-import { requireQueue } from '../../../utils/command/commandValidations'
+import {
+    requireQueue,
+    requireSameVoiceChannel,
+} from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { resumeAutoplay } from '../../../handlers/player/autoplayFailureStreak'
 
@@ -108,6 +111,7 @@ export default new Command({
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        if (!(await requireSameVoiceChannel(queue, interaction))) return
         const mode = interaction.options.getString('mode', true)
         const times = interaction.options.getInteger('times', false)
 

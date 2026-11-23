@@ -15,6 +15,7 @@ const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
 const resolveGuildQueueMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
+    requireSameVoiceChannel: async () => true,
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
     requireCurrentTrack: (...args: unknown[]) =>

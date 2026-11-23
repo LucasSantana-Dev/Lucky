@@ -20,6 +20,7 @@ const getVotesMock = jest.fn()
 const hasVotedMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
+    requireSameVoiceChannel: async () => true,
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
     requireCurrentTrack: (...args: unknown[]) =>

@@ -1,8 +1,4 @@
-import {
-    type ButtonInteraction,
-    type GuildMember,
-    escapeMarkdown,
-} from 'discord.js'
+import { type ButtonInteraction, escapeMarkdown } from 'discord.js'
 import { QueueRepeatMode } from 'discord-player'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../utils/general/embeds'
@@ -19,6 +15,10 @@ import {
 } from '../utils/music/buttonComponents'
 import { createQueueEmbed } from '../functions/music/commands/queue/queueEmbed'
 import { translatorForInteraction } from '../i18n/translatorForInteraction'
+import {
+    voiceChannelRefusal,
+    voiceChannelRefusalEmbed,
+} from '../utils/command/commandValidations'
 import { shuffleQueue } from '../services/musicManagement/queueManipulation'
 import type { GuildQueue } from 'discord-player'
 import { resolveGuildQueue } from '../services/musicManagement/queueResolver'
@@ -46,24 +46,20 @@ export async function handleMusicButtonInteraction(
     try {
         await interaction.deferUpdate()
 
-        const member = interaction.member as GuildMember
-        if (!member.voice.channel) {
-            await interaction.followUp({
-                embeds: [
-                    createErrorEmbed(
-                        'Not in Voice',
-                        'Join a voice channel first',
-                    ),
-                ],
-                ephemeral: true,
-            })
-            return
-        }
-
         const { queue, source, diagnostics } = resolveGuildQueue(
             interaction.client as unknown as Pick<CustomClient, 'player'>,
             interaction.guildId ?? '',
         )
+        // Only members listening with the bot may drive it (#3266).
+        const refusal = voiceChannelRefusal(interaction, queue)
+        if (refusal) {
+            const t = await translatorForInteraction(interaction)
+            await interaction.followUp({
+                embeds: [voiceChannelRefusalEmbed(t, refusal)],
+                ephemeral: true,
+            })
+            return
+        }
         if (!queue) {
             debugLog({
                 message: 'Music button interaction could not resolve queue',

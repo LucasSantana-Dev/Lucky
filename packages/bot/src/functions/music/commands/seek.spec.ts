@@ -14,7 +14,7 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireQueue: jest.fn(async () => true),
     requireCurrentTrack: jest.fn(async () => true),
     requireIsPlaying: jest.fn(async () => true),
-    requireVoiceChannel: jest.fn(async () => true),
+    requireSameVoiceChannel: jest.fn(async () => true),
     requireDJRoleInGuild: jest.fn(async () => true),
 }))
 
@@ -39,7 +39,7 @@ import {
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
-    requireVoiceChannel,
+    requireSameVoiceChannel,
     requireDJRoleInGuild,
 } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
@@ -64,25 +64,28 @@ const execute = seekCommand.execute as unknown as (params: {
 describe('seek command', () => {
     beforeEach(() => {
         jest.clearAllMocks()
-        ;(requireVoiceChannel as jest.Mock).mockResolvedValue(true)
+        ;(requireSameVoiceChannel as jest.Mock).mockResolvedValue(true)
         ;(requireDJRoleInGuild as jest.Mock).mockResolvedValue(true)
         ;(requireQueue as jest.Mock).mockResolvedValue(true)
         ;(requireCurrentTrack as jest.Mock).mockResolvedValue(true)
         ;(requireIsPlaying as jest.Mock).mockResolvedValue(true)
     })
 
-    it('stops before resolving a queue when not in a voice channel', async () => {
-        ;(requireVoiceChannel as jest.Mock).mockResolvedValue(false)
+    it('stops when the caller is outside the bot voice channel (#3266)', async () => {
+        const queue = { channel: { id: 'vc-bot' } }
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({ queue })
+        ;(requireSameVoiceChannel as jest.Mock).mockResolvedValue(false)
+        const interaction = createInteraction('1:30') as any
 
-        await execute({
-            client: {},
-            interaction: createInteraction('1:30') as any,
-        })
+        await execute({ client: {}, interaction })
 
-        expect(resolveGuildQueue).not.toHaveBeenCalled()
+        expect(requireSameVoiceChannel).toHaveBeenCalledWith(queue, interaction)
+        expect(requireDJRoleInGuild).not.toHaveBeenCalled()
+        expect(requireQueue).not.toHaveBeenCalled()
     })
 
     it('stops when the caller lacks the DJ role', async () => {
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({ queue: null })
         ;(requireDJRoleInGuild as jest.Mock).mockResolvedValue(false)
 
         await execute({
@@ -90,7 +93,7 @@ describe('seek command', () => {
             interaction: createInteraction('1:30') as any,
         })
 
-        expect(resolveGuildQueue).not.toHaveBeenCalled()
+        expect(requireQueue).not.toHaveBeenCalled()
     })
 
     it('stops when there is no active queue', async () => {

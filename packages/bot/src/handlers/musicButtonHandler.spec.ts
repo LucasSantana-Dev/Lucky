@@ -88,8 +88,11 @@ jest.mock('./player/nowPlayingDisplay', () => ({
 
 jest.mock('../i18n/translatorForInteraction', () => ({
     translatorForInteraction:
-        async () => (key: string, options?: { title?: string }) =>
-            options?.title === undefined ? key : `${key}|${options.title}`,
+        async () =>
+        (key: string, options?: { title?: string; channel?: string }) => {
+            const value = options?.title ?? options?.channel
+            return value === undefined ? key : `${key}|${value}`
+        },
 }))
 
 import { handleMusicButtonInteraction } from './musicButtonHandler'
@@ -100,7 +103,7 @@ function createInteraction(customId: string) {
         customId,
         guildId: '111111111111111111',
         client: {},
-        member: { voice: { channel: {} } },
+        member: { voice: { channelId: 'vc-1', channel: { id: 'vc-1' } } },
         deferred: true,
         replied: false,
         deferUpdate: jest.fn<Promise<void>, []>().mockResolvedValue(),
@@ -551,5 +554,70 @@ describe('handleMusicButtonInteraction - compact now-playing row', () => {
         expect(interaction.editReply).toHaveBeenCalledWith({
             components: ['refreshed-row'],
         })
+    })
+})
+
+describe('handleMusicButtonInteraction - voice channel guard (#3266)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+    })
+
+    it('refuses a member in another voice channel than the bot', async () => {
+        const queue = createQueue({
+            channel: { id: 'vc-bot' },
+            node: { skip: jest.fn() },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP)
+
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
+
+        expect(interaction.followUp).toHaveBeenCalledWith({
+            embeds: [
+                {
+                    title: 'music.errors.notSameVoiceTitle',
+                    description: 'music.errors.notSameVoice|<#vc-bot>',
+                },
+            ],
+            ephemeral: true,
+        })
+        expect((queue.node as { skip: jest.Mock }).skip).not.toHaveBeenCalled()
+    })
+
+    it('refuses a member in no voice channel', async () => {
+        const queue = createQueue({ node: { skip: jest.fn() } })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const interaction = {
+            ...createInteraction(MUSIC_BUTTON_IDS.SKIP),
+            member: { voice: { channelId: null, channel: null } },
+        }
+
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
+
+        expect(interaction.followUp).toHaveBeenCalledWith({
+            embeds: [
+                {
+                    title: 'music.errors.notInVoiceTitle',
+                    description: 'music.errors.notInVoice',
+                },
+            ],
+            ephemeral: true,
+        })
+        expect((queue.node as { skip: jest.Mock }).skip).not.toHaveBeenCalled()
+    })
+
+    it('lets a member in the bot voice channel skip', async () => {
+        const queue = createQueue({
+            channel: { id: 'vc-1' },
+            node: { skip: jest.fn() },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP)
+
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
+
+        expect((queue.node as { skip: jest.Mock }).skip).toHaveBeenCalledTimes(
+            1,
+        )
     })
 })

@@ -5,6 +5,7 @@ import { createErrorEmbed } from '../../../utils/general/embeds'
 import { errorLog } from '@lucky/shared/utils'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
+import { requireSameVoiceChannel } from '../../../utils/command/commandValidations'
 import {
     handleSkipAutoplayTrack,
     handleClearAutoplayTracks,
@@ -206,6 +207,11 @@ export default new Command({
                 case 'skip':
                 case 'clear':
                 case 'status':
+                    if (
+                        subcommand !== 'status' &&
+                        !(await requireSameVoiceChannel(queue, interaction))
+                    )
+                        return
                     if (!queue) {
                         await interactionReply({
                             interaction,

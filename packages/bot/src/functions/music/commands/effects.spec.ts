@@ -18,6 +18,7 @@ jest.mock('../../../services/musicManagement/queueResolver', () => ({
 }))
 
 jest.mock('../../../utils/command/commandValidations', () => ({
+    requireSameVoiceChannel: async () => true,
     requireGuild: jest.fn(async () => true),
     requireQueue: jest.fn(async () => true),
     requireIsPlaying: jest.fn(async () => true),

@@ -6,6 +6,7 @@ import {
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
+    requireSameVoiceChannel,
 } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { interactionReply } from '../../../utils/general/interactionReply'
@@ -41,6 +42,7 @@ export default new Command({
             'Guild ID required after requireGuild check',
         )
         const { queue } = resolveGuildQueue(client, guildId)
+        if (!(await requireSameVoiceChannel(queue, interaction))) return
 
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireCurrentTrack(queue, interaction))) return

@@ -1,4 +1,9 @@
-import type { ChatInputCommandInteraction, GuildMember } from 'discord.js'
+import type {
+    ChatInputCommandInteraction,
+    EmbedBuilder,
+    GuildMember,
+} from 'discord.js'
+import type { TFunction } from 'i18next'
 import {
     GuildMemberRoleManager,
     PermissionsBitField,
@@ -14,6 +19,7 @@ import {
 } from '@lucky/shared/utils'
 import { guildSettingsService } from '@lucky/shared/services'
 import { assertDefined } from '@lucky/shared/utils/guards'
+import { translatorForInteraction } from '../../i18n/translatorForInteraction'
 
 export async function requireGuild(
     interaction: ChatInputCommandInteraction,
@@ -64,6 +70,107 @@ export async function requireVoiceChannel(
         return false
     }
     return true
+}
+
+type VoiceGuardInteraction = {
+    member: unknown
+    guild?: {
+        members?: { me?: { voice?: { channelId?: string | null } } | null }
+    } | null
+}
+
+export type VoiceChannelRefusal =
+    { reason: 'notInVoice' } | { reason: 'otherChannel'; botChannelId: string }
+
+/**
+ * Why a member may not control the music, or null when they may. The bot's
+ * channel comes from the queue, else from its own voice state; when the bot is
+ * in no channel, any member in some voice channel passes (#3266).
+ */
+function memberVoiceChannelId(member: unknown): string | null {
+    const voice = (member as GuildMember | null)?.voice
+    return voice?.channelId ?? voice?.channel?.id ?? null
+}
+
+function botVoiceChannelId(
+    interaction: VoiceGuardInteraction,
+    queue: GuildQueue | null,
+): string | null {
+    return (
+        queue?.channel?.id ??
+        interaction.guild?.members?.me?.voice?.channelId ??
+        null
+    )
+}
+
+export function voiceChannelRefusal(
+    interaction: VoiceGuardInteraction,
+    queue: GuildQueue | null,
+): VoiceChannelRefusal | null {
+    const userChannelId = memberVoiceChannelId(interaction.member)
+    if (!userChannelId) return { reason: 'notInVoice' }
+
+    const botChannelId = botVoiceChannelId(interaction, queue)
+    if (botChannelId && botChannelId !== userChannelId) {
+        return { reason: 'otherChannel', botChannelId }
+    }
+    return null
+}
+
+export function voiceChannelRefusalEmbed(
+    t: TFunction,
+    refusal: VoiceChannelRefusal,
+): EmbedBuilder {
+    return refusal.reason === 'notInVoice'
+        ? createErrorEmbed(
+              t('music.errors.notInVoiceTitle'),
+              t('music.errors.notInVoice'),
+          )
+        : createErrorEmbed(
+              t('music.errors.notSameVoiceTitle'),
+              t('music.errors.notSameVoice', {
+                  channel: `<#${refusal.botChannelId}>`,
+              }),
+          )
+}
+
+/**
+ * Music controls are for the members listening with the bot. Run before any
+ * public defer: the refusal acknowledges ephemerally itself, ahead of the
+ * translator lookup that can miss the language cache.
+ */
+export async function requireSameVoiceChannel(
+    queue: GuildQueue | null,
+    interaction: ChatInputCommandInteraction,
+): Promise<boolean> {
+    const refusal = voiceChannelRefusal(interaction, queue)
+    if (!refusal) return true
+
+    warnLog({
+        message: `requireSameVoiceChannel: ${refusal.reason}`,
+        data: {
+            commandName: interaction.commandName,
+            userId: interaction.user.id,
+            guildId: interaction.guildId ?? undefined,
+        },
+    })
+
+    if (!interaction.deferred && !interaction.replied) {
+        try {
+            await interaction.deferReply({ flags: 64 })
+        } catch {
+            // interactionReply below records an expired interaction.
+        }
+    }
+    const t = await translatorForInteraction(interaction)
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [voiceChannelRefusalEmbed(t, refusal)],
+            ephemeral: true,
+        },
+    })
+    return false
 }
 
 export async function requireQueue(

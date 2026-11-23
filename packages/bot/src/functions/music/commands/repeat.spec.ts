@@ -16,6 +16,7 @@ const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
 const resolveGuildQueueMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
+    requireSameVoiceChannel: async () => true,
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
 }))
 
