@@ -113,7 +113,14 @@ export function setupAutoMessageRoutes(app: Express): void {
             if (body.channelId) {
                 await assertChannelInGuild(guildId, body.channelId)
             }
-            const updated = await autoMessageService.updateMessage(id, body)
+            const updated = await autoMessageService.updateMessage(
+                guildId,
+                id,
+                body,
+            )
+            if (!updated) {
+                throw AppError.notFound('Auto message not found')
+            }
             await serverLogService.logAutoMessageChange(
                 guildId,
                 'updated',
@@ -136,7 +143,14 @@ export function setupAutoMessageRoutes(app: Express): void {
             const userId = requireUserId(req)
             const id = p(req.params.id)
             const { enabled } = s.toggleBody.parse(req.body)
-            const updated = await autoMessageService.toggleMessage(id, enabled)
+            const updated = await autoMessageService.toggleMessage(
+                guildId,
+                id,
+                enabled,
+            )
+            if (!updated) {
+                throw AppError.notFound('Auto message not found')
+            }
             await serverLogService.logAutoMessageChange(
                 guildId,
                 enabled ? 'enabled' : 'disabled',
@@ -157,7 +171,10 @@ export function setupAutoMessageRoutes(app: Express): void {
             const guildId = p(req.params.guildId)
             const userId = requireUserId(req)
             const id = p(req.params.id)
-            await autoMessageService.deleteMessage(id)
+            const deleted = await autoMessageService.deleteMessage(guildId, id)
+            if (!deleted) {
+                throw AppError.notFound('Auto message not found')
+            }
             await serverLogService.logAutoMessageChange(
                 guildId,
                 'disabled',
