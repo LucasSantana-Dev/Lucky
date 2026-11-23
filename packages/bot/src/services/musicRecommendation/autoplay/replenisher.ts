@@ -113,6 +113,9 @@ export function popularityBoost(
 // the same exclusion sets and independently select the same track.
 export const REPLENISH_DEADLINE_MS = 30_000
 const replenishLocks = new Map<string, Promise<boolean>>()
+// Locks whose chain has settled, so a session-end cleanup can drop them
+// without breaking the serialisation of a refill still in flight.
+const settledLocks = new WeakSet<Promise<boolean>>()
 
 // Per-guild counter for query diversity across multiple replenish calls.
 const replenishCounters = new Map<string, number>()
@@ -195,10 +198,9 @@ export function replenishQueue(
             return false
         })
     })
-    replenishLocks.set(
-        guildId,
-        next.catch(() => false),
-    )
+    const lock = next.catch(() => false)
+    replenishLocks.set(guildId, lock)
+    void lock.then(() => settledLocks.add(lock))
     return next
 }
 
@@ -1435,6 +1437,31 @@ function buildArtistFrequency(
         }
     }
     return freq
+}
+
+/**
+ * Drops the per-guild autoplay state when a session ends (queue deleted,
+ * idle disconnect, /leave or the bot leaving the guild), so the maps do not
+ * grow with guild count and a stale mood cannot leak into the next session.
+ * A refill still in flight keeps its lock so a new one stays serialised.
+ */
+export function clearAutoplayGuildState(guildId: string): void {
+    const lock = replenishLocks.get(guildId)
+    if (lock && settledLocks.has(lock)) replenishLocks.delete(guildId)
+    replenishCounters.delete(guildId)
+    clearSessionMoodCache(guildId)
+}
+
+export function __autoplayGuildStateForTests(guildId: string): {
+    lock: boolean
+    counter: boolean
+    mood: boolean
+} {
+    return {
+        lock: replenishLocks.has(guildId),
+        counter: replenishCounters.has(guildId),
+        mood: sessionMoodCache.has(guildId),
+    }
 }
 
 export function clearSessionMoodCache(guildId: string): void {

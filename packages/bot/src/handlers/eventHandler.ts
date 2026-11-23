@@ -61,6 +61,7 @@ import { syncAllGuildFollowerRoles } from '../twitch/followerRoleSync'
 import { aiDevToolkitService } from '../services/AiDevToolkitService'
 import { namedSessionService } from '../services/musicManagement/namedSessions'
 import { cleanupGuildState } from './player/nowPlayingDisplay'
+import { clearAutoplayGuildState } from '../services/musicRecommendation/autoplay/replenisher'
 import {
     recordGuildJoin,
     recordGuildLeave,
@@ -688,6 +689,7 @@ function handleGuildDelete(client: Client): void {
                 }
             duplicateDetection.clearHistory(guild.id)
             duplicateDetection.clearAllGuildCaches(guild.id)
+            clearAutoplayGuildState(guild.id)
             cleanupGuildState(guild.id)
         } catch (err) {
             errorLog({

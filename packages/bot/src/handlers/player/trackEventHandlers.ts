@@ -10,6 +10,7 @@ import {
 import { addTrackToHistory } from '../../utils/music/duplicateDetection'
 import { resolveActualStreamSource } from './streamSourceResolver'
 import { replenishQueue } from '../../services/musicManagement/queueOperations'
+import { clearAutoplayGuildState } from '../../services/musicRecommendation/autoplay/replenisher'
 import { resetAutoplayCount } from '../../utils/music/autoplayManager'
 import { featureToggleService } from '@lucky/shared/services'
 import { constants } from '@lucky/shared/config'
@@ -438,6 +439,9 @@ const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
     // An idle-disconnect timer armed for this session would otherwise fire
     // against whatever new session starts before playerStart clears it.
     clearIdleTimer(queue.guild.id)
+    // Refill counter and mood cache belong to the session that just ended
+    // (#3280); /leave and the idle disconnect both land here via delete().
+    clearAutoplayGuildState(queue.guild.id)
     try {
         const lastStarted = takeGuildLastStartedTrack(queue.guild.id)
         const track = queue.currentTrack ?? lastStarted
