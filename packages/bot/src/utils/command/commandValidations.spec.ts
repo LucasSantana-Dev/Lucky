@@ -101,6 +101,28 @@ describe('requireDJRoleInGuild', () => {
         ).resolves.toBe(true)
         expect(getGuildSettingsMock).toHaveBeenCalledWith('guild-1')
     })
+
+    it('grants a raw member whose role id list holds the DJ role', async () => {
+        getGuildSettingsMock.mockResolvedValueOnce({ djRoleId: 'dj-role' })
+        const interaction = makeInteraction({
+            member: { permissions: '0', roles: ['other', 'dj-role'] },
+        })
+
+        await expect(
+            requireDJRoleInGuild(interaction, 'someCheck'),
+        ).resolves.toBe(true)
+    })
+
+    it('refuses a raw member whose role id list lacks the DJ role', async () => {
+        getGuildSettingsMock.mockResolvedValueOnce({ djRoleId: 'dj-role' })
+        const interaction = makeInteraction({
+            member: { permissions: '0', roles: ['other'] },
+        })
+
+        await expect(
+            requireDJRoleInGuild(interaction, 'someCheck'),
+        ).resolves.toBe(false)
+    })
 })
 
 function makeVoiceInteraction(

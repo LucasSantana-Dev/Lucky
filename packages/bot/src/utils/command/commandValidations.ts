@@ -304,6 +304,13 @@ export async function requireInteractionOptions(
     return true
 }
 
+/** A raw or uncached member lists its roles as an array of role ids. */
+function memberHasRole(member: GuildMember, roleId: string): boolean {
+    const roles = member.roles as GuildMemberRoleManager | string[] | undefined
+    if (roles instanceof GuildMemberRoleManager) return roles.cache.has(roleId)
+    return Array.isArray(roles) && roles.includes(roleId)
+}
+
 export async function requireDJRole(
     interaction: ChatInputCommandInteraction,
     guildId: string,
@@ -316,10 +323,7 @@ export async function requireDJRole(
     const settings = await guildSettingsService.getGuildSettings(guildId)
     if (!settings?.djRoleId) return true
 
-    const hasDJRole =
-        member.roles instanceof GuildMemberRoleManager
-            ? member.roles.cache.has(settings.djRoleId)
-            : false
+    const hasDJRole = memberHasRole(member, settings.djRoleId)
 
     if (!hasDJRole) {
         await interactionReply({
