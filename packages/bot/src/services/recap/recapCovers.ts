@@ -91,7 +91,8 @@ export function resolveCoverUrl(raw: string | null | undefined): URL | null {
 /** URLs to try in order: smaller Spotify album sizes when the first is too big. */
 function coverCandidates(url: URL): URL[] {
     const match =
-        url.hostname === 'i.scdn.co' && SPOTIFY_ALBUM_PATH.exec(url.pathname)
+        url.hostname.replace(/\.$/, '') === 'i.scdn.co' &&
+        SPOTIFY_ALBUM_PATH.exec(url.pathname)
     if (!match) return [url]
     return SPOTIFY_FALLBACK_SIZES.map(
         (size) =>
@@ -120,23 +121,25 @@ export async function fetchCover(
     const url = resolveCoverUrl(raw)
     if (!url) return null
     for (const candidate of coverCandidates(url)) {
-        const cover = await fetchOne(candidate, options)
+        const timeout = AbortSignal.timeout(COVER_TIMEOUT_MS)
+        const signal = options.signal
+            ? AbortSignal.any([timeout, options.signal])
+            : timeout
+        const cover = await fetchOne(candidate, signal, options.fetch)
         if (cover) return cover
-        if (options.signal?.aborted) return null
+        // A stalled CDN would stall the fallback too: keep the phase budget.
+        if (signal.aborted) return null
     }
     return null
 }
 
 async function fetchOne(
     url: URL,
-    options: FetchCoverOptions,
+    signal: AbortSignal,
+    fetchFn: typeof fetch = fetch,
 ): Promise<string | null> {
-    const timeout = AbortSignal.timeout(COVER_TIMEOUT_MS)
-    const signal = options.signal
-        ? AbortSignal.any([timeout, options.signal])
-        : timeout
     try {
-        const response = await (options.fetch ?? fetch)(url.toString(), {
+        const response = await fetchFn(url.toString(), {
             redirect: 'error',
             signal,
         })

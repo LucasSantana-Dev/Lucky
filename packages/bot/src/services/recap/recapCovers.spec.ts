@@ -192,9 +192,44 @@ describe('fetchCover', () => {
             .fn()
             .mockResolvedValue(imageResponse(COVER_MAX_BYTES + 1))
         expect(
-            await fetchCover(URL_OK, { fetch: fetchFn as typeof fetch }),
+            await fetchCover('https://i1.sndcdn.com/artworks-x.jpg', {
+                fetch: fetchFn as typeof fetch,
+            }),
         ).toBeNull()
         expect(fetchFn).toHaveBeenCalledTimes(1)
+    })
+
+    it('resizes a Spotify cover on a trailing-dot host', async () => {
+        const fetchFn = jest.fn().mockResolvedValue(imageResponse(4))
+        await fetchCover(
+            `https://i.scdn.co./image/ab67616d0000b273${SPOTIFY_ID}`,
+            { fetch: fetchFn as typeof fetch },
+        )
+        expect(fetchFn.mock.calls.map((c) => c[0])).toEqual([
+            spotify('00001e02'),
+        ])
+    })
+
+    it('does not try the 64px Spotify cover after a timeout', async () => {
+        jest.useFakeTimers()
+        try {
+            const fetchFn = jest.fn(
+                (_url: string, init: RequestInit) =>
+                    new Promise((_, reject) => {
+                        init.signal?.addEventListener('abort', () =>
+                            reject(init.signal?.reason),
+                        )
+                    }),
+            )
+            const pending = fetchCover(spotify('0000b273'), {
+                fetch: fetchFn as typeof fetch,
+            })
+            await jest.advanceTimersByTimeAsync(3200)
+            expect(await pending).toBeNull()
+            expect(fetchFn).toHaveBeenCalledTimes(1)
+        } finally {
+            jest.useRealTimers()
+        }
     })
 
     it('treats a redirect (fetch rejection) as no cover', async () => {
