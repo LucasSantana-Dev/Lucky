@@ -1881,6 +1881,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - fix(bot): when the YouTube search for a Spotify track retries with a broader query, it keeps the version the Spotify title asks for ("Duvet - Acoustic" searches for the acoustic recording instead of only finding the original) (#3276)
+- fix(bot): SoundCloud results whose audio is DRM encrypted are skipped before matching, so the bridge no longer spends a yt-dlp attempt on an upload that can never play (#3281)
 - fix(bot): when autoplay finds no candidates and has no session history left to replay (for example after a restart restores a queue), it replays a few non-skipped songs from the server's saved play history instead of letting the queue stall (#3277)
 - fix(bot): the SoundCloud fallback accepts a re-upload that names the artist and runs within 3 s of the track (or the artist's own upload under a shorter title), and a stage that simply finds no match logs at debug; the rejected candidates are reported once, in `Bridge: all stages exhausted` (#3275)
 - fix(bot): `/repeat` drops its `times` option, which promised a fixed number of repeats but looped forever; track and queue repeat now say plainly that they repeat until turned off (#3268)
@@ -1926,6 +1927,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(bot): yt-dlp is stopped when a skipped or stopped track drops its stream, so idle yt-dlp processes no longer pile up until the container runs out of memory (#2979)
 - fix(bot): after `/skip`, a requested song that is still loading now plays instead of being replaced by the autoplay pick queued behind it (#2996)
 - fix(bot): YouTube plays start in about 3 s again: yt-dlp asks for the visionos client first, since the default clients now wait out a pre-roll ad and most starts timed out at 8 s
+- fix(bot): `/playtop` and `/playskip` expand SoundCloud short links and strip SoundCloud `?in=` and YouTube Mix context like `/play` does, so a link that works on `/play` works on them too
 
 ## [2.17.0] - 2026-06-08
 
