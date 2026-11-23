@@ -130,4 +130,4 @@ groups:
             been above 90% of its mem_limit for 15 minutes. Replaces the old
             nodejs_heap_size_used/nodejs_heap_size_total ratio, which idled at
             92-96% on healthy processes because V8 grows heap_total lazily.
-          runbook: "Check lucky-bot memory growth in the Lucky resource dashboard and logs; restart lucky-bot if it keeps climbing."
+          runbook: "Check lucky-bot memory growth on the 'Lucky: sistema' dashboard and in its logs; restart lucky-bot if it keeps climbing."

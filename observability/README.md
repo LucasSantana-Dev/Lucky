@@ -118,9 +118,13 @@ native `${VAR}` expansion. Two mechanisms are used together:
 
 In production the homelab Prometheus is the only rule evaluator. It mounts
 `observability/prometheus/rules` and loads individual files: `recap-*.rules.yml`,
-`play-*.rules.yml` and `command-events.rules.yml`. Its own Prometheus and
-Alertmanager do not run on the host.
+`play-*.rules.yml` and `command-events.rules.yml`. Lucky's own standalone
+Prometheus and Alertmanager (the `observability` profile) do not run in production.
 
+- **Not loaded yet:** `lucky-alerts.rules.yml`. Several alerts in it duplicate the
+  homelab's hand-copied `lucky_alerts` group and would page twice, so the homelab
+  keeps its own copies for now. LucasSantana-Dev/homelab#549 tracks loading this
+  file and deleting those copies.
 - **Ownership:** Lucky owns the `Lucky*` application alerts. The homelab owns
   host, container, pipeline and `Watchdog` alerts.
 - **Uniqueness rule:** a file is loaded by the homelab Prometheus only when every
