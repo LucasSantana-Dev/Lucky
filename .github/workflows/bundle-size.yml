@@ -40,7 +40,20 @@ jobs:
                   cache: 'npm'
 
             - name: Install dependencies
-              run: npm ci --legacy-peer-deps
+              # Dependency-bump PRs can leave package-lock.json out of sync with the root
+              # overrides; npm then buries the cause under its usage text. Surface the
+              # "Missing:"/"Invalid:" lines as annotations so the failure is readable.
+              run: |
+                  set +e
+                  npm ci --legacy-peer-deps 2>&1 | tee npm-ci.log
+                  status=${PIPESTATUS[0]}
+                  set -e
+                  if [ "$status" -ne 0 ]; then
+                      grep -E '^npm error (code |Missing: |Invalid: |`npm ci`)' npm-ci.log \
+                          | sed 's/^npm error //' \
+                          | while IFS= read -r line; do echo "::error title=npm ci failed::$line"; done
+                  fi
+                  exit "$status"
 
             - name: Generate Prisma client
               run: npm run db:generate
@@ -52,5 +65,44 @@ jobs:
               run: npm run build --workspace=packages/frontend
 
             - name: Size Limit Check
-              run: npx size-limit --config .size-limit.json
+              # Print the size table as the last thing in the log and in the job summary,
+              # and annotate each entry over its limit, so a red check says which bundle
+              # grew and by how much.
+              run: |
+                  set +e
+                  npx size-limit --config .size-limit.json --json > size-limit.json
+                  status=$?
+                  set -e
+                  node - size-limit.json <<'EOF'
+                  const fs = require('node:fs')
+                  const raw = fs.readFileSync(process.argv[2], 'utf8')
+                  let data
+                  try {
+                      data = JSON.parse(raw)
+                  } catch {
+                      console.log(raw)
+                      process.exit(0)
+                  }
+                  if (!Array.isArray(data)) {
+                      const msg = String(data.error ?? raw).split('\n')[0]
+                      console.log(data.error ?? raw)
+                      console.log(`::error title=size-limit failed::${msg}`)
+                      process.exit(0)
+                  }
+                  const kb = (b) => (typeof b === 'number' ? `${(b / 1000).toFixed(2)} kB` : 'n/a')
+                  const rows = data.map((r) => {
+                      const ok = r.passed !== false
+                      if (!ok) {
+                          const over = r.size - r.sizeLimit
+                          console.log(`::error title=Size limit exceeded::${r.name}: ${kb(r.size)} > ${kb(r.sizeLimit)} (+${kb(over)})`)
+                      }
+                      return `| ${ok ? 'pass' : 'FAIL'} | ${r.name} | ${kb(r.size)} | ${kb(r.sizeLimit)} |`
+                  })
+                  const table = ['| Status | Entry | Size | Limit |', '|---|---|---|---|', ...rows].join('\n')
+                  console.log(table)
+                  if (process.env.GITHUB_STEP_SUMMARY) {
+                      fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### Size Limit\n\n${table}\n`)
+                  }
+                  EOF
+                  exit "$status"
               working-directory: ./packages/frontend
