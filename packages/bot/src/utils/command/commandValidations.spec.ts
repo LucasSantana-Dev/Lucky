@@ -168,6 +168,36 @@ describe('voiceChannelRefusal', () => {
         ).toBeNull()
     })
 
+    it('lets a Manage Server member control the music from another channel', () => {
+        const interaction = makeVoiceInteraction('vc-other')
+        ;(interaction.member as Record<string, unknown>).permissions =
+            new PermissionsBitField(PermissionFlagsBits.ManageGuild)
+
+        expect(
+            voiceChannelRefusal(asCommand(interaction), makeQueue('vc-bot')),
+        ).toBeNull()
+    })
+
+    it('lets a Manage Server member control the music from outside voice', () => {
+        const interaction = makeVoiceInteraction(null)
+        ;(interaction.member as Record<string, unknown>).permissions =
+            new PermissionsBitField(PermissionFlagsBits.ManageGuild)
+
+        expect(
+            voiceChannelRefusal(asCommand(interaction), makeQueue('vc-bot')),
+        ).toBeNull()
+    })
+
+    it('still refuses a member whose permissions lack Manage Server', () => {
+        const interaction = makeVoiceInteraction('vc-other')
+        ;(interaction.member as Record<string, unknown>).permissions =
+            new PermissionsBitField(PermissionFlagsBits.SendMessages)
+
+        expect(
+            voiceChannelRefusal(asCommand(interaction), makeQueue('vc-bot')),
+        ).toEqual({ reason: 'otherChannel', botChannelId: 'vc-bot' })
+    })
+
     it('allows any voice member when the bot is not connected', () => {
         const interaction = makeVoiceInteraction('vc-any')
 

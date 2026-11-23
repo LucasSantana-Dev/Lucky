@@ -99,15 +99,26 @@ function botVoiceChannelId(
     )
 }
 
+function canManageGuild(member: unknown): boolean {
+    const permissions = (member as GuildMember | null)?.permissions
+    return (
+        permissions instanceof PermissionsBitField &&
+        permissions.has(PermissionFlagsBits.ManageGuild)
+    )
+}
+
 /**
  * Why a member may not control the music, or null when they may. The bot's
  * channel comes from the queue, else from its own voice state; when the bot is
- * in no channel, any member in some voice channel passes (#3266).
+ * in no channel, any member in some voice channel passes (#3266). Members with
+ * Manage Server pass from anywhere, so they can stop a session they are not in.
  */
 export function voiceChannelRefusal(
     interaction: VoiceGuardInteraction,
     queue: GuildQueue | null,
 ): VoiceChannelRefusal | null {
+    if (canManageGuild(interaction.member)) return null
+
     const userChannelId = memberVoiceChannelId(interaction.member)
     if (!userChannelId) return { reason: 'notInVoice' }
 
@@ -288,12 +299,7 @@ export async function requireDJRole(
     const member = interaction.member as GuildMember | null
     if (!member) return true
 
-    if (
-        member.permissions instanceof PermissionsBitField &&
-        member.permissions.has(PermissionFlagsBits.ManageGuild)
-    ) {
-        return true
-    }
+    if (canManageGuild(member)) return true
 
     const settings = await guildSettingsService.getGuildSettings(guildId)
     if (!settings?.djRoleId) return true
