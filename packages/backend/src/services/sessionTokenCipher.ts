@@ -5,6 +5,10 @@ import { warnLog } from '@lucky/shared/utils'
  * AES-256-GCM sealing for the Discord OAuth tokens kept in webapp sessions.
  *
  * Sealed format: `enc:v1:<iv>.<authTag>.<ciphertext>` (each part base64).
+ * Each value is sealed with associated data (the session key and field
+ * name), so a sealed token copied to another session or field fails the
+ * auth tag check.
+ *
  * Values without the prefix are legacy plaintext tokens written before
  * encryption existed; they are returned as is and re-sealed on the next write.
  */
@@ -52,9 +56,14 @@ export function loadSessionTokenKey(
     return key
 }
 
-export function encryptToken(plaintext: string, key: Buffer): string {
+export function encryptToken(
+    plaintext: string,
+    key: Buffer,
+    context: string,
+): string {
     const iv = randomBytes(IV_BYTES)
     const cipher = createCipheriv(ALGORITHM, key, iv)
+    cipher.setAAD(Buffer.from(context, 'utf8'))
     const data = Buffer.concat([
         cipher.update(plaintext, 'utf8'),
         cipher.final(),
@@ -76,7 +85,11 @@ function decodeBase64Strict(part: string | undefined, bytes?: number): Buffer {
     return decoded
 }
 
-export function decryptToken(value: string, key: Buffer | null): string {
+export function decryptToken(
+    value: string,
+    key: Buffer | null,
+    context: string,
+): string {
     if (!value.startsWith(SEALED_MARKER)) {
         return value
     }
@@ -100,6 +113,7 @@ export function decryptToken(value: string, key: Buffer | null): string {
     const decipher = createDecipheriv(ALGORITHM, key, iv, {
         authTagLength: TAG_BYTES,
     })
+    decipher.setAAD(Buffer.from(context, 'utf8'))
     decipher.setAuthTag(tag)
     return Buffer.concat([decipher.update(data), decipher.final()]).toString(
         'utf8',

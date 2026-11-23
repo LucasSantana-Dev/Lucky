@@ -189,6 +189,31 @@ describe('SessionService', () => {
         })
     })
 
+    describe('token binding', () => {
+        test('rejects tokens copied from another session', async () => {
+            mockRedisClient.setex.mockResolvedValue(true)
+            await sessionService.setSession('victim', MOCK_SESSION_DATA)
+            mockRedisClient.get.mockResolvedValue(storedRaw())
+
+            expect(await sessionService.getSession('attacker')).toBeNull()
+        })
+
+        test('rejects access and refresh tokens swapped in place', async () => {
+            mockRedisClient.setex.mockResolvedValue(true)
+            await sessionService.setSession(MOCK_SESSION_ID, MOCK_SESSION_DATA)
+            const stored = storedPayload()
+            mockRedisClient.get.mockResolvedValue(
+                JSON.stringify({
+                    ...stored,
+                    accessToken: stored.refreshToken,
+                    refreshToken: stored.accessToken,
+                }),
+            )
+
+            expect(await sessionService.getSession(MOCK_SESSION_ID)).toBeNull()
+        })
+    })
+
     describe('deleteSession', () => {
         test('should delete session successfully', async () => {
             mockRedisClient.del.mockResolvedValue(true)

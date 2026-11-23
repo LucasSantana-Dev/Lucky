@@ -73,24 +73,40 @@ export class SessionService {
         )
     }
 
-    private serialize(sessionData: SessionData): string {
+    private serialize(storeKey: string, sessionData: SessionData): string {
         const key = this.tokenKey
         if (!key) {
             return JSON.stringify(sessionData)
         }
         return JSON.stringify({
             ...sessionData,
-            accessToken: encryptToken(sessionData.accessToken, key),
-            refreshToken: encryptToken(sessionData.refreshToken, key),
+            accessToken: encryptToken(
+                sessionData.accessToken,
+                key,
+                `${storeKey}:accessToken`,
+            ),
+            refreshToken: encryptToken(
+                sessionData.refreshToken,
+                key,
+                `${storeKey}:refreshToken`,
+            ),
         })
     }
 
-    private deserialize(raw: string): SessionData {
+    private deserialize(storeKey: string, raw: string): SessionData {
         const stored = JSON.parse(raw) as SessionData
         return {
             ...stored,
-            accessToken: decryptToken(stored.accessToken, this.tokenKey),
-            refreshToken: decryptToken(stored.refreshToken, this.tokenKey),
+            accessToken: decryptToken(
+                stored.accessToken,
+                this.tokenKey,
+                `${storeKey}:accessToken`,
+            ),
+            refreshToken: decryptToken(
+                stored.refreshToken,
+                this.tokenKey,
+                `${storeKey}:refreshToken`,
+            ),
         }
     }
 
@@ -141,9 +157,9 @@ export class SessionService {
                     throw new Error('Malformed session entry')
                 }
                 const [key, raw] = entry
-                const session = this.deserialize(raw)
+                const session = this.deserialize(key, raw)
                 if (this.hasLegacyTokens(raw)) {
-                    store.set(key, this.serialize(session))
+                    store.set(key, this.serialize(key, session))
                     resealed++
                 } else {
                     store.set(key, raw)
@@ -191,7 +207,7 @@ export class SessionService {
                 return null
             }
 
-            const sessionData = this.deserialize(data)
+            const sessionData = this.deserialize(key, data)
 
             if (sessionData.expiresAt < Date.now()) {
                 await this.deleteSession(sessionId)
@@ -211,7 +227,7 @@ export class SessionService {
     ): Promise<void> {
         try {
             const key = this.getSessionKey(sessionId)
-            const data = this.serialize(sessionData)
+            const data = this.serialize(key, sessionData)
 
             if (this.useRedis()) {
                 await redisClient.setex(key, this.sessionTtl, data)
