@@ -6,6 +6,7 @@ import { setupAuthRoutes } from '../../../src/routes/auth'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { discordOAuthService } from '../../../src/services/DiscordOAuthService'
+import { debugLog } from '@lucky/shared/utils'
 import {
     MOCK_SESSION_DATA,
     MOCK_TOKEN_RESPONSE,
@@ -343,6 +344,34 @@ describe('Auth Routes Integration', () => {
             if (originalRedirectUri) {
                 process.env.WEBAPP_REDIRECT_URI = originalRedirectUri
             }
+        })
+
+        test('does not log any part of the authorization code', async () => {
+            const routePath = '/api/auth/callback'
+            mockSuccessfulOAuthFlow()
+
+            const discordApp = express()
+            setupSessionMiddleware(discordApp)
+            discordApp.use((req, _res, next) => {
+                if (req.path !== routePath) {
+                    next()
+                    return
+                }
+                req.session.oauthState = MOCK_OAUTH_STATE
+                req.session.save((err) => next(err))
+            })
+            setupAuthRoutes(discordApp)
+            discordApp.use(errorHandler)
+
+            await request
+                .agent(discordApp)
+                .get(routePath)
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
+                .expect(302)
+
+            const logged = JSON.stringify(jest.mocked(debugLog).mock.calls)
+            expect(logged).toContain('Discord OAuth callback received')
+            expect(logged).not.toContain(MOCK_AUTH_CODE.substring(0, 10))
         })
 
         test('should handle successful OAuth callback with valid state', async () => {
