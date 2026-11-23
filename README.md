@@ -213,7 +213,7 @@ SENTRY_DSN=...
 |---------|---------|
 | `/level` | Check your level and XP |
 | `/lastfm` | Link and view Last.fm stats |
-| `/hug` `/pat` `/kiss` `/dance` `/bonk` `/wave` | Social interactions |
+| `/social hug` `/social pat` `/social kiss` `/social dance` `/social bonk` `/social wave` | Social interactions |
 
 ### Integrations
 | Command | Purpose |
