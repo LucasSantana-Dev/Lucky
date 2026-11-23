@@ -35,12 +35,15 @@ function buildApp(): express.Express {
 
 beforeEach(() => {
     process.env.LUCKY_NOTIFY_API_KEY = 'k'
+    process.env.LUCKY_NOTIFY_CHANNEL_IDS =
+        '123456789012345678, 223456789012345678'
     process.env.DISCORD_TOKEN = 'tok'
 })
 
 afterEach(() => {
     global.fetch = ORIGINAL_FETCH
     delete process.env.LUCKY_NOTIFY_API_KEY
+    delete process.env.LUCKY_NOTIFY_CHANNEL_IDS
     delete process.env.DISCORD_TOKEN
 })
 
@@ -133,5 +136,59 @@ describe('POST /api/internal/notify', () => {
             .set('x-notify-key', '   ')
             .send({ channelId: '123456789012345678', content: 'hi' })
         expect(res.status).toBe(401)
+    })
+
+    it('rejects with 403 when the channel allowlist is not configured', async () => {
+        delete process.env.LUCKY_NOTIFY_CHANNEL_IDS
+        const fetchMock = jest.fn()
+        global.fetch = fetchMock as unknown as typeof fetch
+        const res = await request(buildApp())
+            .post('/api/internal/notify')
+            .set('x-notify-key', 'k')
+            .send({ channelId: '123456789012345678', content: 'hi' })
+        expect(res.status).toBe(403)
+        expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('rejects with 403 when the channel is not in the allowlist', async () => {
+        const fetchMock = jest.fn()
+        global.fetch = fetchMock as unknown as typeof fetch
+        const res = await request(buildApp())
+            .post('/api/internal/notify')
+            .set('x-notify-key', 'k')
+            .send({ channelId: '999999999999999999', content: 'hi' })
+        expect(res.status).toBe(403)
+        expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('accepts any channel listed in the allowlist', async () => {
+        global.fetch = jest.fn(async () => ({
+            ok: true,
+            status: 200,
+            text: async () => '',
+        })) as unknown as typeof fetch
+        const res = await request(buildApp())
+            .post('/api/internal/notify')
+            .set('x-notify-key', 'k')
+            .send({ channelId: '223456789012345678', content: 'hi' })
+        expect(res.status).toBe(204)
+    })
+
+    it('disables mention parsing so @everyone cannot ping', async () => {
+        const fetchMock = jest.fn(
+            async (_url: string, _init?: RequestInit) => ({
+                ok: true,
+                status: 200,
+                text: async () => '',
+            }),
+        )
+        global.fetch = fetchMock as unknown as typeof fetch
+        await request(buildApp())
+            .post('/api/internal/notify')
+            .set('x-notify-key', 'k')
+            .send({ channelId: '123456789012345678', content: '@everyone' })
+        const init = fetchMock.mock.calls[0]?.[1]
+        const body = JSON.parse(String(init?.body))
+        expect(body.allowed_mentions).toEqual({ parse: [] })
     })
 })
