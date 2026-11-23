@@ -13,7 +13,11 @@ import {
     discordOAuthService,
     type DiscordGuild,
 } from './DiscordOAuthService'
-import { guildService, type GuildWithBotStatus } from './GuildService'
+import {
+    guildService,
+    type GuildMemberContext,
+    type GuildWithBotStatus,
+} from './GuildService'
 import type { SessionData } from './SessionService'
 import { AppError } from '../errors/AppError'
 
@@ -42,6 +46,29 @@ export interface AuthorizedGuild extends GuildWithBotStatus {
     canManageRbac: boolean
 }
 
+/** Max guild contexts resolved at once per request, so a user in many guilds
+ * does not fan out one Discord member lookup per guild simultaneously. */
+const CONTEXT_CONCURRENCY = 5
+
+async function mapWithConcurrency<T, R>(
+    items: readonly T[],
+    limit: number,
+    fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+    const results = new Array<R>(items.length)
+    let next = 0
+    const worker = async (): Promise<void> => {
+        while (next < items.length) {
+            const index = next++
+            results[index] = await fn(items[index])
+        }
+    }
+    await Promise.all(
+        Array.from({ length: Math.min(limit, items.length) }, worker),
+    )
+    return results
+}
+
 class GuildAccessService {
     private readonly userGuildCacheTtlSeconds = 30
     private readonly userGuildCache = new TtlCache<DiscordGuild[]>({
@@ -52,6 +79,21 @@ class GuildAccessService {
         string,
         Promise<DiscordGuild[]>
     >()
+    /**
+     * Discord member roles per (user, guild). Kept as short as the guild-list
+     * cache so a role removed in Discord stops granting access within 30s.
+     * Effective access is still resolved from grants on every request.
+     */
+    private readonly memberContextCache = new TtlCache<GuildMemberContext>({
+        ttlMs: this.userGuildCacheTtlSeconds * 1000,
+        maxEntries: 5000,
+    })
+    private readonly memberContextInFlight = new Map<
+        string,
+        Promise<GuildMemberContext>
+    >()
+    /** Bumped on reset so a lookup started before it cannot repopulate. */
+    private memberContextGeneration = 0
 
     private getCacheKey(session: SessionData): string {
         const accessTokenFingerprint = createHash('sha256')
@@ -176,6 +218,48 @@ class GuildAccessService {
     resetCachesForTests(): void {
         this.userGuildsInFlight.clear()
         this.userGuildCache.clear()
+        this.memberContextInFlight.clear()
+        this.memberContextCache.clear()
+        this.memberContextGeneration += 1
+    }
+
+    private async getMemberContext(
+        guildId: string,
+        userId: string,
+    ): Promise<GuildMemberContext> {
+        const key = `${userId}:${guildId}`
+        const cached = this.memberContextCache.get(key)
+        if (cached) {
+            return cached
+        }
+
+        const inFlight = this.memberContextInFlight.get(key)
+        if (inFlight) {
+            return inFlight
+        }
+
+        const generation = this.memberContextGeneration
+        const request: Promise<GuildMemberContext> = guildService
+            .fetchGuildMemberContext(guildId, userId)
+            .then((context) => {
+                // A failed lookup (null) is not cached, so a transient
+                // Discord error is not pinned for the whole TTL.
+                if (context === null) {
+                    return { nickname: null, roleIds: [] }
+                }
+                if (generation === this.memberContextGeneration) {
+                    this.memberContextCache.set(key, context)
+                }
+                return context
+            })
+            .finally(() => {
+                if (this.memberContextInFlight.get(key) === request) {
+                    this.memberContextInFlight.delete(key)
+                }
+            })
+
+        this.memberContextInFlight.set(key, request)
+        return request
     }
 
     private async buildContext(
@@ -216,7 +300,7 @@ class GuildAccessService {
 
         const hasBot = await guildService.hasBotInGuild(guild.id)
         const memberContext = hasBot
-            ? await guildService.getGuildMemberContext(guild.id, userId)
+            ? await this.getMemberContext(guild.id, userId)
             : { nickname: null, roleIds: [] as string[] }
 
         const effectiveAccess =
@@ -256,8 +340,10 @@ class GuildAccessService {
         session: SessionData,
     ): Promise<AuthorizedGuild[]> {
         const guilds = await this.fetchUserGuilds(session)
-        const contexts = await Promise.all(
-            guilds.map(async (guild) => {
+        const contexts = await mapWithConcurrency(
+            guilds,
+            CONTEXT_CONCURRENCY,
+            async (guild) => {
                 try {
                     return await this.buildContext(guild, session.user.id)
                 } catch (error) {
@@ -274,7 +360,7 @@ class GuildAccessService {
                     })
                     return null
                 }
-            }),
+            },
         )
 
         const resolvedContexts = contexts.filter(

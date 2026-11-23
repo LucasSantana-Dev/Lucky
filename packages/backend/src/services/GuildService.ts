@@ -56,10 +56,25 @@ class GuildService {
         guildId: string,
         userId: string,
     ): Promise<GuildMemberContext> {
-        const fallback: GuildMemberContext = { nickname: null, roleIds: [] }
+        return (
+            (await this.fetchGuildMemberContext(guildId, userId)) ?? {
+                nickname: null,
+                roleIds: [],
+            }
+        )
+    }
 
+    /**
+     * Like `getGuildMemberContext`, but returns null when the member could
+     * not be looked up (invalid ids, no bot token, Discord error), so callers
+     * can tell a failed lookup from a member with no roles.
+     */
+    async fetchGuildMemberContext(
+        guildId: string,
+        userId: string,
+    ): Promise<GuildMemberContext | null> {
         if (!isSnowflakeId(guildId) || !isSnowflakeId(userId)) {
-            return fallback
+            return null
         }
 
         const client = this.getBotClient()
@@ -87,7 +102,7 @@ class GuildService {
 
         const token = getBotToken()
         if (!token) {
-            return fallback
+            return null
         }
 
         try {
@@ -102,7 +117,7 @@ class GuildService {
             )
 
             if (!response.ok) {
-                return fallback
+                return null
             }
 
             const payload = (await response.json()) as {
@@ -119,7 +134,7 @@ class GuildService {
                 message: 'Failed to fetch guild member context',
                 error,
             })
-            return fallback
+            return null
         }
     }
 
