@@ -184,10 +184,23 @@ jest.mock('express-session', () => {
                     destroy(cb: (err?: Error) => void) {
                         cb()
                     },
+                    regenerate(cb: (err?: Error) => void) {
+                        // Like express-session: new id, data dropped.
+                        const session: Record<string, unknown> =
+                            req.session ?? {}
+                        for (const key of Object.keys(session)) {
+                            if (typeof session[key] !== 'function') {
+                                if (key !== 'cookie') delete session[key]
+                            }
+                        }
+                        req.sessionID = 'mock-regenerated-session-id'
+                        cb()
+                    },
                     cookie: options?.cookie ?? {},
                 } as {
                     save: (cb: (err?: Error) => void) => void
                     destroy: (cb: (err?: Error) => void) => void
+                    regenerate: (cb: (err?: Error) => void) => void
                     cookie: unknown
                     [k: string]: unknown
                 }
