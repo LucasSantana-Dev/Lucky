@@ -1881,6 +1881,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): `/play` expands Spotify share links (`spotify.link`, `spotify.app.link`) to the open.spotify.com link, and a Spotify artist link queues that artist's top tracks like `/artist` instead of replying that the link is not supported
 
 ### Fixed
+- fix(bot): when the YouTube search for a Spotify track retries with a broader query, it keeps the version the Spotify title asks for ("Duvet - Acoustic" searches for the acoustic recording instead of only finding the original) (#3276)
 - fix(bot): `/skip` no longer reports an error when only the autoplay feedback prompt fails after a successful skip, and two `/skip` calls racing on the same song skip it once instead of also skipping the next one (#3279)
 - fix(bot): the `/skip` "DJ Only" refusal is private again: the DJ check runs before the public defer, so only the member who tried sees it (#3278)
 - fix(bot): SoundCloud results whose audio is DRM encrypted are skipped before matching, so the bridge no longer spends a yt-dlp attempt on an upload that can never play (#3281)
