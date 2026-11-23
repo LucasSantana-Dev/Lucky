@@ -231,8 +231,10 @@ export async function prepareQuery(
     rawQuery: string,
     provider: string | null,
 ): Promise<string> {
-    // Expand SoundCloud short links first (on.soundcloud.com -> full URL)
-    const expandedQuery = await expandSoundCloudShortUrl(rawQuery)
+    // Expand SoundCloud short links first (on.soundcloud.com -> full URL).
+    // Trimmed: a pasted link with a stray space fails isUrl and would skip
+    // every normalizer below.
+    const expandedQuery = await expandSoundCloudShortUrl(rawQuery.trim())
     // Then normalize: SoundCloud `?in=` playlist context, and YouTube Mix
     // (`list=RD...`) context that the youtubei extractor cannot resolve.
     const normalizedQuery = normalizeYouTubeUrl(

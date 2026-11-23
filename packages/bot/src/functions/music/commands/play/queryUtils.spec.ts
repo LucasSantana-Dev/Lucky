@@ -515,6 +515,25 @@ describe('executePlayAtTop — fallback chain', () => {
             )
         })
 
+        it('normalises a link pasted with surrounding spaces', async () => {
+            const client = makeClient(() =>
+                Promise.resolve({ track: fakeTrack }),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction(
+                    '  https://www.youtube.com/watch?v=abc123&list=RDabc123 ',
+                ),
+                skipCurrent: false,
+                commandName: 'playtop',
+            })
+
+            expect(playedQuery(client)).toBe(
+                'https://www.youtube.com/watch?v=abc123',
+            )
+        })
+
         it('expands a SoundCloud short link and drops ?in=', async () => {
             fetchMock.mockResolvedValueOnce({
                 url: 'https://soundcloud.com/artist/track?in=artist/sets/x',
