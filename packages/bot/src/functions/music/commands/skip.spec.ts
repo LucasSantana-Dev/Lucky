@@ -164,6 +164,14 @@ describe('skip command', () => {
             order.push('requireSameVoiceChannel')
             return true
         })
+        requireQueueMock.mockImplementation(async () => {
+            order.push('requireQueue')
+            return true
+        })
+        requireCurrentTrackMock.mockImplementation(async () => {
+            order.push('requireCurrentTrack')
+            return true
+        })
         requireIsPlayingMock.mockImplementation(async () => {
             order.push('requireIsPlaying')
             return true
@@ -182,11 +190,32 @@ describe('skip command', () => {
         expect(order).toEqual([
             'requireGuild',
             'requireSameVoiceChannel',
+            'requireQueue',
+            'requireCurrentTrack',
             'requireIsPlaying',
             'requireDJRole',
             'defer',
             'skip',
         ])
+    })
+
+    it('defers before a slow DJ check finishes so the interaction cannot expire', async () => {
+        let allow: (value: boolean) => void = () => {}
+        requireDJRoleMock.mockReturnValue(
+            new Promise<boolean>((resolve) => {
+                allow = resolve
+            }),
+        )
+        const interaction = createInteraction('guild-1')
+
+        const run = skipCommand.execute({ interaction, client: {} as any })
+        await jest.advanceTimersByTimeAsync(2_000)
+        expect(interaction.deferReply).toHaveBeenCalledTimes(1)
+
+        allow(true)
+        await run
+        expect(interaction.deferReply).toHaveBeenCalledTimes(1)
+        expect(clearSessionMoodCacheMock).toHaveBeenCalled()
     })
 
     it('does not defer when a cheap check fails, so its reply stays ephemeral', async () => {

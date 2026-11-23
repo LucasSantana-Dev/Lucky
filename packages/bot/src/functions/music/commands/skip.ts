@@ -27,6 +27,45 @@ import {
 } from '../../../services/musicRecommendation/autoplayFeedbackPrompt'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
+// If the defer fails (e.g. 10062 Unknown interaction) the skip still runs;
+// interactionReply swallows the later reply failures.
+async function deferSkip(
+    interaction: ChatInputCommandInteraction,
+): Promise<void> {
+    try {
+        await interaction.deferReply()
+    } catch (error) {
+        debugLog({
+            message: `Skip defer failed in guild ${interaction.guildId}, skipping anyway`,
+            error,
+        })
+    }
+}
+
+const DJ_CHECK_BUDGET_MS = 2_000
+
+/**
+ * Runs the DJ check before the public defer so its "DJ Only" refusal stays
+ * ephemeral. The check reads guild settings from the database; if that takes
+ * longer than the budget, the reply is deferred first so Discord's 3s window
+ * cannot expire, and only then is the check awaited.
+ */
+async function checkDJBeforeDefer(
+    interaction: ChatInputCommandInteraction,
+): Promise<{ allowed: boolean; deferred: boolean }> {
+    const check = requireDJRoleInGuild(interaction, 'requireGuild')
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const slow = new Promise<'slow'>((resolve) => {
+        timer = setTimeout(() => resolve('slow'), DJ_CHECK_BUDGET_MS)
+    })
+    const first = await Promise.race([check, slow])
+    clearTimeout(timer)
+    if (first !== 'slow') return { allowed: first, deferred: false }
+
+    await deferSkip(interaction)
+    return { allowed: await check, deferred: true }
+}
+
 async function skipCurrentSong(
     queue: GuildQueue,
     guildId: string,
@@ -132,20 +171,9 @@ export default new Command({
             return
         }
 
-        // The DJ check runs before the public defer so its "DJ Only" refusal
-        // stays ephemeral; the guild settings lookup is a primary-key read.
-        if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
-
-        // If the defer fails (e.g. 10062 Unknown interaction) the skip still
-        // runs; interactionReply swallows the later reply failures.
-        try {
-            await interaction.deferReply()
-        } catch (error) {
-            debugLog({
-                message: `Skip defer failed in guild ${interaction.guildId}, skipping anyway`,
-                error,
-            })
-        }
+        const dj = await checkDJBeforeDefer(interaction)
+        if (!dj.allowed) return
+        if (!dj.deferred) await deferSkip(interaction)
 
         // Before the skip: afterwards currentTrack is the next song.
         const skippedAutoplay = captureAutoplayTrack(queue.currentTrack)
