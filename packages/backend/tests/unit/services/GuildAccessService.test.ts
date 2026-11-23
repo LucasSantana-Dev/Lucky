@@ -30,7 +30,7 @@ const mockGetGuildMemberContext =
         (
             guildId: string,
             userId: string,
-        ) => Promise<{ nickname: string | null; roleIds: string[] }>
+        ) => Promise<{ nickname: string | null; roleIds: string[] } | null>
     >()
 const mockEnrichGuildsWithBotStatus =
     jest.fn<
@@ -77,7 +77,7 @@ jest.mock('../../../src/services/DiscordOAuthService', () => ({
 jest.mock('../../../src/services/GuildService', () => ({
     guildService: {
         hasBotInGuild: (...args: [string]) => mockHasBotInGuild(...args),
-        getGuildMemberContext: (...args: [string, string]) =>
+        fetchGuildMemberContext: (...args: [string, string]) =>
             mockGetGuildMemberContext(...args),
         enrichGuildsWithBotStatus: (...args: [DiscordGuild[]]) =>
             mockEnrichGuildsWithBotStatus(...args),
@@ -695,7 +695,7 @@ describe('GuildAccessService', () => {
             )
         })
 
-        test('does not cache an empty member context', async () => {
+        test('caches a member with no roles and no nickname', async () => {
             mockGetGuildMemberContext.mockResolvedValue({
                 nickname: null,
                 roleIds: [],
@@ -705,8 +705,49 @@ describe('GuildAccessService', () => {
             await guildAccessService.listAuthorizedGuilds(SESSION)
 
             expect(mockGetGuildMemberContext).toHaveBeenCalledTimes(
+                memberGuilds.length,
+            )
+        })
+
+        test('does not cache a failed member lookup', async () => {
+            mockGetGuildMemberContext.mockResolvedValue(null)
+
+            await guildAccessService.listAuthorizedGuilds(SESSION)
+            await guildAccessService.listAuthorizedGuilds(SESSION)
+
+            expect(mockGetGuildMemberContext).toHaveBeenCalledTimes(
                 memberGuilds.length * 2,
             )
+            expect(mockResolveEffectiveAccess).toHaveBeenCalledWith(
+                '111',
+                [],
+                false,
+            )
+        })
+
+        test('shares one in-flight member lookup between concurrent callers', async () => {
+            mockGetUserGuilds.mockResolvedValue([makeGuild('111')])
+            let release: (() => void) | undefined
+            mockGetGuildMemberContext.mockImplementation(
+                () =>
+                    new Promise((resolve) => {
+                        release = () =>
+                            resolve({ nickname: null, roleIds: ['role-mod'] })
+                    }),
+            )
+
+            const list = guildAccessService.listAuthorizedGuilds(SESSION)
+            const single = guildAccessService.resolveGuildContext(
+                SESSION,
+                '111',
+            )
+            await new Promise((resolve) => setImmediate(resolve))
+            release?.()
+            const [guilds, context] = await Promise.all([list, single])
+
+            expect(mockGetGuildMemberContext).toHaveBeenCalledTimes(1)
+            expect(guilds).toHaveLength(1)
+            expect(context).toMatchObject({ roleIds: ['role-mod'] })
         })
 
         test('bounds concurrent member lookups for users in many guilds', async () => {

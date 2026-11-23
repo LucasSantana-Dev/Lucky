@@ -85,13 +85,15 @@ class GuildAccessService {
      * Effective access is still resolved from grants on every request.
      */
     private readonly memberContextCache = new TtlCache<GuildMemberContext>({
-        ttlMs: 30_000,
+        ttlMs: this.userGuildCacheTtlSeconds * 1000,
         maxEntries: 5000,
     })
     private readonly memberContextInFlight = new Map<
         string,
         Promise<GuildMemberContext>
     >()
+    /** Bumped on reset so a lookup started before it cannot repopulate. */
+    private memberContextGeneration = 0
 
     private getCacheKey(session: SessionData): string {
         const accessTokenFingerprint = createHash('sha256')
@@ -218,6 +220,7 @@ class GuildAccessService {
         this.userGuildCache.clear()
         this.memberContextInFlight.clear()
         this.memberContextCache.clear()
+        this.memberContextGeneration += 1
     }
 
     private async getMemberContext(
@@ -235,19 +238,24 @@ class GuildAccessService {
             return inFlight
         }
 
-        const request = guildService
-            .getGuildMemberContext(guildId, userId)
+        const generation = this.memberContextGeneration
+        const request: Promise<GuildMemberContext> = guildService
+            .fetchGuildMemberContext(guildId, userId)
             .then((context) => {
-                // An empty context is also what a failed lookup returns, so
-                // only cache real member data to avoid pinning a transient
-                // failure for the whole TTL.
-                if (context.roleIds.length > 0 || context.nickname !== null) {
+                // A failed lookup (null) is not cached, so a transient
+                // Discord error is not pinned for the whole TTL.
+                if (context === null) {
+                    return { nickname: null, roleIds: [] }
+                }
+                if (generation === this.memberContextGeneration) {
                     this.memberContextCache.set(key, context)
                 }
                 return context
             })
             .finally(() => {
-                this.memberContextInFlight.delete(key)
+                if (this.memberContextInFlight.get(key) === request) {
+                    this.memberContextInFlight.delete(key)
+                }
             })
 
         this.memberContextInFlight.set(key, request)
