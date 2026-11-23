@@ -21,6 +21,11 @@ const SOUNDCLOUD_SHARD = /^i[1-9]\.sndcdn\.com$/
 const COVER_HOST_SUFFIXES = ['.mzstatic.com']
 const YOUTUBE_HOSTS = new Set(['i.ytimg.com', 'img.youtube.com'])
 const YOUTUBE_THUMB_PATH = /^\/vi(?:_webp)?\/([\w-]{6,20})\/[^/]+$/
+// Spotify album art: ab67616d + size code (b273 = 640px, 1e02 = 300px,
+// 4851 = 64px) + image id. The 640px file is usually over the 64 KB cap.
+const SPOTIFY_ALBUM_PATH =
+    /^\/image\/ab67616d0000(?:b273|1e02|4851)([0-9a-f]{24})$/
+const SPOTIFY_FALLBACK_SIZES = ['1e02', '4851']
 
 // Stripped from card text: zero-width and bidi marks (200B-200F), bidi
 // embeddings/overrides (202A-202E), word joiner and invisible operators
@@ -80,7 +85,18 @@ export function resolveCoverUrl(raw: string | null | undefined): URL | null {
         if (!match) return null
         return new URL(`https://${host}/vi/${match[1]}/mqdefault.jpg`)
     }
-    return url
+    return coverCandidates(url)[0]
+}
+
+/** URLs to try in order: smaller Spotify album sizes when the first is too big. */
+function coverCandidates(url: URL): URL[] {
+    const match =
+        url.hostname === 'i.scdn.co' && SPOTIFY_ALBUM_PATH.exec(url.pathname)
+    if (!match) return [url]
+    return SPOTIFY_FALLBACK_SIZES.map(
+        (size) =>
+            new URL(`https://i.scdn.co/image/ab67616d0000${size}${match[1]}`),
+    )
 }
 
 const JPEG_MAGIC = [0xff, 0xd8, 0xff]
@@ -103,6 +119,18 @@ export async function fetchCover(
 ): Promise<string | null> {
     const url = resolveCoverUrl(raw)
     if (!url) return null
+    for (const candidate of coverCandidates(url)) {
+        const cover = await fetchOne(candidate, options)
+        if (cover) return cover
+        if (options.signal?.aborted) return null
+    }
+    return null
+}
+
+async function fetchOne(
+    url: URL,
+    options: FetchCoverOptions,
+): Promise<string | null> {
     const timeout = AbortSignal.timeout(COVER_TIMEOUT_MS)
     const signal = options.signal
         ? AbortSignal.any([timeout, options.signal])
