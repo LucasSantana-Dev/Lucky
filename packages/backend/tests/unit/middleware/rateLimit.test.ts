@@ -9,7 +9,13 @@ jest.mock('@lucky/shared/utils/alerts', () => ({
     emitAlert: jest.fn().mockImplementation(async () => {}),
 }))
 
-import { maskIp, authRateLimitHandler } from '../../../src/middleware/rateLimit'
+import express from 'express'
+import request from 'supertest'
+import {
+    maskIp,
+    authRateLimitHandler,
+    supportLimiter,
+} from '../../../src/middleware/rateLimit'
 import { recordWithCooldown, emitAlert } from '@lucky/shared/utils/alerts'
 
 function makeRes(): { res: Response; status: jest.Mock; json: jest.Mock } {
@@ -101,5 +107,22 @@ describe('authRateLimitHandler', () => {
 
         expect(() => authRateLimitHandler(req, res)).not.toThrow()
         expect(status).toHaveBeenCalledWith(429)
+    })
+})
+
+describe('supportLimiter', () => {
+    test('allows 10 reports per hour per IP, then answers 429', async () => {
+        const app = express()
+        app.post('/support', supportLimiter, (_req, res) => {
+            res.status(201).end()
+        })
+
+        for (let i = 0; i < 10; i++) {
+            const ok = await request(app).post('/support')
+            expect(ok.status).toBe(201)
+        }
+        const blocked = await request(app).post('/support')
+        expect(blocked.status).toBe(429)
+        expect(blocked.headers['ratelimit-policy']).toBe('10;w=3600')
     })
 })

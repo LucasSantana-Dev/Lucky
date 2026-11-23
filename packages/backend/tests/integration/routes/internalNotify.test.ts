@@ -20,6 +20,7 @@ describe('Internal Notify Routes Integration', () => {
 
         jest.clearAllMocks()
         process.env.LUCKY_NOTIFY_API_KEY = API_KEY
+        process.env.LUCKY_NOTIFY_CHANNEL_IDS = CHANNEL_ID
         process.env.DISCORD_TOKEN = DISCORD_TOKEN
 
         global.fetch = jest.fn<typeof fetch>()

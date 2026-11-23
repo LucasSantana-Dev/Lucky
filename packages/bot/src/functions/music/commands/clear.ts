@@ -9,6 +9,7 @@ import Command from '../../../models/Command'
 import {
     requireGuild,
     requireQueue,
+    requireSameVoiceChannel,
 } from '../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { ChatInputCommandInteraction } from 'discord.js'
@@ -96,6 +97,7 @@ export default new Command({
         if (!(await requireGuild(interaction))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        if (!(await requireSameVoiceChannel(queue, interaction))) return
         if (!(await requireQueue(queue, interaction))) return
 
         try {

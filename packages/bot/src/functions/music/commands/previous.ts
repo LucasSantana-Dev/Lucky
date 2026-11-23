@@ -15,6 +15,7 @@ import {
     requireQueue,
     requireCurrentTrack,
     requireIsPlaying,
+    requireSameVoiceChannel,
 } from '../../../utils/command/commandValidations'
 import { clearSessionMoodCache } from '../../../services/musicRecommendation/autoplay/replenisher'
 import type { CommandExecuteParams } from '../../../types/CommandData'
@@ -131,6 +132,7 @@ export default new Command({
         if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        if (!(await requireSameVoiceChannel(queue, interaction))) return
 
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireCurrentTrack(queue, interaction))) return

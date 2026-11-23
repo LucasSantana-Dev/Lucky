@@ -20,7 +20,11 @@ const clearSessionMoodCacheMock = jest.fn()
 const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 
+const requireSameVoiceChannelMock = jest.fn(async (..._args: unknown[]) => true)
+
 jest.mock('../../../utils/command/commandValidations', () => ({
+    requireSameVoiceChannel: (...args: unknown[]) =>
+        requireSameVoiceChannelMock(...args),
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
     requireDJRoleInGuild: (...args: unknown[]) => requireDJRoleMock(...args),
@@ -113,6 +117,23 @@ describe('previous command', () => {
 
     afterEach(() => {
         jest.useRealTimers()
+    })
+
+    it('refuses a member outside the bot voice channel (#3266)', async () => {
+        requireSameVoiceChannelMock.mockResolvedValueOnce(false)
+        const queue = makeQueue()
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = makeInteraction()
+
+        await previousCommand.execute({ client: {} as any, interaction })
+
+        expect(requireSameVoiceChannelMock).toHaveBeenCalledWith(
+            queue,
+            interaction,
+        )
+        expect(requireQueueMock).not.toHaveBeenCalled()
+        expect(queue.history.previous).not.toHaveBeenCalled()
+        expect(queue.node.seek).not.toHaveBeenCalled()
     })
 
     it('has correct name and category', () => {

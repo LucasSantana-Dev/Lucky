@@ -829,7 +829,7 @@ Response: {
 #### Logout
 
 ```typescript
-GET /api/auth/logout
+POST /api/auth/logout
 Response: void
 ```
 
@@ -1446,6 +1446,7 @@ Ensure all required environment variables are set in production:
 - `WEBAPP_PORT=3000`
 - `CLIENT_ID` and `CLIENT_SECRET`
 - `WEBAPP_SESSION_SECRET`
+- `SESSION_TOKEN_KEY` (base64, 32 bytes; required in production)
 - `DEVELOPER_USER_IDS` (comma-separated)
 
 #### Nginx Configuration

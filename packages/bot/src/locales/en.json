@@ -42,6 +42,9 @@
         "errors": {
             "notInGuild": "This command only works inside a server.",
             "notInVoice": "Join a voice channel first.",
+            "notInVoiceTitle": "Not in voice",
+            "notSameVoiceTitle": "Wrong voice channel",
+            "notSameVoice": "Join {{channel}} to control the music.",
             "nothingPlaying": "Nothing is playing right now.",
             "youtubeDisabledTitle": "YouTube is unavailable",
             "youtubeDisabledDescription": "YouTube isn't available on this bot right now. Try a Spotify or SoundCloud link, or just search by song and artist name.",
