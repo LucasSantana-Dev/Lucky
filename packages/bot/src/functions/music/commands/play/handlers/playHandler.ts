@@ -26,9 +26,7 @@ import { resolveGuildQueue } from '../../../../../services/musicManagement/queue
 import {
     isUnknownInteractionError,
     resolveSearchEngine,
-    normalizeSoundCloudUrl,
-    normalizeYouTubeUrl,
-    expandSoundCloudShortUrl,
+    prepareQuery,
     replyYoutubeDisabledIfNeeded,
     stampPlaylistTracks,
 } from '../queryUtils'
@@ -41,7 +39,6 @@ import {
     type ResolveQueryParams,
 } from './resolveProvider'
 import { runPostPlayBackgroundOps } from './postPlayBackgroundOps'
-import { resolveAlbumIntent } from './albumIntent'
 import {
     classifyPlayFailure,
     logPlayFailure,
@@ -223,25 +220,6 @@ async function deferPlayReply(
         }
         throw error
     }
-}
-
-async function prepareQuery(
-    rawQuery: string,
-    provider: string | null,
-): Promise<string> {
-    // Expand SoundCloud short links first (on.soundcloud.com → full URL)
-    const expandedQuery = await expandSoundCloudShortUrl(rawQuery)
-    // Then normalize: SoundCloud `?in=` playlist context, and YouTube Mix
-    // (`list=RD...`) context that the youtubei extractor cannot resolve.
-    const normalizedQuery = normalizeYouTubeUrl(
-        normalizeSoundCloudUrl(expandedQuery),
-    )
-    // "album esquinas anavitória completo": queue the album's link, which
-    // plays the whole album, instead of searching for a single track. A
-    // YouTube or SoundCloud provider choice keeps its own search.
-    return provider && provider !== 'spotify'
-        ? normalizedQuery
-        : ((await resolveAlbumIntent(normalizedQuery)) ?? normalizedQuery)
 }
 
 /** Replies and returns true when the collaborative request limit is hit. */

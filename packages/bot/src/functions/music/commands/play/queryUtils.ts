@@ -19,6 +19,7 @@ import {
     TEXT_SEARCH_BLOCKED_EXTRACTORS,
 } from './handlers/resolveProvider'
 import { ensureTrackMetadata } from './handlers/trackMetadataHydration'
+import { resolveAlbumIntent } from './handlers/albumIntent'
 import {
     classifyPlayFailure,
     logPlayFailure,
@@ -218,6 +219,31 @@ export function normalizeYouTubeUrl(url: string): string {
         })
         return url
     }
+}
+
+/**
+ * Turns a raw query into what the player should search: expands short links,
+ * strips playlist context the extractors cannot resolve, and applies album
+ * intent. Shared by /play, /playtop and /playskip so a link that works on one
+ * works on all of them (#3270).
+ */
+export async function prepareQuery(
+    rawQuery: string,
+    provider: string | null,
+): Promise<string> {
+    // Expand SoundCloud short links first (on.soundcloud.com -> full URL)
+    const expandedQuery = await expandSoundCloudShortUrl(rawQuery)
+    // Then normalize: SoundCloud `?in=` playlist context, and YouTube Mix
+    // (`list=RD...`) context that the youtubei extractor cannot resolve.
+    const normalizedQuery = normalizeYouTubeUrl(
+        normalizeSoundCloudUrl(expandedQuery),
+    )
+    // "album esquinas anavitória completo": queue the album's link, which
+    // plays the whole album, instead of searching for a single track. A
+    // YouTube or SoundCloud provider choice keeps its own search.
+    return provider && provider !== 'spotify'
+        ? normalizedQuery
+        : ((await resolveAlbumIntent(normalizedQuery)) ?? normalizedQuery)
 }
 
 /**
@@ -505,14 +531,17 @@ export async function executePlayAtTop({
         'voice channel present after requireVoiceChannel guard',
     )
 
-    const query = interaction.options.getString('query', true)
+    const rawQuery = interaction.options.getString('query', true)
 
     // Checked before deferring so the "YouTube is unavailable" notice can
     // still be its own ephemeral reply instead of editing the public defer
     // below, which would strip the ephemeral flag.
-    if (await replyYoutubeDisabledIfNeeded(interaction, query)) return
+    if (await replyYoutubeDisabledIfNeeded(interaction, rawQuery)) return
 
     if (!(await deferPublicReply(interaction))) return
+
+    // After the defer: short link expansion can take a few seconds.
+    const query = await prepareQuery(rawQuery, null)
 
     try {
         const result = await playWithFallbacks({

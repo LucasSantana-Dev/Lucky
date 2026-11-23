@@ -491,6 +491,51 @@ describe('executePlayAtTop — fallback chain', () => {
         )
     })
 
+    describe('link normalisation shared with /play (#3270)', () => {
+        function playedQuery(client: { player: { play: unknown } }): string {
+            return (client.player.play as jest.Mock).mock.calls[0][1] as string
+        }
+
+        it('strips YouTube Mix context before searching', async () => {
+            const client = makeClient(() =>
+                Promise.resolve({ track: fakeTrack }),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction(
+                    'https://www.youtube.com/watch?v=abc123&list=RDabc123&start_radio=1',
+                ),
+                skipCurrent: false,
+                commandName: 'playtop',
+            })
+
+            expect(playedQuery(client)).toBe(
+                'https://www.youtube.com/watch?v=abc123',
+            )
+        })
+
+        it('expands a SoundCloud short link and drops ?in=', async () => {
+            fetchMock.mockResolvedValueOnce({
+                url: 'https://soundcloud.com/artist/track?in=artist/sets/x',
+            })
+            const client = makeClient(() =>
+                Promise.resolve({ track: fakeTrack }),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction('https://on.soundcloud.com/abc'),
+                skipCurrent: true,
+                commandName: 'playskip',
+            })
+
+            expect(playedQuery(client)).toBe(
+                'https://soundcloud.com/artist/track',
+            )
+        })
+    })
+
     describe('HOSTED_YOUTUBE_ENABLED = false (#2475)', () => {
         const originalEnv = process.env.HOSTED_YOUTUBE_ENABLED
 
