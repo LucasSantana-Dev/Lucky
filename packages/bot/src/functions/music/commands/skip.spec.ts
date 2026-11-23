@@ -20,8 +20,11 @@ const resolveGuildQueueMock = jest.fn()
 const clearSessionMoodCacheMock = jest.fn()
 const debugLogMock = jest.fn()
 
+const requireSameVoiceChannelMock = jest.fn(async (..._args: unknown[]) => true)
+
 jest.mock('../../../utils/command/commandValidations', () => ({
-    requireSameVoiceChannel: async () => true,
+    requireSameVoiceChannel: (...args: unknown[]) =>
+        requireSameVoiceChannelMock(...args),
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireDJRole: (...args: unknown[]) => requireDJRoleMock(...args),
     requireDJRoleInGuild: (...args: unknown[]) => requireDJRoleMock(...args),
@@ -117,6 +120,23 @@ describe('skip command', () => {
         jest.useRealTimers()
     })
 
+    it('refuses a member outside the bot voice channel (#3266)', async () => {
+        requireSameVoiceChannelMock.mockResolvedValueOnce(false)
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = createInteraction('guild-1')
+
+        await skipCommand.execute({ interaction, client: {} as any })
+
+        expect(requireSameVoiceChannelMock).toHaveBeenCalledWith(
+            queue,
+            interaction,
+        )
+        expect(requireQueueMock).not.toHaveBeenCalled()
+        expect(interaction.deferReply).not.toHaveBeenCalled()
+        expect(queue.node.skip).not.toHaveBeenCalled()
+    })
+
     it('clears session mood cache on successful skip', async () => {
         const queue = createQueue('guild-1')
         resolveGuildQueueMock.mockReturnValue({ queue })
@@ -129,7 +149,7 @@ describe('skip command', () => {
         expect(clearSessionMoodCacheMock).toHaveBeenCalledWith('guild-1')
     })
 
-    it('runs cheap queue checks before the defer and the DJ check after it (#2977)', async () => {
+    it('runs the voice guard and cheap queue checks before the defer and the DJ check after it (#2977)', async () => {
         const order: string[] = []
         const queue = createQueue('guild-1')
         queue.node.skip.mockImplementation(() => {
@@ -138,6 +158,10 @@ describe('skip command', () => {
         resolveGuildQueueMock.mockReturnValue({ queue })
         requireGuildMock.mockImplementation(async () => {
             order.push('requireGuild')
+            return true
+        })
+        requireSameVoiceChannelMock.mockImplementationOnce(async () => {
+            order.push('requireSameVoiceChannel')
             return true
         })
         requireIsPlayingMock.mockImplementation(async () => {
@@ -157,6 +181,7 @@ describe('skip command', () => {
 
         expect(order).toEqual([
             'requireGuild',
+            'requireSameVoiceChannel',
             'requireIsPlaying',
             'defer',
             'requireDJRole',

@@ -16,8 +16,11 @@ const createErrorEmbedMock = jest.fn((title: string, desc?: string) => ({
     description: desc,
 }))
 
+const requireSameVoiceChannelMock = jest.fn(async (..._args: unknown[]) => true)
+
 jest.mock('../../../utils/command/commandValidations', () => ({
-    requireSameVoiceChannel: async () => true,
+    requireSameVoiceChannel: (...args: unknown[]) =>
+        requireSameVoiceChannelMock(...args),
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
     requireCurrentTrack: (...args: unknown[]) =>
@@ -67,6 +70,23 @@ describe('volume command', () => {
         requireQueueMock.mockResolvedValue(true)
         requireCurrentTrackMock.mockResolvedValue(true)
         requireIsPlayingMock.mockResolvedValue(true)
+    })
+
+    it('refuses a member outside the bot voice channel (#3266)', async () => {
+        requireSameVoiceChannelMock.mockResolvedValueOnce(false)
+        const queue = createQueue()
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = makeInteraction(80)
+
+        await volumeCommand.execute({ client: {} as any, interaction } as any)
+
+        expect(requireSameVoiceChannelMock).toHaveBeenCalledWith(
+            queue,
+            interaction,
+        )
+        expect(requireQueueMock).not.toHaveBeenCalled()
+        expect(queue.node.setVolume).not.toHaveBeenCalled()
+        expect(interactionReplyMock).not.toHaveBeenCalled()
     })
 
     it('has correct command name', () => {

@@ -46,6 +46,12 @@ export async function handleMusicButtonInteraction(
     try {
         await interaction.deferUpdate()
 
+        // XP leaderboard pages are not music controls: no voice or queue needed.
+        if (interaction.customId.startsWith(LEADERBOARD_BUTTON_PREFIX)) {
+            await handleLeaderboardPage(interaction)
+            return
+        }
+
         const { queue, source, diagnostics } = resolveGuildQueue(
             interaction.client as unknown as Pick<CustomClient, 'player'>,
             interaction.guildId ?? '',
@@ -141,9 +147,6 @@ async function routeButtonAction(
         default:
             if (customId.startsWith(QUEUE_BUTTON_PREFIX)) {
                 return handleQueuePage(interaction, queue)
-            }
-            if (customId.startsWith(LEADERBOARD_BUTTON_PREFIX)) {
-                return handleLeaderboardPage(interaction)
             }
     }
 }

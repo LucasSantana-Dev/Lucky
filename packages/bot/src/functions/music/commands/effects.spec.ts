@@ -17,8 +17,11 @@ jest.mock('../../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: jest.fn(),
 }))
 
+const requireSameVoiceChannelMock = jest.fn(async (..._args: unknown[]) => true)
+
 jest.mock('../../../utils/command/commandValidations', () => ({
-    requireSameVoiceChannel: async () => true,
+    requireSameVoiceChannel: (...args: unknown[]) =>
+        requireSameVoiceChannelMock(...args),
     requireGuild: jest.fn(async () => true),
     requireQueue: jest.fn(async () => true),
     requireIsPlaying: jest.fn(async () => true),
@@ -78,6 +81,20 @@ describe('effects command', () => {
         ;(requireQueue as jest.Mock).mockResolvedValue(true)
         ;(requireIsPlaying as jest.Mock).mockResolvedValue(true)
         ;(requireDJRoleInGuild as jest.Mock).mockResolvedValue(true)
+    })
+
+    it('refuses a member outside the bot voice channel (#3266)', async () => {
+        requireSameVoiceChannelMock.mockResolvedValueOnce(false)
+        const interaction = createInteraction('reset') as any
+
+        await execute({ client: {}, interaction })
+
+        expect(requireSameVoiceChannelMock).toHaveBeenCalledWith(
+            queue,
+            interaction,
+        )
+        expect(requireQueue).not.toHaveBeenCalled()
+        expect(queue.filters.ffmpeg.setFilters).not.toHaveBeenCalled()
     })
 
     it('stops before resolving a queue when not in a guild', async () => {

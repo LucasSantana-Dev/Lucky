@@ -216,6 +216,25 @@ describe('requireSameVoiceChannel', () => {
         )
     })
 
+    it('still refuses ephemerally when the ephemeral defer rejects', async () => {
+        const interaction = makeVoiceInteraction('vc-other')
+        interaction.deferReply.mockRejectedValueOnce(
+            Object.assign(new Error('Unknown interaction'), { code: 10062 }),
+        )
+
+        await expect(
+            requireSameVoiceChannel(
+                makeQueue('vc-bot'),
+                asCommand(interaction),
+            ),
+        ).resolves.toBe(false)
+
+        expect(interactionReplyMock).toHaveBeenCalledTimes(1)
+        expect(interactionReplyMock.mock.calls[0][0].content.ephemeral).toBe(
+            true,
+        )
+    })
+
     it('does not defer again when the interaction is already acknowledged', async () => {
         const interaction = {
             ...makeVoiceInteraction('vc-other'),

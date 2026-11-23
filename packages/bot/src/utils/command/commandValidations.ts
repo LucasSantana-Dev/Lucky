@@ -82,11 +82,7 @@ type VoiceGuardInteraction = {
 export type VoiceChannelRefusal =
     { reason: 'notInVoice' } | { reason: 'otherChannel'; botChannelId: string }
 
-/**
- * Why a member may not control the music, or null when they may. The bot's
- * channel comes from the queue, else from its own voice state; when the bot is
- * in no channel, any member in some voice channel passes (#3266).
- */
+/** The voice channel the member is in, if any. */
 function memberVoiceChannelId(member: unknown): string | null {
     const voice = (member as GuildMember | null)?.voice
     return voice?.channelId ?? voice?.channel?.id ?? null
@@ -103,6 +99,11 @@ function botVoiceChannelId(
     )
 }
 
+/**
+ * Why a member may not control the music, or null when they may. The bot's
+ * channel comes from the queue, else from its own voice state; when the bot is
+ * in no channel, any member in some voice channel passes (#3266).
+ */
 export function voiceChannelRefusal(
     interaction: VoiceGuardInteraction,
     queue: GuildQueue | null,

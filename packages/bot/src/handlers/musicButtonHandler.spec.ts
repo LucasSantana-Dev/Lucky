@@ -606,6 +606,28 @@ describe('handleMusicButtonInteraction - voice channel guard (#3266)', () => {
         expect((queue.node as { skip: jest.Mock }).skip).not.toHaveBeenCalled()
     })
 
+    it('leaves XP leaderboard pages open to members outside the bot channel', async () => {
+        const { levelService } = jest.requireMock('@lucky/shared/services')
+        levelService.getLeaderboard.mockResolvedValue([])
+        resolveGuildQueueMock.mockReturnValue({
+            queue: createQueue({ channel: { id: 'vc-bot' } }),
+            source: 'player',
+        })
+        const interaction = {
+            ...createInteraction('leaderboard_page_1'),
+            member: { voice: { channelId: null, channel: null } },
+        }
+
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
+
+        expect(levelService.getLeaderboard).toHaveBeenCalledWith(
+            '111111111111111111',
+            50,
+        )
+        expect(resolveGuildQueueMock).not.toHaveBeenCalled()
+        expect(interaction.followUp).not.toHaveBeenCalled()
+    })
+
     it('lets a member in the bot voice channel skip', async () => {
         const queue = createQueue({
             channel: { id: 'vc-1' },
