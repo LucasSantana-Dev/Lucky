@@ -11,6 +11,8 @@ type SoundCloudSearchResult = {
     permalink?: string
     durationInSec?: number
     user?: { name?: string }
+    /** The upload's transcodings, as the search API lists them. */
+    formats?: readonly { format?: { protocol?: string } }[]
 }
 
 export type SoundCloudMatchOptions = {
@@ -118,6 +120,23 @@ export class SoundCloudDrmError extends Error {
 
 function isDrmProtectedError(error: unknown): boolean {
     return error instanceof Error && /DRM protected/i.test(error.message)
+}
+
+/**
+ * A DRM upload lists only `cbc-encrypted-hls` / `ctr-encrypted-hls`
+ * transcodings, and the search results already carry them (#3281). Results
+ * without a format list are kept: yt-dlp still catches those.
+ */
+function hasOnlyEncryptedFormats(result: SoundCloudSearchResult): boolean {
+    const formats = result.formats ?? []
+    return (
+        formats.length > 0 &&
+        formats.every((f) => f.format?.protocol?.includes('encrypted'))
+    )
+}
+
+function isPlayableCandidate(result: SoundCloudSearchResult): boolean {
+    return !drmTrackUrls.has(result.url) && !hasOnlyEncryptedFormats(result)
 }
 
 function rememberDrmTrack(url: string): void {
@@ -237,7 +256,7 @@ export async function resolveViaSoundCloud(
         throw new Error(`SoundCloud: no results for "${query}"`)
     }
 
-    const playable = results.filter((result) => !drmTrackUrls.has(result.url))
+    const playable = results.filter(isPlayableCandidate)
     if (!playable.length) {
         throw new SoundCloudDrmError(
             `SoundCloud: only DRM-protected results for "${query}"`,
