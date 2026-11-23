@@ -372,4 +372,93 @@ describe('skip command', () => {
 
         expect(maybePromptAutoplayFeedbackMock).not.toHaveBeenCalled()
     })
+
+    it('does not report an error when only the feedback prompt fails (#3279)', async () => {
+        maybePromptAutoplayFeedbackMock.mockRejectedValueOnce(new Error('dm'))
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+
+        expect(queue.node.skip).toHaveBeenCalledTimes(1)
+        expect(buildCommandTrackEmbedMock).toHaveBeenCalled()
+        expect(createErrorEmbedMock).not.toHaveBeenCalled()
+    })
+
+    it('skips once when two /skip calls race on the same track (#3279)', async () => {
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await Promise.all([
+            skipCommand.execute({
+                interaction: createInteraction('guild-1'),
+                client: {} as any,
+            }),
+            skipCommand.execute({
+                interaction: createInteraction('guild-1'),
+                client: {} as any,
+            }),
+        ])
+
+        expect(queue.node.skip).toHaveBeenCalledTimes(1)
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.stringContaining('already skipped'),
+        )
+    })
+
+    it('lets a retry skip after the first skip threw (#3279)', async () => {
+        const queue = createQueue('guild-1')
+        queue.node.skip.mockImplementationOnce(() => {
+            throw new Error('boom')
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+
+        expect(queue.node.skip).toHaveBeenCalledTimes(2)
+    })
+
+    it('refuses a /skip whose song changed while it was being checked (#3279)', async () => {
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        requireDJRoleMock.mockImplementationOnce(async () => {
+            queue.currentTrack = { title: 'Next Song' }
+            return true
+        })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+
+        expect(queue.node.skip).not.toHaveBeenCalled()
+    })
+
+    it('allows the same song to be skipped again after the dedupe window', async () => {
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+        jest.advanceTimersByTime(5_000)
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+
+        expect(queue.node.skip).toHaveBeenCalledTimes(2)
+    })
 })

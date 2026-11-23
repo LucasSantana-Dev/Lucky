@@ -27,6 +27,40 @@ import {
 } from '../../../services/musicRecommendation/autoplayFeedbackPrompt'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 
+// A second /skip that resolves while the first is still switching tracks
+// would otherwise skip the next song too. Each command targets the track it
+// saw before any await; a claim on that track blocks duplicates for a while.
+const SKIP_DEDUPE_MS = 5_000
+type SkipClaim = { track: unknown }
+const recentSkips = new Map<string, SkipClaim>()
+
+function claimSkip(guildId: string, track: unknown): SkipClaim | null {
+    if (recentSkips.get(guildId)?.track === track) return null
+    const claim: SkipClaim = { track }
+    recentSkips.set(guildId, claim)
+    setTimeout(() => releaseSkip(guildId, claim), SKIP_DEDUPE_MS).unref?.()
+    return claim
+}
+
+function releaseSkip(guildId: string, claim: SkipClaim): void {
+    if (recentSkips.get(guildId) === claim) recentSkips.delete(guildId)
+}
+
+async function promptFeedbackSafely(
+    interaction: ChatInputCommandInteraction,
+    skippedAutoplay: ReturnType<typeof captureAutoplayTrack>,
+): Promise<void> {
+    try {
+        await maybePromptAutoplayFeedback(interaction, skippedAutoplay)
+    } catch (error) {
+        // The skip already worked; a failed prompt must not report an error.
+        errorLog({
+            message: 'Autoplay feedback prompt failed after skip',
+            error,
+        })
+    }
+}
+
 // If the defer fails (e.g. 10062 Unknown interaction) the skip still runs;
 // interactionReply swallows the later reply failures.
 async function deferSkip(
@@ -158,6 +192,8 @@ export default new Command({
         if (!(await requireGuild(interaction))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        // The song this /skip is aimed at, read before any await.
+        const target = queue?.currentTrack
         if (!(await requireSameVoiceChannel(queue, interaction))) return
 
         // Cheap synchronous checks run before the defer so their errors keep
@@ -175,15 +211,43 @@ export default new Command({
         if (!dj.allowed) return
         if (!dj.deferred) await deferSkip(interaction)
 
+        const guildId = interaction.guildId ?? ''
+        // No await between the claim and node.skip(). A /skip whose target
+        // already changed or is claimed was beaten by another skip.
+        const claim =
+            queue.currentTrack === target ? claimSkip(guildId, target) : null
+        if (!claim) {
+            await interactionReply({
+                interaction,
+                content: {
+                    embeds: [
+                        createSuccessEmbed(
+                            '⏭️ Song skipped',
+                            'That song was already skipped.',
+                        ),
+                    ],
+                },
+            })
+            return
+        }
+
         // Before the skip: afterwards currentTrack is the next song.
         const skippedAutoplay = captureAutoplayTrack(queue.currentTrack)
 
         try {
-            await skipCurrentSong(queue, interaction.guildId ?? '')
-            await sendSkipSuccess(interaction, queue)
-            await maybePromptAutoplayFeedback(interaction, skippedAutoplay)
+            await skipCurrentSong(queue, guildId)
         } catch (error) {
+            // Nothing was skipped, so a retry must be allowed.
+            releaseSkip(guildId, claim)
             await handleSkipError(error, interaction)
+            return
         }
+        try {
+            await sendSkipSuccess(interaction, queue)
+        } catch (error) {
+            // The skip worked; keep the claim and only log the reply failure.
+            errorLog({ message: 'Skip success reply failed', error })
+        }
+        await promptFeedbackSafely(interaction, skippedAutoplay)
     },
 })

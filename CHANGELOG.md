@@ -1880,6 +1880,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(bot): `/skip` no longer reports an error when only the autoplay feedback prompt fails after a successful skip, and two `/skip` calls racing on the same song skip it once instead of also skipping the next one (#3279)
 - fix(bot): the `/skip` "DJ Only" refusal is private again: the DJ check runs before the public defer, so only the member who tried sees it (#3278)
 - fix(bot): SoundCloud results whose audio is DRM encrypted are skipped before matching, so the bridge no longer spends a yt-dlp attempt on an upload that can never play (#3281)
 - fix(bot): when autoplay finds no candidates and has no session history left to replay (for example after a restart restores a queue), it replays a few non-skipped songs from the server's saved play history instead of letting the queue stall (#3277)
