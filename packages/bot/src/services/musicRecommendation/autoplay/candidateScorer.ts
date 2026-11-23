@@ -292,6 +292,29 @@ function isOtherVersion(track: { title?: string; author?: string }): boolean {
     )
 }
 
+/**
+ * The session locale comes from history only, so it is null on a fresh or
+ * restored session even when the playing track is Latin. Judge the candidate
+ * against the playing track too: its own artist, or a seed whose title or
+ * Last.fm tags read Spanish, keeps Latin candidates in (#3277).
+ */
+function isCrossLocale(
+    sessionMood: SessionMood | null,
+    candidate: Track,
+    candidateTags: string[],
+    currentTrack: Track,
+    currentTrackTags: string[],
+): boolean {
+    if (sessionMood?.dominantLocale !== null) return false
+    const candidateText = `${candidate.title ?? ''} ${candidate.author ?? ''}`
+    if (!detectSpanishMarkers(candidateText, candidateTags)) return false
+    const seedArtist = primaryArtistKey(currentTrack.author)
+    if (seedArtist && primaryArtistKey(candidate.author) === seedArtist)
+        return false
+    const seedText = `${currentTrack.title ?? ''} ${currentTrack.author ?? ''}`
+    return !detectSpanishMarkers(seedText, currentTrackTags)
+}
+
 export function calculateRecommendationScore(ctx: ScoringContext): {
     score: number
     signals: RecommendationSignal[]
@@ -386,11 +409,16 @@ export function calculateRecommendationScore(ctx: ScoringContext): {
     // outright. The previous soft −0.45 still let a Spanish gospel track
     // through on a Brazilian rap session because of stacked
     // "completed before / similar duration / spotify preferred" boosts.
-    if (sessionMood !== null && sessionMood.dominantLocale === null) {
-        const candidateText = `${candidateTitle} ${candidate.author ?? ''}`
-        if (detectSpanishMarkers(candidateText, candidateTags)) {
-            return { score: -Infinity, signals: [], veto: 'cross-locale' }
-        }
+    if (
+        isCrossLocale(
+            sessionMood,
+            candidate,
+            candidateTags,
+            currentTrack,
+            currentTrackTags,
+        )
+    ) {
+        return { score: -Infinity, signals: [], veto: 'cross-locale' }
     }
 
     // Cross-genre-family veto: if the session has settled into one or more

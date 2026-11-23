@@ -256,7 +256,7 @@ describe('candidateScorer', () => {
         it('rejects Spanish candidates with no dominant locale', () => {
             const result = calculateRecommendationScore({
                 candidate: createTrack({ title: 'Reggaeton Song' }),
-                currentTrack: createTrack(),
+                currentTrack: createTrack({ author: 'Other Artist' }),
                 recentArtists: new Set(),
                 autoplayMode: 'similar',
                 sessionMood: {
@@ -269,6 +269,75 @@ describe('candidateScorer', () => {
             })
             expect(result.score).toBe(-Infinity)
             expect(result.veto).toBe('cross-locale')
+        })
+
+        describe('cross-locale veto follows the playing track (#3277)', () => {
+            // Prod 2026-11-20: seed "Farruko - Pepas" on an empty history, so
+            // dominantLocale was null and all 21 Latin candidates, the seed
+            // artist's own tracks included, were vetoed as cross-locale.
+            const emptyHistoryMood = {
+                dominantLocale: null,
+                deepDiveArtist: null,
+                preferLong: false,
+                preferShort: false,
+                restless: false,
+            }
+            const seed = createTrack({
+                title: 'Farruko - Pepas (Official Video)',
+                author: 'Farruko',
+            })
+
+            it('keeps a Latin candidate when the playing track is tagged Latin', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Danny Ocean - Me Rehúso (Official Audio)',
+                        author: 'Danny Ocean',
+                    }),
+                    currentTrack: seed,
+                    recentArtists: new Set(),
+                    autoplayMode: 'similar',
+                    sessionMood: emptyHistoryMood,
+                    genreContext: {
+                        candidateTags: ['latin pop', 'reggaeton'],
+                        currentTrackTags: ['reggaeton', 'latin'],
+                    },
+                })
+                expect(result.veto).toBeUndefined()
+                expect(Number.isFinite(result.score)).toBe(true)
+            })
+
+            it("keeps the seed artist's own tracks even without seed tags", () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Farruko, Bad Bunny, Rvssian - Krippy Kush (Official Video)',
+                        author: 'Farruko',
+                    }),
+                    currentTrack: seed,
+                    recentArtists: new Set(),
+                    autoplayMode: 'similar',
+                    sessionMood: emptyHistoryMood,
+                    genreContext: { candidateTags: ['reggaeton', 'latin'] },
+                })
+                expect(result.veto).toBeUndefined()
+            })
+
+            it('still rejects a Latin candidate on a non-Latin playing track', () => {
+                const result = calculateRecommendationScore({
+                    candidate: createTrack({
+                        title: 'Me Rehúso',
+                        author: 'Danny Ocean',
+                    }),
+                    currentTrack: createTrack({ author: 'Racionais MCs' }),
+                    recentArtists: new Set(),
+                    autoplayMode: 'similar',
+                    sessionMood: emptyHistoryMood,
+                    genreContext: {
+                        candidateTags: ['latin pop'],
+                        currentTrackTags: ['rap', 'brazilian rap'],
+                    },
+                })
+                expect(result.veto).toBe('cross-locale')
+            })
         })
 
         it('rejects cross-genre with dominant family', () => {
