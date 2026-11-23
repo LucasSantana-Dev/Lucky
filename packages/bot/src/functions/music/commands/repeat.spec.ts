@@ -15,7 +15,11 @@ const createSuccessEmbedMock = jest.fn((title: string, desc?: string) => ({
 }))
 const resolveGuildQueueMock = jest.fn()
 
+const requireSameVoiceChannelMock = jest.fn(async (..._args: unknown[]) => true)
+
 jest.mock('../../../utils/command/commandValidations', () => ({
+    requireSameVoiceChannel: (...args: unknown[]) =>
+        requireSameVoiceChannelMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
 }))
 
@@ -90,6 +94,25 @@ describe('repeat command', () => {
         jest.clearAllMocks()
         guildRepeatCounts.clear()
         requireQueueMock.mockResolvedValue(true)
+    })
+
+    it('refuses a member outside the bot voice channel (#3266)', async () => {
+        requireSameVoiceChannelMock.mockResolvedValueOnce(false)
+        const queue = createQueue()
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = createInteraction('off')
+
+        await repeatCommand.execute({
+            client: createClient(),
+            interaction,
+        } as any)
+
+        expect(requireSameVoiceChannelMock).toHaveBeenCalledWith(
+            queue,
+            interaction,
+        )
+        expect(requireQueueMock).not.toHaveBeenCalled()
+        expect(queue.setRepeatMode).not.toHaveBeenCalled()
     })
 
     it('turns off repeat mode', async () => {

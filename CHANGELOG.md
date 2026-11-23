@@ -1881,7 +1881,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - fix(backend): the public support form caps report text at 4000 characters and short fields at 64, checks that an attached screenshot really is a PNG, JPEG or WebP image, and allows 10 reports per hour from one address
+- fix(bot): music controls (`/stop`, `/skip`, `/voteskip`, `/clear`, `/volume`, `/leave`, `/move`, `/repeat`, `/previous`, `/effects`, `/autoplay skip|clear`, `/pause`, `/seek`, `/shuffle` and the player buttons) only work for members in the bot's voice channel; others get a private, translated refusal (#3266)
 - fix(backend): the Twitch follower-link route only accepts `INTERNAL_API_KEY` (compared in constant time), internal notify posts only to channels in `LUCKY_NOTIFY_CHANNEL_IDS`, and bot messages sent through the backend never ping @everyone, roles or users (#3300)
+- fix(backend): the live music stream releases its heartbeat when the browser disconnects during the initial state load, and each user can keep at most 3 streams open per server (extras get 429)
 - fix(backend): logout is now `POST /api/auth/logout`, so a link or image on another site can no longer sign a dashboard user out, and the API no longer parses form-encoded bodies it never used
 - fix(bot): `/ban`, `/kick` and `/mute` refuse to act on the server owner, on yourself, or on a member whose top role is equal to or higher than the moderator's; before, any moderator could act on an admin whenever the bot's role was higher
 - fix(bot): `/bulk-kick` and `/bulk-remove-role` refuse a role equal to or higher than the moderator's top role, and the background job skips members at or above the top role of the moderator who started it (the guild owner is exempt from both); before, a moderator could mass-kick or strip a role above their own
