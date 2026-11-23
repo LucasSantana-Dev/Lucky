@@ -1,4 +1,3 @@
-import { randomInt } from 'node:crypto'
 import type { Track, GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
@@ -64,6 +63,11 @@ import {
 import { buildVcContributionWeights } from './vcWeights'
 import { getRejectionCounts } from './candidateContracts'
 import { getAllHistoryTracks } from '../../../utils/music/historyTracks'
+import {
+    dedupeReplayPool,
+    resolvePersistentHistoryReplay,
+    shuffleInPlace,
+} from './persistentHistoryReplay'
 
 // Autoplay backfill target. Reduced from 8→2 to prevent over-queueing: when
 // too many songs are queued ahead, most get evicted before playerStart without
@@ -396,7 +400,11 @@ async function _replenishQueue(
             requestedBy,
             sourcesCounts,
             startTime,
-            allHistoryTracks,
+            {
+                session: allHistoryTracks,
+                persisted: persistentHistory,
+                isCancelled: () => run.cancelled,
+            },
         )
         return true
     } catch (error) {
@@ -1169,7 +1177,11 @@ export async function enqueueAndFinalize(
     requestedBy: User | null,
     sourcesCounts: Record<string, SourceCount>,
     startTime: number,
-    allHistoryTracks: Track[] = [],
+    replayHistory: {
+        session?: Track[]
+        persisted?: TrackHistoryEntry[]
+        isCancelled?: () => boolean
+    } = {},
 ): Promise<void> {
     const queue = autoplayContext.queue
     const currentTrack = autoplayContext.currentTrack
@@ -1224,26 +1236,37 @@ export async function enqueueAndFinalize(
                 .filter((t): t is Track => Boolean(t))
                 .map((t) => normalizeTrackKey(t.title, t.author)),
         )
-        const seenReplay = new Set<string>()
-        const seenReplayUrls = new Set<string>()
-        const historyPool = allHistoryTracks.filter((t) => {
-            if (!t.url || replayExcluded.has(t.url)) return false
-            if (seenReplayUrls.has(t.url)) return false
-            seenReplayUrls.add(t.url)
-            const key = normalizeTrackKey(t.title, t.author)
-            if (replayKeys.has(key) || seenReplay.has(key)) return false
-            seenReplay.add(key)
-            return true
-        })
         // Shuffle so successive empty passes don't always replay the same track.
-        for (let i = historyPool.length - 1; i > 0; i--) {
-            const j = randomInt(i + 1)
-            ;[historyPool[i], historyPool[j]] = [
-                historyPool[j]!,
-                historyPool[i]!,
-            ]
+        let historyReplay = shuffleInPlace(
+            dedupeReplayPool(
+                replayHistory.session ?? [],
+                replayExcluded,
+                replayKeys,
+            ),
+        ).slice(0, HISTORY_REPLAY_LIMIT)
+        let replaySource = 'session'
+        // A restored session has no in-session history: fall back to the
+        // guild history persisted across restarts (#3277).
+        if (historyReplay.length === 0 && currentTrack) {
+            historyReplay = await resolvePersistentHistoryReplay(
+                queue,
+                currentTrack,
+                replayHistory.persisted ?? [],
+                HISTORY_REPLAY_LIMIT,
+                requestedBy,
+            )
+            replaySource = 'persisted'
+            // The searches awaited above can outlive the refill deadline;
+            // a cancelled run must not enqueue after a retry has started.
+            if (replayHistory.isCancelled?.()) {
+                debugLog({
+                    message:
+                        'Autoplay: refill passed its deadline, not enqueueing replay',
+                    data: { guildId },
+                })
+                return
+            }
         }
-        const historyReplay = historyPool.slice(0, HISTORY_REPLAY_LIMIT)
         if (historyReplay.length > 0) {
             // Same path as selected candidates: autoplay marking, buffer
             // accounting and telemetry, so status/skip/clear controls see them.
@@ -1265,6 +1288,7 @@ export async function enqueueAndFinalize(
                     'Autoplay: replaying history tracks, all collectors empty',
                 data: {
                     guildId,
+                    source: replaySource,
                     replayed: historyReplay.map((t) => t.title),
                 },
             })

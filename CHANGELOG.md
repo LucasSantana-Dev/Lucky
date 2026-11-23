@@ -1880,6 +1880,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
 
 ### Fixed
+- fix(bot): when autoplay finds no candidates and has no session history left to replay (for example after a restart restores a queue), it replays a few non-skipped songs from the server's saved play history instead of letting the queue stall (#3277)
 - fix(bot): the SoundCloud fallback accepts a re-upload that names the artist and runs within 3 s of the track (or the artist's own upload under a shorter title), and a stage that simply finds no match logs at debug; the rejected candidates are reported once, in `Bridge: all stages exhausted` (#3275)
 - fix(bot): `/repeat` drops its `times` option, which promised a fixed number of repeats but looped forever; track and queue repeat now say plainly that they repeat until turned off (#3268)
 - fix(bot): `/voteskip` counts only votes from members still in the voice channel, so a voter who left no longer helps pass the skip (#3267)
