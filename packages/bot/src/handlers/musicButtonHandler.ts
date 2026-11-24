@@ -1,8 +1,4 @@
-import {
-    type ButtonInteraction,
-    type GuildMember,
-    escapeMarkdown,
-} from 'discord.js'
+import { type ButtonInteraction, escapeMarkdown } from 'discord.js'
 import { QueueRepeatMode } from 'discord-player'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import { createErrorEmbed } from '../utils/general/embeds'
@@ -19,6 +15,10 @@ import {
 } from '../utils/music/buttonComponents'
 import { createQueueEmbed } from '../functions/music/commands/queue/queueEmbed'
 import { translatorForInteraction } from '../i18n/translatorForInteraction'
+import {
+    voiceChannelRefusal,
+    voiceChannelRefusalEmbed,
+} from '../utils/command/commandValidations'
 import { shuffleQueue } from '../services/musicManagement/queueManipulation'
 import type { GuildQueue } from 'discord-player'
 import { resolveGuildQueue } from '../services/musicManagement/queueResolver'
@@ -46,17 +46,9 @@ export async function handleMusicButtonInteraction(
     try {
         await interaction.deferUpdate()
 
-        const member = interaction.member as GuildMember
-        if (!member.voice.channel) {
-            await interaction.followUp({
-                embeds: [
-                    createErrorEmbed(
-                        'Not in Voice',
-                        'Join a voice channel first',
-                    ),
-                ],
-                ephemeral: true,
-            })
+        // XP leaderboard pages are not music controls: no voice or queue needed.
+        if (interaction.customId.startsWith(LEADERBOARD_BUTTON_PREFIX)) {
+            await handleLeaderboardPage(interaction)
             return
         }
 
@@ -64,6 +56,22 @@ export async function handleMusicButtonInteraction(
             interaction.client as unknown as Pick<CustomClient, 'player'>,
             interaction.guildId ?? '',
         )
+        // Only members listening with the bot may drive it (#3266).
+        // A rating belongs to someone listening, manager or not.
+        const isRating =
+            interaction.customId === MUSIC_BUTTON_IDS.LIKE ||
+            interaction.customId === MUSIC_BUTTON_IDS.DISLIKE
+        const refusal = voiceChannelRefusal(interaction, queue, {
+            allowManagers: !isRating,
+        })
+        if (refusal) {
+            const t = await translatorForInteraction(interaction)
+            await interaction.followUp({
+                embeds: [voiceChannelRefusalEmbed(t, refusal)],
+                ephemeral: true,
+            })
+            return
+        }
         if (!queue) {
             debugLog({
                 message: 'Music button interaction could not resolve queue',
@@ -145,9 +153,6 @@ async function routeButtonAction(
         default:
             if (customId.startsWith(QUEUE_BUTTON_PREFIX)) {
                 return handleQueuePage(interaction, queue)
-            }
-            if (customId.startsWith(LEADERBOARD_BUTTON_PREFIX)) {
-                return handleLeaderboardPage(interaction)
             }
     }
 }

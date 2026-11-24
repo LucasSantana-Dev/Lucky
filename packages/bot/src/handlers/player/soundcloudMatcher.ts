@@ -1,6 +1,6 @@
 import * as playdl from 'play-dl'
 import type { Readable } from 'stream'
-import { infoLog, warnLog } from '@lucky/shared/utils'
+import { debugLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { withTimeout } from './withTimeout'
 import { hasVersionMarker } from '../../utils/music/searchQueryCleaner'
 import { streamViaYtDlp } from './ytdlpProcess'
@@ -11,6 +11,8 @@ type SoundCloudSearchResult = {
     permalink?: string
     durationInSec?: number
     user?: { name?: string }
+    /** The upload's transcodings, as the search API lists them. */
+    formats?: readonly { format?: { protocol?: string } }[]
 }
 
 export type SoundCloudMatchOptions = {
@@ -21,6 +23,9 @@ export type SoundCloudMatchOptions = {
 }
 
 const TITLE_MATCH_THRESHOLD = 0.75
+// Within this many seconds of the track, the upload is the same recording
+// for the relaxed checks below (#3275). Covers and edits drift further.
+const TIGHT_DURATION_SEC = 3
 
 // Words that mark a different recording, not just a different release of the
 // same one. Unlike the soft `hasVersionMarker` demotion (remaster, deluxe,
@@ -116,8 +121,51 @@ export class SoundCloudDrmError extends Error {
     }
 }
 
+export type RejectedCandidate = {
+    name: string
+    uploader?: string
+    titleScore: number
+    durationDeltaSec: number | null
+    artistMatch?: boolean
+    /** A re-upload accepted on artist name and length (#3275). */
+    reupload?: true
+    alteredVersion?: true
+}
+
+/**
+ * A search that worked but found nothing playable: an expected miss of one
+ * fallback stage, not a fault. Carries why each candidate was rejected so the
+ * bridge can report it once if the whole play fails (#3275).
+ */
+export class SoundCloudNoMatchError extends Error {
+    constructor(
+        message: string,
+        readonly rejected: readonly RejectedCandidate[] = [],
+    ) {
+        super(message)
+        this.name = 'SoundCloudNoMatchError'
+    }
+}
+
 function isDrmProtectedError(error: unknown): boolean {
     return error instanceof Error && /DRM protected/i.test(error.message)
+}
+
+/**
+ * A DRM upload lists only `cbc-encrypted-hls` / `ctr-encrypted-hls`
+ * transcodings, and the search results already carry them (#3281). Results
+ * without a format list are kept: yt-dlp still catches those.
+ */
+function hasOnlyEncryptedFormats(result: SoundCloudSearchResult): boolean {
+    const formats = result.formats ?? []
+    return (
+        formats.length > 0 &&
+        formats.every((f) => f.format?.protocol?.includes('encrypted'))
+    )
+}
+
+function isPlayableCandidate(result: SoundCloudSearchResult): boolean {
+    return !drmTrackUrls.has(result.url) && !hasOnlyEncryptedFormats(result)
 }
 
 function rememberDrmTrack(url: string): void {
@@ -234,10 +282,12 @@ export async function resolveViaSoundCloud(
     )
 
     if (!results.length) {
-        throw new Error(`SoundCloud: no results for "${query}"`)
+        throw new SoundCloudNoMatchError(
+            `SoundCloud: no results for "${query}"`,
+        )
     }
 
-    const playable = results.filter((result) => !drmTrackUrls.has(result.url))
+    const playable = results.filter(isPlayableCandidate)
     if (!playable.length) {
         throw new SoundCloudDrmError(
             `SoundCloud: only DRM-protected results for "${query}"`,
@@ -251,22 +301,24 @@ export async function resolveViaSoundCloud(
         options,
     )
     if (!match) {
-        warnLog({
+        const rejected = describeRejectedCandidates(
+            query,
+            trackDuration,
+            results,
+            options,
+        )
+        debugLog({
             message: 'SoundCloud: no validated match',
             data: {
                 query,
                 trackDuration,
                 expectedArtists: options.expectedArtists,
-                rejected: describeRejectedCandidates(
-                    query,
-                    trackDuration,
-                    results,
-                    options,
-                ),
+                rejected,
             },
         })
-        throw new Error(
+        throw new SoundCloudNoMatchError(
             `SoundCloud: no validated match for "${query}" (title/duration mismatch)`,
+            rejected,
         )
     }
     infoLog({
@@ -351,68 +403,26 @@ export function findMatchingSoundCloudResult(
     results: readonly SoundCloudSearchResult[],
     { expectedArtists, sourceTitle }: SoundCloudMatchOptions = {},
 ): SoundCloudSearchResult | undefined {
+    const context = buildMatchContext(query, trackDuration, {
+        expectedArtists,
+        sourceTitle,
+    })
+
     // Gate on the query with trailing parenthetical suffixes stripped so
     // version/comment suffixes ("(Comentário)", "(En Vivo)") do not inflate the
     // token count (#2866). Ranking below still looks at the full query tokens.
-    const { tokens, fullTokens, hasStripped } = getQueryTokens(
-        query,
-        expectedArtists,
-    )
-    if (tokens.length === 0) return undefined
-
-    const trackSec = parseDurationString(trackDuration)
-    const artistKeys = toArtistKeys(expectedArtists)
-
-    const requested = toRequestedText(query, sourceTitle)
+    if (context.tokens.length === 0) return undefined
+    const { trackSec } = context
 
     const candidates = results
-        .map((result) => {
-            const resultNorm = normalizeForMatch(result.name)
-            if (!resultNorm) return null
-            if (
-                artistKeys.length > 0 &&
-                !uploadedByArtist(artistKeys, result)
-            ) {
-                return null
-            }
-            if (isUnrequestedAlteredVersion(resultNorm, requested)) return null
-
-            const matched = tokens.filter((token) =>
-                resultNorm.includes(token),
-            ).length
-            const titleScore = matched / tokens.length
-            if (titleScore < TITLE_MATCH_THRESHOLD) return null
-
-            // Only meaningful when a suffix was stripped: how much of the full
-            // query (suffix included) the result carries. Lets "Song (Remix)"
-            // prefer the remix and "The Man (Who Sold the World)" prefer the
-            // full title over a bare "The Man".
-            const fullScore = hasStripped
-                ? fullTokens.filter((token) => resultNorm.includes(token))
-                      .length / fullTokens.length
-                : 0
-
-            if (
-                trackSec !== null &&
-                result.durationInSec &&
-                Math.abs(result.durationInSec - trackSec) > 30
-            ) {
-                return null
-            }
-
-            return { result, titleScore, fullScore }
-        })
-        .filter(
-            (
-                c,
-            ): c is {
-                result: SoundCloudSearchResult
-                titleScore: number
-                fullScore: number
-            } => c !== null,
-        )
+        .map((result) => scoreCandidate(result, context))
+        .filter((c): c is ScoredCandidate => c !== null)
 
     if (candidates.length === 0) return undefined
+
+    // A re-upload only stands in when no upload by the artist passed.
+    const byArtist = candidates.filter((candidate) => candidate.byArtist)
+    let pool = byArtist.length > 0 ? byArtist : candidates
 
     // The 75%-token threshold lets remixes/speedups/extended edits pass
     // title matching too (see comment below), so before ranking by title/
@@ -420,9 +430,8 @@ export function findMatchingSoundCloudResult(
     // name — unless the query itself asked for one (#2133). Falls back to
     // the full candidate set when every candidate carries a marker, so a
     // genuine remix-only result still resolves instead of being dropped.
-    let pool = candidates
     if (!hasVersionMarker(query)) {
-        const clean = candidates.filter(
+        const clean = pool.filter(
             (candidate) => !hasVersionMarker(candidate.result.name),
         )
         if (clean.length > 0) pool = clean
@@ -459,44 +468,160 @@ export function findMatchingSoundCloudResult(
     }, pool[0]).result
 }
 
+type MatchContext = {
+    tokens: string[]
+    fullTokens: string[]
+    hasStripped: boolean
+    trackSec: number | null
+    artistKeys: string[]
+    artistNames: string[][]
+    requested: string
+}
+
+type ScoredCandidate = {
+    result: SoundCloudSearchResult
+    titleScore: number
+    fullScore: number
+    byArtist: boolean
+}
+
+function buildMatchContext(
+    query: string,
+    trackDuration: string | undefined,
+    { expectedArtists, sourceTitle }: SoundCloudMatchOptions,
+): MatchContext {
+    return {
+        ...getQueryTokens(query, expectedArtists),
+        trackSec: parseDurationString(trackDuration),
+        artistKeys: toArtistKeys(expectedArtists),
+        artistNames: toArtistNames(expectedArtists),
+        requested: toRequestedText(query, sourceTitle),
+    }
+}
+
+type CandidateAssessment = {
+    resultNorm: string
+    delta: number | null
+    byArtist: boolean
+    reupload: boolean
+    titleScore: number
+    altered: boolean
+}
+
+// Every check the matcher applies, computed once, so the rejected list in the
+// logs reports exactly what scoreCandidate decided on.
+function assessCandidate(
+    result: SoundCloudSearchResult,
+    context: MatchContext,
+): CandidateAssessment {
+    const resultNorm = normalizeForMatch(result.name)
+    const delta = durationDelta(result, context.trackSec)
+    const tight = delta !== null && delta <= TIGHT_DURATION_SEC
+    const byArtist =
+        context.artistKeys.length === 0 ||
+        uploadedByArtist(context.artistKeys, result)
+    // #3275: when the artist's own upload is DRM or missing, a re-upload
+    // that names the artist in its title and has the same length is the same
+    // recording. Off the tight length, the account stays the only proof.
+    const reupload =
+        !byArtist && tight && namesArtist(resultNorm, context.artistNames)
+    // The artist account already proves the artist: with the same length,
+    // "MD Chefe - Tiffany" matches its upload titled just "Tiffany".
+    const artistFreeScore =
+        byArtist && tight
+            ? tokenScore(withoutArtistWords(context), resultNorm)
+            : 0
+    return {
+        resultNorm,
+        delta,
+        byArtist,
+        reupload,
+        titleScore: Math.max(
+            tokenScore(context.tokens, resultNorm),
+            artistFreeScore,
+        ),
+        altered: isUnrequestedAlteredVersion(resultNorm, context.requested),
+    }
+}
+
+function scoreCandidate(
+    result: SoundCloudSearchResult,
+    context: MatchContext,
+): ScoredCandidate | null {
+    const assessment = assessCandidate(result, context)
+    const { resultNorm, delta, byArtist, titleScore } = assessment
+    if (!resultNorm || assessment.altered) return null
+    if (delta !== null && delta > 30) return null
+    if (!byArtist && !assessment.reupload) return null
+    if (titleScore < TITLE_MATCH_THRESHOLD) return null
+
+    // Only meaningful when a suffix was stripped: how much of the full
+    // query (suffix included) the result carries. Lets "Song (Remix)"
+    // prefer the remix and "The Man (Who Sold the World)" prefer the
+    // full title over a bare "The Man".
+    const fullScore = context.hasStripped
+        ? tokenScore(context.fullTokens, resultNorm)
+        : 0
+
+    return { result, titleScore, fullScore, byArtist }
+}
+
+function durationDelta(
+    result: SoundCloudSearchResult,
+    trackSec: number | null,
+): number | null {
+    if (trackSec === null || !result.durationInSec) return null
+    return Math.abs(result.durationInSec - trackSec)
+}
+
+function tokenScore(tokens: readonly string[], resultNorm: string): number {
+    if (tokens.length === 0) return 0
+    return (
+        tokens.filter((token) => resultNorm.includes(token)).length /
+        tokens.length
+    )
+}
+
+function withoutArtistWords(context: MatchContext): string[] {
+    const artistWords = new Set(context.artistNames.flat())
+    return context.tokens.filter((token) => !artistWords.has(token))
+}
+
+// Each expected artist as words: its lead name and its full name.
+function toArtistNames(expectedArtists: readonly string[] = []): string[][] {
+    return expectedArtists
+        .flatMap((artist) => [
+            toTokens(primaryArtist(artist)),
+            toTokens(artist),
+        ])
+        .filter((words) => words.length > 0)
+}
+
+// Whole words, so "hot" does not match inside "photo".
+function namesArtist(resultNorm: string, artistNames: string[][]): boolean {
+    const words = new Set(resultNorm.split(' '))
+    return artistNames.some((name) => name.every((word) => words.has(word)))
+}
+
 function describeRejectedCandidates(
     query: string,
     trackDuration: string | undefined,
     results: readonly SoundCloudSearchResult[],
-    { expectedArtists, sourceTitle }: SoundCloudMatchOptions = {},
-): {
-    name: string
-    uploader?: string
-    titleScore: number
-    durationDeltaSec: number | null
-    artistMatch?: boolean
-    alteredVersion?: true
-}[] {
-    const { tokens } = getQueryTokens(query, expectedArtists)
-    const trackSec = parseDurationString(trackDuration)
-    const artistKeys = toArtistKeys(expectedArtists)
-    const requested = toRequestedText(query, sourceTitle)
+    options: SoundCloudMatchOptions = {},
+): RejectedCandidate[] {
+    const context = buildMatchContext(query, trackDuration, options)
     return results.slice(0, 5).map((result) => {
-        const resultNorm = normalizeForMatch(result.name)
-        const matched = tokens.filter((token) =>
-            resultNorm.includes(token),
-        ).length
+        const assessment = assessCandidate(result, context)
         return {
             name: result.name,
             uploader: result.user?.name,
-            titleScore: tokens.length
-                ? Number((matched / tokens.length).toFixed(2))
-                : 0,
-            durationDeltaSec:
-                trackSec !== null && result.durationInSec
-                    ? Math.abs(result.durationInSec - trackSec)
-                    : null,
-            ...(artistKeys.length > 0 && {
-                artistMatch: uploadedByArtist(artistKeys, result),
+            titleScore: Number(assessment.titleScore.toFixed(2)),
+            durationDeltaSec: assessment.delta,
+            ...(context.artistKeys.length > 0 && {
+                artistMatch: assessment.byArtist,
             }),
-            ...(isUnrequestedAlteredVersion(resultNorm, requested) && {
-                alteredVersion: true as const,
-            }),
+            ...(assessment.reupload && { reupload: true as const }),
+            ...(assessment.altered && { alteredVersion: true as const }),
         }
     })
 }

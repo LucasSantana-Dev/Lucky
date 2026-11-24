@@ -153,6 +153,7 @@ export default function SupportPage() {
                             value={context}
                             onChange={(e) => setContext(e.target.value)}
                             required
+                            maxLength={4000}
                             rows={6}
                             placeholder={t('support.form.contextPlaceholder')}
                             className='w-full rounded-sm bg-lucky-bg-active border border-lucky-border text-lucky-text-primary type-body p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lucky-focus'

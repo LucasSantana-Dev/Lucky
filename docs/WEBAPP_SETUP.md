@@ -65,6 +65,8 @@ WEBAPP_PORT=3000
 WEBAPP_FRONTEND_URL=http://localhost:5173
 WEBAPP_BACKEND_URL=http://localhost:3000
 WEBAPP_SESSION_SECRET=your_random_session_secret_here
+# Optional in development, required in production: openssl rand -base64 32
+# SESSION_TOKEN_KEY=
 
 # Developer Access
 DEVELOPER_USER_IDS=user_id_1,user_id_2
@@ -87,6 +89,7 @@ VITE_API_BASE_URL=https://api.yourdomain.com/api
 - **WEBAPP_FRONTEND_URL**: The frontend application URL (used for OAuth redirects after authentication)
 - **WEBAPP_BACKEND_URL**: Public backend/API origin used for API links when backend is exposed on a dedicated host
 - **WEBAPP_SESSION_SECRET**: A random secret string for signing session cookies (use a strong random value)
+- **SESSION_TOKEN_KEY**: Base64-encoded 32-byte key (`openssl rand -base64 32`) that encrypts the Discord OAuth tokens stored in sessions with AES-256-GCM. Required when `NODE_ENV=production`: the backend refuses to start without it. In development a missing key only logs a warning and tokens are stored unencrypted. Sessions written before the key existed stay readable and are re-encrypted on their next write. Changing the key logs everyone out.
 - **DEVELOPER_USER_IDS**: Comma-separated list of Discord user IDs with developer access
 
 ## Discord OAuth2 Setup
@@ -188,7 +191,7 @@ The backend API will be available at `http://localhost:3000`.
 
 - `GET /api/auth/discord` - Initiate Discord OAuth flow (redirects to Discord)
 - `GET /api/auth/callback` - OAuth callback handler (redirects to frontend)
-- `GET /api/auth/logout` - Logout user
+- `POST /api/auth/logout` - Logout user
 - `GET /api/auth/status` - Check authentication status
 - `GET /api/auth/user` - Get current user info
 
@@ -228,6 +231,7 @@ For production, ensure:
 - `WEBAPP_BACKEND_URL` points to your production backend/API URL (if separate host is used)
 - `WEBAPP_REDIRECT_URI` matches your production callback URL on the frontend origin
 - `WEBAPP_SESSION_SECRET` is a strong random value
+- `SESSION_TOKEN_KEY` is set (`openssl rand -base64 32`); the backend will not start without it
 - `NODE_ENV=production` for secure cookies
 
 To expose the web app at a custom domain over HTTPS without opening ports, use [Cloudflare Tunnel](CLOUDFLARE_TUNNEL_SETUP.md) (domain, DNS, and tunnel setup).

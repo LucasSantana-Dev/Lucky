@@ -88,8 +88,11 @@ jest.mock('./player/nowPlayingDisplay', () => ({
 
 jest.mock('../i18n/translatorForInteraction', () => ({
     translatorForInteraction:
-        async () => (key: string, options?: { title?: string }) =>
-            options?.title === undefined ? key : `${key}|${options.title}`,
+        async () =>
+        (key: string, options?: { title?: string; channel?: string }) => {
+            const value = options?.title ?? options?.channel
+            return value === undefined ? key : `${key}|${value}`
+        },
 }))
 
 import { handleMusicButtonInteraction } from './musicButtonHandler'
@@ -100,7 +103,7 @@ function createInteraction(customId: string) {
         customId,
         guildId: '111111111111111111',
         client: {},
-        member: { voice: { channel: {} } },
+        member: { voice: { channelId: 'vc-1', channel: { id: 'vc-1' } } },
         deferred: true,
         replied: false,
         deferUpdate: jest.fn<Promise<void>, []>().mockResolvedValue(),
@@ -551,5 +554,134 @@ describe('handleMusicButtonInteraction - compact now-playing row', () => {
         expect(interaction.editReply).toHaveBeenCalledWith({
             components: ['refreshed-row'],
         })
+    })
+})
+
+describe('handleMusicButtonInteraction - voice channel guard (#3266)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+    })
+
+    it('refuses a member in another voice channel than the bot', async () => {
+        const queue = createQueue({
+            channel: { id: 'vc-bot' },
+            node: { skip: jest.fn() },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP)
+
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
+
+        expect(interaction.followUp).toHaveBeenCalledWith({
+            embeds: [
+                {
+                    title: 'music.errors.notSameVoiceTitle',
+                    description: 'music.errors.notSameVoice|<#vc-bot>',
+                },
+            ],
+            ephemeral: true,
+        })
+        expect((queue.node as { skip: jest.Mock }).skip).not.toHaveBeenCalled()
+    })
+
+    it('refuses a member in no voice channel', async () => {
+        const queue = createQueue({ node: { skip: jest.fn() } })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const interaction = {
+            ...createInteraction(MUSIC_BUTTON_IDS.SKIP),
+            member: { voice: { channelId: null, channel: null } },
+        }
+
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
+
+        expect(interaction.followUp).toHaveBeenCalledWith({
+            embeds: [
+                {
+                    title: 'music.errors.notInVoiceTitle',
+                    description: 'music.errors.notInVoice',
+                },
+            ],
+            ephemeral: true,
+        })
+        expect((queue.node as { skip: jest.Mock }).skip).not.toHaveBeenCalled()
+    })
+
+    it('leaves XP leaderboard pages open to members outside the bot channel', async () => {
+        const { levelService } = jest.requireMock('@lucky/shared/services')
+        levelService.getLeaderboard.mockResolvedValue([])
+        resolveGuildQueueMock.mockReturnValue({
+            queue: createQueue({ channel: { id: 'vc-bot' } }),
+            source: 'player',
+        })
+        const interaction = {
+            ...createInteraction('leaderboard_page_1'),
+            member: { voice: { channelId: null, channel: null } },
+        }
+
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
+
+        expect(levelService.getLeaderboard).toHaveBeenCalledWith(
+            '111111111111111111',
+            50,
+        )
+        expect(resolveGuildQueueMock).not.toHaveBeenCalled()
+        expect(interaction.followUp).not.toHaveBeenCalled()
+    })
+
+    it('keeps 👍/👎 for listeners even when the clicker manages the server', async () => {
+        const { PermissionsBitField, PermissionFlagsBits } =
+            jest.requireActual('discord.js')
+        const queue = createQueue({ channel: { id: 'vc-bot' } })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const interaction = {
+            ...createInteraction(MUSIC_BUTTON_IDS.LIKE),
+            memberPermissions: new PermissionsBitField(
+                PermissionFlagsBits.ManageGuild,
+            ),
+        }
+
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
+
+        expect(setFeedbackMock).not.toHaveBeenCalled()
+        expect(interaction.followUp).toHaveBeenCalledWith(
+            expect.objectContaining({ ephemeral: true }),
+        )
+    })
+
+    it('lets a manager outside the bot channel use the controls', async () => {
+        const { PermissionsBitField, PermissionFlagsBits } =
+            jest.requireActual('discord.js')
+        const queue = createQueue({
+            channel: { id: 'vc-bot' },
+            node: { skip: jest.fn() },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const interaction = {
+            ...createInteraction(MUSIC_BUTTON_IDS.SKIP),
+            memberPermissions: new PermissionsBitField(
+                PermissionFlagsBits.ManageGuild,
+            ),
+        }
+
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
+
+        expect((queue.node as { skip: jest.Mock }).skip).toHaveBeenCalledTimes(
+            1,
+        )
+    })
+
+    it('lets a member in the bot voice channel skip', async () => {
+        const queue = createQueue({
+            channel: { id: 'vc-1' },
+            node: { skip: jest.fn() },
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue, source: 'player' })
+        const interaction = createInteraction(MUSIC_BUTTON_IDS.SKIP)
+
+        await handleMusicButtonInteraction(asButtonInteraction(interaction))
+
+        expect((queue.node as { skip: jest.Mock }).skip).toHaveBeenCalledTimes(
+            1,
+        )
     })
 })

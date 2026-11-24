@@ -67,6 +67,8 @@ import {
     asVoiceChannel,
 } from '../../../../../tests/utils/music/commandFixtures.js'
 import { asInteraction } from '../../../../../tests/utils/command/fixtures.js'
+import { collaborativePlaylistService } from '../../../../services/musicRecommendation/collaborativePlaylist'
+import { reserveCollaborativeRequest } from '../play/handlers/collaborativeLimit'
 
 const createTrack = (title: string, author: string) => ({
     title,
@@ -206,6 +208,51 @@ describe('handleArtistDiscography', () => {
 
         const reply = (interactionReply as jest.Mock).mock.calls.at(-1)?.[0]
         expect(reply.content.embeds[0].description).toContain('**2**')
+    })
+
+    it('commits the collaborative request once, however many tracks it queues (#3269)', async () => {
+        collaborativePlaylistService.setMode('guild-1', true, 3)
+        searchSpotifyArtistsMock.mockResolvedValue([
+            { id: 'artist-1', name: 'Queen' },
+        ])
+        getSpotifyArtistTopTracksMock.mockResolvedValue([
+            { name: 'Bohemian Rhapsody', artist: 'Queen', url: 'spotify:1' },
+            { name: 'Somebody to Love', artist: 'Queen', url: 'spotify:2' },
+        ])
+        getSpotifyArtistAlbumsMock.mockResolvedValue([])
+        search
+            .mockResolvedValueOnce({
+                tracks: [createTrack('Bohemian Rhapsody', 'Queen')],
+            })
+            .mockResolvedValueOnce({
+                tracks: [createTrack('Somebody to Love', 'Queen')],
+            })
+        play.mockResolvedValueOnce({
+            track: createTrack('Bohemian Rhapsody', 'Queen'),
+        })
+
+        try {
+            const reservation = await reserveCollaborativeRequest(
+                asInteraction(interaction),
+                'guild-1',
+            )
+            await handleArtistDiscography({
+                client: asClient(client),
+                interaction: asInteraction(interaction),
+                voiceChannel: asVoiceChannel(),
+                artistName: 'Queen',
+                reservation: reservation ?? undefined,
+            })
+            reservation?.settle()
+
+            expect(play).toHaveBeenCalledTimes(1)
+            expect(addTrack).toHaveBeenCalledTimes(1)
+            expect(
+                collaborativePlaylistService.getState('guild-1').contributions,
+            ).toEqual({ 'user-1': 1 })
+        } finally {
+            collaborativePlaylistService.clearGuildState('guild-1')
+        }
     })
 
     it('leaves ASMR tracks out of the queue and the count (#3001)', async () => {

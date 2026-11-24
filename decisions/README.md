@@ -1,10 +1,11 @@
 # Architecture Decision Records
 
-149 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
+150 ADRs, indexed by status, newest first within each group. Generated from each file's own Status field (or, for the 3 files with none, from its content) - see #1964.
 
 
-## Accepted (140)
+## Accepted (141)
 
+- [2026-11-24 - Autoplay: seed-grounded picks rank first, the listener's Last.fm library only fills](2026-11-24-autoplay-seed-first.md)
 - [2026-11-13 - Stale remote branches: archive the unrecoverable ones as tags, then delete](2026-11-13-stale-branch-archive-then-delete.md)
 - [2026-11-13 - Music-first test: the acquisition phase never ran, so it restarts and every read moves 4 weeks](2026-11-13-music-first-acquisition-restart.md) - _Accepted (amends the dates of `2026-09-27-music-first-positioning.md` and decisions 5 and 7 of `2026-10-18-music-first-business-review-amendments.md`)_
 - [2026-10-21 - youtubei.js native stream as a bridge stage between yt-dlp and SoundCloud](2026-10-21-youtubei-native-bridge-stage.md) - _Accepted (a second YouTube client next to the yt-dlp ladder of `2026-06-18-youtube-extraction-reliability.md`)_

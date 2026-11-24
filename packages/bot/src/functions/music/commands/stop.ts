@@ -7,6 +7,7 @@ import {
     requireGuild,
     requireQueue,
     requireDJRoleInGuild,
+    requireSameVoiceChannel,
 } from '../../../utils/command/commandValidations'
 import {
     captureAutoplayTrack,
@@ -26,6 +27,7 @@ export default new Command({
         if (!(await requireGuild(interaction))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        if (!(await requireSameVoiceChannel(queue, interaction))) return
 
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return

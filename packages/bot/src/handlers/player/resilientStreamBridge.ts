@@ -35,6 +35,7 @@ import { isHostedYoutubeEnabled } from '../../config/featureFlags'
 import { extractYouTubeVideoId } from '../../services/musicRecommendation/autoplay/scoringUtils'
 import {
     pickYouTubeCandidate,
+    missingVersionMarkers,
     youtubeWatchUrl,
     type RejectedYouTubeCandidate,
     type ScoredYouTubeCandidate,
@@ -395,18 +396,24 @@ async function attemptYtDlpSearch(
 
 // Broader YouTube query: no " official audio" suffix, title cut at its first
 // parenthetical (or reduced to the song core), and only the lead artist when
-// the author field is a credit list.
+// the author field is a credit list. A version the Spotify title asks for
+// ("Duvet - Acoustic") goes back in: cleanTitle dropped it, and without it
+// the search only finds the original, which the duration check rejects
+// (#3276).
 function buildBroadYtQuery(
     cleanedTitle: string,
     cleanedAuthor: string,
+    sourceTitle: string,
 ): string {
     const leadArtist = cleanedAuthor
         .split(/,|;|\bfeat\.?\s|\bft\.?\s/i)[0]
         .trim()
-    return cleanSearchQuery(
+    const query = cleanSearchQuery(
         computeCoreTitleCandidate(cleanedTitle, cleanedAuthor),
         leadArtist,
     )
+    if (!query) return query
+    return [query, ...missingVersionMarkers(sourceTitle, query)].join(' ')
 }
 
 async function attemptBroadYtDlpSearch(
@@ -416,7 +423,11 @@ async function attemptBroadYtDlpSearch(
 ): Promise<Readable | null> {
     // SoundCloud already won the race: nothing this retry finds can be used.
     if (raceWonByAnotherArm()) return null
-    const broadQuery = buildBroadYtQuery(cleanedTitle, cleanedAuthor)
+    const broadQuery = buildBroadYtQuery(
+        cleanedTitle,
+        cleanedAuthor,
+        track.title,
+    )
     if (!broadQuery) return null
     broadSearchTried.add(track)
     const startedAt = Date.now()
@@ -777,7 +788,12 @@ async function attemptSoundCloud(
             startedAt,
             'fail',
         )
-        warnLog({
+        // A search that matched nothing is expected while other stages may
+        // still play the track; it surfaces in the exhausted line (#3275).
+        const log = recordSoundCloudMiss(track, stageLabel, error)
+            ? debugLog
+            : warnLog
+        log({
             message: failureMessage,
             data: {
                 error: (error as Error).message,
@@ -787,6 +803,39 @@ async function attemptSoundCloud(
         })
         return null
     }
+}
+
+type SoundCloudMissStage =
+    'soundcloud-full' | 'soundcloud-title' | 'soundcloud-core'
+
+// Why each SoundCloud stage of a play rejected its candidates, for the
+// exhausted line. Only expected misses (the matcher's typed errors) land here.
+const soundCloudMisses = new WeakMap<
+    BridgeTrack,
+    Partial<Record<SoundCloudMissStage, unknown>>
+>()
+const EXPECTED_SOUNDCLOUD_MISSES = new Set([
+    'SoundCloudNoMatchError',
+    'SoundCloudDrmError',
+])
+
+/** Records an expected miss and says whether it was one. */
+function recordSoundCloudMiss(
+    track: BridgeTrack,
+    stage: StreamBridgeFallbackStage,
+    error: unknown,
+): boolean {
+    if (
+        !(error instanceof Error) ||
+        !EXPECTED_SOUNDCLOUD_MISSES.has(error.name)
+    ) {
+        return false
+    }
+    const misses = soundCloudMisses.get(track) ?? {}
+    misses[stage as SoundCloudMissStage] =
+        (error as Error & { rejected?: unknown }).rejected ?? []
+    soundCloudMisses.set(track, misses)
+    return true
 }
 
 // Accounts a SoundCloud upload may come from: the track author and, for a
@@ -856,6 +905,7 @@ async function attemptCoreStageOrLogExhausted(
         })
         return stream
     } catch (coreError) {
+        recordSoundCloudMiss(track, 'soundcloud-core', coreError)
         const coreDurationMs = observeStage(
             'soundcloud_core',
             startedAt,
@@ -940,6 +990,7 @@ function logAllStagesExhausted(
             durationMs: extra.durationMs,
             url: track.url,
             stages,
+            soundCloudRejected: soundCloudMisses.get(track),
         },
     })
 }
@@ -1254,6 +1305,7 @@ async function resolveResilientStream(track: BridgeTrack): Promise<Readable> {
     // failure class so this play's event is fingerprinted by its own cause.
     firstYouTubeFailure.delete(track)
     reportedExhausted.delete(track)
+    soundCloudMisses.delete(track)
     clearBridgeStamps(track)
 
     // YouTube is answering media downloads with 403: skip yt-dlp instead of

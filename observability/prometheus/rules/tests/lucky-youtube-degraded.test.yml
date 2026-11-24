@@ -33,6 +33,7 @@ tests:
                 at startup. Check lucky_bot_extraction_failures_total labelled
                 forbidden/botcheck, recent yt-dlp logs, and the startup log for
                 "YouTube extractor unavailable".
+              runbook: "Check lucky_bot_extraction_failures_total (forbidden/botcheck) and the lucky-bot yt-dlp logs; refresh cookies or wait for the block breaker to close."
 
   - name: short blip that clears before 2m stays silent
     interval: 1m

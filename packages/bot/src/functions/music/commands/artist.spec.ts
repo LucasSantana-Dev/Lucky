@@ -72,6 +72,7 @@ import {
     searchSpotifyTracks,
 } from '@lucky/shared/utils'
 import { createCommandParams } from '../../../../tests/utils/music/commandFixtures.js'
+import { collaborativePlaylistService } from '../../../services/musicRecommendation/collaborativePlaylist'
 
 const createTrack = (title: string, author: string, url?: string) => ({
     title,
@@ -548,5 +549,57 @@ describe('artist command search fallback', () => {
 
         expect(getSpotifyClientToken).not.toHaveBeenCalled()
         expect(searchSpotifyTracks).not.toHaveBeenCalled()
+    })
+})
+
+describe('artist command collaborative limit (#3269)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({
+            queue: { addTrack: jest.fn() },
+        })
+    })
+    afterEach(() => collaborativePlaylistService.clearGuildState('guild-1'))
+
+    it('refuses the artist when the user already used their requests', async () => {
+        collaborativePlaylistService.setMode('guild-1', true, 1)
+        collaborativePlaylistService.recordContribution('guild-1', 'user-1', 1)
+        const search = jest.fn()
+        const play = jest.fn()
+
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(),
+            }),
+        )
+
+        expect(search).not.toHaveBeenCalled()
+        expect(play).not.toHaveBeenCalled()
+        const reply = (interactionReply as jest.Mock).mock.calls.at(-1)?.[0]
+        expect(reply.content.embeds[0].title).toBe('Contribution limit reached')
+    })
+
+    it('counts queued artist tracks as one request', async () => {
+        collaborativePlaylistService.setMode('guild-1', true, 3)
+        const tracks = [
+            createTrack('Bohemian Rhapsody', 'Queen'),
+            createTrack('We Will Rock You', 'Queen'),
+            createTrack("Don't Stop Me Now", 'Queen'),
+        ]
+        const search = jest.fn(async () => ({ tracks }))
+        const play = jest.fn(async () => ({ track: tracks[0] }))
+
+        await artistCommand.execute(
+            createCommandParams({
+                client: { player: { search, play } },
+                interaction: createInteraction(),
+            }),
+        )
+
+        expect(play).toHaveBeenCalled()
+        expect(
+            collaborativePlaylistService.getState('guild-1').contributions,
+        ).toEqual({ 'user-1': 1 })
     })
 })

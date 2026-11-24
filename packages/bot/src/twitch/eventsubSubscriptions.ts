@@ -1,4 +1,4 @@
-import type { Client } from 'discord.js'
+import type { Client, GuildTextBasedChannel } from 'discord.js'
 import { EmbedBuilder } from 'discord.js'
 import { errorLog, debugLog, warnLog } from '@lucky/shared/utils'
 import { twitchNotificationService } from '@lucky/shared/services'
@@ -255,6 +255,61 @@ async function createSubscription(
     }
 }
 
+type TwitchNotificationRow = Awaited<
+    ReturnType<typeof twitchNotificationService.getNotificationsByTwitchUserId>
+>[number]
+
+/**
+ * Fetches the notification's channel and returns it only if the bot can post
+ * there: it exists, is a guild text channel, and belongs to the guild that
+ * saved the notification. Logs a warning and returns null otherwise.
+ */
+async function resolveNotificationChannel(
+    client: Client,
+    notif: TwitchNotificationRow,
+): Promise<GuildTextBasedChannel | null> {
+    const logData = {
+        discordChannelId: notif.discordChannelId,
+        twitchLogin: notif.twitchLogin,
+    }
+    const channel = await client.channels.fetch(notif.discordChannelId)
+    if (!channel) {
+        warnLog({
+            message:
+                'Twitch EventSub: channel not found (may be deleted or inaccessible)',
+            data: logData,
+        })
+        return null
+    }
+    if (!channel.isTextBased()) {
+        warnLog({
+            message: 'Twitch EventSub: channel is not a text channel',
+            data: logData,
+        })
+        return null
+    }
+    if (channel.isDMBased()) {
+        warnLog({
+            message: 'Twitch EventSub: channel is a DM channel, skipping',
+            data: logData,
+        })
+        return null
+    }
+    if (channel.guildId !== notif.guildId) {
+        warnLog({
+            message:
+                'Twitch EventSub: channel belongs to another guild, skipping',
+            data: {
+                ...logData,
+                guildId: notif.guildId,
+                channelGuildId: channel.guildId,
+            },
+        })
+        return null
+    }
+    return channel
+}
+
 async function dispatchToChannels(
     twitchUserId: string,
     embed: EmbedBuilder,
@@ -268,39 +323,8 @@ async function dispatchToChannels(
 
     for (const notif of notifications) {
         try {
-            const channel = await client.channels.fetch(notif.discordChannelId)
-            if (!channel) {
-                warnLog({
-                    message:
-                        'Twitch EventSub: channel not found (may be deleted or inaccessible)',
-                    data: {
-                        discordChannelId: notif.discordChannelId,
-                        twitchLogin: notif.twitchLogin,
-                    },
-                })
-                continue
-            }
-            if (!channel.isTextBased()) {
-                warnLog({
-                    message: 'Twitch EventSub: channel is not a text channel',
-                    data: {
-                        discordChannelId: notif.discordChannelId,
-                        twitchLogin: notif.twitchLogin,
-                    },
-                })
-                continue
-            }
-            if (channel.isDMBased()) {
-                warnLog({
-                    message:
-                        'Twitch EventSub: channel is a DM channel, skipping',
-                    data: {
-                        discordChannelId: notif.discordChannelId,
-                        twitchLogin: notif.twitchLogin,
-                    },
-                })
-                continue
-            }
+            const channel = await resolveNotificationChannel(client, notif)
+            if (!channel) continue
             const content = notif.mentionRoleId
                 ? `<@&${notif.mentionRoleId}>`
                 : undefined

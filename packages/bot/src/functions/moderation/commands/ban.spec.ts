@@ -38,8 +38,13 @@ function createMockGuild(id = 'guild-123', name = 'Test Guild') {
     return {
         id,
         name,
+        ownerId: 'owner-1',
         members: {
             ban: jest.fn().mockResolvedValue(undefined),
+            fetch: jest.fn().mockResolvedValue({
+                id: 'target-123',
+                roles: { highest: { position: 1 } },
+            }),
         },
     }
 }
@@ -56,6 +61,7 @@ function createInteraction({
 } = {}) {
     const interaction = {
         guild: guild !== undefined ? guild : createMockGuild(guildId),
+        member: { id: 'mod-1', roles: { highest: { position: 10 } } },
         guildId,
         channelId: 'channel-123',
         user: user || createMockUser(userId),
@@ -303,5 +309,63 @@ describe('ban command', () => {
     test('has correct command metadata', () => {
         expect(banCommand.data.name).toBe('ban')
         expect(banCommand.data.description).toContain('Ban a user')
+    })
+    test('refuses to act on a member ranked above the moderator', async () => {
+        const targetUser = createMockUser('target-123')
+        const guild = createMockGuild()
+        guild.members.fetch.mockResolvedValue({
+            id: 'target-123',
+            roles: { highest: { position: 20 } },
+        })
+        const interaction = createInteraction({ guild, targetUser })
+        interaction.options.getUser.mockImplementation((name: string) =>
+            name === 'user' ? targetUser : null,
+        )
+
+        await banCommand.execute({ client: createMockClient({}), interaction })
+
+        expect(guild.members.ban).not.toHaveBeenCalled()
+        expect(moderationServiceMock.createCase).not.toHaveBeenCalled()
+        expect(targetUser.send).not.toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    content: expect.stringContaining('equal or higher role'),
+                    ephemeral: true,
+                }),
+            }),
+        )
+    })
+    test('does not ban when the member lookup fails for a reason other than unknown member', async () => {
+        const targetUser = createMockUser('target-123')
+        const guild = createMockGuild()
+        guild.members.fetch.mockRejectedValue(
+            Object.assign(new Error('Service unavailable'), { code: 0 }),
+        )
+        const interaction = createInteraction({ guild, targetUser })
+        interaction.options.getUser.mockImplementation((name: string) =>
+            name === 'user' ? targetUser : null,
+        )
+
+        await banCommand.execute({ client: createMockClient({}), interaction })
+
+        expect(guild.members.ban).not.toHaveBeenCalled()
+        expect(targetUser.send).not.toHaveBeenCalled()
+    })
+
+    test('still bans a user who is not in the server', async () => {
+        const targetUser = createMockUser('target-123')
+        const guild = createMockGuild()
+        guild.members.fetch.mockRejectedValue(
+            Object.assign(new Error('Unknown Member'), { code: 10007 }),
+        )
+        const interaction = createInteraction({ guild, targetUser })
+        interaction.options.getUser.mockImplementation((name: string) =>
+            name === 'user' ? targetUser : null,
+        )
+
+        await banCommand.execute({ client: createMockClient({}), interaction })
+
+        expect(guild.members.ban).toHaveBeenCalled()
     })
 })

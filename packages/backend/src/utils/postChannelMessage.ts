@@ -56,6 +56,9 @@ export async function postChannelMessage(
                 body: JSON.stringify({
                     content: payload.content?.slice(0, 1900),
                     embeds: payload.embeds,
+                    // Never resolve @everyone/@here, role or user pings from
+                    // caller-supplied text.
+                    allowed_mentions: { parse: [] },
                 }),
                 signal: AbortSignal.timeout(10_000),
             },

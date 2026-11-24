@@ -33,6 +33,7 @@ tests:
                 stage (yt-dlp and SoundCloud), with at least 3 failures. Check
                 lucky_bot_extraction_failures_total by type, the LuckyYouTubeDegraded
                 alert, and Sentry issues tagged youtube-extraction-exhausted.
+              runbook: "Check lucky_bot_extraction_failures_total by type and LuckyYouTubeDegraded; see Sentry issues tagged youtube-extraction-exhausted."
 
   # One failed play out of one attempt: ratio is 100% but below the floor.
   - name: a single failed play stays silent

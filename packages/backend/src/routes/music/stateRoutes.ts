@@ -5,7 +5,10 @@ import { asyncHandler } from '../../middleware/asyncHandler'
 import { validateParams } from '../../middleware/validate'
 import { guildIdParam } from '../../schemas/common'
 import { musicControlService, type QueueState } from '@lucky/shared/services'
-import { param, sseClients } from './helpers'
+import { param, sseClients, sseStreamCounts } from './helpers'
+
+const MAX_STREAMS_PER_USER_GUILD = 3
+const HEARTBEAT_INTERVAL_MS = 30000
 
 export function setupStateRoutes(app: Express): void {
     app.get(
@@ -14,7 +17,51 @@ export function setupStateRoutes(app: Express): void {
         requireGuildModuleAccess('music', 'view'),
         validateParams(guildIdParam),
         async (req: AuthenticatedRequest, res: Response) => {
+            // The client may have left during the async auth middleware, before
+            // a close listener existed here; do not reserve a slot for it.
+            if (req.destroyed || res.destroyed || res.writableEnded) return
+
             const guildId = param(req.params.guildId)
+            const capKey = `${req.userId ?? req.sessionId}:${guildId}`
+            const openStreams = sseStreamCounts.get(capKey) ?? 0
+            if (openStreams >= MAX_STREAMS_PER_USER_GUILD) {
+                res.status(429).json({ error: 'Too many open music streams' })
+                return
+            }
+            sseStreamCounts.set(capKey, openStreams + 1)
+
+            let closed = false
+            let heartbeat: ReturnType<typeof setInterval> | null = null
+
+            // Registered before any await so a client that disconnects during
+            // the state lookup is still cleaned up and never gets a heartbeat.
+            const cleanup = () => {
+                if (closed) return
+                closed = true
+                if (heartbeat) clearInterval(heartbeat)
+                heartbeat = null
+
+                const remaining = (sseStreamCounts.get(capKey) ?? 1) - 1
+                if (remaining > 0) sseStreamCounts.set(capKey, remaining)
+                else sseStreamCounts.delete(capKey)
+
+                const guildClients = sseClients.get(guildId)
+                guildClients?.delete(res)
+                if (guildClients?.size === 0) sseClients.delete(guildId)
+            }
+            req.on('close', cleanup)
+
+            const send = (payload: unknown): boolean => {
+                if (closed || res.writableEnded || res.destroyed) return false
+                try {
+                    res.write(`data: ${JSON.stringify(payload)}\n\n`)
+                    return true
+                } catch {
+                    // NOSONAR: client went away mid-write; release everything now.
+                    cleanup()
+                    return false
+                }
+            }
 
             res.writeHead(200, {
                 'Content-Type': 'text/event-stream',
@@ -23,15 +70,18 @@ export function setupStateRoutes(app: Express): void {
                 'X-Accel-Buffering': 'no',
             })
 
-            const currentState = await musicControlService.getState(guildId)
-            if (currentState) {
-                try {
-                    res.write(`data: ${JSON.stringify(currentState)}\n\n`)
-                } catch {
-                    // NOSONAR: Intentionally swallowing exception — client disconnected before initial state send. This is expected and handled by close event.
-                    return
-                }
+            let currentState: QueueState | null
+            try {
+                currentState = await musicControlService.getState(guildId)
+            } catch {
+                // NOSONAR: headers are already sent, so end the stream instead of a 500.
+                cleanup()
+                res.end()
+                return
             }
+
+            if (closed) return
+            if (currentState && !send(currentState)) return
 
             let clients = sseClients.get(guildId)
             if (!clients) {
@@ -40,40 +90,10 @@ export function setupStateRoutes(app: Express): void {
             }
             clients.add(res)
 
-            const controller = new AbortController()
-            let heartbeat: ReturnType<typeof setInterval> | null = null
-
-            try {
-                heartbeat = setInterval(() => {
-                    if (
-                        controller.signal.aborted ||
-                        res.writableEnded ||
-                        res.destroyed
-                    ) {
-                        return
-                    }
-                    try {
-                        res.write(
-                            `data: ${JSON.stringify({ type: 'heartbeat' })}\n\n`,
-                        )
-                    } catch {
-                        // NOSONAR: Intentionally swallowing heartbeat write exceptions — client disconnected mid-send. The close event handler will clean up the connection.
-                    }
-                }, 30000)
-            } finally {
-                req.on('close', () => {
-                    controller.abort()
-                    if (heartbeat) {
-                        clearInterval(heartbeat)
-                    }
-                    const guildClients = sseClients.get(guildId)
-                    guildClients?.delete(res)
-
-                    if (guildClients && guildClients.size === 0) {
-                        sseClients.delete(guildId)
-                    }
-                })
-            }
+            heartbeat = setInterval(
+                () => send({ type: 'heartbeat' }),
+                HEARTBEAT_INTERVAL_MS,
+            )
         },
     )
 

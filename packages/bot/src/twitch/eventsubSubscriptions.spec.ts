@@ -545,6 +545,66 @@ describe('eventsubSubscriptions', () => {
             )
         })
 
+        it('should skip a channel that belongs to another guild', async () => {
+            const foreignChannel = {
+                guildId: 'other-guild',
+                isTextBased: jest.fn().mockReturnValue(true),
+                isDMBased: jest.fn().mockReturnValue(false),
+                send: jest.fn().mockResolvedValue({}),
+            }
+            const ownChannel = {
+                guildId: 'guild1',
+                isTextBased: jest.fn().mockReturnValue(true),
+                isDMBased: jest.fn().mockReturnValue(false),
+                send: jest.fn().mockResolvedValue({}),
+            }
+            jest.mocked(mockClient.channels!.fetch).mockImplementation(((
+                id: string,
+            ) =>
+                Promise.resolve(
+                    id === 'foreign-channel' ? foreignChannel : ownChannel,
+                )) as never)
+
+            getNotificationsByTwitchUserIdMock.mockResolvedValue([
+                {
+                    guildId: 'guild1',
+                    discordChannelId: 'foreign-channel',
+                    twitchLogin: 'testuser',
+                },
+                {
+                    guildId: 'guild1',
+                    discordChannelId: 'own-channel',
+                    twitchLogin: 'testuser',
+                },
+            ] as any)
+
+            const payload = {
+                subscription: {
+                    type: 'stream.online',
+                    condition: { broadcaster_user_id: 'twitch123' },
+                },
+                event: {
+                    id: 'event123',
+                    broadcaster_user_id: 'twitch123',
+                    broadcaster_user_login: 'testuser',
+                    broadcaster_user_name: 'Test User',
+                    type: 'stream.online',
+                    started_at: '2024-01-01T00:00:00Z',
+                },
+            }
+
+            await handleStreamOnline(payload as any, mockClient as Client)
+
+            expect(foreignChannel.send).not.toHaveBeenCalled()
+            expect(ownChannel.send).toHaveBeenCalledTimes(1)
+            expect(warnLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message:
+                        'Twitch EventSub: channel belongs to another guild, skipping',
+                }),
+            )
+        })
+
         it('should handle null channel gracefully', async () => {
             jest.mocked(mockClient.channels!.fetch).mockResolvedValue(null)
 

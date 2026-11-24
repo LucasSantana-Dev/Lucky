@@ -21,6 +21,19 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
+const getGuildTextChannelOptionsMock =
+    jest.fn<
+        (
+            guildId: string,
+        ) => Promise<Array<{ id: string; name: string; type: number }>>
+    >()
+jest.mock('../../../src/services/GuildService', () => ({
+    guildService: {
+        getGuildTextChannelOptions: (guildId: string) =>
+            getGuildTextChannelOptionsMock(guildId),
+    },
+}))
+
 // Mock auth middleware
 jest.mock('../../../src/middleware/auth', () => ({
     requireAuth: (_req: Request, _res: Response, next: NextFunction) => next(),
@@ -42,6 +55,10 @@ jest.mock('../../../src/middleware/validate', () => ({
 import express from 'express'
 import request from 'supertest'
 import { setupTwitchRoutes } from '../../../src/routes/twitch'
+import {
+    twitchNotificationService,
+    twitchControlService,
+} from '@lucky/shared/services'
 
 function createApp() {
     const app = express()
@@ -228,5 +245,52 @@ describe('GET /api/twitch/users', () => {
         const res = await request(app).get('/api/twitch/users?login=testuser')
         expect(res.status).toBe(504)
         expect(res.body.error).toMatch(/timed out/)
+    })
+})
+
+describe('POST /api/guilds/:guildId/twitch/notifications', () => {
+    const GUILD_ID = '111111111111111111'
+    const OWN_CHANNEL = '222222222222222222'
+    const FOREIGN_CHANNEL = '333333333333333333'
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        getGuildTextChannelOptionsMock.mockResolvedValue([
+            { id: OWN_CHANNEL, name: '#live', type: 0 },
+        ])
+        jest.mocked(twitchNotificationService.add).mockResolvedValue(true)
+    })
+
+    test('rejects a channel that is not in the guild', async () => {
+        const res = await request(createApp())
+            .post(`/api/guilds/${GUILD_ID}/twitch/notifications`)
+            .send({
+                twitchUserId: '1',
+                twitchLogin: 'streamer',
+                discordChannelId: FOREIGN_CHANNEL,
+            })
+
+        expect(res.status).toBe(400)
+        expect(getGuildTextChannelOptionsMock).toHaveBeenCalledWith(GUILD_ID)
+        expect(twitchNotificationService.add).not.toHaveBeenCalled()
+        expect(twitchControlService.publishRefresh).not.toHaveBeenCalled()
+    })
+
+    test('saves a channel that is in the guild', async () => {
+        const res = await request(createApp())
+            .post(`/api/guilds/${GUILD_ID}/twitch/notifications`)
+            .send({
+                twitchUserId: '1',
+                twitchLogin: 'streamer',
+                discordChannelId: OWN_CHANNEL,
+            })
+
+        expect(res.status).toBe(200)
+        expect(twitchNotificationService.add).toHaveBeenCalledWith(
+            GUILD_ID,
+            OWN_CHANNEL,
+            '1',
+            'streamer',
+        )
     })
 })
