@@ -733,6 +733,85 @@ describe('fallback stage stamping', () => {
         )
     })
 
+    // #3275: a stage that searched fine but matched nothing is an expected
+    // miss. It logs at debug, and the candidates reach the one warn that
+    // matters, the exhausted line, only when the play fails.
+    it('logs expected SoundCloud misses at debug and reports them once', async () => {
+        const miss = (rejected: unknown[]) =>
+            Object.assign(new Error('SoundCloud: no validated match'), {
+                name: 'SoundCloudNoMatchError',
+                rejected,
+            })
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
+        mockStreamViaSoundCloud
+            .mockRejectedValueOnce(miss([{ name: 'full' }]))
+            .mockRejectedValueOnce(miss([{ name: 'title' }]))
+            .mockRejectedValueOnce(miss([{ name: 'core' }]))
+        mockCleanTitle.mockReturnValue('Song (Official) Mix')
+        const track = makeTrack({ title: 'Song (Official) Mix' })
+
+        await expect(createResilientStream(track)).rejects.toThrow(
+            'Bridge exhausted',
+        )
+
+        const warned = mockWarnLog.mock.calls.map(
+            ([entry]) => (entry as { message: string }).message,
+        )
+        expect(warned).not.toContain(
+            'Bridge: SoundCloud primary search failed, retrying with title only',
+        )
+        expect(warned).not.toContain(
+            'Bridge: title-only SoundCloud failed, retrying without parentheticals',
+        )
+        expect(mockDebugLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message:
+                    'Bridge: SoundCloud primary search failed, retrying with title only',
+            }),
+        )
+        expect(mockWarnLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'Bridge: all stages exhausted',
+                data: expect.objectContaining({
+                    soundCloudRejected: {
+                        'soundcloud-full': [{ name: 'full' }],
+                        'soundcloud-title': [{ name: 'title' }],
+                        'soundcloud-core': [{ name: 'core' }],
+                    },
+                }),
+            }),
+        )
+    })
+
+    it('forgets the previous play misses when the same track plays again', async () => {
+        const miss = Object.assign(
+            new Error('SoundCloud: no validated match'),
+            {
+                name: 'SoundCloudNoMatchError',
+                rejected: [{ name: 'old' }],
+            },
+        )
+        mockStreamViaYtDlp.mockRejectedValue(new Error('yt-dlp failed'))
+        mockCleanTitle.mockReturnValue('Song (Official) Mix')
+        const track = makeTrack({ title: 'Song (Official) Mix' })
+        mockStreamViaSoundCloud.mockRejectedValue(miss)
+        await expect(createResilientStream(track)).rejects.toThrow()
+
+        mockWarnLog.mockClear()
+        mockStreamViaSoundCloud.mockRejectedValue(new Error('socket hang up'))
+        await expect(createResilientStream(track)).rejects.toThrow()
+
+        const exhausted = mockWarnLog.mock.calls
+            .map(([entry]) => entry as { message: string; data?: object })
+            .filter((entry) => entry.message === 'Bridge: all stages exhausted')
+        expect(exhausted.length).toBeGreaterThan(0)
+        for (const entry of exhausted) {
+            expect(entry.data).toEqual(
+                expect.objectContaining({ soundCloudRejected: undefined }),
+            )
+        }
+    })
+
     // #2142: the stage used to be gated on "title has a parenthetical to
     // strip", so titles like "Michael Jackson - Human Nature" never got a
     // third attempt. It must now run whenever stage 2 fails, broadening via
@@ -1456,6 +1535,47 @@ describe('empty YouTube search retry', () => {
             .mockResolvedValueOnce(found('Song'))
         await createResilientStream(spotifyTrack())
         expect(mockSearchYtDlpCandidates.mock.calls[1][0]).toBe(`Song ${lead}`)
+    })
+
+    // #3276: "Duvet - Acoustic" by bôa (5:14, prod 2026-11-22). cleanTitle
+    // drops the version suffix, so in prod both searches found only the
+    // original (3:24 to 3:33) and the play failed. Here the primary search
+    // returns that original, and the broad one, now asking for "acoustic",
+    // returns "bôa - Duvet (Acoustic)".
+    it('puts the version the Spotify title asks for back into the broad query', async () => {
+        mockCleanTitle.mockReturnValue('Duvet')
+        mockCleanAuthor.mockReturnValue('bôa')
+        mockSearchYtDlpCandidates
+            .mockResolvedValueOnce([
+                hit({
+                    title: 'Bôa - Duvet (Official Video)',
+                    durationSec: 213,
+                }),
+            ])
+            .mockResolvedValueOnce([
+                hit({ title: 'bôa - Duvet (Acoustic)', durationSec: 315 }),
+            ])
+        const track = makeTrack({
+            title: 'Duvet - Acoustic',
+            author: 'bôa',
+            duration: '05:14',
+            url: 'https://open.spotify.com/track/0wlsgzAk1LaO8MMoXxpz7W',
+        })
+
+        await expect(createResilientStream(track)).resolves.toBe(fakeStream)
+        expect(mockSearchYtDlpCandidates.mock.calls[1][0]).toBe(
+            'Duvet bôa acoustic',
+        )
+    })
+
+    it('adds no version word when the Spotify title asks for none', async () => {
+        mockCleanTitle.mockReturnValue('Song')
+        mockCleanAuthor.mockReturnValue('Artist')
+        mockSearchYtDlpCandidates
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce(found('Song'))
+        await createResilientStream(spotifyTrack())
+        expect(mockSearchYtDlpCandidates.mock.calls[1][0]).toBe('Song Artist')
     })
 
     it('logs the empty search as a retry, not a SoundCloud fallback', async () => {

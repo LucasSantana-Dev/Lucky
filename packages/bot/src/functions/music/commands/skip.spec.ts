@@ -149,7 +149,7 @@ describe('skip command', () => {
         expect(clearSessionMoodCacheMock).toHaveBeenCalledWith('guild-1')
     })
 
-    it('runs the voice guard and cheap queue checks before the defer and the DJ check after it (#2977)', async () => {
+    it('runs the voice guard, queue checks and the DJ check before the defer (#2977, #3278)', async () => {
         const order: string[] = []
         const queue = createQueue('guild-1')
         queue.node.skip.mockImplementation(() => {
@@ -162,6 +162,14 @@ describe('skip command', () => {
         })
         requireSameVoiceChannelMock.mockImplementationOnce(async () => {
             order.push('requireSameVoiceChannel')
+            return true
+        })
+        requireQueueMock.mockImplementation(async () => {
+            order.push('requireQueue')
+            return true
+        })
+        requireCurrentTrackMock.mockImplementation(async () => {
+            order.push('requireCurrentTrack')
             return true
         })
         requireIsPlayingMock.mockImplementation(async () => {
@@ -182,11 +190,32 @@ describe('skip command', () => {
         expect(order).toEqual([
             'requireGuild',
             'requireSameVoiceChannel',
+            'requireQueue',
+            'requireCurrentTrack',
             'requireIsPlaying',
-            'defer',
             'requireDJRole',
+            'defer',
             'skip',
         ])
+    })
+
+    it('defers before a slow DJ check finishes so the interaction cannot expire', async () => {
+        let allow: (value: boolean) => void = () => {}
+        requireDJRoleMock.mockReturnValue(
+            new Promise<boolean>((resolve) => {
+                allow = resolve
+            }),
+        )
+        const interaction = createInteraction('guild-1')
+
+        const run = skipCommand.execute({ interaction, client: {} as any })
+        await jest.advanceTimersByTimeAsync(2_000)
+        expect(interaction.deferReply).toHaveBeenCalledTimes(1)
+
+        allow(true)
+        await run
+        expect(interaction.deferReply).toHaveBeenCalledTimes(1)
+        expect(clearSessionMoodCacheMock).toHaveBeenCalled()
     })
 
     it('does not defer when a cheap check fails, so its reply stays ephemeral', async () => {
@@ -291,13 +320,13 @@ describe('skip command', () => {
 
     it('returns early if DJ role check fails', async () => {
         requireDJRoleMock.mockResolvedValue(false)
+        const interaction = createInteraction('guild-1')
 
-        await skipCommand.execute({
-            interaction: createInteraction('guild-1'),
-            client: {} as any,
-        })
+        await skipCommand.execute({ interaction, client: {} as any })
 
         expect(clearSessionMoodCacheMock).not.toHaveBeenCalled()
+        // No public defer, so the DJ Only refusal stays ephemeral (#3278).
+        expect(interaction.deferReply).not.toHaveBeenCalled()
     })
 
     it('returns early if queue check fails', async () => {
@@ -342,5 +371,94 @@ describe('skip command', () => {
         })
 
         expect(maybePromptAutoplayFeedbackMock).not.toHaveBeenCalled()
+    })
+
+    it('does not report an error when only the feedback prompt fails (#3279)', async () => {
+        maybePromptAutoplayFeedbackMock.mockRejectedValueOnce(new Error('dm'))
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+
+        expect(queue.node.skip).toHaveBeenCalledTimes(1)
+        expect(buildCommandTrackEmbedMock).toHaveBeenCalled()
+        expect(createErrorEmbedMock).not.toHaveBeenCalled()
+    })
+
+    it('skips once when two /skip calls race on the same track (#3279)', async () => {
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await Promise.all([
+            skipCommand.execute({
+                interaction: createInteraction('guild-1'),
+                client: {} as any,
+            }),
+            skipCommand.execute({
+                interaction: createInteraction('guild-1'),
+                client: {} as any,
+            }),
+        ])
+
+        expect(queue.node.skip).toHaveBeenCalledTimes(1)
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+            expect.any(String),
+            expect.stringContaining('already skipped'),
+        )
+    })
+
+    it('lets a retry skip after the first skip threw (#3279)', async () => {
+        const queue = createQueue('guild-1')
+        queue.node.skip.mockImplementationOnce(() => {
+            throw new Error('boom')
+        })
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+
+        expect(queue.node.skip).toHaveBeenCalledTimes(2)
+    })
+
+    it('refuses a /skip whose song changed while it was being checked (#3279)', async () => {
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        requireDJRoleMock.mockImplementationOnce(async () => {
+            queue.currentTrack = { title: 'Next Song' }
+            return true
+        })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+
+        expect(queue.node.skip).not.toHaveBeenCalled()
+    })
+
+    it('allows the same song to be skipped again after the dedupe window', async () => {
+        const queue = createQueue('guild-1')
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+        jest.advanceTimersByTime(5_000)
+        await skipCommand.execute({
+            interaction: createInteraction('guild-1'),
+            client: {} as any,
+        })
+
+        expect(queue.node.skip).toHaveBeenCalledTimes(2)
     })
 })

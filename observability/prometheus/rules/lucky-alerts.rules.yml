@@ -47,6 +47,7 @@ groups:
             at startup. Check lucky_bot_extraction_failures_total labelled
             forbidden/botcheck, recent yt-dlp logs, and the startup log for
             "YouTube extractor unavailable".
+          runbook: "Check lucky_bot_extraction_failures_total (forbidden/botcheck) and the lucky-bot yt-dlp logs; refresh cookies or wait for the block breaker to close."
 
   - name: lucky-backend-errors
     rules:
@@ -64,6 +65,7 @@ groups:
           description: >-
             More than 5% of backend requests returned 5xx over the last 5 minutes.
             Check recent deploy, Redis/DB connectivity, and Sentry for the release.
+          runbook: "Check the latest deploy, Redis and Postgres connectivity, and Sentry for the current release; roll back if it started with a deploy."
 
       - alert: LuckyBackendErrorBurstFast
         expr: |
@@ -79,6 +81,7 @@ groups:
           description: >-
             Backend is erroring on more than 10% of requests over 2 minutes —
             fast-burn signal of an outage or a bad release.
+          runbook: "Check the latest deploy and lucky-backend logs now; roll back the release if the burst started with a deploy."
 
   - name: lucky-liveness
     rules:
@@ -94,6 +97,7 @@ groups:
             The backend metrics endpoint has been unreachable for 5 minutes. The
             backend may be down. NOTE: this cannot fire if Prometheus itself is
             down — the off-box heartbeat (HEALTHCHECK_URL_EXTERNAL) covers that.
+          runbook: "Check docker ps and the lucky-backend container logs on the host; restart lucky-backend if it is unhealthy."
 
       - alert: LuckyBotScrapeDown
         expr: up{job="lucky-bot"} == 0
@@ -106,6 +110,7 @@ groups:
           description: >-
             The bot metrics endpoint (:9091) has been unreachable for 5 minutes.
             Cross-check the bot's Docker HEALTHCHECK (/healthz) and the heartbeat.
+          runbook: "Check docker ps, the lucky-bot healthcheck (/healthz) and its logs; restart lucky-bot if it is unhealthy."
 
   - name: lucky-resource-pressure
     rules:
@@ -125,52 +130,4 @@ groups:
             been above 90% of its mem_limit for 15 minutes. Replaces the old
             nodejs_heap_size_used/nodejs_heap_size_total ratio, which idled at
             92-96% on healthy processes because V8 grows heap_total lazily.
-
-      - alert: HighMemoryUsage
-        expr: |
-          sum by (name) (container_memory_working_set_bytes{name!="lucky-bot"})
-            / sum by (name) (container_spec_memory_limit_bytes{name!="lucky-bot"} > 0)
-            > 0.85
-        for: 15m
-        labels:
-          severity: warning
-          service: homelab-containers
-        annotations:
-          summary: "Container {{ $labels.name }} working set > 85% of its memory limit"
-          description: >-
-            A container's working set has been above 85% of its mem_limit for 15
-            minutes. Uses container_memory_working_set_bytes (excludes
-            reclaimable page cache) instead of container_memory_usage_bytes,
-            which fired on IO-heavy containers on cache, not real pressure.
-
-      - alert: CriticalMemoryUsage
-        expr: |
-          sum by (name) (container_memory_working_set_bytes)
-            / sum by (name) (container_spec_memory_limit_bytes > 0)
-            > 0.95
-        for: 10m
-        labels:
-          severity: critical
-          service: homelab-containers
-        annotations:
-          summary: "Container {{ $labels.name }} working set > 95% of its memory limit"
-          description: >-
-            A container's working set has been above 95% of its mem_limit for 10
-            minutes and is close to being OOM-killed. Uses working set (excludes
-            page cache), not raw usage.
-
-      - alert: HostMemoryHigh
-        expr: |
-          1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
-            > 0.9
-        for: 15m
-        labels:
-          severity: warning
-          service: homelab-host
-        annotations:
-          summary: "Host memory headroom below 10%"
-          description: >-
-            Less than 10% of host memory is available (MemAvailable subtracts
-            reclaimable page cache and buffers). A total-minus-free calculation
-            overstates pressure because free excludes cache the kernel can
-            reclaim on demand.
+          runbook: "Check lucky-bot memory growth on the 'Lucky: sistema' dashboard and in its logs; restart lucky-bot if it keeps climbing."

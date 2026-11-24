@@ -1,0 +1,61 @@
+# Host-level memory alerts, split out of lucky-alerts.rules.yml.
+#
+# Standalone `observability` Compose profile ONLY. Never load this file in the
+# homelab Prometheus: it already defines HighMemoryUsage and CriticalMemoryUsage
+# (names collide). The homelab owns host and container alerts; Lucky owns Lucky*
+# application alerts. See observability/README.md.
+#
+# The container series come from cAdvisor and the host series from node_exporter,
+# both scraped by observability/prometheus/prometheus.yml.
+
+groups:
+  - name: host-memory
+    rules:
+      - alert: HighMemoryUsage
+        expr: |
+          sum by (name) (container_memory_working_set_bytes{name!="lucky-bot"})
+            / sum by (name) (container_spec_memory_limit_bytes{name!="lucky-bot"} > 0)
+            > 0.85
+        for: 15m
+        labels:
+          severity: warning
+          service: homelab-containers
+        annotations:
+          summary: "Container {{ $labels.name }} working set > 85% of its memory limit"
+          description: >-
+            A container's working set has been above 85% of its mem_limit for 15
+            minutes. Uses container_memory_working_set_bytes (excludes
+            reclaimable page cache) instead of container_memory_usage_bytes,
+            which fired on IO-heavy containers on cache, not real pressure.
+
+      - alert: CriticalMemoryUsage
+        expr: |
+          sum by (name) (container_memory_working_set_bytes)
+            / sum by (name) (container_spec_memory_limit_bytes > 0)
+            > 0.95
+        for: 10m
+        labels:
+          severity: critical
+          service: homelab-containers
+        annotations:
+          summary: "Container {{ $labels.name }} working set > 95% of its memory limit"
+          description: >-
+            A container's working set has been above 95% of its mem_limit for 10
+            minutes and is close to being OOM-killed. Uses working set (excludes
+            page cache), not raw usage.
+
+      - alert: HostMemoryHigh
+        expr: |
+          1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+            > 0.9
+        for: 15m
+        labels:
+          severity: warning
+          service: homelab-host
+        annotations:
+          summary: "Host memory headroom below 10%"
+          description: >-
+            Less than 10% of host memory is available (MemAvailable subtracts
+            reclaimable page cache and buffers). A total-minus-free calculation
+            overstates pressure because free excludes cache the kernel can
+            reclaim on demand.

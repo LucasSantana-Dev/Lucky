@@ -107,7 +107,7 @@
             "offButton": "Desligar resumo semanal",
             "offHint": "Administradores podem desligar pelo botão abaixo ou com /recap off",
             "alreadyOff": "O resumo semanal já está desligado.",
-            "notTextChannel": "❌ Escolha um canal de texto para o resumo.",
+            "notTextChannel": "❌ Escolha um canal de texto ou o chat de um canal de voz para o resumo.",
             "missingPermissions": "❌ Não consigo postar em <#{{channel}}>. Preciso de Ver canal, Enviar mensagens e Inserir links lá.",
             "failed": "❌ Não consegui atualizar o resumo semanal. Tente de novo daqui a pouco.",
             "needManageGuild": "Você precisa da permissão **Gerenciar servidor** para configurar o resumo semanal.",
