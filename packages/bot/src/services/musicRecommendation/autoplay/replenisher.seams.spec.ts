@@ -920,6 +920,100 @@ describe('replenisher seam functions', () => {
             expect(genreCtx.spotifySearchBudget).toBeDefined()
         })
 
+        // Profile picks only fill the slots seed picks leave (#3335), so
+        // their Spotify searches are wasted when the seed covers the gap.
+        describe('Last.fm library when the seed covers the buffer', () => {
+            const seedPick = (title: string, score = 0.8) => ({
+                track: createTrack({ title }),
+                score,
+                basis: { source: 'spotify-rec', signals: [] },
+            })
+            const context = () => ({
+                queue: createGuildQueue(),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                autoplayMode: 'similar' as const,
+                artistFrequency: new Map(),
+                excludedUrls: new Set(),
+                excludedKeys: new Set(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                likedWeights: new Map(),
+                sessionMood: {
+                    deepDiveArtist: null,
+                    preferLong: false,
+                    preferShort: false,
+                    restless: false,
+                    dominantLocale: null,
+                },
+                genreContext: {
+                    getArtistTags: jest.fn().mockResolvedValue([]),
+                    currentTrackTags: [],
+                    sessionGenreFamilies: new Set(),
+                },
+                replayFrequentTrackIds: new Set(),
+                replayFrequentArtists: new Set(),
+                recentArtistIndices: new Map(),
+            })
+            const collect = async (picks: unknown[]) => {
+                const {
+                    collectRecommendationCandidates,
+                } = require('./candidateCollector')
+                const {
+                    selectDiverseCandidates,
+                } = require('./diversitySelector')
+                const { collectLastFmCandidates } = require('./lastFmSeeder')
+                collectLastFmCandidates.mockClear()
+                collectRecommendationCandidates.mockResolvedValue(
+                    new Map(picks.map((p, i) => [`k${i}`, p])),
+                )
+                selectDiverseCandidates.mockReturnValue(picks)
+                const result = await collectAllCandidates(
+                    context() as never,
+                    [createTrack()],
+                    createUser(),
+                    false,
+                    null,
+                    new Map(),
+                    2,
+                )
+                return { result, collectLastFmCandidates }
+            }
+
+            it('skips it when seed picks fill every missing slot', async () => {
+                const { result, collectLastFmCandidates } = await collect([
+                    seedPick('Tcheca'),
+                    seedPick('Say So'),
+                ])
+
+                expect(collectLastFmCandidates).not.toHaveBeenCalled()
+                expect(result.sourcesCounts.lastfm).toEqual({
+                    skipped: true,
+                    reason: 'seed-covered',
+                })
+            })
+
+            it('runs it when the seed picks leave a slot', async () => {
+                const { collectLastFmCandidates } = await collect([
+                    seedPick('Tcheca'),
+                ])
+
+                expect(collectLastFmCandidates).toHaveBeenCalled()
+            })
+
+            it('runs it when a seed pick is penalised', async () => {
+                const { collectLastFmCandidates } = await collect([
+                    seedPick('Tcheca'),
+                    seedPick('Disliked', -0.2),
+                ])
+
+                expect(collectLastFmCandidates).toHaveBeenCalled()
+            })
+        })
+
         // A session restored after a restart has no requester. The seed
         // collectors only need the seed track, so they must still run, or
         // the pool empties and autoplay loops on history replay (#3072).

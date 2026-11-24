@@ -361,6 +361,7 @@ async function _replenishQueue(
                 blockSertanejo,
                 guildSettings,
                 contributionWeights,
+                missingTracks,
             )
 
         debugLog({
@@ -896,6 +897,27 @@ async function collectBroadFallbackWithTimeout(
 }
 
 /**
+ * True when seed-grounded picks alone fill the buffer gap. Last.fm library
+ * picks only fill the slots those leave (#3335), so collecting them would
+ * spend their Spotify searches for nothing. Dry-runs the selector with the
+ * default per-artist cap; the deep-dive cap is wider, so it never over-counts.
+ */
+function seedCoversBuffer(
+    candidates: Map<string, ScoredTrack>,
+    missingTracks: number,
+    currentTrack: Track,
+): boolean {
+    const picks = selectDiverseCandidates(
+        candidates,
+        missingTracks,
+        MAX_TRACKS_PER_ARTIST,
+        MAX_TRACKS_PER_SOURCE,
+        primaryArtistKey(currentTrack.author),
+    )
+    return picks.filter((c) => seedFirstTier(c) === 0).length >= missingTracks
+}
+
+/**
  * Collect all autoplay candidates from five sources: recommendation, seed-similar,
  * lastfm, genre, and fallback. Returns candidates set and sourcesCounts breakdown.
  */
@@ -906,6 +928,8 @@ export async function collectAllCandidates(
     blockSertanejo: boolean,
     guildSettings: { autoplayGenres?: string[] } | null,
     contributionWeights: Map<string, number>,
+    /** Buffer gap; when known, the Last.fm library is skipped if seed picks fill it. */
+    missingTracks?: number,
 ): Promise<{
     candidates: Map<string, ScoredTrack>
     sourcesCounts: Record<string, SourceCount>
@@ -964,7 +988,17 @@ export async function collectAllCandidates(
         },
     })
 
-    if (requestedBy?.id) {
+    if (
+        requestedBy?.id &&
+        missingTracks !== undefined &&
+        seedCoversBuffer(
+            candidates,
+            missingTracks,
+            autoplayContext.currentTrack,
+        )
+    ) {
+        sourcesCounts.lastfm = { skipped: true, reason: 'seed-covered' }
+    } else if (requestedBy?.id) {
         const beforeLastFm = candidates.size
         await collectLastFmCandidates(
             autoplayContext,
