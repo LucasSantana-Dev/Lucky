@@ -45,12 +45,35 @@ export function captureException(
 }
 
 /**
+ * With `attachStacktrace`, the SDK sends a message as a synthetic exception
+ * with no type. Sentry titles such an event after the top frame's function,
+ * so every message showed up as "captureMessage". Naming the exception after
+ * the `category` tag (and clearing the synthetic flag, which makes Sentry
+ * ignore the type) titles the issue "<category>: <message>" instead.
+ */
+export function titleMessageEvent(
+    event: Sentry.Event,
+    category: string,
+): Sentry.Event {
+    for (const value of event.exception?.values ?? []) {
+        if (value.type) continue
+        value.type = category
+        if (value.mechanism?.synthetic) {
+            value.mechanism = { ...value.mechanism, synthetic: false }
+        }
+    }
+    return event
+}
+
+/**
  * Capture a message in Sentry
  * @param message The message to capture
  * @param level The severity level
  * @param extras Additional data to include with the message
  * @param tags Searchable string tags for aggregation and filtering
- * @param fingerprint Optional grouping key so distinct root causes get their own issue
+ * @param fingerprint Optional grouping key so distinct root causes get their own issue.
+ *   Without one, a message with a `category` tag is grouped by that category and
+ *   the call site, so it no longer merges with unrelated messages.
  */
 export function captureMessage(
     message: string,
@@ -63,11 +86,25 @@ export function captureMessage(
         return
     }
 
-    Sentry.captureMessage(message, {
-        level,
-        extra: extras,
-        tags,
-        ...(fingerprint ? { fingerprint } : {}),
+    // Several callers pass `category` in extras instead of tags: honour it
+    // there too, and promote it to a tag so it stays searchable.
+    const extraCategory =
+        typeof extras?.category === 'string' ? extras.category : undefined
+    const declared = tags?.category ?? extraCategory
+    const category = declared ?? 'message'
+    const allTags =
+        declared && !tags?.category ? { ...tags, category: declared } : tags
+    const grouping =
+        fingerprint ?? (declared ? ['{{ default }}', declared] : undefined)
+
+    Sentry.withScope((scope) => {
+        scope.addEventProcessor((event) => titleMessageEvent(event, category))
+        Sentry.captureMessage(message, {
+            level,
+            extra: extras,
+            tags: allTags,
+            ...(grouping ? { fingerprint: grouping } : {}),
+        })
     })
 }
 
