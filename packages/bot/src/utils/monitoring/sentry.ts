@@ -86,17 +86,23 @@ export function captureMessage(
         return
     }
 
-    const category = tags?.category ?? 'message'
+    // Several callers pass `category` in extras instead of tags: honour it
+    // there too, and promote it to a tag so it stays searchable.
+    const extraCategory =
+        typeof extras?.category === 'string' ? extras.category : undefined
+    const declared = tags?.category ?? extraCategory
+    const category = declared ?? 'message'
+    const allTags =
+        declared && !tags?.category ? { ...tags, category: declared } : tags
     const grouping =
-        fingerprint ??
-        (tags?.category ? ['{{ default }}', category] : undefined)
+        fingerprint ?? (declared ? ['{{ default }}', declared] : undefined)
 
     Sentry.withScope((scope) => {
         scope.addEventProcessor((event) => titleMessageEvent(event, category))
         Sentry.captureMessage(message, {
             level,
             extra: extras,
-            tags,
+            tags: allTags,
             ...(grouping ? { fingerprint: grouping } : {}),
         })
     })

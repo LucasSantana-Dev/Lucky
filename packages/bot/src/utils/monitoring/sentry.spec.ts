@@ -161,6 +161,28 @@ describe('sentry telemetry helpers', () => {
         )
     })
 
+    it('reads a category passed in extras and promotes it to a tag', () => {
+        captureMessage('Top.gg stats POST failed', 'warning', {
+            category: 'topgg.stats',
+            status: 500,
+        })
+
+        expect(Sentry.captureMessage).toHaveBeenCalledWith(
+            'Top.gg stats POST failed',
+            expect.objectContaining({
+                tags: { category: 'topgg.stats' },
+                fingerprint: ['{{ default }}', 'topgg.stats'],
+            }),
+        )
+        const processor = mockScope.addEventProcessor.mock.calls[0][0] as (
+            event: Sentry.Event,
+        ) => Sentry.Event
+        expect(
+            processor({ exception: { values: [{ value: 'x' }] } }).exception
+                ?.values?.[0]?.type,
+        ).toBe('topgg.stats')
+    })
+
     it('keeps the default grouping for a message with no category', () => {
         captureMessage('plain message', 'info')
 
