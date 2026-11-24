@@ -30,3 +30,4 @@ groups:
             log for "play probe: case failed" (it names the stage: resolve or
             first_byte), lucky_bot_extraction_failures_total by type, and the
             LuckyYouTubeDegraded alert.
+          runbook: "Check the lucky-bot log for play probe: case failed (it names the stage) and LuckyYouTubeDegraded."

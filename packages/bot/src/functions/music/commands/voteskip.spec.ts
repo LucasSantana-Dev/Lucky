@@ -19,7 +19,11 @@ const clearVotesMock = jest.fn()
 const getVotesMock = jest.fn()
 const hasVotedMock = jest.fn()
 
+const requireSameVoiceChannelMock = jest.fn(async (..._args: unknown[]) => true)
+
 jest.mock('../../../utils/command/commandValidations', () => ({
+    requireSameVoiceChannel: (...args: unknown[]) =>
+        requireSameVoiceChannelMock(...args),
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
     requireCurrentTrack: (...args: unknown[]) =>
@@ -93,6 +97,23 @@ describe('voteskip command', () => {
         getGuildSettingsMock.mockResolvedValue({ voteSkipThreshold: 50 })
     })
 
+    it('refuses a member outside the bot voice channel (#3266)', async () => {
+        requireSameVoiceChannelMock.mockResolvedValueOnce(false)
+        const queue = createQueue()
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = createInteraction()
+
+        await voteskipCommand.execute({ client: {}, interaction } as any)
+
+        expect(requireSameVoiceChannelMock).toHaveBeenCalledWith(
+            queue,
+            interaction,
+        )
+        expect(requireQueueMock).not.toHaveBeenCalled()
+        expect(interactionReplyMock).not.toHaveBeenCalled()
+        expect(addVoteMock).not.toHaveBeenCalled()
+    })
+
     it('has correct command name and category', () => {
         expect(voteskipCommand.data.name).toBe('voteskip')
         expect(voteskipCommand.category).toBe('music')
@@ -151,6 +172,19 @@ describe('voteskip command', () => {
         expect(createSuccessEmbedMock).toHaveBeenCalledWith(
             '🗳️ Vote recorded',
             expect.any(String),
+        )
+    })
+
+    it('ignores votes from users who left the voice channel (#3267)', async () => {
+        const queue = createQueue(4)
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        addVoteMock.mockReturnValue(new Set(['user-1', 'gone-1', 'gone-2']))
+        const interaction = createInteraction()
+        await voteskipCommand.execute({ client: {}, interaction } as any)
+        expect(queue.node.skip).not.toHaveBeenCalled()
+        expect(createSuccessEmbedMock).toHaveBeenCalledWith(
+            '🗳️ Vote recorded',
+            expect.stringContaining('1/2 votes'),
         )
     })
 

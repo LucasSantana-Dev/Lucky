@@ -58,3 +58,13 @@ export const writeLimiter = rateLimit({
     legacyHeaders: false,
     message: { error: 'Too many write requests, please try again later' },
 })
+
+// Public, unauthenticated support intake: a real user files a handful of
+// reports at most, so cap per IP well below the generic write budget.
+export const supportLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: 10,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    message: { error: 'Too many support reports, please try again later' },
+})

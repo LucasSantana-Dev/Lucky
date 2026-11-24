@@ -4,10 +4,11 @@ import { resolve } from 'node:path'
 
 const debugLogMock = jest.fn()
 const warnLogMock = jest.fn()
+const infoLogMock = jest.fn()
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...a: unknown[]) => debugLogMock(...a),
     errorLog: jest.fn(),
-    infoLog: jest.fn(),
+    infoLog: (...a: unknown[]) => infoLogMock(...a),
     warnLog: (...a: unknown[]) => warnLogMock(...a),
 }))
 jest.mock('@lucky/shared/services', () => ({
@@ -81,17 +82,23 @@ describe('buildRecapCardPayload', () => {
         expect(payload.topArtists).toEqual([{ name: 'Artist A', plays: 6 }])
     })
 
-    it('logs only counts of dropped covers', async () => {
-        debugLogMock.mockClear()
+    it('logs only counts and the duration of the cover phase, at info', async () => {
+        infoLogMock.mockClear()
         await buildRecapCardPayload(recap, {
             fetch: asFetch(coverFetch()),
             getCardTracks: jest.fn().mockResolvedValue(cardTracks),
         })
 
         // 2 thumbnails wanted (one is off-allowlist), 1 cover obtained.
-        expect(debugLogMock).toHaveBeenCalledWith({
+        expect(infoLogMock).toHaveBeenCalledWith({
             message: 'recap card: covers fetched',
-            data: { guildId: 'g-1', wanted: 2, got: 1, dropped: 1 },
+            data: {
+                guildId: 'g-1',
+                wanted: 2,
+                got: 1,
+                dropped: 1,
+                durationMs: expect.any(Number),
+            },
         })
     })
 

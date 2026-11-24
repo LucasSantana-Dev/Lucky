@@ -152,9 +152,12 @@ jest.mock('../../services/musicRecommendation/feedbackService', () => ({
 }))
 
 const clearSessionMoodCacheMock = jest.fn()
+const clearAutoplayGuildStateMock = jest.fn()
 jest.mock('../../services/musicRecommendation/autoplay/replenisher', () => ({
     clearSessionMoodCache: (...args: unknown[]) =>
         clearSessionMoodCacheMock(...args),
+    clearAutoplayGuildState: (...args: unknown[]) =>
+        clearAutoplayGuildStateMock(...args),
 }))
 
 const recordRecommendationOutcomeMock = jest.fn()
@@ -1408,6 +1411,15 @@ describe('track history when a queue is deleted mid-play', () => {
         await handlers.queueDelete(makeQueue('guild-idle'))
 
         expect(clearIdleTimerMock).toHaveBeenCalledWith('guild-idle')
+    })
+
+    it('clears the per-guild autoplay state of the ended session (#3280)', async () => {
+        const handlers = setupHandlers()
+        clearAutoplayGuildStateMock.mockClear()
+
+        await handlers.queueDelete(makeQueue('guild-ended'))
+
+        expect(clearAutoplayGuildStateMock).toHaveBeenCalledWith('guild-ended')
     })
 
     it('does not throw when the scrobble fails', async () => {

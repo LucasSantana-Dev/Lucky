@@ -22,7 +22,9 @@ jobs:
         timeout-minutes: 10
         steps:
             - name: Post Discord alert
-              if: contains(fromJSON('["FIRST_TIMER","FIRST_TIME_CONTRIBUTOR","CONTRIBUTOR","NONE"]'), github.event.pull_request.author_association)
+              # Bot authors (Dependabot, Renovate) report NONE/CONTRIBUTOR too but are not
+              # outside contributors, so they never page the channel.
+              if: github.event.pull_request.user.type != 'Bot' && contains(fromJSON('["FIRST_TIMER","FIRST_TIME_CONTRIBUTOR","CONTRIBUTOR","NONE"]'), github.event.pull_request.author_association)
               uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
               env:
                   DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_DEPLOY_ALERT_WEBHOOK }}
@@ -61,6 +63,10 @@ jobs:
                               body: JSON.stringify(payload),
                               signal: controller.signal,
                           });
+                          if (res.status === 404) {
+                              core.warning('DISCORD_DEPLOY_ALERT_WEBHOOK returned 404; webhook was deleted on the Discord side, rotate the secret');
+                              return;
+                          }
                           if (!res.ok) throw new Error(`Discord webhook failed: ${res.status}`);
                       } finally {
                           clearTimeout(timeout);
@@ -92,7 +98,7 @@ jobs:
                       });
                       const now = Date.now();
                       const rows = prs
-                          .filter((pr) => external.has(pr.author_association) && !pr.draft)
+                          .filter((pr) => external.has(pr.author_association) && !pr.draft && pr.user.type !== 'Bot')
                           .map((pr) => ({
                               number: pr.number,
                               title: pr.title,

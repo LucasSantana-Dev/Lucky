@@ -94,6 +94,18 @@ class CollaborativePlaylistService {
         state.updatedAt = Date.now()
     }
 
+    /** Gives back requests counted for a command that queued nothing. */
+    releaseContribution(guildId: string, userId: string, trackCount = 1): void {
+        const state = this.states.get(guildId)
+        if (!state?.enabled) return
+
+        const left =
+            (state.contributions[userId] ?? 0) - Math.max(1, trackCount)
+        if (left > 0) state.contributions[userId] = left
+        else delete state.contributions[userId]
+        state.updatedAt = Date.now()
+    }
+
     /**
      * Clear session state for a guild. Call this when a music session ends
      * (e.g., on queue delete or bot leave).
