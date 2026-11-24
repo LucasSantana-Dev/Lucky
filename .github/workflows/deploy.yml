@@ -13,6 +13,11 @@ on:
                 required: false
                 default: ''
                 type: string
+            force_bot_restart:
+                description: 'Restart the bot now even if people are listening (normally the bot restart waits for listeners, up to 4h). A rollback always restarts it.'
+                required: false
+                default: false
+                type: boolean
     release:
         types: [published]
 
@@ -243,6 +248,7 @@ jobs:
                   WEBHOOK_URL: ${{ secrets.DEPLOY_WEBHOOK_URL }}
                   WEBHOOK_SECRET: ${{ secrets.DEPLOY_WEBHOOK_SECRET }}
                   DEPLOY_SHA: ${{ steps.resolve_sha.outputs.sha }}
+                  FORCE_BOT_RESTART: ${{ (inputs.force_bot_restart || inputs.rollback_sha != '') && 'true' || '' }}
               run: bash scripts/deploy/trigger-deploy-webhook.sh
 
             - name: Validate deployed version

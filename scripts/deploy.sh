@@ -671,6 +671,19 @@ bot_recreate_skippable() {
     log "Bot sources and config unchanged since ${sha:0:7}"
 }
 
+# Prints "schema_changed" unless the running bot's commit and DEPLOYED_SHA
+# have the same prisma tree. Unknown counts as changed, so the bot is recreated.
+bot_schema_state() {
+    local sha
+    sha=$(docker inspect lucky-bot --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
+        | sed -n 's/^COMMIT_SHA=//p' | head -1)
+    if [[ "$sha" =~ ^[0-9a-fA-F]{7,40}$ && -n "$DEPLOYED_SHA" ]] \
+        && git -C "$DEPLOY_DIR" diff --quiet "$sha" "$DEPLOYED_SHA" -- prisma 2>/dev/null; then
+        return 0
+    fi
+    echo schema_changed
+}
+
 # Auto-rollback: when a deploy fails its health checks, redeploy the last SHA
 # that was known healthy (recorded in LAST_GOOD_FILE) and re-check. Returns 0 if
 # the rollback target is healthy (DEPLOYED_SHA is then repointed at it), 1 if no
@@ -828,6 +841,16 @@ phase_end checkout_sync
 
 reexec_if_script_changed
 
+# Bot drain (#2872): keep the bot up while people listen. Sourced after the
+# checkout sync so the helpers match this checkout.
+_bot_drain_available=false
+if [[ -f "$SCRIPT_DIR/deploy/bot-drain.sh" ]]; then
+    # shellcheck source=deploy/bot-drain.sh
+    source "$SCRIPT_DIR/deploy/bot-drain.sh"
+    _bot_drain_available=true
+    bot_drain_cancel
+fi
+
 # Both Prometheus containers read alert rules from this checkout and reread
 # them only on reload: the homelab one (recap-*.rules.yml, homelab#476) and
 # lucky-prometheus from the observability profile. Best-effort: absent
@@ -910,6 +933,30 @@ phase_end image_pull
 _bot_skip_recreate=false
 if bot_recreate_skippable; then
     _bot_skip_recreate=true
+fi
+
+# The bot needs a recreate: wait for its listeners instead of cutting them
+# off (#2872). Only a running, healthy bot is left in place; a deferred bot is
+# recreated by a detached watcher once the deploy has finished.
+_bot_deferred=false
+if [[ "$_bot_drain_available" == "true" ]]; then
+    if [[ "$_bot_skip_recreate" == "true" ]]; then
+        bot_drain_clear
+    elif [[ "$(docker inspect lucky-bot --format '{{.State.Health.Status}}' 2>/dev/null || true)" == "healthy" ]]; then
+        bot_drain_decide "$(bot_schema_state)"
+        if [[ "$BOT_DRAIN_DECISION" == "defer" ]]; then
+            _bot_skip_recreate=true
+            _bot_deferred=true
+            notify 16776960 "Bot Restart Deferred" "${BOT_DRAIN_LISTENERS} session(s) listening; the bot restarts when they finish (up to $(( BOT_DRAIN_TIMEOUT_SECONDS / 60 )) min)"
+        else
+            bot_drain_clear
+            if [[ -n "$BOT_DRAIN_LISTENERS" && "$BOT_DRAIN_LISTENERS" != "0" ]]; then
+                notify 16753920 "Bot Restart" "Restarting the bot with ${BOT_DRAIN_LISTENERS} session(s) listening"
+            fi
+        fi
+    else
+        bot_drain_clear
+    fi
 fi
 
 log "Starting database services..."
@@ -1091,14 +1138,24 @@ if [[ "$_health_rc" -eq 0 ]]; then
 
     DEPLOY_FINAL_STATE="success"
     DEPLOY_FINAL_DESC="All services healthy"
+    if [[ "$_bot_deferred" == "true" ]]; then
+        DEPLOY_FINAL_DESC="All services healthy; bot restart waits for listeners"
+        # Detached and outside the deploy lock; it takes the lock itself
+        # before recreating the bot. A later deploy stops it.
+        ( bot_drain_watch ) </dev/null >>/tmp/lucky-bot-drain.log 2>&1 &
+        disown 2>/dev/null || true
+        log "Bot drain watcher launched (log: /tmp/lucky-bot-drain.log)"
+    fi
     log "Deploy complete!"
-    notify 65280 "Deploy Successful" "All services healthy and running"
+    notify 65280 "Deploy Successful" "$DEPLOY_FINAL_DESC"
 elif attempt_rollback "health checks failed"; then
     # Service restored on the last-good version; the failed SHA already received
     # a failure status inside attempt_rollback, and DEPLOYED_SHA now points at
     # the healthy rollback target (the EXIT trap posts success for it).
     DEPLOY_FINAL_STATE="success"
     DEPLOY_FINAL_DESC="Auto-rolled back to ${DEPLOYED_SHA} after failed deploy"
+    # The rollback recreated the bot, so nothing is waiting anymore.
+    [[ "$_bot_drain_available" == "true" ]] && bot_drain_clear
     log "Deploy failed; auto-rollback restored service on ${DEPLOYED_SHA}"
 else
     DEPLOY_FINAL_STATE="failure"

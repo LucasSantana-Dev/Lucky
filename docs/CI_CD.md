@@ -118,6 +118,15 @@ services unless all database preconditions pass:
 If any pre-rollout DB guard fails, deploy exits immediately with a classified
 migration/schema error and runtime services are not restarted.
 
+The bot is not recreated while people are listening (#2872). When a deploy
+needs a new bot and its `lucky_bot_active_listener_sessions` gauge is above 0,
+everything else rolls out and the running bot stays up; a detached watcher
+(`scripts/deploy/bot-drain.sh`, log in `/tmp/lucky-bot-drain.log` of the
+webhook container) recreates it once the rooms are empty. The wait is capped at
+4 hours from the first deferral (`BOT_DRAIN_TIMEOUT_SECONDS`), after which the
+bot is recreated anyway. A deploy whose Prisma schema changed, a rollback, or a
+manual run with `force_bot_restart` recreates the bot right away.
+
 ### Deploy secrets (how to add)
 
 Add these repository secrets in **Settings → Secrets and variables → Actions**:

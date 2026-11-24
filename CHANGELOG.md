@@ -1881,6 +1881,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): `/play` expands Spotify share links (`spotify.link`, `spotify.app.link`) to the open.spotify.com link, and a Spotify artist link queues that artist's top tracks like `/artist` instead of replying that the link is not supported
 
 ### Fixed
+- fix(infra): a deploy no longer restarts the bot while people are listening; it waits until the voice rooms are empty (up to 4 hours) and `force_bot_restart` on a manual deploy skips the wait (#2872)
 - fix(bot): the `/recap` error for an unsupported channel now says a text channel or a voice channel chat is accepted, in en, es and pt-BR (#3247)
 - **bot**: an isolated YouTube bot-check no longer sends the next 15 min of plays to the slower yt-dlp cookies path; it takes two bot-checks within the window to skip the plain attempt (#3333)
 - fix(bot): when the YouTube search for a Spotify track retries with a broader query, it keeps the version the Spotify title asks for ("Duvet - Acoustic" searches for the acoustic recording instead of only finding the original) (#3276)
