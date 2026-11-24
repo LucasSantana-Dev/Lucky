@@ -8,6 +8,9 @@ module.exports = {
         "@commitlint/cli",
         "@commitlint/config-conventional",
 
+        // Used by the Dockerfile (sourcemaps inject), not imported
+        "@sentry/cli",
+
         // YouTube library (used dynamically)
         "youtubei.js",
 
