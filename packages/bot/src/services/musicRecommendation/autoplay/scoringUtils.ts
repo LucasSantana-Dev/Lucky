@@ -3,6 +3,7 @@ import {
     cleanTitle,
     cleanAuthor,
 } from '../../../utils/music/searchQueryCleaner'
+import type { RecommendationSource } from './recommendationBasis'
 
 /**
  * Normalize text by NFKC-folding, lowercasing, and stripping everything that is
@@ -101,4 +102,27 @@ export function extractYouTubeVideoId(url: string): string | null {
         return id.length >= 8 ? id : null
     }
     return null
+}
+
+// The listener's Last.fm library (loved, top and recent tracks, and their
+// similars) is not tied to the seed, so it only fills the slots that
+// seed-grounded picks cannot (#3335).
+const LISTENER_PROFILE_SOURCES: ReadonlySet<RecommendationSource> = new Set([
+    'lastfm-loved',
+    'lastfm-profile',
+    'lastfm-similar',
+])
+
+/**
+ * Autoplay sort tier: 0 for a seed-grounded pick with a positive score, 1 for
+ * a Last.fm profile pick or a penalised one. Sort by tier, then by score.
+ */
+export function seedFirstTier(candidate: {
+    score: number
+    basis: { source: RecommendationSource }
+}): 0 | 1 {
+    return candidate.score > 0 &&
+        !LISTENER_PROFILE_SOURCES.has(candidate.basis.source)
+        ? 0
+        : 1
 }
