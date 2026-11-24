@@ -236,6 +236,27 @@ describe('diversitySelector', () => {
                 ).toBe(true)
             })
 
+            // Prod audit 2026-11-24 21:09 UTC: the Spotify release was queued
+            // while its music video played (#3337).
+            test('treats "Motel" as the video that ends with a director credit', () => {
+                const keys = keysFor(
+                    timed(
+                        'Uxie Kid - Motel (Official Music Video) Dir. Thiago Veiga',
+                        'Uxie Kid',
+                        'youtube',
+                        180000,
+                    ),
+                )
+
+                expect(
+                    isDuplicateCandidate(
+                        timed('Motel', 'Uxie Kid', 'spotify', 178000),
+                        new Set(),
+                        keys,
+                    ),
+                ).toBe(true)
+            })
+
             test('keeps a similar half title apart when the durations differ clearly', () => {
                 const keys = keysFor(
                     timed(

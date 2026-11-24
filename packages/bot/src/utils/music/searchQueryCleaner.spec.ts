@@ -136,6 +136,40 @@ describe('cleanTitle — Brazilian noise', () => {
     })
 })
 
+describe('cleanTitle: director and producer credits (#3337)', () => {
+    it.each([
+        [
+            'Uxie Kid - Motel (Official Music Video) Dir. Thiago Veiga',
+            'Uxie Kid - Motel',
+        ],
+        [
+            'Big Rush x JotaPills - PATACO Directed by Thiago Veiga',
+            'Big Rush x JotaPills - PATACO',
+        ],
+        [
+            'Big Rush - SR. FANTÁSTICO (Dir. @cardocioso)',
+            'Big Rush - SR. FANTÁSTICO',
+        ],
+        ['Song [Dir: Someone]', 'Song'],
+        ['Brocasito - DOPE!!! [Prod.GomesTheKid]', 'Brocasito - DOPE!!!'],
+        ['UGOVHB - CARRIE ( PROD.EF)', 'UGOVHB - CARRIE'],
+        ['yung lixo - tomodachi [prod biffe]', 'yung lixo - tomodachi'],
+        ['Artist - Song prod. by Someone', 'Artist - Song'],
+    ])('strips the credit from %s', (input, expected) => {
+        expect(cleanTitle(input)).toBe(expected)
+    })
+
+    it.each([
+        'Dirty Diana',
+        'Dir En Grey Tribute Song',
+        'Productivity',
+        'The Director',
+        'Produced Silence',
+    ])('keeps %s', (title) => {
+        expect(cleanTitle(title)).toBe(title)
+    })
+})
+
 describe('extractSongCore', () => {
     it.each([
         ['extracts right side', 'Beyoncé - Halo', undefined, 'Halo'],

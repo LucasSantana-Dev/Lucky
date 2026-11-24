@@ -139,6 +139,14 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     // YouTube auto-generated "Topic" channel suffix
     /\s{0,3}-\s{0,3}topic\b/gi,
 
+    // Director and producer credits (#3337): "(Dir. X)", "[Prod.X]",
+    // "( PROD.EF)", "[prod biffe]", "(Directed by X)". Left in, they become
+    // part of the song key and the duplicate check misses the same song.
+    /[([]\s{0,3}(?:dir[.:]|directed\s+by\b|prod\b|produced\s+by\b)[^)\]]*[)\]]/gi,
+    // The same credits trailing outside brackets: "... Dir. Thiago Veiga".
+    // The dot or colon keeps words like "Dirty" or "Productivity".
+    /\s(?:dir[.:]|directed\s+by\b|prod[.:]|produced\s+by\b).*$/gi,
+
     // Brazilian/Portuguese YouTube title noise
     /#\S+/g,
     /\(tradu[çc][aã]o[^)]*\)/gi,
