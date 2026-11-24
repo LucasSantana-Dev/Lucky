@@ -24,6 +24,7 @@ groups:
             for 15 minutes. Prometheus is size-capped (5GB) but Loki is not:
             check the loki_data volume (a log loop can write tens of GB a day),
             then Postgres growth and application logs.
+          runbook: "Check the loki_data volume first, then Postgres growth and application logs; prune what is safe."
 
       - alert: LuckyDiskSpaceCritical
         expr: |
@@ -40,6 +41,7 @@ groups:
           description: >-
             Filesystem {{ $labels.mountpoint }} has less than 10% free space
             for 5 minutes. The host is close to running out of disk.
+          runbook: "Free disk now: check loki_data, docker system df and application logs; prune what is safe."
 
   - name: lucky-watchdog
     rules:

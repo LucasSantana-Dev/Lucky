@@ -6,6 +6,7 @@ process.env.CLIENT_SECRET = 'test-client-secret'
 process.env.WEBAPP_REDIRECT_URI = 'http://localhost:3000/api/auth/callback'
 process.env.WEBAPP_PORT = '3000'
 process.env.WEBAPP_SESSION_SECRET = 'test-session-secret'
+process.env.SESSION_TOKEN_KEY = Buffer.alloc(32, 7).toString('base64')
 process.env.DEVELOPER_USER_IDS = '123456789,987654321'
 process.env.REDIS_HOST = 'localhost'
 process.env.REDIS_PORT = '6379'
@@ -245,6 +246,7 @@ jest.mock('../src/middleware/rateLimit', () => ({
     apiLimiter: passthrough,
     authLimiter: passthrough,
     writeLimiter: passthrough,
+    supportLimiter: passthrough,
 }))
 
 jest.mock('@lucky/shared/utils/database/prismaClient', () => ({

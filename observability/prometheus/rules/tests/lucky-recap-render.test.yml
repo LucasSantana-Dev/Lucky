@@ -29,6 +29,7 @@ tests:
                 `disabled` reason (RECAP_RENDER_ENABLED kill switch) is excluded on
                 purpose. `unless` keeps this firing when the card series was never
                 incremented.
+              runbook: "Check lucky-render health and the reason label on lucky_bot_render_fallback_total; restart lucky-render if it is stuck."
 
   - name: fallbacks plus a posted card do not fire
     interval: 1m
@@ -75,3 +76,4 @@ tests:
                 The lucky-render sidecar metrics endpoint (:8080) has been
                 unreachable for 10 minutes. Cross-check its Docker healthcheck;
                 recaps fall back to the text embed while it is down.
+              runbook: "Check the lucky-render container healthcheck and logs; restart lucky-render. Recaps fall back to text meanwhile."

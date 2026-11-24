@@ -9,6 +9,7 @@ import {
     requireGuild,
     requireQueue,
     requireCurrentTrack,
+    requireSameVoiceChannel,
 } from '../../../utils/command/commandValidations'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import type { GuildQueue } from 'discord-player'
@@ -89,6 +90,7 @@ export default new Command({
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         if (!(await requireGuild(interaction))) return
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        if (!(await requireSameVoiceChannel(queue, interaction))) return
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireCurrentTrack(queue, interaction))) return
 

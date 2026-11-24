@@ -121,6 +121,71 @@ describe('automessage command', () => {
         )
     })
 
+    function welcomeInteraction(enabled: boolean) {
+        const interaction = createInteraction('welcome')
+        interaction.options = {
+            getSubcommand: jest.fn().mockReturnValue('welcome'),
+            getBoolean: jest.fn().mockReturnValue(enabled),
+            getChannel: jest.fn().mockReturnValue(null),
+            getString: jest.fn().mockReturnValue(enabled ? 'Hi {user}' : null),
+        } as unknown as ChatInputCommandInteraction['options']
+        interaction.user = { tag: 'testuser#0001' } as any
+        return interaction
+    }
+
+    it('updates the stored welcome message in its own guild', async () => {
+        autoMessageServiceMock.getWelcomeMessage.mockResolvedValue({
+            id: 'msg-1',
+            guildId: 'guild-123',
+        })
+        autoMessageServiceMock.updateMessage.mockResolvedValue({ id: 'msg-1' })
+        const interaction = welcomeInteraction(false)
+
+        await automessageCommand.execute({
+            client: createMockClient({}),
+            interaction,
+        })
+
+        expect(autoMessageServiceMock.updateMessage).toHaveBeenCalledWith(
+            'guild-123',
+            'msg-1',
+            { enabled: false },
+        )
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    embeds: expect.any(Array),
+                }),
+            }),
+        )
+    })
+
+    it.each([true, false])(
+        'says the message was removed when the update finds no row (enabled=%s)',
+        async (enabled) => {
+            autoMessageServiceMock.getWelcomeMessage.mockResolvedValue({
+                id: 'msg-1',
+                guildId: 'guild-123',
+            })
+            autoMessageServiceMock.updateMessage.mockResolvedValue(null)
+            const interaction = welcomeInteraction(enabled)
+
+            await automessageCommand.execute({
+                client: createMockClient({}),
+                interaction,
+            })
+
+            expect(interactionReplyMock).toHaveBeenCalledTimes(1)
+            expect(interactionReplyMock).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    content:
+                        '❌ This message was removed while saving. Please run the command again.',
+                },
+            })
+        },
+    )
+
     it('lists auto-messages and shows count (happy path)', async () => {
         const mockMessage = {
             id: 'msg-1',

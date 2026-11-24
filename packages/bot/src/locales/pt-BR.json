@@ -42,6 +42,9 @@
         "errors": {
             "notInGuild": "Este comando só funciona dentro de um servidor.",
             "notInVoice": "Entre em um canal de voz primeiro.",
+            "notInVoiceTitle": "Fora do canal de voz",
+            "notSameVoiceTitle": "Canal de voz errado",
+            "notSameVoice": "Entre em {{channel}} para controlar a música.",
             "nothingPlaying": "Nada está tocando no momento.",
             "youtubeDisabledTitle": "YouTube indisponível",
             "youtubeDisabledDescription": "O YouTube não está disponível neste bot no momento. Tente um link do Spotify ou SoundCloud, ou busque pelo nome da música e do artista.",
@@ -104,7 +107,7 @@
             "offButton": "Desligar resumo semanal",
             "offHint": "Administradores podem desligar pelo botão abaixo ou com /recap off",
             "alreadyOff": "O resumo semanal já está desligado.",
-            "notTextChannel": "❌ Escolha um canal de texto para o resumo.",
+            "notTextChannel": "❌ Escolha um canal de texto ou o chat de um canal de voz para o resumo.",
             "missingPermissions": "❌ Não consigo postar em <#{{channel}}>. Preciso de Ver canal, Enviar mensagens e Inserir links lá.",
             "failed": "❌ Não consegui atualizar o resumo semanal. Tente de novo daqui a pouco.",
             "needManageGuild": "Você precisa da permissão **Gerenciar servidor** para configurar o resumo semanal.",

@@ -22,3 +22,6 @@ export function buildCommand(
 }
 
 export const sseClients = new Map<string, Set<Response>>()
+
+/** Open music streams per `${userId}:${guildId}`, for the concurrency cap. */
+export const sseStreamCounts = new Map<string, number>()

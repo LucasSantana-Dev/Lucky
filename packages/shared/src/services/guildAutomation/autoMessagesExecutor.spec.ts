@@ -16,9 +16,10 @@ type CreateMessageFn = (
     options?: { channelId?: string },
 ) => Promise<{ id: string }>
 type UpdateMessageFn = (
+    guildId: string,
     id: string,
     data: Record<string, unknown>,
-) => Promise<void>
+) => Promise<unknown>
 
 function makeService(
     overrides: Partial<{
@@ -42,7 +43,9 @@ function makeService(
                 ): Promise<{ id: string }> =>
                     Promise.resolve({ id: `new-${type}` }),
             ),
-        updateMessage: jest.fn<UpdateMessageFn>().mockResolvedValue(undefined),
+        updateMessage: jest
+            .fn<UpdateMessageFn>()
+            .mockResolvedValue({ id: 'updated' }),
     }
 }
 
@@ -106,16 +109,54 @@ describe('autoMessagesExecutor', () => {
 
         expect(service.createMessage).not.toHaveBeenCalled()
         expect(service.updateMessage).toHaveBeenCalledTimes(1)
-        expect(service.updateMessage).toHaveBeenCalledWith('welcome-row', {
-            message: 'new hi',
-            channelId: 'new-1',
-            enabled: false,
-        })
+        expect(service.updateMessage).toHaveBeenCalledWith(
+            'guild-1',
+            'welcome-row',
+            {
+                message: 'new hi',
+                channelId: 'new-1',
+                enabled: false,
+            },
+        )
         expect(result).toEqual({
             status: 'success',
             applied: [
                 { type: 'welcome', action: 'update' },
                 { type: 'leave', action: 'noop' },
+            ],
+        })
+    })
+
+    it('Apply reports an error when the row to update no longer exists', async () => {
+        const service = makeService({
+            welcome: {
+                id: 'welcome-row',
+                channelId: 'old-1',
+                message: 'old hi',
+                enabled: true,
+            },
+        })
+        service.updateMessage.mockResolvedValue(null)
+        const executor = createAutoMessagesExecutor({
+            autoMessageService: service,
+        })
+        const ctx = { guildId: 'guild-1' }
+
+        const live = await executor.capture(ctx)
+        const diff = executor.diff(live, {
+            welcome: { message: 'new hi', channelId: 'new-1', enabled: true },
+        })
+        const result = await executor.apply(diff, ctx)
+
+        expect(result).toEqual({
+            status: 'partial',
+            applied: [{ type: 'leave', action: 'noop' }],
+            errors: [
+                {
+                    opIndex: 0,
+                    opKind: 'update',
+                    reason: 'Error: Auto message welcome-row no longer exists',
+                },
             ],
         })
     })

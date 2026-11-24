@@ -42,6 +42,9 @@
         "errors": {
             "notInGuild": "This command only works inside a server.",
             "notInVoice": "Join a voice channel first.",
+            "notInVoiceTitle": "Not in voice",
+            "notSameVoiceTitle": "Wrong voice channel",
+            "notSameVoice": "Join {{channel}} to control the music.",
             "nothingPlaying": "Nothing is playing right now.",
             "youtubeDisabledTitle": "YouTube is unavailable",
             "youtubeDisabledDescription": "YouTube isn't available on this bot right now. Try a Spotify or SoundCloud link, or just search by song and artist name.",
@@ -105,7 +108,7 @@
             "offButton": "Turn off weekly recap",
             "offHint": "Admins can turn this off with the button below or /recap off",
             "alreadyOff": "The weekly recap is already off.",
-            "notTextChannel": "❌ Pick a text channel for the recap.",
+            "notTextChannel": "❌ Pick a text channel or a voice channel chat for the recap.",
             "missingPermissions": "❌ I can't post in <#{{channel}}>. I need View Channel, Send Messages and Embed Links there.",
             "failed": "❌ Couldn't update the weekly recap. Try again in a moment.",
             "needManageGuild": "You need the **Manage Server** permission to configure the weekly recap.",

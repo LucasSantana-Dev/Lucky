@@ -180,10 +180,9 @@ export async function handleOAuthCallback(
             return
         }
 
-        debugLog({
-            message: 'Discord OAuth callback received',
-            data: { code: code.substring(0, 10) },
-        })
+        // The authorization code is a credential until it is exchanged, so
+        // only the fact that one arrived is logged, never any of its value.
+        debugLog({ message: 'Discord OAuth callback received' })
 
         const redirectUri = getOAuthRedirectUri(
             req,

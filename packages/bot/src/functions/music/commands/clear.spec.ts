@@ -16,7 +16,11 @@ const debugLogMock = jest.fn()
 const errorLogMock = jest.fn()
 const setReplenishSuppressedMock = jest.fn()
 
+const requireSameVoiceChannelMock = jest.fn(async (..._args: unknown[]) => true)
+
 jest.mock('../../../utils/command/commandValidations', () => ({
+    requireSameVoiceChannel: (...args: unknown[]) =>
+        requireSameVoiceChannelMock(...args),
     requireGuild: (...args: unknown[]) => requireGuildMock(...args),
     requireQueue: (...args: unknown[]) => requireQueueMock(...args),
 }))
@@ -69,6 +73,22 @@ describe('clear command', () => {
         jest.clearAllMocks()
         requireGuildMock.mockResolvedValue(true)
         requireQueueMock.mockResolvedValue(true)
+    })
+
+    it('refuses a member outside the bot voice channel (#3266)', async () => {
+        requireSameVoiceChannelMock.mockResolvedValueOnce(false)
+        const queue = createQueue(5)
+        resolveGuildQueueMock.mockReturnValue({ queue })
+        const interaction = makeInteraction()
+
+        await clearCommand.execute({ client: {} as any, interaction } as any)
+
+        expect(requireSameVoiceChannelMock).toHaveBeenCalledWith(
+            queue,
+            interaction,
+        )
+        expect(requireQueueMock).not.toHaveBeenCalled()
+        expect(queue.clear).not.toHaveBeenCalled()
     })
 
     it('has correct command name', () => {

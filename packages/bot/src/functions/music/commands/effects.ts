@@ -13,6 +13,7 @@ import {
     requireQueue,
     requireIsPlaying,
     requireDJRoleInGuild,
+    requireSameVoiceChannel,
 } from '../../../utils/command/commandValidations'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { assertDefined } from '@lucky/shared/utils/guards'
@@ -146,6 +147,7 @@ export default new Command({
         if (!(await requireDJRoleInGuild(interaction, 'requireGuild'))) return
 
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
+        if (!(await requireSameVoiceChannel(queue, interaction))) return
         if (!(await requireQueue(queue, interaction))) return
         if (!(await requireIsPlaying(queue, interaction))) return
 
