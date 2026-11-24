@@ -1,7 +1,8 @@
 import { getRecapCardTracks } from '@lucky/shared/services'
 import type { RecapPayload } from '@lucky/shared/services'
 import { infoLog, warnLog } from '@lucky/shared/utils'
-import { fetchCovers, sanitizeCardText } from './recapCovers'
+import { fetchCovers, sanitizeCardText, type CoverStats } from './recapCovers'
+import { startLoopLagProbe } from './recapLoopLag'
 import { requestRecapCard, type RenderResult } from './recapRenderClient'
 
 export type RecapCardTrack = {
@@ -46,6 +47,8 @@ export async function buildRecapCardPayload(
         plays: number
         thumbnail?: string | null
     }> = recap.topTracks
+    const queryStarted = Date.now()
+    const stopQueryProbe = startLoopLagProbe()
     try {
         tracks = await (deps.getCardTracks ?? getRecapCardTracks)(
             recap.guildId,
@@ -61,15 +64,20 @@ export async function buildRecapCardPayload(
             },
         })
     }
+    const trackQueryMs = Date.now() - queryStarted
+    const queryLag = stopQueryProbe()
 
     // Tracks often share art (an album): fetch each URL once and map the
     // result back so covers[i] stays aligned with tracks[i].
     const unique = [
         ...new Set(tracks.map((t) => t.thumbnail).filter(Boolean)),
     ] as string[]
+    const stats: CoverStats = { timedOut: 0, skipped: 0 }
     const started = Date.now()
-    const fetched = await fetchCovers(unique, { fetch: deps.fetch })
+    const stopCoverProbe = startLoopLagProbe()
+    const fetched = await fetchCovers(unique, { fetch: deps.fetch, stats })
     const durationMs = Date.now() - started
+    const coverLag = stopCoverProbe()
     const byUrl = new Map(unique.map((url, i) => [url, fetched[i]]))
     const covers = tracks.map((t) =>
         t.thumbnail ? (byUrl.get(t.thumbnail) ?? null) : null,
@@ -77,6 +85,8 @@ export async function buildRecapCardPayload(
 
     // Counts and timing only: no URLs or titles in logs. Info level so a
     // weekly run shows in Loki whether covers dropped and how long it took.
+    // Loop lag tells a blocked bot (timers firing late, #3309) from a slow
+    // CDN: high lag with timeouts means the bot, low lag means the network.
     const wanted = tracks.filter((t) => t.thumbnail).length
     const got = covers.filter(Boolean).length
     infoLog({
@@ -86,7 +96,13 @@ export async function buildRecapCardPayload(
             wanted,
             got,
             dropped: wanted - got,
+            timedOut: stats.timedOut,
+            skipped: stats.skipped,
             durationMs,
+            loopLagMaxMs: coverLag.maxMs,
+            loopLagP99Ms: coverLag.p99Ms,
+            trackQueryMs,
+            trackQueryLoopLagMaxMs: queryLag.maxMs,
         },
     })
 

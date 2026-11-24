@@ -107,10 +107,20 @@ function startsWith(bytes: Buffer, magic: number[]): boolean {
     return magic.every((b, i) => bytes[i] === b)
 }
 
+/** Counts from one cover phase, for the info log (#3309). */
+export type CoverStats = {
+    /** Covers that failed because their timeout or the phase budget fired. */
+    timedOut: number
+    /** Covers never requested because the phase budget ran out first. */
+    skipped: number
+}
+
 type FetchCoverOptions = {
     fetch?: typeof fetch
     /** Aborts the fetch when the whole cover phase runs out of time. */
     signal?: AbortSignal
+    /** Filled in place, so a caller can tell timeouts from CDN failures. */
+    stats?: CoverStats
 }
 
 /** Base64 bytes of the cover, or null on any failure (the tile has no cover). */
@@ -128,7 +138,10 @@ export async function fetchCover(
         const cover = await fetchOne(candidate, signal, options.fetch)
         if (cover) return cover
         // A stalled CDN would stall the fallback too: keep the phase budget.
-        if (signal.aborted) return null
+        if (signal.aborted) {
+            if (options.stats) options.stats.timedOut++
+            return null
+        }
     }
     return null
 }
@@ -190,6 +203,7 @@ export async function fetchCovers(
             results[index] = await fetchCover(urls[index], {
                 fetch: options.fetch,
                 signal,
+                stats: options.stats,
             })
         }
     }
@@ -204,5 +218,6 @@ export async function fetchCovers(
             worker,
         ),
     )
+    if (options.stats) options.stats.skipped += urls.length - next
     return results
 }
