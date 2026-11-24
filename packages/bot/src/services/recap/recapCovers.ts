@@ -107,11 +107,14 @@ function startsWith(bytes: Buffer, magic: number[]): boolean {
     return magic.every((b, i) => bytes[i] === b)
 }
 
-/** Counts from one cover phase, for the info log (#3309). */
+/**
+ * Counts from one cover phase, for the info log (#3309). Both count distinct
+ * URLs, not tracks: tracks that share art share one URL.
+ */
 export type CoverStats = {
-    /** Covers that failed because their timeout or the phase budget fired. */
+    /** URLs that failed because their timeout or the phase budget fired. */
     timedOut: number
-    /** Covers never requested because the phase budget ran out first. */
+    /** URLs never requested because the phase budget ran out first. */
     skipped: number
 }
 

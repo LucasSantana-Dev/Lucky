@@ -65,7 +65,7 @@ export async function buildRecapCardPayload(
         })
     }
     const trackQueryMs = Date.now() - queryStarted
-    const queryLag = stopQueryProbe()
+    const queryLag = await stopQueryProbe()
 
     // Tracks often share art (an album): fetch each URL once and map the
     // result back so covers[i] stays aligned with tracks[i].
@@ -77,7 +77,7 @@ export async function buildRecapCardPayload(
     const stopCoverProbe = startLoopLagProbe()
     const fetched = await fetchCovers(unique, { fetch: deps.fetch, stats })
     const durationMs = Date.now() - started
-    const coverLag = stopCoverProbe()
+    const coverLag = await stopCoverProbe()
     const byUrl = new Map(unique.map((url, i) => [url, fetched[i]]))
     const covers = tracks.map((t) =>
         t.thumbnail ? (byUrl.get(t.thumbnail) ?? null) : null,
@@ -96,8 +96,9 @@ export async function buildRecapCardPayload(
             wanted,
             got,
             dropped: wanted - got,
-            timedOut: stats.timedOut,
-            skipped: stats.skipped,
+            coverUrls: unique.length,
+            urlsTimedOut: stats.timedOut,
+            urlsSkipped: stats.skipped,
             durationMs,
             loopLagMaxMs: coverLag.maxMs,
             loopLagP99Ms: coverLag.p99Ms,

@@ -17,14 +17,17 @@ const DEFAULT_RESOLUTION_MS = 20
  *
  * The histogram records the whole interval between samples, so the
  * resolution is subtracted to leave only the delay. A window shorter than one
- * sample reads as zero.
+ * sample reads as zero. Stopping waits one timers phase first: a block that
+ * ended just before the stop has its late sample recorded only when the
+ * sampling timer fires.
  */
 export function startLoopLagProbe(
     resolutionMs = DEFAULT_RESOLUTION_MS,
-): () => LoopLag {
+): () => Promise<LoopLag> {
     const histogram = monitorEventLoopDelay({ resolution: resolutionMs })
     histogram.enable()
-    return () => {
+    return async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0))
         histogram.disable()
         if (histogram.count === 0) return { maxMs: 0, p99Ms: 0, meanMs: 0 }
         const lagMs = (ns: number) =>
