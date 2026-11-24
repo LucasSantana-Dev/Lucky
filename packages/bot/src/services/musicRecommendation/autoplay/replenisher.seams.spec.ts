@@ -920,6 +920,126 @@ describe('replenisher seam functions', () => {
             expect(genreCtx.spotifySearchBudget).toBeDefined()
         })
 
+        // Profile picks only fill the slots seed picks leave (#3335), so
+        // their Spotify searches are wasted when the seed covers the gap.
+        describe('Last.fm library when the seed covers the buffer', () => {
+            // Distinct authors from the current track ('Test Artist'), so the
+            // real per-artist cap would admit every pick.
+            const seedPick = (title: string, author: string, score = 0.8) => ({
+                track: createTrack({ title, author }),
+                score,
+                basis: { source: 'spotify-rec', signals: [] },
+            })
+            const context = () => ({
+                queue: createGuildQueue(),
+                currentTrack: createTrack(),
+                recentArtists: new Set(),
+                autoplayMode: 'similar' as const,
+                artistFrequency: new Map(),
+                excludedUrls: new Set(),
+                excludedKeys: new Set(),
+                preferredArtistKeys: new Set(),
+                blockedArtistKeys: new Set(),
+                implicitDislikeKeys: new Set(),
+                implicitLikeKeys: new Set(),
+                dislikedWeights: new Map(),
+                likedWeights: new Map(),
+                sessionMood: {
+                    deepDiveArtist: null,
+                    preferLong: false,
+                    preferShort: false,
+                    restless: false,
+                    dominantLocale: null,
+                },
+                genreContext: {
+                    getArtistTags: jest.fn().mockResolvedValue([]),
+                    currentTrackTags: [],
+                    sessionGenreFamilies: new Set(),
+                },
+                replayFrequentTrackIds: new Set(),
+                replayFrequentArtists: new Set(),
+                recentArtistIndices: new Map(),
+            })
+            const collect = async (picks: unknown[]) => {
+                const {
+                    collectRecommendationCandidates,
+                } = require('./candidateCollector')
+                const {
+                    selectDiverseCandidates,
+                } = require('./diversitySelector')
+                const { collectLastFmCandidates } = require('./lastFmSeeder')
+                collectLastFmCandidates.mockClear()
+                collectRecommendationCandidates.mockResolvedValue(
+                    new Map(picks.map((p, i) => [`k${i}`, p])),
+                )
+                selectDiverseCandidates.mockReturnValue(picks)
+                const result = await collectAllCandidates(
+                    context() as never,
+                    [createTrack()],
+                    createUser(),
+                    false,
+                    null,
+                    new Map(),
+                    2,
+                )
+                return {
+                    result,
+                    collectLastFmCandidates,
+                    selectDiverseCandidates,
+                }
+            }
+
+            it('skips it when seed picks fill the gap with one to spare', async () => {
+                const { result, collectLastFmCandidates } = await collect([
+                    seedPick('Tcheca', 'Danny Bond'),
+                    seedPick('Say So', 'Doja Cat'),
+                    seedPick('Bond+', 'PZZS'),
+                ])
+
+                expect(collectLastFmCandidates).not.toHaveBeenCalled()
+                expect(result.sourcesCounts.lastfm).toEqual({
+                    skipped: true,
+                    reason: 'seed-covered',
+                })
+            })
+
+            // The final selection re-jitters scores, so a dry run that only
+            // just fills the gap could fall one short there.
+            it('runs it when the seed picks only just fill the gap', async () => {
+                const { collectLastFmCandidates } = await collect([
+                    seedPick('Tcheca', 'Danny Bond'),
+                    seedPick('Say So', 'Doja Cat'),
+                ])
+
+                expect(collectLastFmCandidates).toHaveBeenCalled()
+            })
+
+            it('dry-runs with the anchor reservation the final selection uses', async () => {
+                const { selectDiverseCandidates } = await collect([
+                    seedPick('Tcheca', 'Danny Bond'),
+                ])
+
+                expect(selectDiverseCandidates).toHaveBeenCalledWith(
+                    expect.any(Map),
+                    3,
+                    2,
+                    3,
+                    expect.any(String),
+                    true,
+                )
+            })
+
+            it('runs it when a seed pick is penalised', async () => {
+                const { collectLastFmCandidates } = await collect([
+                    seedPick('Tcheca', 'Danny Bond'),
+                    seedPick('Say So', 'Doja Cat'),
+                    seedPick('Disliked', 'PZZS', -0.2),
+                ])
+
+                expect(collectLastFmCandidates).toHaveBeenCalled()
+            })
+        })
+
         // A session restored after a restart has no requester. The seed
         // collectors only need the seed track, so they must still run, or
         // the pool empties and autoplay loops on history replay (#3072).

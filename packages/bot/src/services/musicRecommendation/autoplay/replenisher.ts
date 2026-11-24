@@ -361,6 +361,7 @@ async function _replenishQueue(
                 blockSertanejo,
                 guildSettings,
                 contributionWeights,
+                missingTracks,
             )
 
         debugLog({
@@ -896,6 +897,32 @@ async function collectBroadFallbackWithTimeout(
 }
 
 /**
+ * True when seed-grounded picks alone fill the buffer gap. Last.fm library
+ * picks only fill the slots those leave (#3335), so collecting them would
+ * spend their Spotify searches for nothing. Dry-runs the selector with the
+ * final pass's anchor reservation and the default per-artist cap (the
+ * deep-dive cap is wider). It asks for one spare pick: the final pass
+ * re-jitters scores, so near-ties can land in another order there.
+ */
+function seedCoversBuffer(
+    candidates: Map<string, ScoredTrack>,
+    missingTracks: number,
+    currentTrack: Track,
+    reserveAnchor: boolean,
+): boolean {
+    const needed = missingTracks + 1
+    const picks = selectDiverseCandidates(
+        candidates,
+        needed,
+        MAX_TRACKS_PER_ARTIST,
+        MAX_TRACKS_PER_SOURCE,
+        primaryArtistKey(currentTrack.author),
+        reserveAnchor,
+    )
+    return picks.filter((c) => seedFirstTier(c) === 0).length >= needed
+}
+
+/**
  * Collect all autoplay candidates from five sources: recommendation, seed-similar,
  * lastfm, genre, and fallback. Returns candidates set and sourcesCounts breakdown.
  */
@@ -906,6 +933,8 @@ export async function collectAllCandidates(
     blockSertanejo: boolean,
     guildSettings: { autoplayGenres?: string[] } | null,
     contributionWeights: Map<string, number>,
+    /** Buffer gap; when known, the Last.fm library is skipped if seed picks fill it. */
+    missingTracks?: number,
 ): Promise<{
     candidates: Map<string, ScoredTrack>
     sourcesCounts: Record<string, SourceCount>
@@ -964,7 +993,18 @@ export async function collectAllCandidates(
         },
     })
 
-    if (requestedBy?.id) {
+    if (
+        requestedBy?.id &&
+        missingTracks !== undefined &&
+        seedCoversBuffer(
+            candidates,
+            missingTracks,
+            autoplayContext.currentTrack,
+            !hasQueuedSeedSimilarPick(autoplayContext.queue),
+        )
+    ) {
+        sourcesCounts.lastfm = { skipped: true, reason: 'seed-covered' }
+    } else if (requestedBy?.id) {
         const beforeLastFm = candidates.size
         await collectLastFmCandidates(
             autoplayContext,
