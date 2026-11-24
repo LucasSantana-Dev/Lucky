@@ -108,7 +108,7 @@
             "offButton": "Turn off weekly recap",
             "offHint": "Admins can turn this off with the button below or /recap off",
             "alreadyOff": "The weekly recap is already off.",
-            "notTextChannel": "❌ Pick a text channel for the recap.",
+            "notTextChannel": "❌ Pick a text channel or a voice channel chat for the recap.",
             "missingPermissions": "❌ I can't post in <#{{channel}}>. I need View Channel, Send Messages and Embed Links there.",
             "failed": "❌ Couldn't update the weekly recap. Try again in a moment.",
             "needManageGuild": "You need the **Manage Server** permission to configure the weekly recap.",
