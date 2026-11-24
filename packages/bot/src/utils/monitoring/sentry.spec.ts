@@ -3,12 +3,18 @@ import {
     safeUrlOrigin,
     scrubUrls,
     captureMessage,
+    titleMessageEvent,
     addBreadcrumb,
     monitorCommandExecution,
 } from './sentry.js'
 import { telemetryLog } from '@lucky/shared/utils'
 
+const mockScope = { addEventProcessor: jest.fn() }
+
 jest.mock('@sentry/node', () => ({
+    withScope: jest.fn((callback: (scope: unknown) => void) =>
+        callback(mockScope),
+    ),
     captureMessage: jest.fn(),
     addBreadcrumb: jest.fn(),
     captureException: jest.fn(),
@@ -65,6 +71,33 @@ describe('scrubUrls', () => {
     })
 })
 
+describe('titleMessageEvent', () => {
+    it('falls back to "message" style naming only for untyped exceptions', () => {
+        const event = titleMessageEvent(
+            {
+                exception: {
+                    values: [
+                        { type: 'TypeError', value: 'boom' },
+                        { value: 'x' },
+                    ],
+                },
+            },
+            'message',
+        )
+
+        expect(event.exception?.values?.map((v) => v.type)).toEqual([
+            'TypeError',
+            'message',
+        ])
+    })
+
+    it('leaves an event without an exception unchanged', () => {
+        expect(titleMessageEvent({ message: 'hi' }, 'cat')).toEqual({
+            message: 'hi',
+        })
+    })
+})
+
 describe('sentry telemetry helpers', () => {
     const originalEnv = process.env
 
@@ -98,6 +131,7 @@ describe('sentry telemetry helpers', () => {
                     category: 'music.youtube-extraction',
                     stage: 'yt-dlp-url',
                 },
+                fingerprint: ['{{ default }}', 'music.youtube-extraction'],
             },
         )
     })
@@ -111,6 +145,65 @@ describe('sentry telemetry helpers', () => {
         expect(Sentry.captureMessage).toHaveBeenCalledWith(
             'exhausted',
             expect.objectContaining({ fingerprint: ['bridge', 'forbidden'] }),
+        )
+    })
+
+    it('groups a categorized message by category when no fingerprint is given', () => {
+        captureMessage('Top.gg stats POST failed', 'warning', undefined, {
+            category: 'topgg.stats',
+        })
+
+        expect(Sentry.captureMessage).toHaveBeenCalledWith(
+            'Top.gg stats POST failed',
+            expect.objectContaining({
+                fingerprint: ['{{ default }}', 'topgg.stats'],
+            }),
+        )
+    })
+
+    it('keeps the default grouping for a message with no category', () => {
+        captureMessage('plain message', 'info')
+
+        expect(Sentry.captureMessage).toHaveBeenCalledWith(
+            'plain message',
+            expect.not.objectContaining({ fingerprint: expect.anything() }),
+        )
+    })
+
+    it('titles the event after its category instead of the wrapper function', () => {
+        captureMessage(
+            'YouTube extraction exhausted all fallback stages',
+            'warning',
+            undefined,
+            { category: 'music.youtube-extraction' },
+            ['youtube-extraction-exhausted', 'empty'],
+        )
+
+        const processor = mockScope.addEventProcessor.mock.calls[0][0] as (
+            event: Sentry.Event,
+        ) => Sentry.Event
+        const event = processor({
+            exception: {
+                values: [
+                    {
+                        value: 'YouTube extraction exhausted all fallback stages',
+                        mechanism: { type: 'generic', synthetic: true },
+                    },
+                ],
+            },
+        })
+
+        expect(event.exception?.values?.[0]).toEqual(
+            expect.objectContaining({
+                type: 'music.youtube-extraction',
+                mechanism: { type: 'generic', synthetic: false },
+            }),
+        )
+        expect(Sentry.captureMessage).toHaveBeenCalledWith(
+            'YouTube extraction exhausted all fallback stages',
+            expect.objectContaining({
+                fingerprint: ['youtube-extraction-exhausted', 'empty'],
+            }),
         )
     })
 
