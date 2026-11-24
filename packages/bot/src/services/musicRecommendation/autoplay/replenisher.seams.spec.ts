@@ -1134,6 +1134,133 @@ describe('replenisher seam functions', () => {
                 'Liked',
             ])
         })
+
+        describe('seed-grounded picks stay ahead of the Last.fm profile (#3335)', () => {
+            const mood = {
+                deepDiveArtist: null,
+                preferLong: false,
+                preferShort: false,
+                restless: false,
+                dominantLocale: null,
+            }
+            const seedPick = {
+                track: createTrack({ title: 'Tcheca', author: 'Danny Bond' }),
+                score: 0.75,
+                basis: { source: 'spotify-rec', signals: [] },
+            }
+            const profilePick = {
+                track: createTrack({ title: 'o mundo', author: 'miseryswin' }),
+                score: 0.7,
+                basis: { source: 'lastfm-loved', signals: [] },
+            }
+
+            it('after the artist interleave', async () => {
+                const {
+                    selectDiverseCandidates,
+                } = require('./diversitySelector')
+                const { interleaveByArtist } = require('../candidateFallback')
+                selectDiverseCandidates.mockReturnValue([seedPick, profilePick])
+                interleaveByArtist.mockReturnValue([profilePick, seedPick])
+
+                const ranked = await selectAndRerankCandidates(
+                    new Map(),
+                    2,
+                    mood,
+                    createTrack(),
+                    'similar',
+                    null,
+                )
+
+                expect(ranked.map((t) => t.track.title)).toEqual([
+                    'Tcheca',
+                    'o mundo',
+                ])
+            })
+
+            it('after the popularity rerank', async () => {
+                const {
+                    selectDiverseCandidates,
+                } = require('./diversitySelector')
+                const { interleaveByArtist } = require('../candidateFallback')
+                const { spotifyLinkService } = require('@lucky/shared/services')
+                const {
+                    getArtistPopularity,
+                } = require('../../../spotify/spotifyApi')
+                selectDiverseCandidates.mockReturnValue([seedPick, profilePick])
+                interleaveByArtist.mockImplementation((tracks: any[]) => tracks)
+                spotifyLinkService.getValidAccessToken.mockResolvedValue(
+                    'token',
+                )
+                getArtistPopularity.mockImplementation(
+                    async (_t: string, a: string) =>
+                        a === 'miseryswin' ? 100 : 0,
+                )
+
+                const ranked = await selectAndRerankCandidates(
+                    new Map(),
+                    2,
+                    mood,
+                    createTrack(),
+                    'similar',
+                    { id: 'user-1' } as never,
+                )
+
+                expect(ranked.map((t) => t.track.title)).toEqual([
+                    'Tcheca',
+                    'o mundo',
+                ])
+            })
+
+            it('keeps a penalised seed pick behind once the popularity boost lifts it above 0', async () => {
+                const {
+                    selectDiverseCandidates,
+                } = require('./diversitySelector')
+                const { interleaveByArtist } = require('../candidateFallback')
+                const { spotifyLinkService } = require('@lucky/shared/services')
+                const {
+                    getArtistPopularity,
+                } = require('../../../spotify/spotifyApi')
+                const penalisedSeed = {
+                    track: createTrack({
+                        title: 'Disliked Hit',
+                        author: 'Danny Bond',
+                    }),
+                    score: -0.05,
+                    basis: { source: 'spotify-rec', signals: [] },
+                }
+                const loved = {
+                    track: createTrack({
+                        title: 'nuvens',
+                        author: 'miseryswin',
+                    }),
+                    score: 0.7,
+                    basis: { source: 'lastfm-loved', signals: [] },
+                }
+                selectDiverseCandidates.mockReturnValue([loved, penalisedSeed])
+                interleaveByArtist.mockImplementation((tracks: any[]) => tracks)
+                spotifyLinkService.getValidAccessToken.mockResolvedValue(
+                    'token',
+                )
+                getArtistPopularity.mockImplementation(
+                    async (_t: string, a: string) =>
+                        a === 'Danny Bond' ? 100 : 0,
+                )
+
+                const ranked = await selectAndRerankCandidates(
+                    new Map(),
+                    2,
+                    mood,
+                    createTrack(),
+                    'similar',
+                    { id: 'user-1' } as never,
+                )
+
+                expect(ranked.map((t) => t.track.title)).toEqual([
+                    'nuvens',
+                    'Disliked Hit',
+                ])
+            })
+        })
     })
 
     describe('enqueueAndFinalize', () => {

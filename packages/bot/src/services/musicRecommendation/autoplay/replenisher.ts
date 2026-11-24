@@ -34,6 +34,7 @@ import {
     ARTIST_FEEDBACK_WEIGHT_CAP,
     buildArtistFeedbackWeights,
     normalizeText,
+    seedFirstTier,
 } from './scoringUtils'
 import {
     buildExcludedUrls,
@@ -1082,6 +1083,8 @@ export async function selectAndRerankCandidates(
     const isDeepDiveSeed =
         !!deepDiveKey && primaryArtistKey(deepDiveKey) === seedArtistKey
     const effectiveMaxPerArtist = isDeepDiveSeed ? 5 : MAX_TRACKS_PER_ARTIST
+    // The interleave must not move a Last.fm profile pick ahead of a
+    // seed-grounded one (#3335); the stable sort keeps it within each tier.
     const selected = interleaveByArtist(
         selectDiverseCandidates(
             candidates,
@@ -1091,7 +1094,7 @@ export async function selectAndRerankCandidates(
             seedArtistKey,
             reserveAnchor,
         ),
-    )
+    ).sort((a, b) => seedFirstTier(a) - seedFirstTier(b))
 
     const enriched = selected
     // The selector put the reserved anchor first; the rerank must not undo it.
@@ -1112,6 +1115,9 @@ export async function selectAndRerankCandidates(
             // mainstream drift.
             const rerankHead =
                 autoplayMode === 'similar' ? POPULARITY_RERANK_HEAD : 3
+            // Taken before the boost: it must not lift a penalised seed
+            // pick into the seed-grounded tier (#3335).
+            const tiers = new Map(enriched.map((t) => [t, seedFirstTier(t)]))
             await Promise.all(
                 enriched.slice(0, rerankHead).map(async (track) => {
                     const popularity = await getArtistPopularity(
@@ -1125,6 +1131,7 @@ export async function selectAndRerankCandidates(
             enriched.sort(
                 (a, b) =>
                     Number(b === anchor) - Number(a === anchor) ||
+                    (tiers.get(a) ?? 1) - (tiers.get(b) ?? 1) ||
                     b.score - a.score,
             )
         }
