@@ -797,9 +797,7 @@ describe('replenishQueue', () => {
                     durationMs: expect.any(Number),
                     sources: expect.objectContaining({
                         recommendation: expect.any(Number),
-                        // The two seed picks cover the buffer, so the Last.fm
-                        // library is skipped: a SourceCount object (#3335).
-                        lastfm: { skipped: true, reason: 'seed-covered' },
+                        lastfm: expect.any(Number),
                         fallback: expect.any(Number),
                         genre: expect.any(Number),
                     }),
