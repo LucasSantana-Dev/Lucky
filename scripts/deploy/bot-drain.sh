@@ -49,6 +49,13 @@ bot_active_listeners() {
     printf '%s\n' "$out"
 }
 
+# True once the first deferral is BOT_DRAIN_TIMEOUT_SECONDS old.
+bot_drain_cap_reached() {
+    local since
+    since=$(cat "$BOT_DEFERRED_SINCE_FILE" 2>/dev/null || true)
+    [[ "$since" =~ ^[0-9]+$ ]] && (( $(date +%s) - since >= BOT_DRAIN_TIMEOUT_SECONDS ))
+}
+
 bot_force_restart_requested() {
     [[ "${DEPLOY_FORCE_BOT_RESTART:-}" =~ ^(1|true|yes)$ ]]
 }
@@ -57,14 +64,16 @@ bot_drain_clear() {
     rm -f "$BOT_DEFERRED_SINCE_FILE" 2>/dev/null || true
 }
 
-# Sets BOT_DRAIN_DECISION to "recreate" or "defer" and logs why. Arg 1 is "schema_changed" when the database
-# schema moved since the running bot's commit: the migrations already ran, so
-# an old bot must not keep running on the new schema.
+# Sets BOT_DRAIN_DECISION to "recreate" or "defer" and logs why.
+# Arg 1 "schema_changed": the database schema moved since the running bot's
+# commit; the migrations already ran, so an old bot must not keep running on
+# the new schema. Arg 1 "watch": called by the watcher, where an unreadable
+# count skips one poll (until the cap) instead of cutting off a session.
 # BOT_DRAIN_LISTENERS is set to the count read (empty when unknown), so the
 # caller can say how many people a forced recreate cut off. Call it directly,
 # not in $(...): the results are globals and log writes to stdout.
 bot_drain_decide() {
-    local schema="${1:-}" now since
+    local mode="${1:-}" now since
     BOT_DRAIN_LISTENERS=""
     BOT_DRAIN_DECISION=recreate
     if bot_force_restart_requested; then
@@ -74,6 +83,11 @@ bot_drain_decide() {
     fi
     if ! BOT_DRAIN_LISTENERS=$(bot_active_listeners); then
         BOT_DRAIN_LISTENERS=""
+        if [[ "$mode" == "watch" ]] && ! bot_drain_cap_reached; then
+            log "Bot drain: listener count unavailable; checking again next poll"
+            BOT_DRAIN_DECISION=defer
+            return 0
+        fi
         log "Bot drain: listener count unavailable; recreating as before"
         BOT_DRAIN_DECISION=recreate
         return 0
@@ -83,7 +97,7 @@ bot_drain_decide() {
         BOT_DRAIN_DECISION=recreate
         return 0
     fi
-    if [[ "$schema" == "schema_changed" ]]; then
+    if [[ "$mode" == "schema_changed" ]]; then
         log "Bot drain: ${BOT_DRAIN_LISTENERS} session(s) listening, but the schema changed; recreating"
         BOT_DRAIN_DECISION=recreate
         return 0
@@ -92,8 +106,12 @@ bot_drain_decide() {
     since=$(cat "$BOT_DEFERRED_SINCE_FILE" 2>/dev/null || true)
     if ! [[ "$since" =~ ^[0-9]+$ ]]; then
         since="$now"
-        printf '%s\n' "$since" >"$BOT_DEFERRED_SINCE_FILE" 2>/dev/null \
-            || log "WARN: could not record bot deferral start to $BOT_DEFERRED_SINCE_FILE"
+        # Without the record the cap could never fire: recreate instead.
+        if ! printf '%s\n' "$since" >"$BOT_DEFERRED_SINCE_FILE" 2>/dev/null; then
+            log "WARN: could not record bot deferral start to $BOT_DEFERRED_SINCE_FILE; recreating instead"
+            BOT_DRAIN_DECISION=recreate
+            return 0
+        fi
     fi
     if (( now - since >= BOT_DRAIN_TIMEOUT_SECONDS )); then
         log "Bot drain: ${BOT_DRAIN_LISTENERS} session(s) listening, but deferred for $(( (now - since) / 60 )) min (cap $(( BOT_DRAIN_TIMEOUT_SECONDS / 60 )) min); recreating"
@@ -127,11 +145,12 @@ bot_drain_wait_healthy() {
 }
 
 # Recreates the bot from the current IMAGE_TAG under the deploy lock. If the
-# new bot never turns healthy, puts the previous image back.
+# new bot never turns healthy, puts the previous image back by its image ID
+# (re-tagged), since the tag may now point at the new image (e.g. latest).
 bot_drain_recreate() {
-    local previous_tag
-    previous_tag=$(docker inspect "$BOT_DRAIN_CONTAINER" --format '{{.Config.Image}}' 2>/dev/null || true)
-    previous_tag="${previous_tag##*:}"
+    local previous_id previous_ref rollback_tag="drain-rollback"
+    previous_id=$(docker inspect "$BOT_DRAIN_CONTAINER" --format '{{.Image}}' 2>/dev/null || true)
+    previous_ref=$(docker inspect "$BOT_DRAIN_CONTAINER" --format '{{.Config.Image}}' 2>/dev/null || true)
     if ! docker_compose up -d --no-deps bot; then
         log "Bot drain ERROR: docker compose up for the bot failed"
         notify 16711680 "Bot Restart Failed" "Deferred bot recreate failed; old bot may still be running"
@@ -142,11 +161,14 @@ bot_drain_recreate() {
         return 0
     fi
     log "Bot drain ERROR: bot on ${IMAGE_TAG} not healthy after ${BOT_DRAIN_HEALTH_SECONDS}s"
-    if [[ -n "$previous_tag" && "$previous_tag" != "$IMAGE_TAG" ]]; then
-        IMAGE_TAG="$previous_tag" docker_compose up -d --no-deps bot \
-            && log "Bot drain: put the bot back on ${previous_tag}"
+    if [[ -n "$previous_id" && "$previous_ref" == *:* ]] \
+        && docker tag "$previous_id" "${previous_ref%:*}:${rollback_tag}" \
+        && IMAGE_TAG="$rollback_tag" docker_compose up -d --no-deps bot; then
+        log "Bot drain: put the bot back on its previous image ${previous_id}"
+        notify 16711680 "Bot Restart Failed" "Bot on ${IMAGE_TAG} was unhealthy; back on the previous image"
+    else
+        notify 16711680 "Bot Restart Failed" "Bot on ${IMAGE_TAG} is unhealthy and the previous image could not be restored"
     fi
-    notify 16711680 "Bot Restart Failed" "Bot on ${IMAGE_TAG} was unhealthy; back on ${previous_tag:-unknown}"
     return 1
 }
 
@@ -169,7 +191,7 @@ bot_drain_watch() {
         fi
         # A deploy in progress decides for itself and stops this watcher.
         [[ -d "$LOCK_DIR" ]] && continue
-        bot_drain_decide
+        bot_drain_decide watch
         [[ "$BOT_DRAIN_DECISION" == "recreate" ]] || continue
         mkdir "$LOCK_DIR" 2>/dev/null || continue
         printf '%s\n' "$me" >"$LOCK_PID_FILE"

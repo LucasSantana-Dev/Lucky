@@ -31,7 +31,7 @@ function run(body, { listeners = ['0'], env = {}, since } = {}) {
         'log() { echo "LOG $*"; }',
         'notify() { echo "NOTIFY $2: $3"; }',
         'docker_compose() { echo "COMPOSE $*"; }',
-        'docker() { [ "$1" = inspect ] && { echo "${FAKE_HEALTH:-healthy}"; return 0; }; return 1; }',
+        'docker() { case "$1 $*" in *Health*) echo "${FAKE_HEALTH:-healthy}";; *Config.Image*) echo ghcr.io/x/lucky-bot:latest;; *"{{.Image}}"*) echo sha256:old;; tag*) echo "TAG ${*:2}";; *) return 1;; esac; }',
         `source "${toPosix(script)}"`,
     ].join('\n')
     const r = spawnSync('bash', ['-c', `${prelude}\n${body}`], {
@@ -173,14 +173,45 @@ test('the watcher exits without touching the bot when a deploy cleared the defer
     }
 })
 
-test('the watcher puts the old image back when the new bot is unhealthy', () => {
+test('the watcher puts the previous image back by ID when the new bot is unhealthy', () => {
     const r = run('date +%s > "$BOT_DEFERRED_SINCE_FILE"; bot_drain_watch', {
         listeners: ['0'],
         env: { FAKE_HEALTH: 'unhealthy', BOT_DRAIN_HEALTH_SECONDS: '0' },
     })
     try {
         assert.match(r.out, /not healthy/)
+        assert.match(
+            r.out,
+            /TAG sha256:old ghcr\.io\/x\/lucky-bot:drain-rollback/,
+        )
+        assert.equal(r.out.match(/COMPOSE up -d --no-deps bot/g)?.length, 2)
+        assert.match(r.out, /put the bot back on its previous image sha256:old/)
         assert.match(r.out, /NOTIFY Bot Restart Failed/)
+    } finally {
+        rmSync(r.dir, { recursive: true, force: true })
+    }
+})
+
+test('the watcher skips a poll when the count is unreadable, then recreates', () => {
+    const r = run('date +%s > "$BOT_DEFERRED_SINCE_FILE"; bot_drain_watch', {
+        listeners: ['fail', '0'],
+    })
+    try {
+        assert.match(r.out, /checking again next poll/)
+        assert.equal(r.out.match(/COMPOSE up -d --no-deps bot/g)?.length, 1)
+    } finally {
+        rmSync(r.dir, { recursive: true, force: true })
+    }
+})
+
+test('recreates instead of deferring when the deferral start cannot be recorded', () => {
+    const r = decide({
+        listeners: ['2'],
+        env: { BOT_DEFERRED_SINCE_FILE: '/nonexistent/dir/since' },
+    })
+    try {
+        assert.match(r.out, /DECISION recreate 2/)
+        assert.match(r.out, /recreating instead/)
     } finally {
         rmSync(r.dir, { recursive: true, force: true })
     }

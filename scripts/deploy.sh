@@ -848,7 +848,6 @@ if [[ -f "$SCRIPT_DIR/deploy/bot-drain.sh" ]]; then
     # shellcheck source=deploy/bot-drain.sh
     source "$SCRIPT_DIR/deploy/bot-drain.sh"
     _bot_drain_available=true
-    bot_drain_cancel
 fi
 
 # Both Prometheus containers read alert rules from this checkout and reread
@@ -935,30 +934,6 @@ if bot_recreate_skippable; then
     _bot_skip_recreate=true
 fi
 
-# The bot needs a recreate: wait for its listeners instead of cutting them
-# off (#2872). Only a running, healthy bot is left in place; a deferred bot is
-# recreated by a detached watcher once the deploy has finished.
-_bot_deferred=false
-if [[ "$_bot_drain_available" == "true" ]]; then
-    if [[ "$_bot_skip_recreate" == "true" ]]; then
-        bot_drain_clear
-    elif [[ "$(docker inspect lucky-bot --format '{{.State.Health.Status}}' 2>/dev/null || true)" == "healthy" ]]; then
-        bot_drain_decide "$(bot_schema_state)"
-        if [[ "$BOT_DRAIN_DECISION" == "defer" ]]; then
-            _bot_skip_recreate=true
-            _bot_deferred=true
-            notify 16776960 "Bot Restart Deferred" "${BOT_DRAIN_LISTENERS} session(s) listening; the bot restarts when they finish (up to $(( BOT_DRAIN_TIMEOUT_SECONDS / 60 )) min)"
-        else
-            bot_drain_clear
-            if [[ -n "$BOT_DRAIN_LISTENERS" && "$BOT_DRAIN_LISTENERS" != "0" ]]; then
-                notify 16753920 "Bot Restart" "Restarting the bot with ${BOT_DRAIN_LISTENERS} session(s) listening"
-            fi
-        fi
-    else
-        bot_drain_clear
-    fi
-fi
-
 log "Starting database services..."
 phase_start db_up
 docker_compose up -d postgres redis
@@ -1042,6 +1017,34 @@ ensure_on_lucky_network() {
         log "$container attached to lucky-network"
     fi
 }
+
+# The bot needs a recreate: wait for its listeners instead of cutting them
+# off (#2872). Decided right before the rollout, so someone who started
+# listening during the migrations counts. Only a running, healthy bot is left
+# in place; a deferred bot is recreated by a detached watcher once the deploy
+# has finished. A watcher from an earlier deploy is stopped only here, so a
+# deploy that fails before the rollout leaves it running.
+_bot_deferred=false
+if [[ "$_bot_drain_available" == "true" ]]; then
+    bot_drain_cancel
+    if [[ "$_bot_skip_recreate" == "true" ]]; then
+        bot_drain_clear
+    elif [[ "$(docker inspect lucky-bot --format '{{.State.Health.Status}}' 2>/dev/null || true)" == "healthy" ]]; then
+        bot_drain_decide "$(bot_schema_state)"
+        if [[ "$BOT_DRAIN_DECISION" == "defer" ]]; then
+            _bot_skip_recreate=true
+            _bot_deferred=true
+            notify 16776960 "Bot Restart Deferred" "${BOT_DRAIN_LISTENERS} session(s) listening; the bot restarts when they finish (up to $(( BOT_DRAIN_TIMEOUT_SECONDS / 60 )) min)"
+        else
+            bot_drain_clear
+            if [[ -n "$BOT_DRAIN_LISTENERS" && "$BOT_DRAIN_LISTENERS" != "0" ]]; then
+                notify 16753920 "Bot Restart" "Restarting the bot with ${BOT_DRAIN_LISTENERS} session(s) listening"
+            fi
+        fi
+    else
+        bot_drain_clear
+    fi
+fi
 
 log "Rolling out services..."
 phase_start rollout
