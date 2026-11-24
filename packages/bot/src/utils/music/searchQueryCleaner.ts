@@ -143,9 +143,10 @@ const NOISE_PATTERNS: readonly RegExp[] = [
     // "( PROD.EF)", "[prod biffe]", "(Directed by X)". Left in, they become
     // part of the song key and the duplicate check misses the same song.
     /[([]\s{0,3}(?:dir[.:]|directed\s+by\b|prod\b|produced\s+by\b)[^)\]]*[)\]]/gi,
-    // The same credits trailing outside brackets: "... Dir. Thiago Veiga".
-    // The dot or colon keeps words like "Dirty" or "Productivity".
-    /\s(?:dir[.:]|directed\s+by\b|prod[.:]|produced\s+by\b).*$/gi,
+    // The same credits trailing outside brackets: "... Dir. Thiago Veiga",
+    // with the dash before them ("Song - Dir. X"). The dot or colon keeps
+    // words like "Dirty" or "Productivity".
+    /\s(?:[-–—]\s+)?(?:dir[.:]|directed\s+by\b|prod[.:]|produced\s+by\b).*$/gi,
 
     // Brazilian/Portuguese YouTube title noise
     /#\S+/g,
