@@ -19,6 +19,8 @@ import {
     TEXT_SEARCH_BLOCKED_EXTRACTORS,
 } from './handlers/resolveProvider'
 import { ensureTrackMetadata } from './handlers/trackMetadataHydration'
+import { resolveAlbumIntent } from './handlers/albumIntent'
+import { reserveCollaborativeRequest } from './handlers/collaborativeLimit'
 import {
     classifyPlayFailure,
     logPlayFailure,
@@ -65,74 +67,153 @@ export function isUrl(query: string): boolean {
     return /^https?:\/\//i.test(query)
 }
 
-/**
- * Expands SoundCloud short links (on.soundcloud.com) by following the HTTP redirect.
- * Returns the expanded URL if successful, or the original URL if expansion fails.
- * Uses a 5-second timeout to prevent hanging requests.
- *
- * Security: only expands on.soundcloud.com hosts and validates the resolved URL
- * is a soundcloud.com domain before returning it.
- */
-export async function expandSoundCloudShortUrl(url: string): Promise<string> {
-    // Fast path: not a short link
-    if (!isHost(url, 'on.soundcloud.com')) {
-        return url
-    }
+type ShortLinkRule = {
+    /** Service name used in logs, e.g. "SoundCloud". */
+    label: string
+    /** Exact hosts of the service's short links. */
+    shortHosts: readonly string[]
+    /** True for a host the expanded link may land on. */
+    isTargetHost: (host: string) => boolean
+    /**
+     * HEAD skips the body. GET is for a service whose short link may answer
+     * a non-browser with a page that links the target instead of redirecting,
+     * so the link is read from the page.
+     */
+    method: 'HEAD' | 'GET'
+}
 
+const SOUNDCLOUD_SHORT_LINK: ShortLinkRule = {
+    label: 'SoundCloud',
+    shortHosts: ['on.soundcloud.com'],
+    isTargetHost: (host) =>
+        host === 'soundcloud.com' || host.endsWith('.soundcloud.com'),
+    method: 'HEAD',
+}
+
+// Links from the Spotify mobile share sheet (#3274).
+const SPOTIFY_SHORT_LINK: ShortLinkRule = {
+    label: 'Spotify',
+    shortHosts: ['spotify.link', 'spotify.app.link'],
+    isTargetHost: (host) => host === 'open.spotify.com',
+    method: 'GET',
+}
+
+/** Host of an http(s) URL; null for anything else (file:, data:, junk). */
+function hostOf(url: string): string | null {
     try {
         const parsed = new URL(url)
-        if (parsed.hostname !== 'on.soundcloud.com') {
-            return url
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+            return null
+        }
+        return parsed.hostname.toLowerCase().replace(/\.$/, '')
+    } catch {
+        return null
+    }
+}
+
+function findTargetInPage(page: string, rule: ShortLinkRule): string | null {
+    for (const match of page.matchAll(/https:\/\/[^\s"'<>]+/g)) {
+        const candidate = match[0].replaceAll('&amp;', '&')
+        const host = hostOf(candidate)
+        if (host && rule.isTargetHost(host)) return candidate
+    }
+    return null
+}
+
+const MAX_SHORT_LINK_HOPS = 5
+
+/**
+ * Follows the short link one redirect at a time and checks every `Location`
+ * before requesting it: only the rule's short hosts are ever fetched, and the
+ * first target-host URL is returned without fetching it. Following redirects
+ * blindly would let a crafted short link make the bot request any URL,
+ * including internal ones.
+ */
+async function resolveShortLink(
+    url: string,
+    rule: ShortLinkRule,
+): Promise<string> {
+    let current = url
+    for (let hop = 0; hop < MAX_SHORT_LINK_HOPS; hop++) {
+        const response = await (global.fetch as typeof fetch)(current, {
+            method: rule.method,
+            redirect: 'manual',
+        })
+        const location = response.headers?.get('location')
+        if (response.status >= 300 && response.status < 400 && location) {
+            const next = new URL(location, current).toString()
+            const nextHost = hostOf(next)
+            // Short hosts first: on.soundcloud.com is also a soundcloud.com
+            // subdomain, and a hop between short links is not the target.
+            if (nextHost && rule.shortHosts.includes(nextHost)) {
+                current = next
+                continue
+            }
+            if (nextHost && rule.isTargetHost(nextHost)) return next
+            throw new Error(
+                `Redirect destination is not a ${rule.label} URL: ${next}`,
+            )
         }
 
-        // Follow redirects with a 5-second timeout, using HEAD first (no body download)
-        const expanded = await withTimeout(
-            (async () => {
-                const response = await (global.fetch as typeof fetch)(url, {
-                    method: 'HEAD',
-                    redirect: 'follow',
-                })
-                const finalUrl = response.url
-
-                // Security check: ensure resolved URL is a soundcloud domain
-                const finalParsed = new URL(finalUrl)
-                if (
-                    finalParsed.hostname !== 'soundcloud.com' &&
-                    !finalParsed.hostname?.endsWith('.soundcloud.com')
-                ) {
-                    // Redirect went somewhere unexpected — reject and fall back
-                    throw new Error(
-                        `Redirect destination is not a soundcloud.com domain: ${finalUrl}`,
-                    )
-                }
-
-                debugLog({
-                    message: 'SoundCloud short URL expanded',
-                    data: { originalUrl: url, expandedUrl: finalUrl },
-                })
-
-                return finalUrl
-            })(),
-            5000,
-            'soundcloud-short-url-expansion',
+        const fromPage =
+            rule.method === 'GET'
+                ? findTargetInPage(await response.text(), rule)
+                : null
+        if (fromPage) return fromPage
+        throw new Error(
+            `${rule.label} short link did not redirect (status ${response.status})`,
         )
+    }
+    throw new Error(`${rule.label} short link redirected too many times`)
+}
 
+/**
+ * Expands a short link by following its redirect, with a 5-second timeout.
+ * Returns the original URL when it is not one of the rule's short links or
+ * when expansion fails.
+ *
+ * Security: only the rule's exact short hosts are requested, redirects are
+ * checked hop by hop, and the result must land on one of its target hosts.
+ */
+async function expandShortLink(
+    url: string,
+    rule: ShortLinkRule,
+): Promise<string> {
+    const host = hostOf(url)
+    if (!host || !rule.shortHosts.includes(host)) return url
+
+    try {
+        const expanded = await withTimeout(
+            resolveShortLink(url, rule),
+            5000,
+            `${rule.label.toLowerCase()}-short-url-expansion`,
+        )
+        debugLog({
+            message: `${rule.label} short URL expanded`,
+            data: { originalUrl: url, expandedUrl: expanded },
+        })
         return expanded
     } catch (error) {
-        // Network error, timeout, or security validation failed — gracefully
+        // Network error, timeout, or security validation failed: gracefully
         // fall back. warn, not debug: debug is filtered out in production, so
         // the user saw a generic "No results found" from the resolver with no
         // record that expansion was the step that actually failed (#1994).
         warnLog({
-            message:
-                'SoundCloud short URL expansion failed, using original URL',
-            data: {
-                originalUrl: url,
-                error: String(error),
-            },
+            message: `${rule.label} short URL expansion failed, using original URL`,
+            data: { originalUrl: url, error: String(error) },
         })
         return url
     }
+}
+
+/** Expands on.soundcloud.com short links to the soundcloud.com URL. */
+export function expandSoundCloudShortUrl(url: string): Promise<string> {
+    return expandShortLink(url, SOUNDCLOUD_SHORT_LINK)
+}
+
+/** Expands spotify.link and spotify.app.link to the open.spotify.com URL. */
+export function expandSpotifyShortUrl(url: string): Promise<string> {
+    return expandShortLink(url, SPOTIFY_SHORT_LINK)
 }
 
 /**
@@ -218,6 +299,35 @@ export function normalizeYouTubeUrl(url: string): string {
         })
         return url
     }
+}
+
+/**
+ * Turns a raw query into what the player should search: expands short links,
+ * strips playlist context the extractors cannot resolve, and applies album
+ * intent. Shared by /play, /playtop and /playskip so a link that works on one
+ * works on all of them (#3270).
+ */
+export async function prepareQuery(
+    rawQuery: string,
+    provider: string | null,
+): Promise<string> {
+    // Expand short links first (on.soundcloud.com, spotify.link).
+    // Trimmed: a pasted link with a stray space fails isUrl and would skip
+    // every normalizer below.
+    const expandedQuery = await expandSpotifyShortUrl(
+        await expandSoundCloudShortUrl(rawQuery.trim()),
+    )
+    // Then normalize: SoundCloud `?in=` playlist context, and YouTube Mix
+    // (`list=RD...`) context that the youtubei extractor cannot resolve.
+    const normalizedQuery = normalizeYouTubeUrl(
+        normalizeSoundCloudUrl(expandedQuery),
+    )
+    // "album esquinas anavitória completo": queue the album's link, which
+    // plays the whole album, instead of searching for a single track. A
+    // YouTube or SoundCloud provider choice keeps its own search.
+    return provider && provider !== 'spotify'
+        ? normalizedQuery
+        : ((await resolveAlbumIntent(normalizedQuery)) ?? normalizedQuery)
 }
 
 /**
@@ -505,14 +615,23 @@ export async function executePlayAtTop({
         'voice channel present after requireVoiceChannel guard',
     )
 
-    const query = interaction.options.getString('query', true)
+    const rawQuery = interaction.options.getString('query', true)
 
     // Checked before deferring so the "YouTube is unavailable" notice can
     // still be its own ephemeral reply instead of editing the public defer
     // below, which would strip the ephemeral flag.
-    if (await replyYoutubeDisabledIfNeeded(interaction, query)) return
+    if (await replyYoutubeDisabledIfNeeded(interaction, rawQuery)) return
 
     if (!(await deferPublicReply(interaction))) return
+
+    const reservation = await reserveCollaborativeRequest(
+        interaction,
+        interaction.guildId,
+    )
+    if (!reservation) return
+
+    // After the defer: short link expansion can take a few seconds.
+    const query = await prepareQuery(rawQuery, null)
 
     try {
         const result = await playWithFallbacks({
@@ -523,6 +642,7 @@ export async function executePlayAtTop({
             afterSearch: buildAfterSearch(query),
         })
         const track = result.track
+        reservation.commit()
         stampPlaylistTracks(result.searchResult)
 
         const { queue } = resolveGuildQueue(client, interaction.guildId)
@@ -574,5 +694,7 @@ export async function executePlayAtTop({
             return
         }
         await replyPlayAtTopError(interaction, commandName, query, error)
+    } finally {
+        reservation.settle()
     }
 }

@@ -342,6 +342,43 @@ export async function requireDJRole(
     return hasDJRole
 }
 
+/**
+ * Stricter than requireDJRole for settings that limit other members: with no
+ * DJ role configured it falls back to Manage Server instead of letting
+ * everyone through, so a throttled user cannot lift their own limit (#3269).
+ */
+export async function requireMusicManager(
+    interaction: ChatInputCommandInteraction,
+    guildId: string,
+): Promise<boolean> {
+    if (canManageGuild(interaction)) return true
+
+    const member = interaction.member as GuildMember | null
+    const settings = await guildSettingsService.getGuildSettings(guildId)
+    if (
+        member &&
+        settings?.djRoleId &&
+        memberHasRole(member, settings.djRoleId)
+    )
+        return true
+
+    await interactionReply({
+        interaction,
+        content: {
+            embeds: [
+                createErrorEmbed(
+                    'Not allowed',
+                    settings?.djRoleId
+                        ? 'This needs the DJ role or the Manage Server permission.'
+                        : 'This needs the Manage Server permission.',
+                ),
+            ],
+            ephemeral: true,
+        },
+    })
+    return false
+}
+
 export async function requireDJRoleInGuild(
     interaction: ChatInputCommandInteraction,
     checkLabel: string,

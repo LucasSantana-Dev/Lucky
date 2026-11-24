@@ -71,6 +71,15 @@ Object.defineProperty(global, 'fetch', {
     value: fetchMock,
 })
 
+function redirectTo(location: string) {
+    return {
+        status: 301,
+        headers: {
+            get: (name: string) => (name === 'location' ? location : null),
+        },
+    }
+}
+
 // Don't mock withTimeout - let it work with the real implementation
 // which will properly await and resolve promises
 
@@ -82,10 +91,13 @@ import {
     isYouTubeUrl,
     executePlayAtTop,
     expandSoundCloudShortUrl,
+    expandSpotifyShortUrl,
+    prepareQuery,
     resolveSearchEngine,
     moveTrackToTop,
     playWithFallbacks,
 } from './queryUtils'
+import { collaborativePlaylistService } from '../../../../services/musicRecommendation/collaborativePlaylist'
 
 describe('host matching', () => {
     it('leaves a foreign URL that merely mentions youtube alone', () => {
@@ -253,17 +265,28 @@ describe('expandSoundCloudShortUrl', () => {
         const shortUrl = 'https://on.soundcloud.com/abc123'
         const fullUrl = 'https://soundcloud.com/artist/track'
 
-        fetchMock.mockResolvedValueOnce({
-            url: fullUrl,
-        })
+        fetchMock.mockResolvedValueOnce(redirectTo(fullUrl))
 
         const result = await expandSoundCloudShortUrl(shortUrl)
 
         expect(result).toBe(fullUrl)
         expect(fetchMock).toHaveBeenCalledWith(shortUrl, {
             method: 'HEAD',
-            redirect: 'follow',
+            redirect: 'manual',
         })
+    })
+
+    it('follows a hop that stays on on.soundcloud.com', async () => {
+        fetchMock
+            .mockResolvedValueOnce(redirectTo('https://on.soundcloud.com/xyz'))
+            .mockResolvedValueOnce(
+                redirectTo('https://soundcloud.com/artist/track'),
+            )
+
+        await expect(
+            expandSoundCloudShortUrl('https://on.soundcloud.com/abc123'),
+        ).resolves.toBe('https://soundcloud.com/artist/track')
+        expect(fetchMock).toHaveBeenCalledTimes(2)
     })
 
     it('returns original URL if not a short link', async () => {
@@ -277,9 +300,7 @@ describe('expandSoundCloudShortUrl', () => {
         const shortUrl = 'https://on.soundcloud.com/abc123'
         const suspiciousUrl = 'https://attacker.com/malware'
 
-        fetchMock.mockResolvedValueOnce({
-            url: suspiciousUrl,
-        })
+        fetchMock.mockResolvedValueOnce(redirectTo(suspiciousUrl))
 
         const result = await expandSoundCloudShortUrl(shortUrl)
 
@@ -305,9 +326,7 @@ describe('expandSoundCloudShortUrl', () => {
         const shortUrl = 'https://on.soundcloud.com/abc123'
         const bypassUrl = 'https://soundcloud.com.attacker.com/x'
 
-        fetchMock.mockResolvedValueOnce({
-            url: bypassUrl,
-        })
+        fetchMock.mockResolvedValueOnce(redirectTo(bypassUrl))
 
         const result = await expandSoundCloudShortUrl(shortUrl)
 
@@ -318,6 +337,122 @@ describe('expandSoundCloudShortUrl', () => {
                     'SoundCloud short URL expansion failed, using original URL',
             }),
         )
+    })
+})
+
+describe('expandSpotifyShortUrl (#3274)', () => {
+    beforeEach(() => {
+        fetchMock.mockReset()
+        warnLogMock.mockReset()
+    })
+
+    it.each(['https://spotify.link/AbC123', 'https://spotify.app.link/AbC123'])(
+        'follows the redirect of %s to open.spotify.com',
+        async (shortUrl) => {
+            fetchMock.mockResolvedValueOnce(
+                redirectTo(
+                    'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=x',
+                ),
+            )
+
+            await expect(expandSpotifyShortUrl(shortUrl)).resolves.toBe(
+                'https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC?si=x',
+            )
+            expect(fetchMock).toHaveBeenCalledWith(
+                shortUrl,
+                expect.objectContaining({ redirect: 'manual' }),
+            )
+        },
+    )
+
+    it('reads the open.spotify.com link from the page when there is no redirect', async () => {
+        fetchMock.mockResolvedValueOnce({
+            status: 200,
+            headers: { get: () => null },
+            text: async () =>
+                '<html><meta property="og:url" content="https://open.spotify.com/artist/0oSGxfWSnnOXhD2fKuz2Gy?si=a&amp;b=c"></html>',
+        })
+
+        await expect(
+            expandSpotifyShortUrl('https://spotify.link/AbC123'),
+        ).resolves.toBe(
+            'https://open.spotify.com/artist/0oSGxfWSnnOXhD2fKuz2Gy?si=a&b=c',
+        )
+    })
+
+    it('keeps the short link when the redirect leaves Spotify', async () => {
+        fetchMock.mockResolvedValueOnce(
+            redirectTo('https://open.spotify.com.attacker.example/track/1'),
+        )
+
+        await expect(
+            expandSpotifyShortUrl('https://spotify.link/AbC123'),
+        ).resolves.toBe('https://spotify.link/AbC123')
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: expect.stringContaining(
+                    'Spotify short URL expansion failed',
+                ),
+            }),
+        )
+    })
+
+    it('never requests a redirect hop outside the short and target hosts', async () => {
+        fetchMock.mockResolvedValueOnce(
+            redirectTo('http://169.254.169.254/latest/meta-data'),
+        )
+
+        await expect(
+            expandSpotifyShortUrl('https://spotify.link/AbC123'),
+        ).resolves.toBe('https://spotify.link/AbC123')
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([
+        'file://open.spotify.com/etc/passwd',
+        'javascript://open.spotify.com/%0Aalert(1)',
+    ])('refuses a non-http redirect to %s', async (location) => {
+        fetchMock.mockResolvedValueOnce(redirectTo(location))
+
+        await expect(
+            expandSpotifyShortUrl('https://spotify.link/AbC123'),
+        ).resolves.toBe('https://spotify.link/AbC123')
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('follows a hop between Spotify short hosts', async () => {
+        fetchMock
+            .mockResolvedValueOnce(
+                redirectTo('https://spotify.app.link/AbC123'),
+            )
+            .mockResolvedValueOnce(
+                redirectTo('https://open.spotify.com/track/1?si=x'),
+            )
+
+        await expect(
+            expandSpotifyShortUrl('https://spotify.link/AbC123'),
+        ).resolves.toBe('https://open.spotify.com/track/1?si=x')
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('leaves other links alone without a request', async () => {
+        await expect(
+            expandSpotifyShortUrl('https://open.spotify.com/track/1'),
+        ).resolves.toBe('https://open.spotify.com/track/1')
+        await expect(
+            expandSpotifyShortUrl('https://evil.example/spotify.link/x'),
+        ).resolves.toBe('https://evil.example/spotify.link/x')
+        expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('is part of the shared prepare step', async () => {
+        fetchMock.mockResolvedValueOnce(
+            redirectTo('https://open.spotify.com/album/1A2GTWGtFfWp7KSQTwWOyo'),
+        )
+
+        await expect(
+            prepareQuery('https://spotify.link/AbC123', null),
+        ).resolves.toBe('https://open.spotify.com/album/1A2GTWGtFfWp7KSQTwWOyo')
     })
 })
 
@@ -489,6 +624,183 @@ describe('executePlayAtTop — fallback chain', () => {
             'Play Error',
             't:music.errors.asmrBlocked',
         )
+    })
+
+    describe('collaborative limit (#3269)', () => {
+        afterEach(() => collaborativePlaylistService.clearGuildState('guild-1'))
+
+        it('refuses the request when the user already used their requests', async () => {
+            collaborativePlaylistService.setMode('guild-1', true, 1)
+            collaborativePlaylistService.recordContribution(
+                'guild-1',
+                'user-1',
+                1,
+            )
+            const client = makeClient(() =>
+                Promise.resolve({ track: fakeTrack }),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction(),
+                skipCurrent: true,
+                commandName: 'playskip',
+            })
+
+            expect(client.player.play).not.toHaveBeenCalled()
+            expect(createErrorEmbedMock).toHaveBeenCalledWith(
+                'Contribution limit reached',
+                expect.stringContaining('1'),
+            )
+        })
+
+        it('lets only one of two racing requests through a limit of one', async () => {
+            collaborativePlaylistService.setMode('guild-1', true, 1)
+            const client = makeClient(() =>
+                Promise.resolve({ track: fakeTrack }),
+            )
+
+            await Promise.all([
+                executePlayAtTop({
+                    client,
+                    interaction: makeInteraction(),
+                    skipCurrent: false,
+                    commandName: 'playtop',
+                }),
+                executePlayAtTop({
+                    client,
+                    interaction: makeInteraction(),
+                    skipCurrent: false,
+                    commandName: 'playtop',
+                }),
+            ])
+
+            expect(client.player.play).toHaveBeenCalledTimes(1)
+            expect(
+                collaborativePlaylistService.getState('guild-1').contributions,
+            ).toEqual({ 'user-1': 1 })
+        })
+
+        it('gives the request back when nothing was queued', async () => {
+            collaborativePlaylistService.setMode('guild-1', true, 1)
+            const client = makeClient(() =>
+                Promise.reject(new Error('nothing found')),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction(),
+                skipCurrent: false,
+                commandName: 'playtop',
+            })
+
+            expect(
+                collaborativePlaylistService.getState('guild-1').contributions,
+            ).toEqual({})
+        })
+
+        it('checks the limit before preparing the query', async () => {
+            collaborativePlaylistService.setMode('guild-1', true, 1)
+            collaborativePlaylistService.recordContribution(
+                'guild-1',
+                'user-1',
+                1,
+            )
+            fetchMock.mockReset()
+
+            await executePlayAtTop({
+                client: makeClient(() => Promise.resolve({ track: fakeTrack })),
+                interaction: makeInteraction('https://on.soundcloud.com/abc'),
+                skipCurrent: false,
+                commandName: 'playtop',
+            })
+
+            expect(fetchMock).not.toHaveBeenCalled()
+        })
+
+        it('records the request once it is queued', async () => {
+            collaborativePlaylistService.setMode('guild-1', true, 3)
+            const client = makeClient(() =>
+                Promise.resolve({ track: fakeTrack }),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction(),
+                skipCurrent: false,
+                commandName: 'playtop',
+            })
+
+            expect(
+                collaborativePlaylistService.getState('guild-1').contributions,
+            ).toEqual({ 'user-1': 1 })
+        })
+    })
+
+    describe('link normalisation shared with /play (#3270)', () => {
+        function playedQuery(client: { player: { play: unknown } }): string {
+            return (client.player.play as jest.Mock).mock.calls[0][1] as string
+        }
+
+        it('strips YouTube Mix context before searching', async () => {
+            const client = makeClient(() =>
+                Promise.resolve({ track: fakeTrack }),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction(
+                    'https://www.youtube.com/watch?v=abc123&list=RDabc123&start_radio=1',
+                ),
+                skipCurrent: false,
+                commandName: 'playtop',
+            })
+
+            expect(playedQuery(client)).toBe(
+                'https://www.youtube.com/watch?v=abc123',
+            )
+        })
+
+        it('normalises a link pasted with surrounding spaces', async () => {
+            const client = makeClient(() =>
+                Promise.resolve({ track: fakeTrack }),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction(
+                    '  https://www.youtube.com/watch?v=abc123&list=RDabc123 ',
+                ),
+                skipCurrent: false,
+                commandName: 'playtop',
+            })
+
+            expect(playedQuery(client)).toBe(
+                'https://www.youtube.com/watch?v=abc123',
+            )
+        })
+
+        it('expands a SoundCloud short link and drops ?in=', async () => {
+            fetchMock.mockResolvedValueOnce(
+                redirectTo(
+                    'https://soundcloud.com/artist/track?in=artist/sets/x',
+                ),
+            )
+            const client = makeClient(() =>
+                Promise.resolve({ track: fakeTrack }),
+            )
+
+            await executePlayAtTop({
+                client,
+                interaction: makeInteraction('https://on.soundcloud.com/abc'),
+                skipCurrent: true,
+                commandName: 'playskip',
+            })
+
+            expect(playedQuery(client)).toBe(
+                'https://soundcloud.com/artist/track',
+            )
+        })
     })
 
     describe('HOSTED_YOUTUBE_ENABLED = false (#2475)', () => {

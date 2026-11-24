@@ -236,6 +236,27 @@ describe('diversitySelector', () => {
                 ).toBe(true)
             })
 
+            // Prod audit 2026-11-24 21:09 UTC: the Spotify release was queued
+            // while its music video played (#3337).
+            test('treats "Motel" as the video that ends with a director credit', () => {
+                const keys = keysFor(
+                    timed(
+                        'Uxie Kid - Motel (Official Music Video) Dir. Thiago Veiga',
+                        'Uxie Kid',
+                        'youtube',
+                        180000,
+                    ),
+                )
+
+                expect(
+                    isDuplicateCandidate(
+                        timed('Motel', 'Uxie Kid', 'spotify', 178000),
+                        new Set(),
+                        keys,
+                    ),
+                ).toBe(true)
+            })
+
             test('keeps a similar half title apart when the durations differ clearly', () => {
                 const keys = keysFor(
                     timed(
@@ -754,7 +775,7 @@ describe('diversitySelector', () => {
             title: string,
             author: string,
             score: number,
-            source: 'seed-similar' | 'lastfm-loved',
+            source: 'seed-similar' | 'spotify-rec',
         ) => ({
             track: { title, author, source: 'youtube' } as Track,
             score,
@@ -762,25 +783,25 @@ describe('diversitySelector', () => {
         })
         const pool = () =>
             new Map([
-                ['a', pick('Loved One', 'Loved A', 2.4, 'lastfm-loved')],
-                ['b', pick('Loved Two', 'Loved B', 2.3, 'lastfm-loved')],
+                ['a', pick('Text One', 'Text A', 2.4, 'spotify-rec')],
+                ['b', pick('Text Two', 'Text B', 2.3, 'spotify-rec')],
                 ['c', pick('Seed Hit', 'Seed Artist', 1.9, 'seed-similar')],
                 ['d', pick('Related Hit', 'Related', 1.5, 'seed-similar')],
             ])
 
         test('keeps the best seed-similar pick when the anchor is reserved', () => {
             const selected = selectDiverseCandidates(pool(), 2, 2, 5, '', true)
-            const titles = selected.map((c) => c.track.title)
-            expect(titles).toHaveLength(2)
-            expect(titles).toContain('Seed Hit')
-            expect(titles).toContain('Loved One')
+            expect(selected.map((c) => c.track.title)).toEqual([
+                'Seed Hit',
+                'Text One',
+            ])
         })
 
         test('ranks by score alone without the reservation', () => {
             const selected = selectDiverseCandidates(pool(), 2, 2, 5, '')
             expect(selected.map((c) => c.track.title)).toEqual([
-                'Loved One',
-                'Loved Two',
+                'Text One',
+                'Text Two',
             ])
         })
 
@@ -800,9 +821,101 @@ describe('diversitySelector', () => {
                 true,
             )
             expect(selected.map((c) => c.track.title)).toEqual([
-                'Loved One',
-                'Loved Two',
+                'Text One',
+                'Text Two',
             ])
+        })
+    })
+
+    describe('seed-grounded picks before the Last.fm profile (#3335)', () => {
+        const pick = (
+            title: string,
+            author: string,
+            score: number,
+            source:
+                | 'spotify-rec'
+                | 'seed-similar'
+                | 'lastfm-loved'
+                | 'lastfm-profile'
+                | 'lastfm-similar'
+                | 'genre-tag',
+        ) => ({
+            track: {
+                title,
+                author,
+                source: source === 'spotify-rec' ? 'spotify' : 'youtube',
+            } as Track,
+            score,
+            basis: { source, signals: [] },
+        })
+
+        // Prod audit 2026-11-24 20:05 UTC: seed "Danny Bond - Say so", the
+        // seed artist's own catalog lost to the requester's Last.fm library.
+        test('fills the buffer from the seed before the listener library', () => {
+            const candidates = new Map([
+                ['a', pick('Tcheca', 'Danny Bond', 0.75, 'spotify-rec')],
+                ['b', pick('Say So', 'Doja Cat', 0.7, 'spotify-rec')],
+                [
+                    'c',
+                    pick(
+                        'o mesmo peso de um elefante',
+                        'miseryswin',
+                        1.5,
+                        'lastfm-loved',
+                    ),
+                ],
+                ['d', pick('BOLHA', 'yuikigai', 1.35, 'lastfm-similar')],
+                ['e', pick('Cabo Verde', 'Froid', 1.3, 'lastfm-profile')],
+            ])
+
+            const selected = selectDiverseCandidates(
+                candidates,
+                2,
+                2,
+                3,
+                'danny bond',
+            )
+
+            expect(selected.map((c) => c.track.title)).toEqual([
+                'Tcheca',
+                'Say So',
+            ])
+        })
+
+        test('lets the listener library fill the slots the seed cannot', () => {
+            const candidates = new Map([
+                ['a', pick('Seed Hit', 'Seed Artist', 0.6, 'seed-similar')],
+                ['b', pick('Loved One', 'Loved Artist', 1.8, 'lastfm-loved')],
+            ])
+
+            const selected = selectDiverseCandidates(candidates, 2, 2, 3, '')
+
+            expect(selected.map((c) => c.track.title)).toEqual([
+                'Seed Hit',
+                'Loved One',
+            ])
+        })
+
+        test('does not lift a penalised seed pick above the listener library', () => {
+            const candidates = new Map([
+                ['a', pick('Disliked Hit', 'Seed Artist', -0.3, 'spotify-rec')],
+                ['b', pick('Loved One', 'Loved Artist', 1.2, 'lastfm-loved')],
+            ])
+
+            const selected = selectDiverseCandidates(candidates, 1, 2, 3, '')
+
+            expect(selected.map((c) => c.track.title)).toEqual(['Loved One'])
+        })
+
+        test('keeps a guild-genre pick behind the seed too', () => {
+            const candidates = new Map([
+                ['a', pick('Seed Hit', 'Seed Artist', 0.6, 'spotify-rec')],
+                ['b', pick('Genre Pick', 'Genre Artist', 1.4, 'genre-tag')],
+            ])
+
+            const selected = selectDiverseCandidates(candidates, 1, 2, 3, '')
+
+            expect(selected.map((c) => c.track.title)).toEqual(['Seed Hit'])
         })
     })
 

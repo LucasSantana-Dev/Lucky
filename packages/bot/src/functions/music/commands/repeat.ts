@@ -11,78 +11,33 @@ import {
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { resumeAutoplay } from '../../../handlers/player/autoplayFailureStreak'
 
-/**
- * Handle track/queue repeat mode
- */
-function handleRepeat(
-    repeatMode: QueueRepeatMode,
-    label: 'current song' | 'queue',
-    times: number | null,
-    guildId: string,
-): { mode: QueueRepeatMode; description: string } {
-    if (times !== null && times !== undefined && times > 1) {
-        guildRepeatCounts.set(guildId, {
-            count: times,
-            originalMode: repeatMode,
-        })
-        return {
-            mode: repeatMode,
-            description: `Repeating ${label} **${times} times**`,
-        }
-    } else {
-        return {
-            mode: repeatMode,
-            description: `Repeating ${label} **infinitely**`,
-        }
-    }
-}
-
-/**
- * Get repeat mode configuration
- */
-function getRepeatModeConfig(
-    mode: string,
-    times: number | null,
-    guildId: string,
-): { mode: QueueRepeatMode; description: string } {
-    switch (mode) {
-        case 'off':
-            return {
-                mode: QueueRepeatMode.OFF,
-                description: 'Repeat **turned off**',
-            }
-        case 'track':
-            return handleRepeat(
-                QueueRepeatMode.TRACK,
-                'current song',
-                times,
-                guildId,
-            )
-        case 'queue':
-            return handleRepeat(QueueRepeatMode.QUEUE, 'queue', times, guildId)
-        case 'infinite':
-            return {
-                mode: QueueRepeatMode.AUTOPLAY,
-                description:
-                    '**Infinite** repeat activated (continuous autoplay)',
-            }
-        default:
-            return {
-                mode: QueueRepeatMode.OFF,
-                description: 'Repeat **turned off**',
-            }
-    }
-}
-
-const guildRepeatCounts = new Map<
+const REPEAT_MODES: Record<
     string,
-    { count: number; originalMode: QueueRepeatMode }
->()
+    { mode: QueueRepeatMode; description: string }
+> = {
+    track: {
+        mode: QueueRepeatMode.TRACK,
+        description: 'Repeating current song **until turned off**',
+    },
+    queue: {
+        mode: QueueRepeatMode.QUEUE,
+        description: 'Repeating queue **until turned off**',
+    },
+    infinite: {
+        mode: QueueRepeatMode.AUTOPLAY,
+        description: '**Infinite** repeat activated (continuous autoplay)',
+    },
+}
+
+const REPEAT_OFF = {
+    mode: QueueRepeatMode.OFF,
+    description: 'Repeat **turned off**',
+}
 
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('repeat')
-        .setDescription('🔁 Set the repeat mode with time or infinite options.')
+        .setDescription('🔁 Set the repeat mode.')
         .addStringOption((option) =>
             option
                 .setName('mode')
@@ -97,35 +52,18 @@ export default new Command({
                         value: 'infinite',
                     },
                 ),
-        )
-        .addIntegerOption((option) =>
-            option
-                .setName('times')
-                .setDescription(
-                    'Number of times to repeat (1-100, only for track/queue)',
-                )
-                .setMinValue(1)
-                .setMaxValue(100)
-                .setRequired(false),
         ),
     category: 'music',
     execute: async ({ client, interaction }: CommandExecuteParams) => {
         const { queue } = resolveGuildQueue(client, interaction.guildId ?? '')
         if (!(await requireSameVoiceChannel(queue, interaction))) return
         const mode = interaction.options.getString('mode', true)
-        const times = interaction.options.getInteger('times', false)
 
         if (!(await requireQueue(queue, interaction))) return
 
         const guildId = interaction.guildId ?? ''
-
-        guildRepeatCounts.delete(guildId)
-
-        const { mode: repeatMode, description } = getRepeatModeConfig(
-            mode,
-            times,
-            guildId,
-        )
+        const { mode: repeatMode, description } =
+            REPEAT_MODES[mode] ?? REPEAT_OFF
 
         queue?.setRepeatMode(repeatMode)
         if (repeatMode === QueueRepeatMode.AUTOPLAY) resumeAutoplay(guildId)
@@ -138,5 +76,3 @@ export default new Command({
         })
     },
 })
-
-export { guildRepeatCounts }

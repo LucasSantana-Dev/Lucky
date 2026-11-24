@@ -1878,9 +1878,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): the server count is also posted to discordbotlist.com and discord.bots.gg every 30 minutes, each enabled by its own `DISCORDBOTLIST_TOKEN` / `DISCORD_BOTS_GG_TOKEN`, with one info log and no requests when neither is set (#2751)
 - feat(bot): music messages are compact: `/play`, now playing, `/skip`-style replies and stream failures are one line each, `/queue` is a single card with a "N songs in queue • Total duration" footer, the now-playing message has one button row with a "More" button for the full controls, and skip-reason reactions only appear on autoplay picks; the `/play` reply, now-playing message, `/queue` card and failure notices follow the server language (en, es, pt-BR), while the `/skip`-style status labels stay English for now (#3009) (#3007)
 - feat(bot): ASMR is blocked on every server: `/play` and `/playtop` refuse it with a message, autoplay never picks it, and ASMR tracks added another way (album, artist, playlist, dashboard) are removed from the queue (#3000)
+- feat(bot): `/play` expands Spotify share links (`spotify.link`, `spotify.app.link`) to the open.spotify.com link, and a Spotify artist link queues that artist's top tracks like `/artist` instead of replying that the link is not supported
 
 ### Fixed
+- fix(bot): the `/recap` error for an unsupported channel now says a text channel or a voice channel chat is accepted, in en, es and pt-BR (#3247)
+- **bot**: an isolated YouTube bot-check no longer sends the next 15 min of plays to the slower yt-dlp cookies path; it takes two bot-checks within the window to skip the plain attempt (#3333)
+- fix(bot): when the YouTube search for a Spotify track retries with a broader query, it keeps the version the Spotify title asks for ("Duvet - Acoustic" searches for the acoustic recording instead of only finding the original) (#3276)
+- fix(bot): `/skip` no longer reports an error when only the autoplay feedback prompt fails after a successful skip, and two `/skip` calls racing on the same song skip it once instead of also skipping the next one (#3279)
+- fix(bot): the `/skip` "DJ Only" refusal is private again: the DJ check runs before the public defer, so only the member who tried sees it (#3278)
+- fix(bot): SoundCloud results whose audio is DRM encrypted are skipped before matching, so the bridge no longer spends a yt-dlp attempt on an upload that can never play (#3281)
+- fix(bot): when autoplay finds no candidates and has no session history left to replay (for example after a restart restores a queue), it replays a few non-skipped songs from the server's saved play history instead of letting the queue stall (#3277)
+- fix(bot): the SoundCloud fallback accepts a re-upload that names the artist and runs within 3 s of the track (or the artist's own upload under a shorter title), and a stage that simply finds no match logs at debug; the rejected candidates are reported once, in `Bridge: all stages exhausted` (#3275)
+- fix(bot): `/repeat` drops its `times` option, which promised a fixed number of repeats but looped forever; track and queue repeat now say plainly that they repeat until turned off (#3268)
 - fix(bot): `/voteskip` counts only votes from members still in the voice channel, so a voter who left no longer helps pass the skip (#3267)
+- perf(backend): the dashboard server list (`GET /api/guilds`) reuses each member's Discord roles for 30 seconds per server and resolves at most 5 servers at a time, so reloading it no longer repeats one Discord member lookup per server (#3286)
+- fix(bot): ending a music session (stop, leave, idle disconnect, a voice disconnect or the bot leaving the server) clears that server's autoplay refill counter, settled refill lock and session mood cache, so they no longer pile up per server or carry into the next session (#3280)
+- fix(bot): autoplay no longer rejects every Spanish candidate while the session history is still empty: the cross-locale veto now lets through the playing artist's own tracks, and Latin candidates when the playing track itself reads Spanish (by title or a language-specific Last.fm tag). A restored session where every source returns nothing can still stall (#3277)
 - fix(backend): Discord OAuth tokens in webapp sessions are encrypted at rest (AES-256-GCM, new `SESSION_TOKEN_KEY`, required in production), and the session file fallback now writes asynchronously and atomically
 - fix(backend): editing, toggling or deleting an auto message from the dashboard only works on that guild's own messages; an id from another guild returns not found
 - fix(backend,bot): Twitch notifications and auto messages only accept a channel from the same guild; the dashboard refuses another guild's channel and the bot skips stored notifications that point outside their guild
@@ -1919,6 +1932,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - fix(bot): yt-dlp is stopped when a skipped or stopped track drops its stream, so idle yt-dlp processes no longer pile up until the container runs out of memory (#2979)
 - fix(bot): after `/skip`, a requested song that is still loading now plays instead of being replaced by the autoplay pick queued behind it (#2996)
 - fix(bot): YouTube plays start in about 3 s again: yt-dlp asks for the visionos client first, since the default clients now wait out a pre-roll ad and most starts timed out at 8 s
+- fix(bot): `/playtop` and `/playskip` expand SoundCloud short links and strip SoundCloud `?in=` and YouTube Mix context like `/play` does, so a link that works on `/play` works on them too
+- fix(bot): `/playlist collaborative` enable, disable and reset need the DJ role or Manage Server (Manage Server when no DJ role is set), and the per-user request limit now also applies to `/playtop`, `/playskip`, `/album` and `/artist`
 
 ## [2.17.0] - 2026-06-08
 

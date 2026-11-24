@@ -1,4 +1,3 @@
-import { randomInt } from 'node:crypto'
 import type { Track, GuildQueue } from 'discord-player'
 import type { User } from 'discord.js'
 import { debugLog, errorLog, warnLog } from '@lucky/shared/utils'
@@ -35,6 +34,7 @@ import {
     ARTIST_FEEDBACK_WEIGHT_CAP,
     buildArtistFeedbackWeights,
     normalizeText,
+    seedFirstTier,
 } from './scoringUtils'
 import {
     buildExcludedUrls,
@@ -64,6 +64,11 @@ import {
 import { buildVcContributionWeights } from './vcWeights'
 import { getRejectionCounts } from './candidateContracts'
 import { getAllHistoryTracks } from '../../../utils/music/historyTracks'
+import {
+    dedupeReplayPool,
+    resolvePersistentHistoryReplay,
+    shuffleInPlace,
+} from './persistentHistoryReplay'
 
 // Autoplay backfill target. Reduced from 8→2 to prevent over-queueing: when
 // too many songs are queued ahead, most get evicted before playerStart without
@@ -195,10 +200,8 @@ export function replenishQueue(
             return false
         })
     })
-    replenishLocks.set(
-        guildId,
-        next.catch(() => false),
-    )
+    const lock = next.catch(() => false)
+    replenishLocks.set(guildId, lock)
     return next
 }
 
@@ -358,6 +361,7 @@ async function _replenishQueue(
                 blockSertanejo,
                 guildSettings,
                 contributionWeights,
+                missingTracks,
             )
 
         debugLog({
@@ -398,7 +402,11 @@ async function _replenishQueue(
             requestedBy,
             sourcesCounts,
             startTime,
-            allHistoryTracks,
+            {
+                session: allHistoryTracks,
+                persisted: persistentHistory,
+                isCancelled: () => run.cancelled,
+            },
         )
         return true
     } catch (error) {
@@ -889,6 +897,32 @@ async function collectBroadFallbackWithTimeout(
 }
 
 /**
+ * True when seed-grounded picks alone fill the buffer gap. Last.fm library
+ * picks only fill the slots those leave (#3335), so collecting them would
+ * spend their Spotify searches for nothing. Dry-runs the selector with the
+ * final pass's anchor reservation and the default per-artist cap (the
+ * deep-dive cap is wider). It asks for one spare pick: the final pass
+ * re-jitters scores, so near-ties can land in another order there.
+ */
+function seedCoversBuffer(
+    candidates: Map<string, ScoredTrack>,
+    missingTracks: number,
+    currentTrack: Track,
+    reserveAnchor: boolean,
+): boolean {
+    const needed = missingTracks + 1
+    const picks = selectDiverseCandidates(
+        candidates,
+        needed,
+        MAX_TRACKS_PER_ARTIST,
+        MAX_TRACKS_PER_SOURCE,
+        primaryArtistKey(currentTrack.author),
+        reserveAnchor,
+    )
+    return picks.filter((c) => seedFirstTier(c) === 0).length >= needed
+}
+
+/**
  * Collect all autoplay candidates from five sources: recommendation, seed-similar,
  * lastfm, genre, and fallback. Returns candidates set and sourcesCounts breakdown.
  */
@@ -899,6 +933,8 @@ export async function collectAllCandidates(
     blockSertanejo: boolean,
     guildSettings: { autoplayGenres?: string[] } | null,
     contributionWeights: Map<string, number>,
+    /** Buffer gap; when known, the Last.fm library is skipped if seed picks fill it. */
+    missingTracks?: number,
 ): Promise<{
     candidates: Map<string, ScoredTrack>
     sourcesCounts: Record<string, SourceCount>
@@ -957,7 +993,18 @@ export async function collectAllCandidates(
         },
     })
 
-    if (requestedBy?.id) {
+    if (
+        requestedBy?.id &&
+        missingTracks !== undefined &&
+        seedCoversBuffer(
+            candidates,
+            missingTracks,
+            autoplayContext.currentTrack,
+            !hasQueuedSeedSimilarPick(autoplayContext.queue),
+        )
+    ) {
+        sourcesCounts.lastfm = { skipped: true, reason: 'seed-covered' }
+    } else if (requestedBy?.id) {
         const beforeLastFm = candidates.size
         await collectLastFmCandidates(
             autoplayContext,
@@ -1076,6 +1123,8 @@ export async function selectAndRerankCandidates(
     const isDeepDiveSeed =
         !!deepDiveKey && primaryArtistKey(deepDiveKey) === seedArtistKey
     const effectiveMaxPerArtist = isDeepDiveSeed ? 5 : MAX_TRACKS_PER_ARTIST
+    // The interleave must not move a Last.fm profile pick ahead of a
+    // seed-grounded one (#3335); the stable sort keeps it within each tier.
     const selected = interleaveByArtist(
         selectDiverseCandidates(
             candidates,
@@ -1085,7 +1134,7 @@ export async function selectAndRerankCandidates(
             seedArtistKey,
             reserveAnchor,
         ),
-    )
+    ).sort((a, b) => seedFirstTier(a) - seedFirstTier(b))
 
     const enriched = selected
     // The selector put the reserved anchor first; the rerank must not undo it.
@@ -1106,6 +1155,9 @@ export async function selectAndRerankCandidates(
             // mainstream drift.
             const rerankHead =
                 autoplayMode === 'similar' ? POPULARITY_RERANK_HEAD : 3
+            // Taken before the boost: it must not lift a penalised seed
+            // pick into the seed-grounded tier (#3335).
+            const tiers = new Map(enriched.map((t) => [t, seedFirstTier(t)]))
             await Promise.all(
                 enriched.slice(0, rerankHead).map(async (track) => {
                     const popularity = await getArtistPopularity(
@@ -1119,6 +1171,7 @@ export async function selectAndRerankCandidates(
             enriched.sort(
                 (a, b) =>
                     Number(b === anchor) - Number(a === anchor) ||
+                    (tiers.get(a) ?? 1) - (tiers.get(b) ?? 1) ||
                     b.score - a.score,
             )
         }
@@ -1171,7 +1224,11 @@ export async function enqueueAndFinalize(
     requestedBy: User | null,
     sourcesCounts: Record<string, SourceCount>,
     startTime: number,
-    allHistoryTracks: Track[] = [],
+    replayHistory: {
+        session?: Track[]
+        persisted?: TrackHistoryEntry[]
+        isCancelled?: () => boolean
+    } = {},
 ): Promise<void> {
     const queue = autoplayContext.queue
     const currentTrack = autoplayContext.currentTrack
@@ -1226,26 +1283,37 @@ export async function enqueueAndFinalize(
                 .filter((t): t is Track => Boolean(t))
                 .map((t) => normalizeTrackKey(t.title, t.author)),
         )
-        const seenReplay = new Set<string>()
-        const seenReplayUrls = new Set<string>()
-        const historyPool = allHistoryTracks.filter((t) => {
-            if (!t.url || replayExcluded.has(t.url)) return false
-            if (seenReplayUrls.has(t.url)) return false
-            seenReplayUrls.add(t.url)
-            const key = normalizeTrackKey(t.title, t.author)
-            if (replayKeys.has(key) || seenReplay.has(key)) return false
-            seenReplay.add(key)
-            return true
-        })
         // Shuffle so successive empty passes don't always replay the same track.
-        for (let i = historyPool.length - 1; i > 0; i--) {
-            const j = randomInt(i + 1)
-            ;[historyPool[i], historyPool[j]] = [
-                historyPool[j]!,
-                historyPool[i]!,
-            ]
+        let historyReplay = shuffleInPlace(
+            dedupeReplayPool(
+                replayHistory.session ?? [],
+                replayExcluded,
+                replayKeys,
+            ),
+        ).slice(0, HISTORY_REPLAY_LIMIT)
+        let replaySource = 'session'
+        // A restored session has no in-session history: fall back to the
+        // guild history persisted across restarts (#3277).
+        if (historyReplay.length === 0 && currentTrack) {
+            historyReplay = await resolvePersistentHistoryReplay(
+                queue,
+                currentTrack,
+                replayHistory.persisted ?? [],
+                HISTORY_REPLAY_LIMIT,
+                requestedBy,
+            )
+            replaySource = 'persisted'
+            // The searches awaited above can outlive the refill deadline;
+            // a cancelled run must not enqueue after a retry has started.
+            if (replayHistory.isCancelled?.()) {
+                debugLog({
+                    message:
+                        'Autoplay: refill passed its deadline, not enqueueing replay',
+                    data: { guildId },
+                })
+                return
+            }
         }
-        const historyReplay = historyPool.slice(0, HISTORY_REPLAY_LIMIT)
         if (historyReplay.length > 0) {
             // Same path as selected candidates: autoplay marking, buffer
             // accounting and telemetry, so status/skip/clear controls see them.
@@ -1267,6 +1335,7 @@ export async function enqueueAndFinalize(
                     'Autoplay: replaying history tracks, all collectors empty',
                 data: {
                     guildId,
+                    source: replaySource,
                     replayed: historyReplay.map((t) => t.title),
                 },
             })
@@ -1435,6 +1504,37 @@ function buildArtistFrequency(
         }
     }
     return freq
+}
+
+/**
+ * Drops the per-guild autoplay state when a session ends (queue deleted,
+ * idle disconnect, /leave or the bot leaving the guild), so the maps do not
+ * grow with guild count and a stale mood cannot leak into the next session.
+ * The clear waits for the guild's refill chain to settle: an in-flight refill
+ * would otherwise write its counter and mood back afterwards. A refill queued
+ * meanwhile belongs to a new session, so its state is left alone.
+ */
+export function clearAutoplayGuildState(guildId: string): Promise<void> {
+    const lock = replenishLocks.get(guildId) ?? Promise.resolve(true)
+    return lock.then(() => {
+        const current = replenishLocks.get(guildId)
+        if (current !== undefined && current !== lock) return
+        replenishLocks.delete(guildId)
+        replenishCounters.delete(guildId)
+        clearSessionMoodCache(guildId)
+    })
+}
+
+export function __autoplayGuildStateForTests(guildId: string): {
+    lock: boolean
+    counter: boolean
+    mood: boolean
+} {
+    return {
+        lock: replenishLocks.has(guildId),
+        counter: replenishCounters.has(guildId),
+        mood: sessionMoodCache.has(guildId),
+    }
 }
 
 export function clearSessionMoodCache(guildId: string): void {
