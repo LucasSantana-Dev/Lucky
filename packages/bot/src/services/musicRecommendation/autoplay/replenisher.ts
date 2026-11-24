@@ -1115,6 +1115,9 @@ export async function selectAndRerankCandidates(
             // mainstream drift.
             const rerankHead =
                 autoplayMode === 'similar' ? POPULARITY_RERANK_HEAD : 3
+            // Taken before the boost: it must not lift a penalised seed
+            // pick into the seed-grounded tier (#3335).
+            const tiers = new Map(enriched.map((t) => [t, seedFirstTier(t)]))
             await Promise.all(
                 enriched.slice(0, rerankHead).map(async (track) => {
                     const popularity = await getArtistPopularity(
@@ -1128,7 +1131,7 @@ export async function selectAndRerankCandidates(
             enriched.sort(
                 (a, b) =>
                     Number(b === anchor) - Number(a === anchor) ||
-                    seedFirstTier(a) - seedFirstTier(b) ||
+                    (tiers.get(a) ?? 1) - (tiers.get(b) ?? 1) ||
                     b.score - a.score,
             )
         }

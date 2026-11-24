@@ -104,25 +104,27 @@ export function extractYouTubeVideoId(url: string): string | null {
     return null
 }
 
-// The listener's Last.fm library (loved, top and recent tracks, and their
-// similars) is not tied to the seed, so it only fills the slots that
-// seed-grounded picks cannot (#3335).
-const LISTENER_PROFILE_SOURCES: ReadonlySet<RecommendationSource> = new Set([
-    'lastfm-loved',
-    'lastfm-profile',
-    'lastfm-similar',
+// Sources derived from the playing track: its title search, its Last.fm
+// similars and related artists, its artist and its dominant tag. The rest
+// (the listener's Last.fm library, guild genres) is not tied to the seed,
+// so it only fills the slots these picks cannot (#3335).
+const SEED_GROUNDED_SOURCES: ReadonlySet<RecommendationSource> = new Set([
+    'spotify-rec',
+    'seed-similar',
+    'artist-fallback',
+    'lastfm-genre-fallback',
 ])
 
 /**
  * Autoplay sort tier: 0 for a seed-grounded pick with a positive score, 1 for
- * a Last.fm profile pick or a penalised one. Sort by tier, then by score.
+ * any other pick or a penalised one. Sort by tier, then by score.
  */
 export function seedFirstTier(candidate: {
     score: number
     basis: { source: RecommendationSource }
 }): 0 | 1 {
     return candidate.score > 0 &&
-        !LISTENER_PROFILE_SOURCES.has(candidate.basis.source)
+        SEED_GROUNDED_SOURCES.has(candidate.basis.source)
         ? 0
         : 1
 }

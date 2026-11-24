@@ -816,7 +816,8 @@ describe('diversitySelector', () => {
                 | 'seed-similar'
                 | 'lastfm-loved'
                 | 'lastfm-profile'
-                | 'lastfm-similar',
+                | 'lastfm-similar'
+                | 'genre-tag',
         ) => ({
             track: {
                 title,
@@ -883,6 +884,17 @@ describe('diversitySelector', () => {
             const selected = selectDiverseCandidates(candidates, 1, 2, 3, '')
 
             expect(selected.map((c) => c.track.title)).toEqual(['Loved One'])
+        })
+
+        test('keeps a guild-genre pick behind the seed too', () => {
+            const candidates = new Map([
+                ['a', pick('Seed Hit', 'Seed Artist', 0.6, 'spotify-rec')],
+                ['b', pick('Genre Pick', 'Genre Artist', 1.4, 'genre-tag')],
+            ])
+
+            const selected = selectDiverseCandidates(candidates, 1, 2, 3, '')
+
+            expect(selected.map((c) => c.track.title)).toEqual(['Seed Hit'])
         })
     })
 

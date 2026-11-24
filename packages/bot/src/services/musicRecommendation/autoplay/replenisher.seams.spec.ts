@@ -1210,6 +1210,56 @@ describe('replenisher seam functions', () => {
                     'o mundo',
                 ])
             })
+
+            it('keeps a penalised seed pick behind once the popularity boost lifts it above 0', async () => {
+                const {
+                    selectDiverseCandidates,
+                } = require('./diversitySelector')
+                const { interleaveByArtist } = require('../candidateFallback')
+                const { spotifyLinkService } = require('@lucky/shared/services')
+                const {
+                    getArtistPopularity,
+                } = require('../../../spotify/spotifyApi')
+                const penalisedSeed = {
+                    track: createTrack({
+                        title: 'Disliked Hit',
+                        author: 'Danny Bond',
+                    }),
+                    score: -0.05,
+                    basis: { source: 'spotify-rec', signals: [] },
+                }
+                const loved = {
+                    track: createTrack({
+                        title: 'nuvens',
+                        author: 'miseryswin',
+                    }),
+                    score: 0.7,
+                    basis: { source: 'lastfm-loved', signals: [] },
+                }
+                selectDiverseCandidates.mockReturnValue([loved, penalisedSeed])
+                interleaveByArtist.mockImplementation((tracks: any[]) => tracks)
+                spotifyLinkService.getValidAccessToken.mockResolvedValue(
+                    'token',
+                )
+                getArtistPopularity.mockImplementation(
+                    async (_t: string, a: string) =>
+                        a === 'Danny Bond' ? 100 : 0,
+                )
+
+                const ranked = await selectAndRerankCandidates(
+                    new Map(),
+                    2,
+                    mood,
+                    createTrack(),
+                    'similar',
+                    { id: 'user-1' } as never,
+                )
+
+                expect(ranked.map((t) => t.track.title)).toEqual([
+                    'nuvens',
+                    'Disliked Hit',
+                ])
+            })
         })
     })
 
