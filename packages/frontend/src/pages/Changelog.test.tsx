@@ -52,9 +52,14 @@ describe('Changelog', { timeout: 20000 }, () => {
     })
 
     test('links PR references to github', async () => {
-        renderPage()
+        const { container } = renderPage()
         await screen.findAllByText(/^Added$/i)
-        const prLinks = screen.getAllByRole('link', { name: /^#\d+/ })
+        // Not getAllByRole: computing accessible names for the thousands of
+        // links in the full CHANGELOG takes ~6 s locally and timed out at 20 s
+        // on CI under coverage. A plain DOM scan checks the same thing.
+        const prLinks = Array.from(container.querySelectorAll('a')).filter(
+            (a) => /^#\d+/.test(a.textContent ?? ''),
+        )
         expect(prLinks.length).toBeGreaterThanOrEqual(1)
         expect(prLinks[0]).toHaveAttribute(
             'href',
