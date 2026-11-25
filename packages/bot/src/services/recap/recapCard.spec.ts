@@ -97,7 +97,14 @@ describe('buildRecapCardPayload', () => {
                 wanted: 2,
                 got: 1,
                 dropped: 1,
+                coverUrls: 2,
+                urlsTimedOut: 0,
+                urlsSkipped: 0,
                 durationMs: expect.any(Number),
+                loopLagMaxMs: expect.any(Number),
+                loopLagP99Ms: expect.any(Number),
+                trackQueryMs: expect.any(Number),
+                trackQueryLoopLagMaxMs: expect.any(Number),
             },
         })
     })

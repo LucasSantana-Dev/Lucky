@@ -176,8 +176,8 @@ RUN npm run build:shared
 # (sourceMap + inlineSources in the package tsconfigs); `sourcemaps inject`
 # stamps a debug id into each .js and its map, which is how Sentry pairs an
 # event frame with the uploaded map, with no release or path matching. The
-# CLI is the lockfile-pinned @sentry/cli (a dependency of the frontend vite
-# plugin), so this step needs no network. shared/dist is injected here and
+# CLI is the lockfile-pinned @sentry/cli (a root devDependency, pinned to
+# the CI version), so this step needs no network. shared/dist is injected here and
 # not in build-shared: build-frontend bundles shared/dist, and an injected
 # snippet inside a vite chunk would register the wrong debug id for it. That
 # is why the production stages copy shared/dist from build-bot/build-backend.
