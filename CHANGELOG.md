@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.75.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.75.0...v2.75.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **backend:** guard role-groups with the automation module ([#3350](https://github.com/LucasSantana-Dev/Lucky/issues/3350)) ([6cd47ed](https://github.com/LucasSantana-Dev/Lucky/commit/6cd47ed887d4d00f9537227b1daa116601b0fd5e)), closes [#2453](https://github.com/LucasSantana-Dev/Lucky/issues/2453)
+* **bot:** pin the youtubei worker path so botguard stops crashing the bot ([#3352](https://github.com/LucasSantana-Dev/Lucky/issues/3352)) ([611153e](https://github.com/LucasSantana-Dev/Lucky/commit/611153e60fd33bdb63141f856c888d2d9660efca))
+
 ## [2.75.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.74.0...v2.75.0) (2026-11-25)
 
 
