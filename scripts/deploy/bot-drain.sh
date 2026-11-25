@@ -49,8 +49,12 @@ bot_active_listeners() {
     printf '%s\n' "$out"
 }
 
+# False only when docker says the bot is stopped; an inspect error is unknown
+# and counts as running, so a docker hiccup never cuts a session short.
 bot_drain_running() {
-    [[ "$(docker inspect "$BOT_DRAIN_CONTAINER" --format '{{.State.Running}}' 2>/dev/null || true)" == "true" ]]
+    local state
+    state=$(docker inspect "$BOT_DRAIN_CONTAINER" --format '{{.State.Running}}' 2>/dev/null) || return 0
+    [[ "$state" == "true" ]]
 }
 
 # True once the first deferral is BOT_DRAIN_TIMEOUT_SECONDS old.
@@ -152,6 +156,7 @@ bot_drain_wait_healthy() {
 # Recreates the bot from the current IMAGE_TAG under the deploy lock. If the
 # new bot never turns healthy, puts the previous image back by its image ID
 # (re-tagged), since the tag may now point at the new image (e.g. latest).
+# Returns 2 when compose could not even start the recreate (nothing changed).
 bot_drain_recreate() {
     local previous_id previous_ref rollback_tag="drain-rollback"
     previous_id=$(docker inspect "$BOT_DRAIN_CONTAINER" --format '{{.Image}}' 2>/dev/null || true)
@@ -159,7 +164,7 @@ bot_drain_recreate() {
     if ! docker_compose up -d --no-deps bot; then
         log "Bot drain ERROR: docker compose up for the bot failed"
         notify 16711680 "Bot Restart Failed" "Deferred bot recreate failed; old bot may still be running"
-        return 1
+        return 2
     fi
     if bot_drain_wait_healthy; then
         log "Bot drain: bot recreated on ${IMAGE_TAG} and healthy"
@@ -204,6 +209,12 @@ bot_drain_watch() {
             notify 16753920 "Bot Restart" "Restarting the bot with ${BOT_DRAIN_LISTENERS} session(s) listening: waited the full $(( BOT_DRAIN_TIMEOUT_SECONDS / 60 )) min"
         fi
         bot_drain_recreate
+        if [[ $? -eq 2 ]] && ! bot_drain_cap_reached; then
+            # Compose failed before touching the bot: keep the deferral and
+            # try again next poll (until the cap).
+            rm -rf "$LOCK_DIR" 2>/dev/null || true
+            continue
+        fi
         bot_drain_clear
         rm -rf "$LOCK_DIR" 2>/dev/null || true
         rm -f "$BOT_DRAIN_PID_FILE"

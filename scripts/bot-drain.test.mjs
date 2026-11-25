@@ -31,7 +31,7 @@ function run(body, { listeners = ['0'], env = {}, since } = {}) {
         'log() { echo "LOG $*"; }',
         'notify() { echo "NOTIFY $2: $3"; }',
         'docker_compose() { echo "COMPOSE $*"; }',
-        'docker() { case "$1 $*" in *Health*) echo "${FAKE_HEALTH:-healthy}";; *State.Running*) echo "${FAKE_RUNNING:-true}";; *Config.Image*) echo ghcr.io/x/lucky-bot:latest;; *"{{.Image}}"*) echo sha256:old;; tag*) echo "TAG ${*:2}";; *) return 1;; esac; }',
+        'docker() { case "$1 $*" in *Health*) echo "${FAKE_HEALTH:-healthy}";; *State.Running*) [ "${FAKE_RUNNING:-true}" = error ] && return 1; echo "${FAKE_RUNNING:-true}";; *Config.Image*) echo ghcr.io/x/lucky-bot:latest;; *"{{.Image}}"*) echo sha256:old;; tag*) echo "TAG ${*:2}";; *) return 1;; esac; }',
         `source "${toPosix(script)}"`,
     ].join('\n')
     const r = spawnSync('bash', ['-c', `${prelude}\n${body}`], {
@@ -212,6 +212,33 @@ test('the watcher recreates a stopped bot without waiting for a count', () => {
     try {
         assert.doesNotMatch(r.out, /checking again next poll/)
         assert.equal(r.out.match(/COMPOSE up -d --no-deps bot/g)?.length, 1)
+    } finally {
+        rmSync(r.dir, { recursive: true, force: true })
+    }
+})
+
+test('the watcher keeps waiting when docker cannot say whether the bot runs', () => {
+    const r = run('date +%s > "$BOT_DEFERRED_SINCE_FILE"; bot_drain_watch', {
+        listeners: ['fail', '0'],
+        env: { FAKE_RUNNING: 'error' },
+    })
+    try {
+        assert.match(r.out, /checking again next poll/)
+        assert.equal(r.out.match(/COMPOSE up -d --no-deps bot/g)?.length, 1)
+    } finally {
+        rmSync(r.dir, { recursive: true, force: true })
+    }
+})
+
+test('the watcher retries when compose fails before touching the bot', () => {
+    const r = run(
+        'n=0; docker_compose() { n=$((n+1)); echo "COMPOSE $*"; [ $n -gt 1 ]; }; date +%s > "$BOT_DEFERRED_SINCE_FILE"; bot_drain_watch',
+        { listeners: ['0'] },
+    )
+    try {
+        assert.equal(r.out.match(/COMPOSE up -d --no-deps bot/g)?.length, 2)
+        assert.match(r.out, /recreated on new1234 and healthy/)
+        assert.equal(existsSync(join(r.dir, 'since')), false)
     } finally {
         rmSync(r.dir, { recursive: true, force: true })
     }
