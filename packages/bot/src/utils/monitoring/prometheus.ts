@@ -77,6 +77,43 @@ export const gatewayConnectedGauge = new Gauge({
 })
 
 /**
+ * Gauge: music sessions with someone listening right now, meaning a queue
+ * with a current track, playing or paused, in a voice channel that has at
+ * least one member who is not a bot. scripts/deploy.sh reads it before
+ * recreating the bot so a deploy waits for the room to empty (#2872).
+ * Reports -1 when the queues cannot be read, so the deploy never mistakes
+ * an error for an empty room.
+ */
+const activeListenerSessionsCollect: CollectFunction<Gauge> =
+    function collectActiveListenerSessions(this: Gauge) {
+        try {
+            const queues = getStoredClient()?.player?.nodes?.cache
+            let active = 0
+            for (const queue of queues?.values() ?? []) {
+                if (!queue?.currentTrack) continue
+                if (!queue.node.isPlaying() && !queue.node.isPaused()) continue
+                const members = queue.channel?.members
+                if (members?.some((member) => !member.user.bot)) active++
+            }
+            this.set(active)
+        } catch (error) {
+            this.set(-1)
+            errorLog({
+                message:
+                    'prometheus: failed to collect lucky_bot_active_listener_sessions',
+                error,
+            })
+        }
+    }
+
+export const activeListenerSessionsGauge = new Gauge({
+    name: 'lucky_bot_active_listener_sessions',
+    help: 'Music sessions (current track playing or paused) whose voice channel has at least one non-bot member. -1 when the queues could not be read. The deploy waits for 0 before recreating the bot.',
+    registers: [registry],
+    collect: activeListenerSessionsCollect,
+})
+
+/**
  * Counter: Guild Automation usage from the Discord `/guildconfig` command,
  * labelled by operation type (plan|apply|reconcile). Mirrors the backend's
  * `lucky_guild_automation_usage_total` so the migration-freeze demand signal

@@ -4,6 +4,7 @@ set -euo pipefail
 # Trigger the homelab deploy webhook for the resolved deploy SHA.
 # Extracted from deploy.yml "Trigger deploy webhook" step.
 # Required env: WEBHOOK_URL, WEBHOOK_SECRET, DEPLOY_SHA.
+# Optional env: FORCE_BOT_RESTART=true restarts the bot even with listeners.
 
 echo "==> Triggering deploy webhook..."
 
@@ -11,12 +12,19 @@ echo "==> Triggering deploy webhook..."
 # env (never inlined) to keep the curl headers injection-safe.
 echo "==> Deploying SHA $DEPLOY_SHA"
 
+force_header=()
+if [ "${FORCE_BOT_RESTART:-}" = "true" ]; then
+  echo "==> Bot restart forced (no wait for listeners)"
+  force_header=(-H "X-Deploy-Force-Bot-Restart: true")
+fi
+
 call_webhook() {
   local url="$1"
   curl -s -w "\n%{http_code}" \
     -X POST \
     -H "X-Webhook-Secret: $WEBHOOK_SECRET" \
     -H "X-Deploy-SHA: $DEPLOY_SHA" \
+    "${force_header[@]}" \
     --connect-timeout 10 \
     --max-time 30 \
     "$url"
