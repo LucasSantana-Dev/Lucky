@@ -31,7 +31,7 @@ function run(body, { listeners = ['0'], env = {}, since } = {}) {
         'log() { echo "LOG $*"; }',
         'notify() { echo "NOTIFY $2: $3"; }',
         'docker_compose() { echo "COMPOSE $*"; }',
-        'docker() { case "$1 $*" in *Health*) echo "${FAKE_HEALTH:-healthy}";; *Config.Image*) echo ghcr.io/x/lucky-bot:latest;; *"{{.Image}}"*) echo sha256:old;; tag*) echo "TAG ${*:2}";; *) return 1;; esac; }',
+        'docker() { case "$1 $*" in *Health*) echo "${FAKE_HEALTH:-healthy}";; *State.Running*) echo "${FAKE_RUNNING:-true}";; *Config.Image*) echo ghcr.io/x/lucky-bot:latest;; *"{{.Image}}"*) echo sha256:old;; tag*) echo "TAG ${*:2}";; *) return 1;; esac; }',
         `source "${toPosix(script)}"`,
     ].join('\n')
     const r = spawnSync('bash', ['-c', `${prelude}\n${body}`], {
@@ -198,6 +198,19 @@ test('the watcher skips a poll when the count is unreadable, then recreates', ()
     })
     try {
         assert.match(r.out, /checking again next poll/)
+        assert.equal(r.out.match(/COMPOSE up -d --no-deps bot/g)?.length, 1)
+    } finally {
+        rmSync(r.dir, { recursive: true, force: true })
+    }
+})
+
+test('the watcher recreates a stopped bot without waiting for a count', () => {
+    const r = run('date +%s > "$BOT_DEFERRED_SINCE_FILE"; bot_drain_watch', {
+        listeners: ['fail'],
+        env: { FAKE_RUNNING: 'false' },
+    })
+    try {
+        assert.doesNotMatch(r.out, /checking again next poll/)
         assert.equal(r.out.match(/COMPOSE up -d --no-deps bot/g)?.length, 1)
     } finally {
         rmSync(r.dir, { recursive: true, force: true })

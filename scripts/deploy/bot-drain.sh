@@ -49,6 +49,10 @@ bot_active_listeners() {
     printf '%s\n' "$out"
 }
 
+bot_drain_running() {
+    [[ "$(docker inspect "$BOT_DRAIN_CONTAINER" --format '{{.State.Running}}' 2>/dev/null || true)" == "true" ]]
+}
+
 # True once the first deferral is BOT_DRAIN_TIMEOUT_SECONDS old.
 bot_drain_cap_reached() {
     local since
@@ -83,7 +87,8 @@ bot_drain_decide() {
     fi
     if ! BOT_DRAIN_LISTENERS=$(bot_active_listeners); then
         BOT_DRAIN_LISTENERS=""
-        if [[ "$mode" == "watch" ]] && ! bot_drain_cap_reached; then
+        # A stopped bot has nobody to protect; only a running one waits.
+        if [[ "$mode" == "watch" ]] && bot_drain_running && ! bot_drain_cap_reached; then
             log "Bot drain: listener count unavailable; checking again next poll"
             BOT_DRAIN_DECISION=defer
             return 0
