@@ -162,8 +162,9 @@ bot_drain_recreate() {
     previous_id=$(docker inspect "$BOT_DRAIN_CONTAINER" --format '{{.Image}}' 2>/dev/null || true)
     previous_ref=$(docker inspect "$BOT_DRAIN_CONTAINER" --format '{{.Config.Image}}' 2>/dev/null || true)
     if ! docker_compose up -d --no-deps bot; then
+        # The watcher retries this every poll, so it notifies only when it
+        # gives up.
         log "Bot drain ERROR: docker compose up for the bot failed"
-        notify 16711680 "Bot Restart Failed" "Deferred bot recreate failed; old bot may still be running"
         return 2
     fi
     if bot_drain_wait_healthy; then
@@ -209,11 +210,12 @@ bot_drain_watch() {
             notify 16753920 "Bot Restart" "Restarting the bot with ${BOT_DRAIN_LISTENERS} session(s) listening: waited the full $(( BOT_DRAIN_TIMEOUT_SECONDS / 60 )) min"
         fi
         bot_drain_recreate
-        if [[ $? -eq 2 ]] && ! bot_drain_cap_reached; then
-            # Compose failed before touching the bot: keep the deferral and
-            # try again next poll (until the cap).
+        if [[ $? -eq 2 ]]; then
             rm -rf "$LOCK_DIR" 2>/dev/null || true
-            continue
+            # Compose failed before touching the bot: keep the deferral and
+            # try again next poll, until the cap.
+            bot_drain_cap_reached || continue
+            notify 16711680 "Bot Restart Failed" "Deferred bot recreate kept failing until the cap; the old bot is still running and the next deploy retries"
         fi
         bot_drain_clear
         rm -rf "$LOCK_DIR" 2>/dev/null || true

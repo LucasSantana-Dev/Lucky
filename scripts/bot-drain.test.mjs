@@ -239,6 +239,7 @@ test('the watcher retries when compose fails before touching the bot', () => {
         assert.equal(r.out.match(/COMPOSE up -d --no-deps bot/g)?.length, 2)
         assert.match(r.out, /recreated on new1234 and healthy/)
         assert.equal(existsSync(join(r.dir, 'since')), false)
+        assert.doesNotMatch(r.out, /NOTIFY/)
     } finally {
         rmSync(r.dir, { recursive: true, force: true })
     }
