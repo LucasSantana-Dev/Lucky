@@ -684,16 +684,16 @@ describe('guild route guard consistency (#2409)', () => {
 describe('role-groups guard mode consistency (#2410)', () => {
     const prefix: PrefixConfig = {
         path: '/api/guilds/:guildId/role-groups',
-        module: 'settings',
+        module: 'automation',
     }
 
     beforeEach(() => {
         jest.clearAllMocks()
     })
 
-    test('GET /role-groups succeeds for a settings:view-only caller once the prefix mode is method-based', async () => {
+    test('GET /role-groups succeeds for an automation:view-only caller once the prefix mode is method-based', async () => {
         // No explicit `mode`, matching the fixed config (auto: view for GET).
-        authed('settings', 'view')
+        authed('automation', 'view')
         mockListRoleGroups.mockResolvedValue([])
 
         const app = buildApp(prefix, [setupRoleGroupsRoutes])
@@ -705,8 +705,23 @@ describe('role-groups guard mode consistency (#2410)', () => {
         expect(res.status).toBe(200)
     })
 
-    test('GET /role-groups is still rejected for a caller with no settings access', async () => {
+    test('GET /role-groups is still rejected for a caller with no automation access', async () => {
         authed(null)
+        mockListRoleGroups.mockResolvedValue([])
+
+        const app = buildApp(prefix, [setupRoleGroupsRoutes])
+
+        const res = await request(app)
+            .get(`/api/guilds/${GUILD_ID}/role-groups`)
+            .set('Cookie', ['sessionId=valid_session_id'])
+
+        expect(res.status).toBe(403)
+    })
+
+    // #2453: the guard follows the dashboard's module, so settings alone no
+    // longer opens role-groups.
+    test('GET /role-groups is rejected for a settings:manage-only caller', async () => {
+        authed('settings', 'manage')
         mockListRoleGroups.mockResolvedValue([])
 
         const app = buildApp(prefix, [setupRoleGroupsRoutes])
@@ -722,8 +737,8 @@ describe('role-groups guard mode consistency (#2410)', () => {
     // any access to settings, so a config regression back to a hardcoded
     // `mode: 'view'` (which would silently let writes through on view-only
     // access) is caught here rather than only by the GET-only checks above.
-    test('POST /role-groups is rejected with 403 for a settings:view-only caller', async () => {
-        authed('settings', 'view')
+    test('POST /role-groups is rejected with 403 for an automation:view-only caller', async () => {
+        authed('automation', 'view')
 
         const app = buildApp(prefix, [setupRoleGroupsRoutes])
 
@@ -735,8 +750,8 @@ describe('role-groups guard mode consistency (#2410)', () => {
         expect(res.status).toBe(403)
     })
 
-    test('POST /role-groups succeeds for a settings:manage caller', async () => {
-        authed('settings', 'manage')
+    test('POST /role-groups succeeds for an automation:manage caller', async () => {
+        authed('automation', 'manage')
         mockCreateRoleGroup.mockResolvedValue({ id: 'rg-1', name: 'New Group' })
         const app = buildApp(prefix, [setupRoleGroupsRoutes])
 

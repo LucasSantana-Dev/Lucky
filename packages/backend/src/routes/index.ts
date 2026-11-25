@@ -82,7 +82,9 @@ const guildGuardConfigs: GuildGuardConfig[] = [
     },
     { path: '/api/guilds/:guildId/levels', module: 'settings' },
     { path: '/api/guilds/:guildId/recommendations', module: 'settings' },
-    { path: '/api/guilds/:guildId/role-groups', module: 'settings' },
+    // Same module as /reaction-roles: role groups feed the reaction-role
+    // panels, and the dashboard lists the page under automation (#2453).
+    { path: '/api/guilds/:guildId/role-groups', module: 'automation' },
     { path: '/api/guilds/:guildId/batch-jobs', module: 'moderation' },
 ]
 
