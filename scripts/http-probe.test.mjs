@@ -15,7 +15,12 @@ import assert from 'node:assert/strict'
 const repoRoot = fileURLToPath(new URL('..', import.meta.url))
 const probeScript = fileURLToPath(new URL('./http-probe.sh', import.meta.url))
 
-test('falls back to wget when curl is unavailable', () => {
+// http-probe.sh is a POSIX script that only runs on the Linux host and in
+// containers. On Windows the /usr/bin and /bin paths below do not exist and
+// symlinkSync needs a privilege most accounts lack, so skip instead of failing.
+const skipOnWindows = process.platform === 'win32' && 'POSIX-only script'
+
+test('falls back to wget when curl is unavailable', { skip: skipOnWindows }, () => {
   const tempDir = mkdtempSync(join(tmpdir(), 'lucky-http-probe-'))
   const binDir = join(tempDir, 'bin')
 
