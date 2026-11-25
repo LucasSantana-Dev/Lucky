@@ -151,7 +151,7 @@ Then in Discord: run a slash command, play a track, open the dashboard. Watch
 ## 5. Unlock on reboot
 
 Without this step the next reboot leaves `/var/lib/docker` empty and Docker would
-start on a fresh, empty directory. Pick ONE option.
+start on a fresh, empty directory. Pick ONE option. Prod runs option A; option C is planned and becomes current once the script has run and a reboot unlocked on its own.
 
 ### Option A: manual unlock (most secure, needs you after every reboot)
 
@@ -217,6 +217,54 @@ sudo reboot
 
 Keep a copy of the keyfile somewhere safe (password manager attachment). The
 passphrase from step 2 still works as a fallback.
+
+### Option C: TPM2 auto-unlock (unattended boot, chosen 2026-11-25)
+
+The key is sealed in the host's TPM 2.0 (Intel PTT on the N100), bound to PCR 7
+(Secure Boot policy). The host boots and unlocks on its own after a power cut. The
+LUKS volume on a disk pulled out of the machine cannot be unlocked without the
+passphrase (keep it strong and only in the password manager), but someone with
+the whole machine can boot it: this protects against a stolen or discarded disk, not
+a stolen box. It covers only the LUKS volume: the `/var/lib/docker.plain` copy and
+the step 1 dump stay readable until step 6 removes them, and on an SSD even that is
+not a guaranteed erase. Prod has Secure Boot disabled, so PCR 7 does not change and
+the binding is to this TPM rather than to a verified boot chain.
+
+Moving from option A is one script, with no downtime (it does not touch the running
+stack). It refuses to run without a TPM 2.0, systemd 251 or newer, or with
+`/var/lib/docker` not mounted from `dockercrypt`:
+
+```bash
+scp scripts/enable-luks-tpm-unlock.sh luk-server@server-do-luk:/tmp/ && ssh -t luk-server@server-do-luk bash /tmp/enable-luks-tpm-unlock.sh
+```
+
+What it does, in order:
+
+1. `systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7` on the loop device behind
+   `/srv/docker-crypt.img` (asks for the current passphrase once). The passphrase
+   keyslot stays as the fallback.
+2. Adds `dockercrypt /srv/docker-crypt.img none luks,tpm2-device=auto,nofail` to
+   `/etc/crypttab` and the `/var/lib/docker` line from option B to `/etc/fstab`
+   (backups saved as `*.bak-<timestamp>`).
+3. Adds `RequiresMountsFor=/var/lib/docker` to `docker.service` and
+   `containerd.service`, then enables Docker at boot. Docker can no longer start on
+   an empty directory: if the unlock fails, the mount fails and Docker stays down.
+4. Disables `lukbot.service` (#3237). Its bare `docker compose up -d` has no
+   `IMAGE_TAG`, so compose refuses it (#3107); the containers come back through their
+   `restart: unless-stopped` policy instead. The script lists any running container
+   without a restart policy, since those would not come back.
+
+Then test with a real reboot, in a window with nobody listening, and repeat the
+checks from step 4:
+
+```bash
+sudo reboot
+```
+
+If a firmware update or a Secure Boot change alters PCR 7, the TPM refuses the key
+and the boot does not unlock. Unlock with the option A line, then re-run the script
+with `REENROLL=1` (`... && REENROLL=1 bash /tmp/enable-luks-tpm-unlock.sh`): it wipes
+the stale TPM2 token, enrolls a new one and skips what is already in place.
 
 ## 6. Clean up (only after a day of normal operation)
 
