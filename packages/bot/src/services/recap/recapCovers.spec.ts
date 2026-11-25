@@ -432,12 +432,31 @@ describe('fetchCovers', () => {
             (_, i) => `https://i.scdn.co/image/${i}`,
         )
 
+        const stats = { timedOut: 0, skipped: 0 }
         const out = await fetchCovers(urls, {
             fetch: fetchFn as typeof fetch,
             phaseTimeoutMs: 30,
+            stats,
         })
 
         expect(out.every((c) => c === null)).toBe(true)
         expect(fetchFn.mock.calls.length).toBeLessThan(urls.length)
+        // Every started fetch timed out; the rest were never requested.
+        expect(stats.timedOut).toBe(fetchFn.mock.calls.length)
+        expect(stats.skipped).toBe(urls.length - fetchFn.mock.calls.length)
+    })
+
+    it('does not count a CDN failure as a timeout', async () => {
+        const fetchFn = jest.fn(async () =>
+            imageResponse(4, { 'content-type': 'text/html' }),
+        )
+        const stats = { timedOut: 0, skipped: 0 }
+
+        await fetchCovers(['https://i.scdn.co/image/x'], {
+            fetch: fetchFn as unknown as typeof fetch,
+            stats,
+        })
+
+        expect(stats).toEqual({ timedOut: 0, skipped: 0 })
     })
 })

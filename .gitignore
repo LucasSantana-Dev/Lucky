@@ -130,6 +130,7 @@ graphify-out/
 
 # Deploy auto-rollback state (must survive `git clean -fd` between deploys)
 .deploy-last-good-sha
+.deploy-bot-deferred-since
 
 # Feature specs are local AI/planning artifacts — kept untracked (mirrored under .claude/specs/).
 docs/specs/

@@ -9,6 +9,13 @@
         "pass-arguments-to-command": [
             { "source": "header", "name": "X-Webhook-Secret" },
             { "source": "header", "name": "X-Deploy-SHA" }
+        ],
+        "pass-environment-to-command": [
+            {
+                "source": "header",
+                "name": "X-Deploy-Force-Bot-Restart",
+                "envname": "DEPLOY_FORCE_BOT_RESTART"
+            }
         ]
     },
     {

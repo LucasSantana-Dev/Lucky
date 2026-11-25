@@ -156,6 +156,86 @@ describe('prometheus registry', () => {
         expect(text).not.toMatch(/lucky_bot_play_stage\w*\{[^}]*(guild|user)/)
     })
 
+    describe('lucky_bot_active_listener_sessions (#2872)', () => {
+        type FakeQueue = {
+            currentTrack: unknown
+            node: { isPlaying: () => boolean; isPaused: () => boolean }
+            channel: {
+                members: { some: (fn: (m: unknown) => boolean) => boolean }
+            } | null
+        }
+        const member = (bot: boolean) => ({ user: { bot } })
+        const queue = (opts: {
+            track?: boolean
+            playing?: boolean
+            paused?: boolean
+            members?: boolean[] | null
+        }): FakeQueue => ({
+            currentTrack: opts.track === false ? null : { title: 't' },
+            node: {
+                isPlaying: () => opts.playing ?? true,
+                isPaused: () => opts.paused ?? false,
+            },
+            channel:
+                opts.members === null
+                    ? null
+                    : {
+                          members: {
+                              some: (fn) =>
+                                  (opts.members ?? []).map(member).some(fn),
+                          },
+                      },
+        })
+        const withQueues = (queues: FakeQueue[]) =>
+            getStoredClientMock.mockReturnValue({
+                isReady: () => true,
+                player: {
+                    nodes: {
+                        cache: new Map(queues.map((q, i) => [String(i), q])),
+                    },
+                },
+            })
+        const value = (text: string) =>
+            text.match(
+                /^lucky_bot_active_listener_sessions(?:\{[^}]*\})?\s+(-?\d+)/m,
+            )?.[1]
+
+        beforeEach(() => countMock.mockResolvedValue(0))
+
+        it('counts playing and paused sessions with a human in the channel', async () => {
+            withQueues([
+                queue({ members: [true, false] }),
+                queue({ playing: false, paused: true, members: [false] }),
+            ])
+            expect(value(await renderMetrics())).toBe('2')
+        })
+
+        it('ignores bot-only channels, idle queues and queues without a track', async () => {
+            withQueues([
+                queue({ members: [true] }),
+                queue({ playing: false, paused: false, members: [false] }),
+                queue({ track: false, members: [false] }),
+                queue({ members: null }),
+            ])
+            expect(value(await renderMetrics())).toBe('0')
+        })
+
+        it('reports 0 before the client is stored', async () => {
+            getStoredClientMock.mockReturnValue(null)
+            expect(value(await renderMetrics())).toBe('0')
+        })
+
+        it('reports -1 when the queues cannot be read', async () => {
+            const broken = queue({ members: [false] })
+            broken.node.isPlaying = () => {
+                throw new Error('boom')
+            }
+            withQueues([broken])
+            expect(value(await renderMetrics())).toBe('-1')
+            expect(errorLogMock).toHaveBeenCalled()
+        })
+    })
+
     it('reports lucky_bot_gateway_connected=0 when no client is stored yet', async () => {
         countMock.mockResolvedValue(0)
         getStoredClientMock.mockReturnValue(null)
