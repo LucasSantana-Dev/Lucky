@@ -215,7 +215,7 @@ bot_drain_watch() {
             # Compose failed before touching the bot: keep the deferral and
             # try again next poll, until the cap.
             bot_drain_cap_reached || continue
-            notify 16711680 "Bot Restart Failed" "Deferred bot recreate kept failing until the cap; the old bot is still running and the next deploy retries"
+            notify 16711680 "Bot Restart Failed" "Deferred bot recreate kept failing until the cap; the bot was not replaced and the next deploy retries"
         fi
         bot_drain_clear
         rm -rf "$LOCK_DIR" 2>/dev/null || true
