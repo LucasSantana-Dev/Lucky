@@ -1,5 +1,6 @@
 import type { Readable } from 'node:stream'
 import { isHostedYoutubeEnabled } from '../../config/featureFlags'
+import { pinBotGuardWorkerDir } from './botGuardWorkerDir'
 import { withTimeout } from './withTimeout'
 import type { YtSearchCandidate } from './ytdlpProcess'
 
@@ -52,6 +53,8 @@ export async function streamViaYoutubei(videoId: string): Promise<Readable> {
         const tube = await getTube()
         const { createAdaptiveStreamMultiStep } =
             await import('simple-ytdl-core')
+        // Must run right before the call: see botGuardWorkerDir.ts.
+        pinBotGuardWorkerDir()
         return createAdaptiveStreamMultiStep(tube, videoId)
     })()
     try {
