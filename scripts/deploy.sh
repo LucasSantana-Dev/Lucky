@@ -971,6 +971,18 @@ if ! docker_compose run --rm --no-deps backend \
 fi
 phase_end relation_guard
 
+# Refresh the Grafana read-only grants so a table a migration just created gets
+# its column grant (#3295). Without the password variable the script only
+# touches grants of an existing grafana_ro. Dashboards are not worth failing a
+# deploy over, so a failure only logs. The policy DDL needs an exclusive table
+# lock: the timeouts make a busy table fail fast instead of stalling the deploy.
+log "Refreshing grafana_ro grants..."
+if ! docker_compose exec -T -e PGOPTIONS="-c lock_timeout=5s -c statement_timeout=60s" postgres \
+    sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -1 -q' \
+    <"$DEPLOY_DIR/observability/postgres/grafana-ro.sql"; then
+    log "WARN: grafana_ro grant refresh failed; Grafana Postgres panels may show permission errors"
+fi
+
 # Containers this script does not recreate keep whatever network they were
 # created on, so they lose sight of nginx when the compose network changes
 # (lucky_lucky-network -> lucky-network broke the tunnel and the deploy

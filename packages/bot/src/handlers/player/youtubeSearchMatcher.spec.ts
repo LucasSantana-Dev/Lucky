@@ -1,4 +1,9 @@
-import { pickYouTubeCandidate, youtubeWatchUrl } from './youtubeSearchMatcher'
+import {
+    pickYouTubeCandidate,
+    missingVersionMarkers,
+    requestedVersionMarkers,
+    youtubeWatchUrl,
+} from './youtubeSearchMatcher'
 
 const target = (
     overrides: Partial<Parameters<typeof pickYouTubeCandidate>[0]> = {},
@@ -313,5 +318,31 @@ describe('youtubeWatchUrl', () => {
         expect(youtubeWatchUrl('abc_-1')).toBe(
             'https://www.youtube.com/watch?v=abc_-1',
         )
+    })
+})
+
+describe('requestedVersionMarkers (#3276)', () => {
+    it.each([
+        ['Duvet - Acoustic', ['acoustic']],
+        ['Song - Nirso Remix', ['remix']],
+        ['Song (Ao Vivo)', ['ao vivo']],
+        ['Live Forever', []],
+        ['Song', []],
+    ])('reads %j', (title, markers) => {
+        expect(requestedVersionMarkers(title)).toEqual(markers)
+    })
+})
+
+describe('missingVersionMarkers (#3276)', () => {
+    it('matches whole words, not substrings', () => {
+        expect(
+            missingVersionMarkers('Deliver Me - Live', 'Deliver Me Artist'),
+        ).toEqual(['live'])
+    })
+
+    it('folds accents when the query already carries the word', () => {
+        expect(
+            missingVersionMarkers('Song (Acústico)', 'Song Acústico Artist'),
+        ).toEqual([])
     })
 })

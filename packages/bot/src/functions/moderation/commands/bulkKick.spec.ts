@@ -58,6 +58,7 @@ function createMockRole(id = 'role-123', name = 'TestRole') {
     return {
         id,
         name,
+        position: 1,
         members: new Collection(),
     }
 }
@@ -74,6 +75,7 @@ function createMockGuild(id = 'guild-123', name = 'Test Guild') {
     return {
         id,
         name,
+        ownerId: 'owner-1',
         members: {
             me: createMockMember(),
             fetch: jest.fn().mockResolvedValue(undefined),
@@ -94,6 +96,7 @@ function createInteraction({
         guild: guild !== undefined ? guild : createMockGuild(guildId),
         guildId,
         user: user || createMockUser(userId),
+        member: { roles: { highest: { position: 10 } } },
         options: {
             getRole: jest.fn((name: string) => (name === 'role' ? role : null)),
             getString: jest.fn((name: string) =>
@@ -309,5 +312,34 @@ describe('bulkKick command', () => {
             }),
         )
         expect(errorLogMock).toHaveBeenCalled()
+    })
+
+    describe('moderator role hierarchy', () => {
+        test('refuses a role at or above the moderator top role', async () => {
+            const role = { ...createMockRole(), position: 10 }
+            const interaction = createInteraction({ role })
+
+            await bulkKickCommand.execute({ interaction } as any)
+
+            expect(interactionReplyMock).toHaveBeenCalledWith({
+                interaction,
+                content: {
+                    content: expect.stringMatching(/equal to or higher than/i),
+                    ephemeral: true,
+                },
+            })
+            expect(interaction.deferReply).not.toHaveBeenCalled()
+            expect(batchJobServiceMock.create).not.toHaveBeenCalled()
+        })
+
+        test('lets the server owner target a role above their own', async () => {
+            const role = { ...createMockRole(), position: 50 }
+            const interaction = createInteraction({ role, userId: 'owner-1' })
+
+            await bulkKickCommand.execute({ interaction } as any)
+
+            expect(interactionReplyMock).not.toHaveBeenCalled()
+            expect(interaction.deferReply).toHaveBeenCalled()
+        })
     })
 })

@@ -36,6 +36,17 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
+// The POST route checks the channel belongs to the guild; every fixture here
+// uses the same in-guild channel.
+jest.mock('../../../src/services/GuildService', () => ({
+    guildService: {
+        getGuildTextChannelOptions: () =>
+            Promise.resolve([
+                { id: '444444444444444444', name: '#live', type: 0 },
+            ]),
+    },
+}))
+
 describe('GET /api/twitch/status', () => {
     let app: express.Express
 
@@ -308,18 +319,27 @@ describe('POST /api/twitch/follower-link', () => {
         expect(mockLinkUser).not.toHaveBeenCalled()
     })
 
-    test('falls back to LUCKY_NOTIFY_API_KEY when INTERNAL_API_KEY absent', async () => {
+    test('does not accept LUCKY_NOTIFY_API_KEY when INTERNAL_API_KEY is absent', async () => {
         delete process.env.INTERNAL_API_KEY
-        process.env.LUCKY_NOTIFY_API_KEY = 'fallback-key'
-        mockLinkUser.mockResolvedValue(true)
+        process.env.LUCKY_NOTIFY_API_KEY = 'notify-key'
 
         const res = await request(app)
             .post('/api/twitch/follower-link')
-            .set('x-internal-api-key', 'fallback-key')
+            .set('x-internal-api-key', 'notify-key')
             .send(VALID_BODY)
 
         delete process.env.LUCKY_NOTIFY_API_KEY
-        expect(res.status).toBe(200)
-        expect(res.body.ok).toBe(true)
+        expect(res.status).toBe(401)
+        expect(mockLinkUser).not.toHaveBeenCalled()
+    })
+
+    test('rejects a key that only shares a prefix with INTERNAL_API_KEY', async () => {
+        const res = await request(app)
+            .post('/api/twitch/follower-link')
+            .set('x-internal-api-key', `${API_KEY}x`)
+            .send(VALID_BODY)
+
+        expect(res.status).toBe(401)
+        expect(mockLinkUser).not.toHaveBeenCalled()
     })
 })

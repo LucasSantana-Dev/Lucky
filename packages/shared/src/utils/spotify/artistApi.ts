@@ -242,6 +242,32 @@ export async function searchSpotifyTracks(
         .filter((t): t is SpotifyTrackRef => t !== null)
 }
 
+/** One artist by id, or null when Spotify does not answer with one. */
+export async function getSpotifyArtist(
+    accessToken: string,
+    artistId: string,
+): Promise<SpotifyArtist | null> {
+    try {
+        const res = await fetch(
+            `https://api.spotify.com/v1/artists/${encodeURIComponent(artistId)}`,
+            {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                signal: AbortSignal.timeout(10_000),
+            },
+        )
+        if (!res.ok) return null
+        const data = (await res.json().catch(() => null)) as
+            Parameters<typeof mapSpotifyArtist>[0] | null
+        return data ? mapSpotifyArtist(data) : null
+    } catch (error) {
+        warnLog({
+            message: `[Spotify] getSpotifyArtist error: ${sanitizeErrorMessage(error)}`,
+            data: { artistId: sanitizeLogInput(artistId) },
+        })
+        return null
+    }
+}
+
 /** Market follows SPOTIFY_MARKET, like the discord-player extractor. */
 function albumMarketParam(): string {
     const market = process.env.SPOTIFY_MARKET

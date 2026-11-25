@@ -6,6 +6,7 @@ import { setupAuthRoutes } from '../../../src/routes/auth'
 import { setupSessionMiddleware } from '../../../src/middleware/session'
 import { sessionService } from '../../../src/services/SessionService'
 import { discordOAuthService } from '../../../src/services/DiscordOAuthService'
+import { debugLog } from '@lucky/shared/utils'
 import {
     MOCK_SESSION_DATA,
     MOCK_TOKEN_RESPONSE,
@@ -345,6 +346,34 @@ describe('Auth Routes Integration', () => {
             }
         })
 
+        test('does not log any part of the authorization code', async () => {
+            const routePath = '/api/auth/callback'
+            mockSuccessfulOAuthFlow()
+
+            const discordApp = express()
+            setupSessionMiddleware(discordApp)
+            discordApp.use((req, _res, next) => {
+                if (req.path !== routePath) {
+                    next()
+                    return
+                }
+                req.session.oauthState = MOCK_OAUTH_STATE
+                req.session.save((err) => next(err))
+            })
+            setupAuthRoutes(discordApp)
+            discordApp.use(errorHandler)
+
+            await request
+                .agent(discordApp)
+                .get(routePath)
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
+                .expect(302)
+
+            const logged = JSON.stringify(jest.mocked(debugLog).mock.calls)
+            expect(logged).toContain('Discord OAuth callback received')
+            expect(logged).not.toContain(MOCK_AUTH_CODE.substring(0, 10))
+        })
+
         test('should handle successful OAuth callback with valid state', async () => {
             const routePath = '/api/auth/callback'
             mockSuccessfulOAuthFlow()
@@ -385,6 +414,118 @@ describe('Auth Routes Integration', () => {
                 MOCK_TOKEN_RESPONSE.access_token,
             )
             expect(getSessionServiceMock().setSession).toHaveBeenCalled()
+        })
+
+        test('starts a new session id after a successful login', async () => {
+            mockSuccessfulOAuthFlow()
+
+            // The global express-session mock has no store, so this test
+            // uses the real module to see what a browser cookie points at.
+            const realSession =
+                jest.requireActual<typeof import('express-session')>(
+                    'express-session',
+                )
+            const discordApp = express()
+            discordApp.use(
+                realSession({
+                    secret: 'test-secret',
+                    name: 'sessionId',
+                    resave: false,
+                    saveUninitialized: false,
+                    store: new realSession.MemoryStore(),
+                }),
+            )
+
+            const seenIds = new Map<string, string>()
+            discordApp.use((req, _res, next) => {
+                seenIds.set(req.path, req.sessionID)
+                next()
+            })
+
+            setupAuthRoutes(discordApp)
+            discordApp.get('/probe', (req, res) => {
+                res.json({
+                    id: req.sessionID,
+                    authenticated: req.session.authenticated === true,
+                })
+            })
+            discordApp.use(errorHandler)
+
+            const agent = request.agent(discordApp)
+
+            const start = await agent.get('/api/auth/discord').expect(302)
+            const state = new URL(start.headers.location).searchParams.get(
+                'state',
+            )
+            const preLoginId = seenIds.get('/api/auth/discord')
+            const preLoginCookie = String(start.headers['set-cookie'])
+                .split(';')[0]
+                .trim()
+
+            const callback = await agent
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state })
+                .expect(302)
+
+            expect(callback.headers.location).toContain('authenticated=true')
+            expect(seenIds.get('/api/auth/callback')).toBe(preLoginId)
+
+            const storedId =
+                getSessionServiceMock().setSession.mock.calls[0]?.[0]
+            expect(storedId).toBeDefined()
+            expect(storedId).not.toBe(preLoginId)
+
+            const probe = await agent.get('/probe').expect(200)
+            expect(probe.body).toEqual({ id: storedId, authenticated: true })
+
+            const planted = await request(discordApp)
+                .get('/probe')
+                .set('Cookie', preLoginCookie)
+                .expect(200)
+            expect(planted.body.authenticated).toBe(false)
+
+            const replay = await agent
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state })
+                .expect(302)
+            expect(replay.headers.location).toContain('authenticated=true')
+
+            const plantedReplay = await request(discordApp)
+                .get('/api/auth/callback')
+                .set('Cookie', preLoginCookie)
+                .query({ code: MOCK_AUTH_CODE, state })
+                .expect(302)
+            expect(plantedReplay.headers.location).toContain('invalid_state')
+            expect(getSessionServiceMock().setSession).toHaveBeenCalledTimes(1)
+        })
+
+        test('redirects with authentication_error when the session id cannot be regenerated', async () => {
+            mockSuccessfulOAuthFlow()
+
+            const discordApp = express()
+            setupSessionMiddleware(discordApp)
+
+            discordApp.use((req, _res, next) => {
+                req.session.oauthState = MOCK_OAUTH_STATE
+                req.session.regenerate = (cb) => {
+                    cb(new Error('store unavailable'))
+                    return req.session
+                }
+                next()
+            })
+
+            setupAuthRoutes(discordApp)
+            discordApp.use(errorHandler)
+
+            const response = await request(discordApp)
+                .get('/api/auth/callback')
+                .query({ code: MOCK_AUTH_CODE, state: MOCK_OAUTH_STATE })
+                .expect(302)
+
+            expect(response.headers.location).toContain(
+                'error=auth_failed&message=authentication_error',
+            )
+            expect(getSessionServiceMock().setSession).not.toHaveBeenCalled()
         })
 
         test('should return 400 when code is missing', async () => {
@@ -489,14 +630,14 @@ describe('Auth Routes Integration', () => {
         })
     })
 
-    describe('GET /api/auth/logout', () => {
+    describe('POST /api/auth/logout', () => {
         test('should logout successfully', async () => {
             const mockSessionService = getSessionServiceMock()
             mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
             mockSessionService.deleteSession.mockResolvedValue(undefined)
 
             const response = await request(app)
-                .get('/api/auth/logout')
+                .post('/api/auth/logout')
                 .set('Cookie', ['sessionId=valid_session_id'])
                 .expect(200)
 
@@ -509,12 +650,23 @@ describe('Auth Routes Integration', () => {
             mockSessionService.getSession.mockResolvedValue(null)
 
             const response = await request(app)
-                .get('/api/auth/logout')
+                .post('/api/auth/logout')
                 .expect(401)
 
             expect(response.body).toEqual({
                 error: 'Not authenticated',
             })
+        })
+
+        test('no longer logs out on GET, so an <img> on another site cannot end the session', async () => {
+            const mockSessionService = getSessionServiceMock()
+            mockSessionService.getSession.mockResolvedValue(MOCK_SESSION_DATA)
+
+            await request(app)
+                .get('/api/auth/logout')
+                .set('Cookie', ['sessionId=valid_session_id'])
+
+            expect(mockSessionService.deleteSession).not.toHaveBeenCalled()
         })
     })
 

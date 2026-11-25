@@ -163,6 +163,57 @@ describe('resolvePlayErrorMessage for YouTube links', () => {
         ).toBe('t:music.errors.youtubeVideoUnavailable')
     })
 
+    it('says a link is unsupported when only the attachment extractor claimed it', () => {
+        // Prod 2026-11-22: a pasted link no real extractor handles fell to
+        // AttachmentExtractor and the user saw its raw extractor id.
+        const error = new Error(
+            'No results found for "https://example.com/song" (Extractor: com.discord-player.attachmentextractor)',
+        )
+
+        expect(
+            resolvePlayErrorMessage(error, 'https://example.com/song', t),
+        ).toBe('t:music.errors.unsupportedLink')
+        const fallback = resolvePlayErrorMessage(
+            error,
+            'https://example.com/song',
+        )
+        expect(fallback).toMatch(/link isn't supported/i)
+        expect(fallback).not.toContain('attachmentextractor')
+    })
+
+    it('keeps the no-results message for a text search', () => {
+        const error = new Error(
+            'No results found for "some song" (Extractor: com.discord-player.attachmentextractor)',
+        )
+
+        expect(resolvePlayErrorMessage(error, 'some song', t)).toMatch(
+            /^No results found for "some song"/,
+        )
+    })
+
+    it('does not blame the link when the url only mentions attachmentextractor', () => {
+        const query = 'https://example.com/attachmentextractor'
+        const error = new Error(
+            `No results found for "${query}" (Extractor: com.discord-player.soundcloudextractor)`,
+        )
+
+        expect(resolvePlayErrorMessage(error, query, t)).not.toBe(
+            't:music.errors.unsupportedLink',
+        )
+    })
+
+    it('reports an outage, not an unsupported link, for a youtube url while youtube is degraded', () => {
+        isExtractorDegradedMock.mockReturnValue(true)
+        const query = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+        const error = new Error(
+            `No results found for "${query}" (Extractor: com.discord-player.attachmentextractor)`,
+        )
+
+        expect(resolvePlayErrorMessage(error, query, t)).toMatch(
+            /currently unreachable/,
+        )
+    })
+
     it('falls back to English without a translator', () => {
         expect(
             resolvePlayErrorMessage(new YoutubePlaylistUnavailableError()),

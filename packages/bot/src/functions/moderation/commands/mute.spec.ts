@@ -46,7 +46,9 @@ function createMockUser(id = 'user-123', tag = 'TestUser#1234') {
 
 function createMockMember(userId = 'user-123') {
     return {
+        id: userId,
         user: { id: userId },
+        roles: { highest: { position: 1 } },
         timeout: jest.fn().mockResolvedValue(undefined),
     }
 }
@@ -55,6 +57,7 @@ function createMockGuild(id = 'guild-123', name = 'Test Guild') {
     return {
         id,
         name,
+        ownerId: 'owner-1',
         members: {
             fetch: jest.fn().mockResolvedValue(undefined),
         },
@@ -74,6 +77,7 @@ function createInteraction({
 } = {}) {
     const interaction = {
         guild: guild !== undefined ? guild : createMockGuild(guildId),
+        member: { id: 'mod-1', roles: { highest: { position: 10 } } },
         guildId,
         channelId: 'channel-123',
         user: user || createMockUser(userId),
@@ -409,5 +413,29 @@ describe('mute command', () => {
                 'test',
             )
         }
+    })
+    test('refuses to act on a member ranked above the moderator', async () => {
+        const targetUser = createMockUser('target-123')
+        const targetMember = createMockMember('target-123')
+        targetMember.roles.highest.position = 20
+        const guild = createMockGuild()
+        guild.members.fetch.mockResolvedValue(targetMember)
+        const interaction = createInteraction({ guild, targetUser })
+        interaction.options.getUser.mockImplementation((name: string) =>
+            name === 'user' ? targetUser : null,
+        )
+
+        await muteCommand.execute({ client: createMockClient({}), interaction })
+
+        expect(targetMember.timeout).not.toHaveBeenCalled()
+        expect(moderationServiceMock.createCase).not.toHaveBeenCalled()
+        expect(interactionReplyMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: expect.objectContaining({
+                    content: expect.stringContaining('equal or higher role'),
+                    ephemeral: true,
+                }),
+            }),
+        )
     })
 })

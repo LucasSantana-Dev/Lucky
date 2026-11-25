@@ -11,7 +11,7 @@ import {
 import { primaryArtistKey } from '../../../utils/music/trackNormalization'
 import { calculateStringSimilarity } from '../../../utils/music/duplicateDetection/similarityChecker'
 import { markAndRecordAutoplayTrack } from './queueMarkers'
-import { extractYouTubeVideoId } from './scoringUtils'
+import { extractYouTubeVideoId, seedFirstTier } from './scoringUtils'
 import { trackSource, trackAlbumName } from '../../../utils/music/trackFields'
 import type { RecommendationBasis } from './recommendationBasis.js'
 import { getAllHistoryTracks } from '../../../utils/music/historyTracks'
@@ -522,7 +522,9 @@ export function selectDiverseCandidates(
     })) as (ScoredTrack & { jitteredScore: number })[]
 
     const sortedCandidates = jitteredCandidates.sort(
-        (a, b) => b.jitteredScore - a.jitteredScore,
+        (a, b) =>
+            seedFirstTier(a) - seedFirstTier(b) ||
+            b.jitteredScore - a.jitteredScore,
     )
     // Keep one slot for the seed's own artist and related artists, so a
     // strong liked profile cannot fill the whole buffer (#2961).

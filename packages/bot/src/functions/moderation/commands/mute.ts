@@ -9,6 +9,7 @@ import { infoLog, errorLog } from '@lucky/shared/utils'
 import { interactionReply } from '../../../utils/general/interactionReply.js'
 import { formatDurationHuman } from '../../../utils/general/formatDuration'
 import { postToModLog } from '../helpers/modLogPoster.js'
+import { refuseIfOutranked } from '../helpers/moderationHierarchy.js'
 
 export default new Command({
     data: new SlashCommandBuilder()
@@ -78,6 +79,8 @@ export default new Command({
                 })
                 return
             }
+
+            if (await refuseIfOutranked(interaction, member)) return
 
             await member.timeout(durationSeconds * 1000, reason)
 

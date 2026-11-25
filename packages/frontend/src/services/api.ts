@@ -160,7 +160,7 @@ export const api = {
             }
         },
         logout: () =>
-            apiClient.get<{ success: boolean }>(API_ROUTES.AUTH.logout()),
+            apiClient.post<{ success: boolean }>(API_ROUTES.AUTH.logout()),
         getDiscordLoginUrl: () => `${NORMALIZED_API_BASE}/auth/discord`,
     },
 

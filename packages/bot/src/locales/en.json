@@ -42,12 +42,16 @@
         "errors": {
             "notInGuild": "This command only works inside a server.",
             "notInVoice": "Join a voice channel first.",
+            "notInVoiceTitle": "Not in voice",
+            "notSameVoiceTitle": "Wrong voice channel",
+            "notSameVoice": "Join {{channel}} to control the music.",
             "nothingPlaying": "Nothing is playing right now.",
             "youtubeDisabledTitle": "YouTube is unavailable",
             "youtubeDisabledDescription": "YouTube isn't available on this bot right now. Try a Spotify or SoundCloud link, or just search by song and artist name.",
             "youtubePlaylistUnavailable": "YouTube playlists aren't available right now. Paste the link of a single song, or just type its name.",
             "youtubeVideoUnavailable": "Couldn't play this YouTube link right now. Try typing the song and artist name instead.",
-            "asmrBlocked": "ASMR isn't allowed on this bot. Pick a song instead."
+            "asmrBlocked": "ASMR isn't allowed on this bot. Pick a song instead.",
+            "unsupportedLink": "That link isn't supported. Lucky plays Spotify tracks, albums and playlists, SoundCloud, Apple Music and Vimeo links, or direct audio files. You can also type the song name."
         },
         "nowPlaying": "Now playing {{title}}, don't stop",
         "onboarding": {
@@ -104,7 +108,7 @@
             "offButton": "Turn off weekly recap",
             "offHint": "Admins can turn this off with the button below or /recap off",
             "alreadyOff": "The weekly recap is already off.",
-            "notTextChannel": "❌ Pick a text channel for the recap.",
+            "notTextChannel": "❌ Pick a text channel or a voice channel chat for the recap.",
             "missingPermissions": "❌ I can't post in <#{{channel}}>. I need View Channel, Send Messages and Embed Links there.",
             "failed": "❌ Couldn't update the weekly recap. Try again in a moment.",
             "needManageGuild": "You need the **Manage Server** permission to configure the weekly recap.",

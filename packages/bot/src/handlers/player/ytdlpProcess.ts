@@ -98,16 +98,36 @@ export function __resetYtdlpCookiesLogStateForTests(): void {
     cookiesRejectedWarnedAt = 0
 }
 
-// Since 2026-10-19 the plain attempt hits YouTube's bot-check on nearly every
-// request. While a recent plain bot-check is remembered, skip that wasted
-// attempt and go straight to the cookies path. A 403 on the cookies attempt
-// signals that cookies are also degraded; clear the shortcut and let plain
-// run on the next call.
+// Since 2026-10-19 the plain attempt hit YouTube's bot-check on nearly every
+// request, so a recent plain bot-check skipped that wasted attempt and went
+// straight to the cookies path (#2921). By 2026-11 the bot-check was rare and
+// isolated (8 of 1324 plain attempts in 7 days, none within 15 min of
+// another), while the cookies path is slower (p50 7.4 s vs 2.3 s, plain p99
+// 4.4 s) and timed out on 4 of 41 attempts. 33 of those 41 were plays the
+// shortcut diverted after a single bot-check (#3333). The shortcut now arms
+// on a second plain bot-check within the window, i.e. when the bot-check is
+// sticky again. A 403 on the cookies attempt signals that cookies are also degraded;
+// clear the shortcut and the bot-check history so plain runs on the next call.
 export const PLAIN_BOTCHECK_SKIP_WINDOW_MS = 15 * 60_000
 let lastPlainBotCheckAt = 0
+let plainBotCheckSkipUntil = 0
 
 export function __resetPlainBotCheckStateForTests(): void {
+    resetPlainBotCheckState()
+}
+
+function resetPlainBotCheckState(): void {
     lastPlainBotCheckAt = 0
+    plainBotCheckSkipUntil = 0
+}
+
+function recordPlainBotCheck(now: number): void {
+    if (
+        lastPlainBotCheckAt > 0 &&
+        now - lastPlainBotCheckAt < PLAIN_BOTCHECK_SKIP_WINDOW_MS
+    )
+        plainBotCheckSkipUntil = now + PLAIN_BOTCHECK_SKIP_WINDOW_MS
+    lastPlainBotCheckAt = now
 }
 
 function warnCookiesRejected(cookiesFile: string | undefined): void {
@@ -322,14 +342,12 @@ export function streamViaYtDlp(
     } catch (err) {
         return Promise.reject(err)
     }
-    // Fast-path: while the plain attempt has been hitting the bot-check
-    // recently, skip it and go straight to cookies, saving the ~1.6 s of
-    // wasted budget (#2921). A 403 on the cookies path means cookies are also
-    // blocked; clear the shortcut so plain runs again on the next call.
-    if (
-        isYoutubeYtDlpTarget(url) &&
-        Date.now() - lastPlainBotCheckAt < PLAIN_BOTCHECK_SKIP_WINDOW_MS
-    ) {
+    // Fast-path: while the plain attempt keeps hitting the bot-check (two
+    // within the window, #3333), skip it and go straight to cookies, saving
+    // the ~1.6 s of wasted budget (#2921). A 403 on the cookies path means
+    // cookies are also blocked; clear the shortcut so plain runs again on the
+    // next call.
+    if (isYoutubeYtDlpTarget(url) && Date.now() < plainBotCheckSkipUntil) {
         const cookiesArgs = ytdlpCookiesArgs()
         if (cookiesArgs.length > 0) {
             return spawnTimed(
@@ -343,7 +361,7 @@ export function streamViaYtDlp(
                 if (classifyYtDlpFailure(retryError) === 'timeout')
                     markYtDlpBudgetMiss(retryError)
                 if (classifyYtDlpFailure(retryError) === 'forbidden')
-                    lastPlainBotCheckAt = 0
+                    resetPlainBotCheckState()
                 throw retryError
             })
         }
@@ -391,9 +409,10 @@ async function retryOnce(
     // Count the first sign-in challenge too: the cookies retry may
     // recover it, and the breaker only sees a failed retry (#2864).
     if (isYoutubeYtDlpTarget(url)) countYtDlpFailure(error)
-    // Bot-check on the plain attempt: enable the fast-path skip (#2921).
+    // Bot-check on the plain attempt: the second one within the window arms
+    // the fast-path skip (#2921, #3333).
     if (isYoutubeYtDlpTarget(url) && classifyYtDlpFailure(error) === 'botcheck')
-        lastPlainBotCheckAt = Date.now()
+        recordPlainBotCheck(Date.now())
     try {
         // Never less than the caller asked for.
         return await spawnTimed(
@@ -414,7 +433,7 @@ async function retryOnce(
             isYoutubeYtDlpTarget(url) &&
             classifyYtDlpFailure(retryError) === 'forbidden'
         )
-            lastPlainBotCheckAt = 0
+            resetPlainBotCheckState()
         throw retryError
     }
 }
