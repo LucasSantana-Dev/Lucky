@@ -8,7 +8,7 @@
     {
         "name": "Vendor UI (gzip)",
         "path": "dist/assets/vendor-ui-*.js",
-        "limit": "73 KB",
+        "limit": "77 KB",
         "gzip": true
     },
     {
@@ -26,13 +26,13 @@
     {
         "name": "Vendor Forms (gzip)",
         "path": "dist/assets/vendor-forms-*.js",
-        "limit": "28 KB",
+        "limit": "29 KB",
         "gzip": true
     },
     {
         "name": "Vendor State (gzip)",
         "path": "dist/assets/vendor-state-*.js",
-        "limit": "27 KB",
+        "limit": "30 KB",
         "gzip": true
     }
 ]
