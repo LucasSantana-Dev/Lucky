@@ -35,22 +35,26 @@ echo "   systemd $SYSTEMD_VER, TPM 2.0 present, $IMG on $LOOP, mounted at $MNT"
 sudo apt-get install -y tpm2-tools
 
 echo ">> 1. enroll the TPM2 key (the passphrase keyslot stays as the fallback)"
-if sudo cryptsetup luksDump "$LOOP" | grep -q 'systemd-tpm2'; then
-    echo "   already enrolled, skipping"
+if sudo cryptsetup luksDump "$LOOP" | grep -q 'systemd-tpm2' && [ "${REENROLL:-0}" != "1" ]; then
+    echo "   already enrolled, skipping (REENROLL=1 wipes and re-enrolls)"
 else
     # PCR 7 = Secure Boot policy. A firmware or Secure Boot change makes the TPM
     # refuse the key: the boot then waits for the passphrase on the console
-    # (or stays down with nofail), and re-running this script re-enrolls.
+    # (or stays down with nofail). The old token stays, so this step then skips:
+    # unlock with the passphrase and run with REENROLL=1 to wipe and re-enroll it.
     echo "   type the CURRENT LUKS passphrase when asked"
-    sudo systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7 "$LOOP"
+    sudo systemd-cryptenroll --wipe-slot=tpm2 --tpm2-device=auto --tpm2-pcrs=7 "$LOOP"
 fi
 sudo cryptsetup luksDump "$LOOP" | grep -q 'systemd-tpm2' || die "TPM2 token not found after enrollment."
 
 echo ">> 2. /etc/crypttab"
-if grep -qE "^$NAME[[:space:]]" /etc/crypttab; then
-    echo "   entry exists, leaving it: $(grep -E "^$NAME[[:space:]]" /etc/crypttab)"
+if grep -qxF "$CRYPTTAB_LINE" /etc/crypttab; then
+    echo "   entry already in place"
 else
+    # Replace any other dockercrypt line (for example option B's USB keyfile),
+    # which would never try the TPM.
     sudo cp /etc/crypttab "/etc/crypttab.bak-$STAMP"
+    sudo sed -i -E "/^$NAME[[:space:]]/d" /etc/crypttab
     echo "$CRYPTTAB_LINE" | sudo tee -a /etc/crypttab >/dev/null
 fi
 
@@ -69,7 +73,9 @@ for unit in docker.service containerd.service; do
     printf '[Unit]\nRequiresMountsFor=%s\n' "$MNT" | sudo tee "/etc/systemd/system/$unit.d/luks.conf" >/dev/null
 done
 sudo systemctl daemon-reload
-sudo systemd-analyze verify docker.service >/dev/null 2>&1 || echo "   (systemd-analyze printed warnings for docker.service, check them)"
+for unit in docker.service containerd.service; do
+    sudo systemd-analyze verify "$unit" || die "systemd-analyze rejects $unit. Remove /etc/systemd/system/$unit.d/luks.conf and check."
+done
 
 echo ">> 5. enable Docker at boot"
 sudo systemctl enable containerd.service docker.service docker.socket
@@ -88,12 +94,12 @@ sudo cryptsetup luksDump "$LOOP" | grep -E 'systemd-tpm2|tpm2-pcrs' || true
 grep -E "^$NAME[[:space:]]" /etc/crypttab
 grep -E "^/dev/mapper/$NAME[[:space:]]" /etc/fstab
 systemctl is-enabled docker.service containerd.service || true
-NO_RESTART=$(docker ps --format '{{.Names}}' | while read -r c; do
+NO_RESTART=$(docker ps -a --format '{{.Names}}' | while read -r c; do
     p=$(docker inspect --format '{{.HostConfig.RestartPolicy.Name}}' "$c")
     case "$p" in always | unless-stopped) ;; *) echo "$c($p)" ;; esac
 done)
 if [ -n "$NO_RESTART" ]; then
-    echo "!! running containers without a restart policy, they will NOT come back after a reboot: $NO_RESTART"
+    echo "!! containers without a restart policy, they will NOT come back after a reboot: $NO_RESTART"
 fi
 
 echo ">> done. Test with a real reboot in a window with nobody listening:"
