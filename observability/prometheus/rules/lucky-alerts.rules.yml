@@ -118,16 +118,18 @@ groups:
         expr: |
           container_memory_working_set_bytes{name="lucky-bot"}
             / (container_spec_memory_limit_bytes{name="lucky-bot"} > 0)
-            > 0.9
-        for: 15m
+            > 0.85
+        for: 10m
         labels:
           severity: warning
           service: lucky-bot
         annotations:
-          summary: "Lucky bot container working set > 90% of its memory limit"
+          summary: "Lucky bot container working set > 85% of its memory limit"
           description: >-
             The bot container's working set (what the OOM killer acts on) has
-            been above 90% of its mem_limit for 15 minutes. Replaces the old
-            nodejs_heap_size_used/nodejs_heap_size_total ratio, which idled at
-            92-96% on healthy processes because V8 grows heap_total lazily.
+            been above 85% of its mem_limit for 10 minutes. Lowered from 90%
+            for 15 minutes after a day at 85-94% never fired (#2875).
+            Replaces the old nodejs_heap_size_used/nodejs_heap_size_total
+            ratio, which idled at 92-96% on healthy processes because V8
+            grows heap_total lazily.
           runbook: "Check lucky-bot memory growth on the 'Lucky: sistema' dashboard and in its logs; restart lucky-bot if it keeps climbing."

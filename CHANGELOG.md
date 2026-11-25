@@ -1881,6 +1881,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat(bot): `/play` expands Spotify share links (`spotify.link`, `spotify.app.link`) to the open.spotify.com link, and a Spotify artist link queues that artist's top tracks like `/artist` instead of replying that the link is not supported
 
 ### Fixed
+- fix(bot): the weekly recap logs how long the card's track query and cover fetch took, how many covers timed out or were skipped, and the event-loop lag during each, to tell a blocked bot from a slow CDN; the bot memory alert now fires at 85% of the limit for 10 min instead of 90% for 15 min (#3309, #2875)
 - fix(bot): bot messages sent to Sentry are titled "<category>: <message>" ("music.youtube-extraction: YouTube extraction exhausted all fallback stages") instead of "captureMessage", reading `category` from tags or extras; an uncategorized message uses "message" as its category, and a categorized message without its own fingerprint is grouped by category and call site (#3344)
 - fix(bot): the `/recap` error for an unsupported channel now says a text channel or a voice channel chat is accepted, in en, es and pt-BR (#3247)
 - **bot**: an isolated YouTube bot-check no longer sends the next 15 min of plays to the slower yt-dlp cookies path; it takes two bot-checks within the window to skip the plain attempt (#3333)
