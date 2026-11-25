@@ -222,7 +222,8 @@ passphrase from step 2 still works as a fallback.
 
 The key is sealed in the host's TPM 2.0 (Intel PTT on the N100), bound to PCR 7
 (Secure Boot policy). The host boots and unlocks on its own after a power cut. The
-LUKS volume on a disk pulled out of the machine cannot be unlocked, but someone with
+LUKS volume on a disk pulled out of the machine cannot be unlocked without the
+passphrase (keep it strong and only in the password manager), but someone with
 the whole machine can boot it: this protects against a stolen or discarded disk, not
 a stolen box. It covers only the LUKS volume: the `/var/lib/docker.plain` copy and
 the step 1 dump stay readable until step 6 removes them, and on an SSD even that is
