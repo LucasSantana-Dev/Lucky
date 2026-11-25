@@ -3,6 +3,7 @@ import { EventEmitter } from 'events'
 const mockSearch = jest.fn()
 const mockGetInnertube = jest.fn()
 const mockCreateAdaptiveStream = jest.fn()
+const mockPinBotGuardWorkerDir = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: jest.fn(),
@@ -12,6 +13,9 @@ jest.mock('@lucky/shared/utils', () => ({
 }))
 jest.mock('discord-player-youtubei', () => ({
     getInnertube: (...args: unknown[]) => mockGetInnertube(...args),
+}))
+jest.mock('./botGuardWorkerDir', () => ({
+    pinBotGuardWorkerDir: () => mockPinBotGuardWorkerDir(),
 }))
 jest.mock('simple-ytdl-core', () => ({
     createAdaptiveStreamMultiStep: (...args: unknown[]) =>
@@ -50,6 +54,23 @@ describe('youtubeiNativeStream', () => {
 
         expect(mockGetInnertube).toHaveBeenCalledWith({})
         expect(mockCreateAdaptiveStream).toHaveBeenCalledWith(tube, 'abc')
+        expect(mockPinBotGuardWorkerDir).toHaveBeenCalledTimes(1)
+        expect(
+            mockPinBotGuardWorkerDir.mock.invocationCallOrder[0],
+        ).toBeLessThan(mockCreateAdaptiveStream.mock.invocationCallOrder[0])
+    })
+
+    it('rejects without starting simple-ytdl-core when the BotGuard worker is missing', async () => {
+        mockPinBotGuardWorkerDir.mockImplementationOnce(() => {
+            throw new Error(
+                'youtubei: simple-ytdl-core BotGuard worker not found, skipping',
+            )
+        })
+
+        await expect(streamViaYoutubei('abc')).rejects.toThrow(
+            'BotGuard worker not found',
+        )
+        expect(mockCreateAdaptiveStream).not.toHaveBeenCalled()
     })
 
     it('rejects on timeout and destroys a stream that arrives late', async () => {
