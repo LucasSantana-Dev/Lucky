@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.75.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.74.0...v2.75.0) (2026-11-25)
+
+
+### Features
+
+* **bot:** expand spotify share links and route spotify artist links ([#3328](https://github.com/LucasSantana-Dev/Lucky/issues/3328)) ([ab0376c](https://github.com/LucasSantana-Dev/Lucky/commit/ab0376c23c66e225a33abe475f082bcf828205ac))
+
+
+### Bug Fixes
+
+* **backend,bot:** only post notifications to channels in the same server ([#3291](https://github.com/LucasSantana-Dev/Lucky/issues/3291)) ([7db2241](https://github.com/LucasSantana-Dev/Lucky/commit/7db22417494566dbf5ef718b0d76627805aa5583))
+* **backend:** bound support report fields and verify image bytes ([#3301](https://github.com/LucasSantana-Dev/Lucky/issues/3301)) ([1298eb8](https://github.com/LucasSantana-Dev/Lucky/commit/1298eb8ed8e26b9d38396e277e091f33a7b97678))
+* **backend:** drop the oauth code prefix from the callback log ([#3305](https://github.com/LucasSantana-Dev/Lucky/issues/3305)) ([d9481ec](https://github.com/LucasSantana-Dev/Lucky/commit/d9481ecc0139d68b0de0d59c3d6d042fb94c3141))
+* **backend:** encrypt stored oauth tokens and write sessions atomically ([#3304](https://github.com/LucasSantana-Dev/Lucky/issues/3304)) ([31adaae](https://github.com/LucasSantana-Dev/Lucky/commit/31adaae57430d18b491f01cf87c5c4060a68252c))
+* **backend:** make logout a post and stop parsing form bodies ([#3287](https://github.com/LucasSantana-Dev/Lucky/issues/3287)) ([b590a61](https://github.com/LucasSantana-Dev/Lucky/commit/b590a6198ed8b9a46bfa9fedf03041cf33deea0d))
+* **backend:** scope auto message edit, toggle and delete to the guild ([#3306](https://github.com/LucasSantana-Dev/Lucky/issues/3306)) ([31d911a](https://github.com/LucasSantana-Dev/Lucky/commit/31d911a7c42af73e62a98f85ddbf646affe2a102))
+* **backend:** scope service keys and notify channels ([#3300](https://github.com/LucasSantana-Dev/Lucky/issues/3300)) ([222dbd8](https://github.com/LucasSantana-Dev/Lucky/commit/222dbd8204b089e2a5c7384a4b99850eb9dd67cf))
+* **backend:** start a new session id after discord login ([99f2f94](https://github.com/LucasSantana-Dev/Lucky/commit/99f2f94cc035a1269811a83c81619843eb4285d1))
+* **backend:** tidy music stream lifecycle and limit open streams ([#3302](https://github.com/LucasSantana-Dev/Lucky/issues/3302)) ([1030c3e](https://github.com/LucasSantana-Dev/Lucky/commit/1030c3ebfd590118542552a14039331d1b611aa0))
+* **bot:** arm the yt-dlp cookies shortcut only on a repeated bot-check ([#3334](https://github.com/LucasSantana-Dev/Lucky/issues/3334)) ([b1bb879](https://github.com/LucasSantana-Dev/Lucky/commit/b1bb87914bc7996ce92f3fc6cd2b4b4f32b0ee76))
+* **bot:** check the dj role before the public skip defer ([#3321](https://github.com/LucasSantana-Dev/Lucky/issues/3321)) ([d949bc8](https://github.com/LucasSantana-Dev/Lucky/commit/d949bc8a29f0ebf334fcf3620173529298e8cab0))
+* **bot:** clear autoplay per-guild state when a session ends ([#3315](https://github.com/LucasSantana-Dev/Lucky/issues/3315)) ([2f16785](https://github.com/LucasSantana-Dev/Lucky/commit/2f16785a87430b26acc21070d1705e3a4290a328))
+* **bot:** close the yt-dlp pipe on kill, end fake children in spec ([#3254](https://github.com/LucasSantana-Dev/Lucky/issues/3254)) ([c08b295](https://github.com/LucasSantana-Dev/Lucky/commit/c08b295a2b435b58b5aae09a40ab57f24f707d9d))
+* **bot:** correct recap channel error and queue resolver comment ([#3343](https://github.com/LucasSantana-Dev/Lucky/issues/3343)) ([bc52da7](https://github.com/LucasSantana-Dev/Lucky/commit/bc52da78d59ec317e5eb9ca240004355ccbb11fa))
+* **bot:** count only current listeners in voteskip ([#3311](https://github.com/LucasSantana-Dev/Lucky/issues/3311)) ([7095e65](https://github.com/LucasSantana-Dev/Lucky/commit/7095e65f12d1a37f58f58d8971ddc4f6c58d1f8c))
+* **bot:** drop the repeat times option that never counted down ([#3319](https://github.com/LucasSantana-Dev/Lucky/issues/3319)) ([33f5e05](https://github.com/LucasSantana-Dev/Lucky/commit/33f5e054fed4d5b332d656373343a7d12d5f9065))
+* **bot:** fetch spotify recap covers at 300px so they fit the 64 kb cap ([#3297](https://github.com/LucasSantana-Dev/Lucky/issues/3297)) ([3805c81](https://github.com/LucasSantana-Dev/Lucky/commit/3805c814bc8a8a00cc3584c630d7b4e39c0e8f21))
+* **bot:** fill autoplay from the seed before the last.fm profile ([#3336](https://github.com/LucasSantana-Dev/Lucky/issues/3336)) ([9a5584b](https://github.com/LucasSantana-Dev/Lucky/commit/9a5584b67588062d1a4c0dc95b8f84af581b3877))
+* **bot:** gate collaborative playlist and apply its limit to every add ([#3324](https://github.com/LucasSantana-Dev/Lucky/issues/3324)) ([944f26d](https://github.com/LucasSantana-Dev/Lucky/commit/944f26d17c478fa7c6de776da838aae132c80ef9))
+* **bot:** keep a failed feedback prompt and a racing skip from misfiring ([#3329](https://github.com/LucasSantana-Dev/Lucky/issues/3329)) ([b9dbfce](https://github.com/LucasSantana-Dev/Lucky/commit/b9dbfce2d79c17be8a68c71963bd469c06c09cae))
+* **bot:** keep the cross-locale veto from emptying latin autoplay ([#3322](https://github.com/LucasSantana-Dev/Lucky/issues/3322)) ([e63354a](https://github.com/LucasSantana-Dev/Lucky/commit/e63354ad1e8aa4c01baf43a016d3dbeb600c004e))
+* **bot:** keep the requested version in the broad youtube query ([#3327](https://github.com/LucasSantana-Dev/Lucky/issues/3327)) ([1185d5b](https://github.com/LucasSantana-Dev/Lucky/commit/1185d5ba6f540dce62bc7bb71267a704412706c3))
+* **bot:** let manage server members bypass the voice check ([#3308](https://github.com/LucasSantana-Dev/Lucky/issues/3308)) ([e2fdc6d](https://github.com/LucasSantana-Dev/Lucky/commit/e2fdc6d29262a4d7f4701918076a3b59680e1dbb))
+* **bot:** limit music controls to members in the bot's voice channel ([#3292](https://github.com/LucasSantana-Dev/Lucky/issues/3292)) ([fb3317a](https://github.com/LucasSantana-Dev/Lucky/commit/fb3317aeb9657633f61204fc7b8e9f32095850b1))
+* **bot:** log recap cover timing and event-loop lag ([#3345](https://github.com/LucasSantana-Dev/Lucky/issues/3345)) ([279c7b7](https://github.com/LucasSantana-Dev/Lucky/commit/279c7b7e8513bdd207355018f368ed4ffdcb61f8)), closes [#3309](https://github.com/LucasSantana-Dev/Lucky/issues/3309) [#2875](https://github.com/LucasSantana-Dev/Lucky/issues/2875)
+* **bot:** log the recap cover phase at info with its duration ([#3310](https://github.com/LucasSantana-Dev/Lucky/issues/3310)) ([9fdd006](https://github.com/LucasSantana-Dev/Lucky/commit/9fdd0067658005d23bfe5927cbb509f19c6a6372))
+* **bot:** normalise links on playtop and playskip like play ([#3313](https://github.com/LucasSantana-Dev/Lucky/issues/3313)) ([916f4c2](https://github.com/LucasSantana-Dev/Lucky/commit/916f4c2af7cdbe91937393af9945e90fc4ba78a1))
+* **bot:** replay persisted guild history when autoplay has nothing left ([#3326](https://github.com/LucasSantana-Dev/Lucky/issues/3326)) ([831e2c0](https://github.com/LucasSantana-Dev/Lucky/commit/831e2c0b1c66e2502bed12af9b41297f906881f5))
+* **bot:** resolve kicked queue via resolver, clear collab state ([#3256](https://github.com/LucasSantana-Dev/Lucky/issues/3256)) ([27e7042](https://github.com/LucasSantana-Dev/Lucky/commit/27e70429805662347e5c63a2cd2de1652f8cdaa5))
+* **bot:** say a link is unsupported instead of leaking the attachment extractor error ([#3265](https://github.com/LucasSantana-Dev/Lucky/issues/3265)) ([caff05a](https://github.com/LucasSantana-Dev/Lucky/commit/caff05ad563d918b8d9521f8288980eb848ec645))
+* **bot:** skip drm encrypted soundcloud uploads before matching ([#3316](https://github.com/LucasSantana-Dev/Lucky/issues/3316)) ([e9ef24a](https://github.com/LucasSantana-Dev/Lucky/commit/e9ef24a307b79773c7977fb9f0dbc803c4b1e01c))
+* **bot:** stop bulk kick and role removal from reaching higher members ([#3293](https://github.com/LucasSantana-Dev/Lucky/issues/3293)) ([4344391](https://github.com/LucasSantana-Dev/Lucky/commit/4344391f8443bd46431a80fcfa558673637c2723))
+* **bot:** stop moderators from banning, kicking or muting members above them ([#3289](https://github.com/LucasSantana-Dev/Lucky/issues/3289)) ([780dd05](https://github.com/LucasSantana-Dev/Lucky/commit/780dd05079f8a6204f23f06c9b5f138844267dd0))
+* **bot:** strip director and producer credits from track titles ([#3338](https://github.com/LucasSantana-Dev/Lucky/issues/3338)) ([48ec669](https://github.com/LucasSantana-Dev/Lucky/commit/48ec66963898a050d86d36e55ed0a20786ee6413))
+* **bot:** title sentry messages by category instead of captureMessage ([#3344](https://github.com/LucasSantana-Dev/Lucky/issues/3344)) ([d4e5a3f](https://github.com/LucasSantana-Dev/Lucky/commit/d4e5a3f19d37fa6df8f17ab1e19902b5be88039e))
+* **deps:** bump flagged override pins and sentry so prod audit is clean ([#3303](https://github.com/LucasSantana-Dev/Lucky/issues/3303)) ([d620041](https://github.com/LucasSantana-Dev/Lucky/commit/d620041da6776c339e1cd1aa99264a2ec3bb7d91))
+* **deps:** bump googlevideo from 4.1.1 to 5.0.1 ([#3260](https://github.com/LucasSantana-Dev/Lucky/issues/3260)) ([eaa714a](https://github.com/LucasSantana-Dev/Lucky/commit/eaa714a62e8947e7662ad85b1cc7d2d2e2a5a0e3))
+* **deps:** bump the minor-patch group with 2 updates ([#3258](https://github.com/LucasSantana-Dev/Lucky/issues/3258)) ([effe87a](https://github.com/LucasSantana-Dev/Lucky/commit/effe87a25f02d03d93107b138669e97587e176fc))
+* **deps:** give soundcloud.ts its own undici 6 so api v2 calls work ([#3250](https://github.com/LucasSantana-Dev/Lucky/issues/3250)) ([dad7962](https://github.com/LucasSantana-Dev/Lucky/commit/dad79627f7bfac8d59ed8180376fa431d89a3abf))
+* **infra:** wait for listeners before recreating the bot on deploy ([#3346](https://github.com/LucasSantana-Dev/Lucky/issues/3346)) ([5e7e61f](https://github.com/LucasSantana-Dev/Lucky/commit/5e7e61fe56e2f0d0402e73f540742552e81c1077)), closes [#2872](https://github.com/LucasSantana-Dev/Lucky/issues/2872)
+* **observability:** refresh grafana_ro grants after every deploy migration ([#3299](https://github.com/LucasSantana-Dev/Lucky/issues/3299)) ([c3d53e0](https://github.com/LucasSantana-Dev/Lucky/commit/c3d53e093914450c5ad5451dfff4611c285c5fa5))
+* **test:** cap jest max workers in bot and shared ([#3249](https://github.com/LucasSantana-Dev/Lucky/issues/3249)) ([c1a5117](https://github.com/LucasSantana-Dev/Lucky/commit/c1a51174511061dce44a98b083d6a0eb5236d68f))
+
+
+### Performance Improvements
+
+* **backend:** cache guild member context per user and guild for 30s ([#3317](https://github.com/LucasSantana-Dev/Lucky/issues/3317)) ([cb9cc21](https://github.com/LucasSantana-Dev/Lucky/commit/cb9cc211a8206195c2e4521d8445c6e329f2324e))
+* **bot:** match soundcloud re-uploads on tight duration ([#3325](https://github.com/LucasSantana-Dev/Lucky/issues/3325)) ([ba6b807](https://github.com/LucasSantana-Dev/Lucky/commit/ba6b8073714304a7f8f113feaa4984cd554249d8))
+* **bot:** skip the last.fm library when seed picks fill the buffer ([#3339](https://github.com/LucasSantana-Dev/Lucky/issues/3339)) ([214c1c7](https://github.com/LucasSantana-Dev/Lucky/commit/214c1c744afa11c4036ab7d79627cb4bf60705af))
+
 ## [2.74.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.73.1...v2.74.0) (2026-11-20)
 
 
