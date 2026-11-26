@@ -47,6 +47,20 @@ jest.mock(
 
 import { restoreSessionsOnStartup } from './sessionStartupRestore'
 
+// The real module reads guild settings from Postgres.
+jest.mock('./queueLeaveOptions', () => {
+    const options = {
+        leaveOnEmpty: true,
+        leaveOnEmptyCooldown: 30_000,
+        leaveOnEnd: true,
+        leaveOnEndCooldown: 300_000,
+    }
+    return {
+        QUEUE_LEAVE_OPTIONS: options,
+        queueLeaveOptionsFor: async () => options,
+    }
+})
+
 function clientWith(
     guildId: string,
     channelVoice = true,

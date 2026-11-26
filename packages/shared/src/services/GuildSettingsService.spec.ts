@@ -279,6 +279,17 @@ describe('GuildSettingsService — settings CRUD + counter methods', () => {
             expect(s?.blockSertanejo).toBe(true)
         })
 
+        it('maps stayConnected (24/7 mode), off when the row value is nullish', async () => {
+            sFindUnique.mockResolvedValue(settingsRow({ stayConnected: true }))
+            expect((await service.getGuildSettings(GUILD))?.stayConnected).toBe(
+                true,
+            )
+            sFindUnique.mockResolvedValue(settingsRow({ stayConnected: null }))
+            expect((await service.getGuildSettings(GUILD))?.stayConnected).toBe(
+                false,
+            )
+        })
+
         it('returns null when no row and on error', async () => {
             sFindUnique.mockResolvedValue(null)
             expect(await service.getGuildSettings(GUILD)).toBeNull()
@@ -334,6 +345,7 @@ describe('GuildSettingsService — settings CRUD + counter methods', () => {
                 djRoleId: 'dj-1',
                 idleTimeoutMinutes: 15,
                 voteSkipThreshold: 60,
+                stayConnected: true,
             }
 
             await service.setGuildSettings(GUILD, full)

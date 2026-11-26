@@ -62,6 +62,7 @@ describe('hostedCommands', () => {
                     'autoplay',
                     'lyrics',
                     'recap',
+                    '247',
                     'spotify',
                     'lastfm',
                     'help',

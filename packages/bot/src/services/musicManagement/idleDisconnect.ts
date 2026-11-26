@@ -43,7 +43,10 @@ export function scheduleIdleDisconnect(queue: GuildQueue): void {
         // while settings were loading — bail instead of arming a timer.
         if (idleGenerations.get(guildId) !== generation) return
 
-        const timeoutMinutes = settings?.idleTimeoutMinutes ?? 0
+        // 24/7 mode (/247) keeps Lucky in the channel, so never idle out.
+        const timeoutMinutes = settings?.stayConnected
+            ? 0
+            : (settings?.idleTimeoutMinutes ?? 0)
         if (timeoutMinutes <= 0) {
             releaseGeneration(guildId, generation)
             return

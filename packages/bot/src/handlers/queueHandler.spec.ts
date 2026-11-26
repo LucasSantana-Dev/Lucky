@@ -7,6 +7,20 @@ import type { GuildQueue } from 'discord-player'
 import type { CustomClient } from '../types'
 import { createQueue, queueConnect } from './queueHandler'
 
+// The real module reads guild settings from Postgres.
+jest.mock('../services/musicManagement/queueLeaveOptions', () => {
+    const options = {
+        leaveOnEmpty: true,
+        leaveOnEmptyCooldown: 30_000,
+        leaveOnEnd: true,
+        leaveOnEndCooldown: 300_000,
+    }
+    return {
+        QUEUE_LEAVE_OPTIONS: options,
+        queueLeaveOptionsFor: async () => options,
+    }
+})
+
 function createMockInteraction(
     overrides?: Partial<ChatInputCommandInteraction>,
 ): ChatInputCommandInteraction {

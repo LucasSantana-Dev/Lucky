@@ -22,7 +22,7 @@ import { SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS } from '../functions/music/comma
 import { runPostPlayBackgroundOps } from '../functions/music/commands/play/handlers/postPlayBackgroundOps'
 import { resolveGuildQueue } from '../services/musicManagement/queueResolver'
 import { translatorForInteraction } from '../i18n/translatorForInteraction'
-import { QUEUE_LEAVE_OPTIONS } from '../services/musicManagement/queueLeaveOptions'
+import { queueLeaveOptionsFor } from '../services/musicManagement/queueLeaveOptions'
 
 /**
  * One-click music station on the join onboarding embed (#2473). Seeds
@@ -242,7 +242,7 @@ export async function handleOnboardingStationButton(
                     requestedBy: interaction.user,
                 },
                 connectionTimeout: ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-                ...QUEUE_LEAVE_OPTIONS,
+                ...(await queueLeaveOptionsFor(guildId)),
             },
         })
 

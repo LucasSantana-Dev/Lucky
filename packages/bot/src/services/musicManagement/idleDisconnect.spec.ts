@@ -58,6 +58,20 @@ describe('idleDisconnect', () => {
         expect(queue.delete).not.toHaveBeenCalled()
     })
 
+    it('never idles out while 24/7 mode is on', async () => {
+        mockGetGuildSettings.mockResolvedValueOnce({
+            idleTimeoutMinutes: 5,
+            stayConnected: true,
+        })
+        const queue = makeQueue()
+
+        scheduleIdleDisconnect(queue)
+        await jest.advanceTimersByTimeAsync(10 * 60 * 1000)
+
+        expect(queue.delete).not.toHaveBeenCalled()
+        expect(mockMarkIntentionalStop).not.toHaveBeenCalled()
+    })
+
     it('disconnects the queue after the idle timeout elapses', async () => {
         mockGetGuildSettings.mockResolvedValueOnce({ idleTimeoutMinutes: 5 })
         const send = jest.fn().mockResolvedValue(undefined)

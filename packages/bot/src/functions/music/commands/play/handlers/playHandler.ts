@@ -49,7 +49,11 @@ import {
     resolvePlayErrorMessage,
 } from './playErrorMessage'
 import { watchStreamStartFailures } from './streamStartWatcher'
-import { QUEUE_LEAVE_OPTIONS } from '../../../../../services/musicManagement/queueLeaveOptions'
+import {
+    QUEUE_LEAVE_OPTIONS,
+    queueLeaveOptionsFor,
+    type QueueLeaveOptions,
+} from '../../../../../services/musicManagement/queueLeaveOptions'
 import {
     closePlayStartWatch,
     openPlayStartWatch,
@@ -252,7 +256,11 @@ async function registerDeferredNowPlaying(
     }
 }
 
-function buildPlayOptions(ctx: PlayContext, searchEngine: QueryType) {
+function buildPlayOptions(
+    ctx: PlayContext,
+    searchEngine: QueryType,
+    leaveOptions: QueueLeaveOptions,
+) {
     const { client, interaction, voiceChannel } = ctx
     const vcMemberIds = voiceChannel.members
         ? Array.from(voiceChannel.members.values())
@@ -267,7 +275,7 @@ function buildPlayOptions(ctx: PlayContext, searchEngine: QueryType) {
                 vcMemberIds,
             },
             connectionTimeout: ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-            ...QUEUE_LEAVE_OPTIONS,
+            ...leaveOptions,
         },
         requestedBy: interaction.user,
         searchEngine,
@@ -498,7 +506,12 @@ async function runPlay(ctx: PlayContext, early: EarlyState): Promise<void> {
     }
 
     const searchEngine = resolveSearchEngine(query, provider)
-    const playOptions = buildPlayOptions(ctx, searchEngine)
+    // nodeOptions only matter when play() creates the queue, so skip the
+    // settings read when one is already running.
+    const leaveOptions = hadQueueBeforePlay
+        ? QUEUE_LEAVE_OPTIONS
+        : await queueLeaveOptionsFor(guildId)
+    const playOptions = buildPlayOptions(ctx, searchEngine, leaveOptions)
     const startWatcher = watchStreamStartFailures(client.player, guildId)
     const replyOnceSearched = createEarlyReplier(ctx, early, hadQueueBeforePlay)
 

@@ -19,6 +19,7 @@ import {
 import { resolveGuildQueue } from '../../services/musicManagement/queueResolver'
 import { recapMixPlayedTotal } from '../../utils/monitoring/prometheus'
 import type { CustomClient } from '../../types'
+import { queueLeaveOptionsFor } from '../../services/musicManagement/queueLeaveOptions'
 
 export const RECAP_MIX_BUTTON_ID = 'recap_mix'
 
@@ -128,10 +129,7 @@ async function playMix(
             },
             selfDeaf: true,
             connectionTimeout: ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-            leaveOnEmpty: true,
-            leaveOnEmptyCooldown: 30_000,
-            leaveOnEnd: true,
-            leaveOnEndCooldown: 300_000,
+            ...(await queueLeaveOptionsFor(guildId)),
         },
         requestedBy: interaction.user,
     })

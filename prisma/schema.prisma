@@ -278,6 +278,8 @@ model GuildSettings {
   djRoleId           String?
   idleTimeoutMinutes Int?    @default(0) // 0 = no idle disconnect
   voteSkipThreshold  Int?    @default(50) // percent of listeners required
+  // 24/7 mode (/247): stay in the voice channel when the queue ends or empties
+  stayConnected      Boolean @default(false)
 
   // Birthday announcement channel — if null, the scheduler skips the guild.
   birthdayChannelId String?
