@@ -8,6 +8,7 @@ import {
 } from 'discord.js'
 import type { TFunction } from 'i18next'
 import { errorLog, infoLog } from '@lucky/shared/utils'
+import { TOP_GG_VOTE_URL } from '@lucky/shared/constants'
 import { translatorForInteraction } from '../../i18n/translatorForInteraction'
 import { disableRecap } from '../../services/recap/recapStore'
 import { buildRecapMixButton } from './recapMixButton'
@@ -17,10 +18,11 @@ import { buildTrackedInviteUrl } from '../../utils/general/trackedInviteUrl'
 export const RECAP_OFF_BUTTON_ID = 'recap_off'
 
 /**
- * Action row with "▶️ Play this week's mix", "🔕 Turn off" and, when a backend
- * is configured, an "Add Lucky to your server" link. The recap is the one
- * message every member of an active guild sees each week, so the link turns
- * it into a referral surface; joins from it are recorded as source `recap`.
+ * Action row with "▶️ Play this week's mix", "🔕 Turn off", when a backend
+ * is configured an "Add Lucky to your server" link, and a top.gg vote link.
+ * The recap is the one message every member of an active guild sees each
+ * week, so the links turn it into a referral surface: joins from it are
+ * recorded as source `recap`, and votes lift Lucky in top.gg search.
  */
 export function buildRecapOffRow(
     t: TFunction,
@@ -43,6 +45,13 @@ export function buildRecapOffRow(
                 .setStyle(ButtonStyle.Link),
         )
     }
+    row.addComponents(
+        new ButtonBuilder()
+            .setURL(TOP_GG_VOTE_URL)
+            .setLabel(t('general.links.vote'))
+            .setEmoji('💛')
+            .setStyle(ButtonStyle.Link),
+    )
     return row
 }
 

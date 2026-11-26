@@ -70,7 +70,14 @@ describe('recap off button (#2738)', () => {
         const components = buildRecapOffRow(t).toJSON().components
         if (saved === undefined) delete process.env.WEBAPP_BACKEND_URL
         else process.env.WEBAPP_BACKEND_URL = saved
-        expect(components).toHaveLength(2)
+        expect(components).toHaveLength(3)
+        expect(components[2]).toEqual(
+            expect.objectContaining({
+                style: ButtonStyle.Link,
+                label: 'general.links.vote',
+                url: 'https://top.gg/bot/962198089161134131/vote',
+            }),
+        )
         expect(components[0]).toEqual(
             expect.objectContaining({
                 custom_id: 'recap_mix',
@@ -94,7 +101,10 @@ describe('recap off button (#2738)', () => {
         const components = buildRecapOffRow(t).toJSON().components
         if (saved === undefined) delete process.env.WEBAPP_BACKEND_URL
         else process.env.WEBAPP_BACKEND_URL = saved
-        expect(components).toHaveLength(3)
+        expect(components).toHaveLength(4)
+        expect(components[3]).toEqual(
+            expect.objectContaining({ label: 'general.links.vote' }),
+        )
         expect(components[2]).toEqual(
             expect.objectContaining({
                 style: ButtonStyle.Link,

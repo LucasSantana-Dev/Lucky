@@ -196,6 +196,7 @@ describe('RecapScheduler (#2678)', () => {
                 custom_id: 'recap_off',
                 label: 'music.recap.offButton',
             }),
+            expect.objectContaining({ label: 'general.links.vote' }),
         ])
     })
 
