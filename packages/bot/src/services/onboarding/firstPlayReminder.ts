@@ -105,8 +105,8 @@ export class FirstPlayReminderScheduler extends IntervalScheduler {
             // Recorded first: if the write fails nothing is sent. A failed
             // send keeps the record and is not retried, because a send that
             // threw may still have reached Discord, and a second reminder is
-            // worse than a missed one. The 'failed' outcome in the tick log
-            // tells such a guild apart from a delivered one.
+            // worse than a missed one. The 'first-play reminder: failed'
+            // error log carries the guildId of a send that threw.
             const recorded = await recordActivationEvent(
                 guildId,
                 'first_play_reminder',
