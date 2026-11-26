@@ -49,7 +49,7 @@ function setup({ inCache = true }: { inCache?: boolean } = {}) {
     const send = jest.fn().mockResolvedValue(undefined)
     const channel = { type: ChannelType.GuildText, send }
     findOnboardingChannelMock.mockReturnValue(channel)
-    const guild = { id: '111111111111111111' }
+    const guild = { id: 'guild-1' }
     const client = {
         guilds: {
             cache: {
@@ -67,7 +67,7 @@ describe('first-play reminder', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         prisma.activationEvent.findMany.mockResolvedValue([
-            { guildDiscordId: '111111111111111111' },
+            { guildDiscordId: 'guild-1' },
         ])
         prisma.activationEvent.findFirst.mockResolvedValue(null)
         prisma.trackHistory.findFirst.mockResolvedValue(null)
@@ -98,7 +98,7 @@ describe('first-play reminder', () => {
         await scheduler.tick()
 
         expect(recordActivationEventMock).toHaveBeenCalledWith(
-            '111111111111111111',
+            'guild-1',
             'first_play_reminder',
         )
         expect(send).toHaveBeenCalledTimes(1)
