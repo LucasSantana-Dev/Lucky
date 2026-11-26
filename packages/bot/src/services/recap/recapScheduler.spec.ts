@@ -17,6 +17,9 @@ const cardPostedIncMock = jest.fn()
 const warnLogMock = jest.fn()
 const infoLogMock = jest.fn()
 
+jest.mock('../feedbackService', () => ({
+    buildFeedbackReportCustomId: (name: string) => `feedback_report:${name}:`,
+}))
 jest.mock('./recapStore', () => ({
     listDueRecaps: (...a: unknown[]) => listDueRecapsMock(...a),
     claimRecapWeek: (...a: unknown[]) => claimRecapWeekMock(...a),
@@ -195,6 +198,10 @@ describe('RecapScheduler (#2678)', () => {
             expect.objectContaining({
                 custom_id: 'recap_off',
                 label: 'music.recap.offButton',
+            }),
+            expect.objectContaining({
+                custom_id: 'feedback_report:recap:',
+                label: 'music.recap.feedbackButton',
             }),
             expect.objectContaining({ label: 'general.links.vote' }),
         ])

@@ -13,13 +13,15 @@ import { translatorForInteraction } from '../../i18n/translatorForInteraction'
 import { disableRecap } from '../../services/recap/recapStore'
 import { buildRecapMixButton } from './recapMixButton'
 import { buildTrackedInviteUrl } from '../../utils/general/trackedInviteUrl'
+import { buildFeedbackReportCustomId } from '../../services/feedbackService'
 
 /** Custom id of the "Turn off weekly recap" button on every recap (#2738). */
 export const RECAP_OFF_BUTTON_ID = 'recap_off'
 
 /**
- * Action row with "▶️ Play this week's mix", "🔕 Turn off", when a backend
- * is configured an "Add Lucky to your server" link, and a top.gg vote link.
+ * Action row with "▶️ Play this week's mix", "🔕 Turn off", "💬 Feedback",
+ * when a backend is configured an "Add Lucky to your server" link, and a
+ * top.gg vote link (five buttons, the most one row holds).
  * The recap is the one message every member of an active guild sees each
  * week, so the links turn it into a referral surface: joins from it are
  * recorded as source `recap`, and votes lift Lucky in top.gg search.
@@ -33,6 +35,14 @@ export function buildRecapOffRow(
             .setCustomId(RECAP_OFF_BUTTON_ID)
             .setLabel(t('music.recap.offButton'))
             .setEmoji('🔕')
+            .setStyle(ButtonStyle.Secondary),
+        // Opens the /feedback form with `recap` as context. Feedback is asked
+        // in-guild on the recap rather than by DM; the growth decision rules
+        // out DMs to owners (decisions/2026-06-18-in-bot-growth.md).
+        new ButtonBuilder()
+            .setCustomId(buildFeedbackReportCustomId('recap'))
+            .setLabel(t('music.recap.feedbackButton'))
+            .setEmoji('💬')
             .setStyle(ButtonStyle.Secondary),
     )
     const inviteUrl = buildTrackedInviteUrl('recap', 'card')

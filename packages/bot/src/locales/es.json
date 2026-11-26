@@ -109,6 +109,7 @@
             "enabled": "📅 El resumen semanal se publicará en <#{{channel}}> cada domingo a las 18:00 UTC.",
             "disabled": "🔕 Resumen semanal desactivado.",
             "offButton": "Desactivar resumen semanal",
+            "feedbackButton": "¿Qué falta?",
             "inviteButton": "Añadir Lucky a tu servidor",
             "offHint": "Los administradores pueden desactivarlo con el botón de abajo o con /recap off",
             "alreadyOff": "El resumen semanal ya está desactivado.",
