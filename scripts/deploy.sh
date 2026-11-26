@@ -873,6 +873,16 @@ post_deploy_status "pending" "Deploy in progress"
 if [[ -f /.dockerenv ]] && \
    docker inspect lucky-webhook --format '{{.Id}}' 2>/dev/null | grep -q "$(hostname)"; then
     log "Skipping webhook rebuild (running inside webhook container)"
+    # The sync above replaced deploy/hooks.json with a new file. webhook's
+    # -hotreload loses its watch on a delete+create and keeps the old hooks,
+    # so a hooks.json change (like the force-bot-restart header) never took
+    # effect. SIGHUP makes webhook reload its hooks without restarting, so
+    # this deploy keeps running and the next one uses the new hooks.
+    if docker kill --signal=HUP lucky-webhook >/dev/null 2>&1; then
+        log "Webhook hooks reloaded (SIGHUP)"
+    else
+        log "WARN: could not signal the webhook to reload hooks.json"
+    fi
 else
     log "Rebuilding webhook container (early, before app build)..."
     phase_start webhook_rebuild
