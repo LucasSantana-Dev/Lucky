@@ -1274,6 +1274,76 @@ describe('track history when a queue is deleted mid-play', () => {
         } as unknown as GuildQueue
     }
 
+    function sessionEnd(guildId = 'guild-1') {
+        return infoLogMock.mock.calls
+            .map(([entry]) => entry)
+            .filter(
+                (entry) =>
+                    entry.message === 'Session ended' &&
+                    entry.data.guildId === guildId,
+            )
+            .at(-1)?.data
+    }
+
+    it('logs how many tracks were skipped in a row before the session ended', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const played = { ...createTrack('streak-0'), durationMS: 200_000 }
+        const picked = {
+            ...createTrack('streak-1'),
+            durationMS: 200_000,
+            metadata: { isAutoplay: true },
+        }
+        const requested = { ...createTrack('streak-2'), durationMS: 200_000 }
+
+        await handlers.playerStart(queue, asTrack(played))
+        jest.advanceTimersByTime(190_000)
+        await handlers.playerFinish(queue, asTrack(played))
+        await handlers.playerStart(queue, asTrack(picked))
+        jest.advanceTimersByTime(5_000)
+        await handlers.playerSkip(queue, asTrack(picked))
+        await handlers.playerStart(queue, asTrack(requested))
+        jest.advanceTimersByTime(5_000)
+        await handlers.playerSkip(queue, asTrack(requested))
+        await handlers.queueDelete(queue)
+
+        expect(sessionEnd()).toMatchObject({
+            skipsBeforeEnd: 2,
+            autoplaySkipsBeforeEnd: 1,
+        })
+    })
+
+    it('resets the skip streak when a track plays through', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const skipped = { ...createTrack('reset-0'), durationMS: 200_000 }
+        const played = { ...createTrack('reset-1'), durationMS: 200_000 }
+
+        await handlers.playerStart(queue, asTrack(skipped))
+        jest.advanceTimersByTime(5_000)
+        await handlers.playerSkip(queue, asTrack(skipped))
+        await handlers.playerStart(queue, asTrack(played))
+        jest.advanceTimersByTime(190_000)
+        await handlers.playerFinish(queue, asTrack(played))
+        await handlers.queueDelete(queue)
+
+        expect(sessionEnd()).toMatchObject({ skipsBeforeEnd: 0 })
+    })
+
+    it('starts the next session with no skip streak', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const skipped = { ...createTrack('next-0'), durationMS: 200_000 }
+
+        await handlers.playerStart(queue, asTrack(skipped))
+        jest.advanceTimersByTime(5_000)
+        await handlers.playerSkip(queue, asTrack(skipped))
+        await handlers.queueDelete(queue)
+        await handlers.queueDelete(queue)
+
+        expect(sessionEnd()).toMatchObject({ skipsBeforeEnd: 0 })
+    })
+
     it('records the interrupted play once, with the seconds played (/stop, /leave, disconnect, empty channel)', async () => {
         const handlers = setupHandlers()
         const track = { ...createTrack('delete-stop'), durationMS: 200_000 }

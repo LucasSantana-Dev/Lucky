@@ -43,6 +43,8 @@ import { resetAutoplayFailureStreak } from './autoplayFailureStreak'
 import { dropAsmrTracks } from '../../utils/music/asmrFilter'
 import {
     getRecentSkipCount,
+    noteTrackEnd,
+    takeSkipStreak,
     getTrackRequesterId,
     isAutoplayTrack,
     isRecommendationAutoplay,
@@ -348,6 +350,24 @@ async function scrobbleAndRecord(
     await addTrackToHistory(trackToRecord, queue.guild.id, { playDuration })
 }
 
+/**
+ * A skip can arrive as a finish (discord-player v7 routes some manual skips
+ * through playerFinish); one the skip handler already recorded is not counted
+ * twice.
+ */
+function noteFinishForSkipStreak(
+    guildId: string,
+    track: Track,
+    completionRatio: number,
+    recordedOnSkip: boolean,
+): void {
+    if (recordedOnSkip) return
+    noteTrackEnd(guildId, {
+        skipped: completionRatio < OUTCOME_ACCEPT_PLAY_RATIO,
+        autoplay: isRecommendationAutoplay(track),
+    })
+}
+
 const handlePlayerFinish = async (
     queue: GuildQueue,
     track?: Track,
@@ -382,6 +402,12 @@ const handlePlayerFinish = async (
             if (startTime && track.durationMS) {
                 const completionRatio =
                     (Date.now() - startTime) / track.durationMS
+                noteFinishForSkipStreak(
+                    queue.guild.id,
+                    track,
+                    completionRatio,
+                    recordedOnSkip,
+                )
                 if (completionRatio > 0.8) {
                     await recordImplicitTrackFeedback(track, 'implicit_like')
                     guildRecentSkipCounts.delete(queue.guild.id)
@@ -442,6 +468,18 @@ const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
     // Refill counter and mood cache belong to the session that just ended
     // (#3280); /leave and the idle disconnect both land here via delete().
     void clearAutoplayGuildState(queue.guild.id)
+    // Read on every session end, so "skipped N in a row, then left" can be
+    // told apart from sessions that simply ended.
+    const streak = takeSkipStreak(queue.guild.id)
+    infoLog({
+        message: 'Session ended',
+        data: {
+            guildId: queue.guild.id,
+            skipsBeforeEnd: streak.skips,
+            autoplaySkipsBeforeEnd: streak.autoplaySkips,
+            listeners: listenerIds(queue).length,
+        },
+    })
     try {
         const lastStarted = takeGuildLastStartedTrack(queue.guild.id)
         const track = queue.currentTrack ?? lastStarted
@@ -497,6 +535,10 @@ const handlePlayerSkip = async (
         // record or scrobble, and no playerFinish follows.
         if (reason !== 'ERR_NO_STREAM') {
             if (track) {
+                noteTrackEnd(queue.guild.id, {
+                    skipped: true,
+                    autoplay: isRecommendationAutoplay(track),
+                })
                 recordedBySkip.add(track)
                 await addTrackToHistory(track, queue.guild.id, {
                     skipped: true,

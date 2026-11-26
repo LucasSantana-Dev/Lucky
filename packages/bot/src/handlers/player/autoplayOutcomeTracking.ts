@@ -102,6 +102,42 @@ export function getRecentSkipCount(guildId: string): number {
     return guildRecentSkipCounts.get(guildId) ?? 0
 }
 
+// Skips in a row at the end of a session: how many tracks the listeners
+// rejected, back to back, right before the queue was deleted. A track that
+// plays through resets it. Read once, when the session ends.
+type SkipStreak = { skips: number; autoplaySkips: number }
+const guildSkipStreaks = new LRUCache<string, SkipStreak>({
+    max: 500,
+    ttl: 6 * 60 * 60 * 1000,
+})
+
+export function noteTrackEnd(
+    guildId: string,
+    end: { skipped: boolean; autoplay: boolean },
+): void {
+    if (!end.skipped) {
+        guildSkipStreaks.delete(guildId)
+        return
+    }
+    const streak = guildSkipStreaks.get(guildId) ?? {
+        skips: 0,
+        autoplaySkips: 0,
+    }
+    streak.skips += 1
+    if (end.autoplay) streak.autoplaySkips += 1
+    guildSkipStreaks.set(guildId, streak)
+}
+
+/** Removes and returns the guild's skip streak. */
+export function takeSkipStreak(guildId: string): SkipStreak {
+    const streak = guildSkipStreaks.get(guildId) ?? {
+        skips: 0,
+        autoplaySkips: 0,
+    }
+    guildSkipStreaks.delete(guildId)
+    return streak
+}
+
 // Time the CURRENT play of a guild spent paused. Wall-clock since playerStart
 // counts paused time as played, which inflates history playDuration and the
 // Last.fm play-time gate, so pauses are accumulated here. One entry per guild
@@ -140,6 +176,7 @@ export function getPausedMs(guildId: string, now: number): number {
 
 export function __resetTrackHandlerCachesForTests(): void {
     guildRecentSkipCounts.clear()
+    guildSkipStreaks.clear()
     guildPauseStates.clear()
     guildLastStartedTrack.clear()
     // A WeakMap has no clear(), so drop the whole map. Tests rely on this to
