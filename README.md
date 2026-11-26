@@ -48,6 +48,11 @@ The code is open source (ISC): a TypeScript monorepo with a React 19 dashboard.
 </p>
 
 ### Music Player
+
+<p align="center">
+  <img src="assets/lucky-play-demo.gif" alt="Lucky playing a song, queueing another and filling the queue with autoplay" width="510" />
+</p>
+
 - **Spotify-first search**: find tracks by name or paste Spotify links
 - **Smart autoplay**: Recommendations based on your listening history
 - **Queue management**: Shuffle, repeat, clear, skip, pause/resume
