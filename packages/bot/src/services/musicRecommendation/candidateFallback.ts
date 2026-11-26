@@ -146,21 +146,21 @@ export async function collectBroadFallbackCandidates(
     // labels whose titles credit him ("made popular by Michael Jackson").
     const currentArtist = primaryArtistKey(ctx.currentTrack.author)
 
+    const budget = spotifySearchBudgetFor(ctx)
     for (const query of fallbackQueries) {
-        // Spotify-only fallback: while Spotify is 429-blocked or this
-        // replenish spent its search budget, skip rather than burn quota.
-        if (!claimSpotifySearch(spotifySearchBudgetFor(ctx))) break
+        let found: Track[]
+        let viaSpotify: boolean
         try {
-            const result = await ctx.queue.player.search(query, {
-                requestedBy: undefined,
-                searchEngine: QueryType.SPOTIFY_SEARCH,
-            })
-
-            // Sample the raw API count: a result whose tracks all exceed the
-            // duration cap is a genuine hit, not an outage signal.
-            recordSpotifySearchResult(result.tracks.length > 0)
-
-            const tracks = result.tracks
+            const result = await searchFallbackQuery(ctx, query, budget)
+            found = result.tracks
+            viaSpotify = result.viaSpotify
+        } catch (err: unknown) {
+            recordSpotifySearchResult(false)
+            logAndSwallow(err, 'candidateFallback.spotifySearch', { query })
+            continue
+        }
+        try {
+            const tracks = found
                 .filter(
                     (t: Track) =>
                         (!t.durationMS ||
@@ -226,11 +226,38 @@ export async function collectBroadFallbackCandidates(
                 )
             }
         } catch (err: unknown) {
-            recordSpotifySearchResult(false)
-            logAndSwallow(err, 'candidateFallback.spotifySearch', { query })
-            continue
+            logAndSwallow(err, 'candidateFallback.addCandidates', { query })
         }
+        // The other engines are slower than Spotify and the whole fallback
+        // has a 4s budget: one search for the artist is enough there.
+        if (!viaSpotify) break
     }
+}
+
+/**
+ * One fallback search. Spotify first, as before. While Spotify is
+ * 429-blocked or this replenish spent its Spotify budget, search the other
+ * engines instead (searchLastFmQuery skips Spotify then): Spotify blocks
+ * last hours, and a Spotify-only fallback left autoplay replaying random
+ * session history the whole time (2026-11-26).
+ */
+async function searchFallbackQuery(
+    ctx: AutoplayContext,
+    query: string,
+    budget: SpotifySearchBudget,
+): Promise<{ tracks: Track[]; viaSpotify: boolean }> {
+    if (!claimSpotifySearch(budget)) {
+        const tracks = await searchLastFmQuery(ctx.queue, query, null, budget)
+        return { tracks, viaSpotify: false }
+    }
+    const result = await ctx.queue.player.search(query, {
+        requestedBy: undefined,
+        searchEngine: QueryType.SPOTIFY_SEARCH,
+    })
+    // Sample the raw API count: a result whose tracks all exceed the
+    // duration cap is a genuine hit, not an outage signal.
+    recordSpotifySearchResult(result.tracks.length > 0)
+    return { tracks: result.tracks, viaSpotify: true }
 }
 
 export async function collectGenreCandidates(
