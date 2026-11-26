@@ -12,6 +12,8 @@ import { recordActivationEvent } from '@lucky/shared/services'
 import { errorLog, getPrismaClient, infoLog } from '@lucky/shared/utils'
 import { translatorForInteraction } from '../../i18n/translatorForInteraction'
 import { buildFeedbackReportCustomId } from '../feedbackService'
+import { resolveGuildQueue } from '../musicManagement/queueResolver'
+import type { CustomClient } from '../../types'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 /** A guild's admins are asked at most once in this window. */
@@ -53,8 +55,17 @@ function recentlyChecked(guildId: string, now: number): boolean {
     return false
 }
 
+// memberPermissions is absent on an uncached interaction; the member's own
+// permissions then say the same thing.
+function canManageGuild(interaction: ChatInputCommandInteraction): boolean {
+    const permissions =
+        interaction.memberPermissions ?? interaction.member?.permissions
+    if (!permissions || typeof permissions === 'string') return false
+    return permissions.has(PermissionFlagsBits.ManageGuild)
+}
+
 /**
- * Asks a server admin, ephemerally, what Lucky is missing. Lucky cannot DM
+ * Asks a guild admin, ephemerally, what Lucky is missing. Lucky cannot DM
  * guild owners (decisions/2026-06-18-in-bot-growth.md), so this is how it
  * reaches the person who decides whether the bot stays: a reply only they
  * see, right after they used a music command, at most once every 30 days per
@@ -72,13 +83,16 @@ export async function maybeAskAdminForFeedback(
         if (!guildId || !TRIGGER_COMMANDS.has(interaction.commandName)) {
             return false
         }
-        if (
-            !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)
-        ) {
-            return false
-        }
+        if (!canManageGuild(interaction)) return false
         // followUp needs an acknowledged interaction.
         if (!interaction.replied && !interaction.deferred) return false
+        // A command can reply with an error without marking its outcome, so
+        // "it went well" is read from the player: something is playing.
+        const { queue } = resolveGuildQueue(
+            interaction.client as CustomClient,
+            guildId,
+        )
+        if (!queue?.currentTrack) return false
         if (recentlyChecked(guildId, now.getTime())) return false
 
         const prisma = getPrismaClient()

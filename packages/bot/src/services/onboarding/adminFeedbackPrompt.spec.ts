@@ -22,6 +22,10 @@ jest.mock('@lucky/shared/constants', () => ({
 jest.mock('../../i18n/translatorForInteraction', () => ({
     translatorForInteraction: async () => (key: string) => key,
 }))
+const resolveGuildQueueMock = jest.fn()
+jest.mock('../musicManagement/queueResolver', () => ({
+    resolveGuildQueue: (...a: unknown[]) => resolveGuildQueueMock(...a),
+}))
 jest.mock('../feedbackService', () => ({
     buildFeedbackReportCustomId: (name: string) => `feedback_report:${name}:`,
 }))
@@ -39,22 +43,27 @@ function interactionFor({
     admin = true,
     replied = true,
     guildId = 'guild-1',
+    cachedPermissions = true,
 }: {
+    cachedPermissions?: boolean
     commandName?: string
     admin?: boolean
     replied?: boolean
     guildId?: string | null
 } = {}) {
     const followUp = jest.fn().mockResolvedValue(undefined)
+    const permissions = {
+        has: (flag: bigint) =>
+            admin && flag === PermissionFlagsBits.ManageGuild,
+    }
     const interaction = {
         guildId,
         commandName,
         replied,
         deferred: false,
-        memberPermissions: {
-            has: (flag: bigint) =>
-                admin && flag === PermissionFlagsBits.ManageGuild,
-        },
+        memberPermissions: cachedPermissions ? permissions : null,
+        member: { permissions },
+        client: {},
         followUp,
     }
     return { interaction: interaction as never, followUp }
@@ -67,6 +76,9 @@ describe('admin feedback prompt', () => {
         prisma.activationEvent.findFirst.mockResolvedValue(null)
         prisma.trackHistory.count.mockResolvedValue(12)
         recordActivationEventMock.mockResolvedValue(true)
+        resolveGuildQueueMock.mockReturnValue({
+            queue: { currentTrack: { title: 'Song' } },
+        })
     })
 
     it('asks an admin once, ephemerally, recording it before the send', async () => {
@@ -128,6 +140,26 @@ describe('admin feedback prompt', () => {
 
         expect(other.followUp).not.toHaveBeenCalled()
         expect(dm.followUp).not.toHaveBeenCalled()
+        expect(prisma.activationEvent.findFirst).not.toHaveBeenCalled()
+    })
+
+    it('reads the member permissions when the interaction has none cached', async () => {
+        const { interaction, followUp } = interactionFor({
+            cachedPermissions: false,
+        })
+
+        await maybeAskAdminForFeedback(interaction, NOW)
+
+        expect(followUp).toHaveBeenCalledTimes(1)
+    })
+
+    it('stays quiet when nothing is playing', async () => {
+        resolveGuildQueueMock.mockReturnValue({ queue: null })
+        const { interaction, followUp } = interactionFor()
+
+        await maybeAskAdminForFeedback(interaction, NOW)
+
+        expect(followUp).not.toHaveBeenCalled()
         expect(prisma.activationEvent.findFirst).not.toHaveBeenCalled()
     })
 
