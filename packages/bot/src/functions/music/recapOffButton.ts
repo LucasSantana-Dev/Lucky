@@ -19,7 +19,7 @@ export const RECAP_OFF_BUTTON_ID = 'recap_off'
 /**
  * Action row with "▶️ Play this week's mix", "🔕 Turn off" and, when a backend
  * is configured, an "Add Lucky to your server" link. The recap is the one
- * message every member of an active server sees each week, so the link turns
+ * message every member of an active guild sees each week, so the link turns
  * it into a referral surface; joins from it are recorded as source `recap`.
  */
 export function buildRecapOffRow(

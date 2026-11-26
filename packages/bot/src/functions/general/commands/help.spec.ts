@@ -33,6 +33,7 @@ jest.mock('../../../i18n/translatorForInteraction.js', () => ({
 
 import { errorLog } from '@lucky/shared/utils'
 import type { StringSelectMenuInteraction } from 'discord.js'
+import type { TFunction } from 'i18next'
 import helpCommand, {
     buildHelpLinkRow,
     handleHelpCategorySelect,
@@ -237,12 +238,14 @@ describe('/help', () => {
     })
 
     test('link row offers a tracked invite and the top.gg vote', () => {
+        const t = ((key: string) => key) as unknown as TFunction
         const saved = process.env.WEBAPP_BACKEND_URL
         process.env.WEBAPP_BACKEND_URL = 'https://api.example.com'
-        const withBackend = buildHelpLinkRow().toJSON().components
+        const withBackend = buildHelpLinkRow(t).toJSON().components
         delete process.env.WEBAPP_BACKEND_URL
-        const withoutBackend = buildHelpLinkRow().toJSON().components
-        process.env.WEBAPP_BACKEND_URL = saved
+        const withoutBackend = buildHelpLinkRow(t).toJSON().components
+        if (saved === undefined) delete process.env.WEBAPP_BACKEND_URL
+        else process.env.WEBAPP_BACKEND_URL = saved
 
         expect(withBackend).toEqual([
             expect.objectContaining({

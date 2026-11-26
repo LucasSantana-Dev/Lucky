@@ -1,5 +1,9 @@
 {
     "general": {
+        "links": {
+            "addLucky": "Adicionar o Lucky ao seu servidor",
+            "vote": "Votar no top.gg"
+        },
         "errors": {
             "menuNotYours": "Esse menu não é seu. Rode o comando você mesmo para navegar pelas categorias."
         }

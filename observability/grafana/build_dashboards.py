@@ -303,7 +303,7 @@ def negocio():
         "AND th.\"playedAt\" BETWEEN j.t AND j.t + interval '1 hour')) AS \"Tocaram na 1ª hora\" "
         "FROM joins j LEFT JOIN guild_join_sources s ON s.\"guildDiscordId\" = j.g "
         f"WHERE j.g NOT IN {EXCL} GROUP BY 1 ORDER BY 2 DESC")], w=12, h=8,
-        desc="Origem vem do parâmetro state do OAuth de /add (topgg, discordbotlist, botsgg, meta, landing, unknown). "
+        desc="Origem vem do parâmetro state do OAuth de /add (topgg, discordbotlist, botsgg, meta, landing, github, reddit, bot, recap, unknown). "
              "Joins anteriores a #2750 ou sem origem gravada aparecem como 'sem origem' (entraram por outro link ou antes do rastreio). Só entram joins com mais de 1 hora (a 1ª hora ainda não fechou para os mais novos).")
 
     b.row("Funil de ativação (período)")

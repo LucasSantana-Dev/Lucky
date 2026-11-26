@@ -1,5 +1,9 @@
 {
     "general": {
+        "links": {
+            "addLucky": "Add Lucky to your server",
+            "vote": "Vote on top.gg"
+        },
         "errors": {
             "menuNotYours": "This menu isn't yours to use. Run the command yourself to browse categories."
         }
