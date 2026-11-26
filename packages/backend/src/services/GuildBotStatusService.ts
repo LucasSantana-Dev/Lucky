@@ -1,5 +1,9 @@
 import type { Client } from 'discord.js'
-import { BOT_INVITE_PERMISSIONS } from '@lucky/shared/constants'
+import {
+    ADD_STATE_PREFIX,
+    BOT_INVITE_PERMISSIONS,
+} from '@lucky/shared/constants'
+import { resolveEnvRedirectUri } from '../utils/oauthRedirectUri'
 import { debugLog, errorLog } from '@lucky/shared/utils'
 import type { DiscordGuild } from './DiscordOAuthService'
 import {
@@ -177,7 +181,9 @@ class GuildBotStatusService {
         // both the ADR and the public listings (#1923). Shares the curated set
         // with the landing page and the /invite redirect.
         const permissions = BOT_INVITE_PERMISSIONS
-        const redirectUri = process.env.WEBAPP_REDIRECT_URI
+        // Normalized the same way as the callback's token exchange, which
+        // Discord requires to match this value exactly.
+        const redirectUri = resolveEnvRedirectUri()
 
         let inviteUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=${permissions}&scope=${scopes.join('%20')}`
 
@@ -186,7 +192,11 @@ class GuildBotStatusService {
         }
 
         if (redirectUri) {
-            inviteUrl += `&redirect_uri=${encodeURIComponent(redirectUri)}`
+            // Same add flow as the landing page (#2750): with a code and
+            // `state=src.dashboard` the OAuth callback records that this
+            // guild came from the dashboard. Without them the join was
+            // invisible in guild_join_sources.
+            inviteUrl += `&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(`${ADD_STATE_PREFIX}dashboard`)}`
         }
 
         return inviteUrl

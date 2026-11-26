@@ -60,6 +60,7 @@ export const LANDING_SOURCES = [
     'reddit',
     'bot',
     'recap',
+    'dashboard',
 ] as const
 
 export type LandingSource = (typeof LANDING_SOURCES)[number]

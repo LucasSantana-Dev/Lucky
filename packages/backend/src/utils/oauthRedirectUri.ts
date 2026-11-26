@@ -39,7 +39,8 @@ const buildRequestRedirectUri = (req: Request): string => {
     return `${protocol}://${host}/api/auth/callback`
 }
 
-const resolveEnvRedirectUri = (): string | undefined => {
+/** `WEBAPP_REDIRECT_URI` with the callback path normalized, when set. */
+export const resolveEnvRedirectUri = (): string | undefined => {
     const normalized = normalizeCallbackPath(process.env.WEBAPP_REDIRECT_URI)
     if (!normalized) return undefined
 
