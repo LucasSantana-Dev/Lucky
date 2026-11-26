@@ -10,6 +10,7 @@ const LOOKUP_TIMEOUT_MS = 2500
 const MIN_TYPED = 3
 const MAX_CHOICES = 10
 const CHOICE_NAME_LIMIT = 100
+const ARTIST_SHOWN_MAX = 40
 
 const cache = new Map<string, { tracks: TrackMatches; expiresAt: number }>()
 
@@ -19,18 +20,37 @@ export function resetTrackSuggestions(): void {
 }
 
 async function lookup(search: string): Promise<TrackMatches> {
-    let timer: ReturnType<typeof setTimeout> | undefined
+    // Aborting at the deadline stops the Spotify request, so a burst of
+    // keystrokes on a slow network does not pile up requests nobody reads.
+    const deadline = new AbortController()
+    const timer = setTimeout(() => deadline.abort(), LOOKUP_TIMEOUT_MS)
     const matches = async (): Promise<TrackMatches> => {
         const accessToken = await getSpotifyClientToken()
-        if (!accessToken) return []
-        return searchSpotifyTracks(accessToken, search, MAX_CHOICES)
+        if (!accessToken || deadline.signal.aborted) return []
+        return searchSpotifyTracks(
+            accessToken,
+            search,
+            MAX_CHOICES,
+            deadline.signal,
+        )
     }
     return Promise.race([
         matches(),
         new Promise<[]>((resolve) => {
-            timer = setTimeout(() => resolve([]), LOOKUP_TIMEOUT_MS)
+            deadline.signal.addEventListener('abort', () => resolve([]), {
+                once: true,
+            })
         }),
     ]).finally(() => clearTimeout(timer))
+}
+
+/** A choice label within Discord's limit that never loses the artist. */
+function choiceName(name: string, artist: string): string {
+    const full = `${name}, ${artist}`
+    if (full.length <= CHOICE_NAME_LIMIT) return full
+    const shownArtist = artist.slice(0, ARTIST_SHOWN_MAX)
+    const room = CHOICE_NAME_LIMIT - shownArtist.length - 3
+    return `${name.slice(0, room)}…, ${shownArtist}`
 }
 
 /**
@@ -68,7 +88,7 @@ export async function suggestTracks(typed: string): Promise<TrackChoice[]> {
         if (seen.has(track.url)) continue
         seen.add(track.url)
         choices.push({
-            name: `${track.name}, ${track.artist}`.slice(0, CHOICE_NAME_LIMIT),
+            name: choiceName(track.name, track.artist),
             value: track.url,
         })
     }

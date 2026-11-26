@@ -39,6 +39,7 @@ describe('track suggestions for /search', () => {
             'client-token',
             'creep',
             10,
+            expect.any(AbortSignal),
         )
     })
 
@@ -58,6 +59,17 @@ describe('track suggestions for /search', () => {
         const [choice] = await suggestTracks('long title')
 
         expect(choice.name).toHaveLength(100)
+    })
+
+    it('shortens a long title and still shows the artist', async () => {
+        searchSpotifyTracksMock.mockResolvedValue([
+            track('t1', 'x'.repeat(150), 'Radiohead'),
+        ])
+
+        const [choice] = await suggestTracks('long title')
+
+        expect(choice.name.length).toBeLessThanOrEqual(100)
+        expect(choice.name.endsWith('\u2026, Radiohead')).toBe(true)
     })
 
     it('drops a repeated track URL', async () => {
@@ -98,5 +110,7 @@ describe('track suggestions for /search', () => {
         await jest.advanceTimersByTimeAsync(2500)
 
         await expect(pending).resolves.toEqual([])
+        const signal = searchSpotifyTracksMock.mock.calls[0][3] as AbortSignal
+        expect(signal.aborted).toBe(true)
     })
 })
