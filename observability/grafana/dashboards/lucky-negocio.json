@@ -1908,7 +1908,7 @@
                         "type": "loki",
                         "uid": "${ds_loki}"
                     },
-                    "expr": "100 * sum(count_over_time({container_name=\"lucky-bot\"} |= `\"msg\":\"Session ended\"` |= `\"withoutYoutube\":true` [$__range])) / sum(count_over_time({container_name=\"lucky-bot\"} |= `\"msg\":\"Session ended\"` |= `\"withoutYoutube\":` [$__range]))",
+                    "expr": "100 * (sum(count_over_time({container_name=\"lucky-bot\"} |= `\"msg\":\"Session ended\"` |= `\"withoutYoutube\":true` [$__range])) or vector(0)) / sum(count_over_time({container_name=\"lucky-bot\"} |= `\"msg\":\"Session ended\"` |= `\"withoutYoutube\":` [$__range]))",
                     "legendFormat": "",
                     "queryType": "instant",
                     "refId": "A"

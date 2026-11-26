@@ -519,8 +519,8 @@ def negocio():
         desc="Quantas das 4 últimas semanas fechadas (segunda a domingo) tiveram 300 ou mais servidores ativos. "
              "O gatilho bate com 4. Não depende do período escolhido no painel.")
     b.stat("Sessões sem YouTube (período)", loki(
-        '100 * sum(count_over_time({container_name="lucky-bot"} |= `"msg":"Session ended"` '
-        '|= `"withoutYoutube":true` [$__range])) / sum(count_over_time({container_name="lucky-bot"} '
+        '100 * (sum(count_over_time({container_name="lucky-bot"} |= `"msg":"Session ended"` '
+        '|= `"withoutYoutube":true` [$__range])) or vector(0)) / sum(count_over_time({container_name="lucky-bot"} '
         '|= `"msg":"Session ended"` |= `"withoutYoutube":` [$__range]))', instant=True),
         unit="percent", decimals=0, th=thresholds((RED, 0), (ORANGE, 25), (GREEN, 50)), w=8, h=7,
         no_value="sem sessões no período",

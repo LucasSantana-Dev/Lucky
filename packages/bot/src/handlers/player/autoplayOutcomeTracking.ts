@@ -106,10 +106,8 @@ export function getRecentSkipCount(guildId: string): number {
 // rejected, back to back, right before the queue was deleted. A track that
 // plays through resets it. Read once, when the session ends.
 type SkipStreak = { skips: number; autoplaySkips: number }
-const guildSkipStreaks = new LRUCache<string, SkipStreak>({
-    max: 500,
-    ttl: 6 * 60 * 60 * 1000,
-})
+// No TTL, for the same reason as the session tally below.
+const guildSkipStreaks = new LRUCache<string, SkipStreak>({ max: 500 })
 
 export function noteTrackEnd(
     guildId: string,
@@ -142,10 +140,8 @@ export function takeSkipStreak(guildId: string): SkipStreak {
 // their audio from YouTube. Read once, when the session ends, to tell the
 // sessions that ran with no YouTube audio at all.
 type SessionSources = { tracks: number; youtubeTracks: number }
-const guildSessionSources = new LRUCache<string, SessionSources>({
-    max: 500,
-    ttl: 24 * 60 * 60 * 1000,
-})
+// No TTL: a 24/7 session can outlive any, and queueDelete removes the entry.
+const guildSessionSources = new LRUCache<string, SessionSources>({ max: 500 })
 
 export function noteSessionTrackSource(
     guildId: string,
