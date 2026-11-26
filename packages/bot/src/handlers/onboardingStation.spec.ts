@@ -509,6 +509,30 @@ describe('station seed', () => {
         await handleOnboardingStationButton(interaction as never)
 
         expect(player.play).toHaveBeenCalledTimes(1)
-        expect(typeof player.play.mock.calls[0][1]).toBe('string')
+        expect(player.play.mock.calls[0][1]).toBe('lofi hip hop beats to relax')
+    })
+
+    it('falls back to the query when the seed search stalls', async () => {
+        jest.useFakeTimers()
+        try {
+            const interaction = createInteraction({ guildId: 'guild-seed-3' })
+            const player = (
+                interaction.client as {
+                    player: { play: jest.Mock; search: jest.Mock }
+                }
+            ).player
+            player.search.mockReturnValue(new Promise(() => undefined))
+
+            const pending = handleOnboardingStationButton(interaction as never)
+            await jest.advanceTimersByTimeAsync(5_000)
+            await pending
+
+            expect(player.play).toHaveBeenCalledTimes(1)
+            expect(player.play.mock.calls[0][1]).toBe(
+                'lofi hip hop beats to relax',
+            )
+        } finally {
+            jest.useRealTimers()
+        }
     })
 })

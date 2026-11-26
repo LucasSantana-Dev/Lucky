@@ -66,13 +66,15 @@ const STATION_GENRES: readonly StationGenre[] = [
     { id: 'play', query: 'popular music hits mix', emoji: '▶️' },
 ]
 
-// Every station query ends in "mix", and SoundCloud's top hit for those is
+// Most station queries end in "mix", and SoundCloud's top hit for those is
 // often an hour-long DJ compilation. Prod 2026-11-22: a new guild's first
 // track was a 2021 "Top 100" mashup, paused after 18 s and the bot was
 // removed 13 s later. Seed with a normal-length song instead and let autoplay
 // take it from there.
 const SEED_MIN_MS = 60_000
 const SEED_MAX_MS = 8 * 60_000
+// A stalled search must not outlive the 30 s station lock.
+const SEED_SEARCH_TIMEOUT_MS = 5_000
 
 /** First result that looks like a single song, or null to keep the query. */
 export function pickStationSeed(tracks: readonly Track[]): Track | null {
@@ -353,18 +355,27 @@ async function findStationSeed(
     query: string,
     interaction: ButtonInteraction,
 ): Promise<Track | null> {
+    let timer: ReturnType<typeof setTimeout> | undefined
     try {
-        const result = await client.player.search(query, {
-            searchEngine: QueryType.SOUNDCLOUD_SEARCH,
-            blockExtractors: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
-            requestedBy: interaction.user,
+        const timeout = new Promise<null>((resolve) => {
+            timer = setTimeout(() => resolve(null), SEED_SEARCH_TIMEOUT_MS)
         })
-        return pickStationSeed(result.tracks)
+        const result = await Promise.race([
+            client.player.search(query, {
+                searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                blockExtractors: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
+                requestedBy: interaction.user,
+            }),
+            timeout,
+        ])
+        return result ? pickStationSeed(result.tracks) : null
     } catch (error) {
         warnLog({
             message: 'Onboarding station seed search failed, using the query',
             error,
         })
         return null
+    } finally {
+        clearTimeout(timer)
     }
 }
