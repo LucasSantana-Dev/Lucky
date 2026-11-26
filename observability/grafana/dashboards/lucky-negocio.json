@@ -1744,6 +1744,215 @@
                 "showThresholdMarkers": true
             },
             "id": 39
+        },
+        {
+            "type": "row",
+            "title": "Gatilhos de monetização",
+            "collapsed": false,
+            "panels": [],
+            "gridPos": {
+                "x": 0,
+                "y": 100,
+                "w": 24,
+                "h": 1
+            },
+            "id": 40
+        },
+        {
+            "type": "gauge",
+            "title": "WAG (7 dias) vs gatilho 300",
+            "description": "Primeiro gatilho para ligar qualquer plano pago (decisão de setembro de 2026): 300 servidores ativos por semana, durante 4 semanas seguidas.",
+            "gridPos": {
+                "x": 0,
+                "y": 101,
+                "w": 8,
+                "h": 7
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT count(DISTINCT g) AS \"Guildas ativas\" FROM (SELECT \"guildId\" AS g, \"playedAt\" AS t FROM track_history UNION ALL SELECT \"guildId\", \"occurredAt\" FROM command_events WHERE \"guildId\" IS NOT NULL) a WHERE t >= now() - interval '7 days' AND g NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%')",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 150
+                            },
+                            {
+                                "color": "green",
+                                "value": 300
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "min": 0,
+                    "max": 300
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "orientation": "auto",
+                "showThresholdLabels": true,
+                "showThresholdMarkers": true
+            },
+            "id": 41
+        },
+        {
+            "type": "stat",
+            "title": "Semanas com 300+ ativos (últimas 4 fechadas)",
+            "description": "Quantas das 4 últimas semanas fechadas (segunda a domingo) tiveram 300 ou mais servidores ativos. O gatilho bate com 4. Não depende do período escolhido no painel.",
+            "gridPos": {
+                "x": 8,
+                "y": 101,
+                "w": 8,
+                "h": 7
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "SELECT count(*) AS \"Semanas\" FROM (SELECT date_trunc('week', t) AS w FROM (SELECT \"guildId\" AS g, \"playedAt\" AS t FROM track_history UNION ALL SELECT \"guildId\", \"occurredAt\" FROM command_events WHERE \"guildId\" IS NOT NULL) a WHERE t >= date_trunc('week', now()) - interval '4 weeks' AND t < date_trunc('week', now()) AND g NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') GROUP BY 1 HAVING count(DISTINCT g) >= 300) x",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 2
+                            },
+                            {
+                                "color": "green",
+                                "value": 4
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    }
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 42
+        },
+        {
+            "type": "stat",
+            "title": "Sessões sem YouTube (período)",
+            "description": "Segundo gatilho: o modo sem YouTube sustentando 50 % das sessões. Conta as sessões de música em que nenhuma faixa veio do YouTube, sobre as sessões que tocaram ao menos uma faixa. Inclui os servidores do operador. Começa a contar na versão que registra o fim de sessão.",
+            "gridPos": {
+                "x": 16,
+                "y": 101,
+                "w": 8,
+                "h": 7
+            },
+            "datasource": {
+                "type": "loki",
+                "uid": "${ds_loki}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "loki",
+                        "uid": "${ds_loki}"
+                    },
+                    "expr": "100 * sum(count_over_time({container_name=\"lucky-bot\"} |= `\"msg\":\"Session ended\"` |= `\"withoutYoutube\":true` [$__range])) / sum(count_over_time({container_name=\"lucky-bot\"} |= `\"msg\":\"Session ended\"` |= `\"withoutYoutube\":` [$__range]))",
+                    "legendFormat": "",
+                    "queryType": "instant",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "percent",
+                    "thresholds": {
+                        "mode": "absolute",
+                        "steps": [
+                            {
+                                "color": "red",
+                                "value": null
+                            },
+                            {
+                                "color": "orange",
+                                "value": 25
+                            },
+                            {
+                                "color": "green",
+                                "value": 50
+                            }
+                        ]
+                    },
+                    "color": {
+                        "mode": "thresholds"
+                    },
+                    "noValue": "sem sessões no período",
+                    "decimals": 0
+                },
+                "overrides": []
+            },
+            "options": {
+                "reduceOptions": {
+                    "calcs": ["lastNotNull"],
+                    "fields": "",
+                    "values": false
+                },
+                "colorMode": "background",
+                "graphMode": "none",
+                "textMode": "auto"
+            },
+            "id": 43
         }
     ]
 }

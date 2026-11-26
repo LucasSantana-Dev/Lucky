@@ -502,6 +502,31 @@ def negocio():
                    "orientation": "auto", "showThresholdLabels": True, "showThresholdMarkers": True},
           desc="1.000 servidores ativos aciona o desligamento do YouTube (decisão 2027-01-17). "
                "Laranja a 700 (70 % do limite), vermelho a 900.")
+
+    b.row("Gatilhos de monetização")
+    b.add("gauge", "WAG (7 dias) vs gatilho 300", [sql(WAG_7D)],
+          w=8, h=7, min_val=0, max_val=300,
+          th=thresholds((RED, 0), (ORANGE, 150), (GREEN, 300)),
+          options={"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": False},
+                   "orientation": "auto", "showThresholdLabels": True, "showThresholdMarkers": True},
+          desc="Primeiro gatilho para ligar qualquer plano pago (decisão de setembro de 2026): 300 servidores "
+               "ativos por semana, durante 4 semanas seguidas.")
+    b.stat("Semanas com 300+ ativos (últimas 4 fechadas)", sql(
+        "SELECT count(*) AS \"Semanas\" FROM (SELECT date_trunc('week', t) AS w FROM "
+        f"{ACTIVITY} a WHERE t >= date_trunc('week', now()) - interval '4 weeks' AND t < date_trunc('week', now()) "
+        f"AND g NOT IN {EXCL} GROUP BY 1 HAVING count(DISTINCT g) >= 300) x"),
+        th=thresholds((RED, 0), (ORANGE, 2), (GREEN, 4)), w=8, h=7,
+        desc="Quantas das 4 últimas semanas fechadas (segunda a domingo) tiveram 300 ou mais servidores ativos. "
+             "O gatilho bate com 4. Não depende do período escolhido no painel.")
+    b.stat("Sessões sem YouTube (período)", loki(
+        '100 * sum(count_over_time({container_name="lucky-bot"} |= `"msg":"Session ended"` '
+        '|= `"withoutYoutube":true` [$__range])) / sum(count_over_time({container_name="lucky-bot"} '
+        '|= `"msg":"Session ended"` |= `"withoutYoutube":` [$__range]))', instant=True),
+        unit="percent", decimals=0, th=thresholds((RED, 0), (ORANGE, 25), (GREEN, 50)), w=8, h=7,
+        no_value="sem sessões no período",
+        desc="Segundo gatilho: o modo sem YouTube sustentando 50 % das sessões. Conta as sessões de música em que "
+             "nenhuma faixa veio do YouTube, sobre as sessões que tocaram ao menos uma faixa. Inclui os "
+             "servidores do operador. Começa a contar na versão que registra o fim de sessão.")
     return b
 
 

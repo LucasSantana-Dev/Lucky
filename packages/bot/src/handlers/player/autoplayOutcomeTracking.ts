@@ -138,6 +138,38 @@ export function takeSkipStreak(guildId: string): SkipStreak {
     return streak
 }
 
+// How many tracks of the current session started, and how many of them took
+// their audio from YouTube. Read once, when the session ends, to tell the
+// sessions that ran with no YouTube audio at all.
+type SessionSources = { tracks: number; youtubeTracks: number }
+const guildSessionSources = new LRUCache<string, SessionSources>({
+    max: 500,
+    ttl: 24 * 60 * 60 * 1000,
+})
+
+export function noteSessionTrackSource(
+    guildId: string,
+    fromYoutube: boolean,
+): void {
+    const sources = guildSessionSources.get(guildId) ?? {
+        tracks: 0,
+        youtubeTracks: 0,
+    }
+    sources.tracks += 1
+    if (fromYoutube) sources.youtubeTracks += 1
+    guildSessionSources.set(guildId, sources)
+}
+
+/** Removes and returns the guild's session source tally. */
+export function takeSessionSources(guildId: string): SessionSources {
+    const sources = guildSessionSources.get(guildId) ?? {
+        tracks: 0,
+        youtubeTracks: 0,
+    }
+    guildSessionSources.delete(guildId)
+    return sources
+}
+
 // Time the CURRENT play of a guild spent paused. Wall-clock since playerStart
 // counts paused time as played, which inflates history playDuration and the
 // Last.fm play-time gate, so pauses are accumulated here. One entry per guild
@@ -177,6 +209,7 @@ export function getPausedMs(guildId: string, now: number): number {
 export function __resetTrackHandlerCachesForTests(): void {
     guildRecentSkipCounts.clear()
     guildSkipStreaks.clear()
+    guildSessionSources.clear()
     guildPauseStates.clear()
     guildLastStartedTrack.clear()
     // A WeakMap has no clear(), so drop the whole map. Tests rely on this to

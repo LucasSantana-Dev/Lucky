@@ -1313,6 +1313,47 @@ describe('track history when a queue is deleted mid-play', () => {
         })
     })
 
+    it('marks a session whose audio never came from YouTube', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const bridged = { ...createTrack('sc-0'), durationMS: 200_000 }
+        resolveActualStreamSourceMock.mockReturnValueOnce('soundcloud-bridge')
+
+        await handlers.playerStart(queue, asTrack(bridged))
+        await handlers.queueDelete(queue)
+
+        expect(sessionEnd()).toMatchObject({
+            tracks: 1,
+            youtubeTracks: 0,
+            withoutYoutube: true,
+        })
+    })
+
+    it('counts the tracks of a session that took audio from YouTube', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const fromYoutube = { ...createTrack('yt-0'), durationMS: 200_000 }
+        resolveActualStreamSourceMock.mockReturnValueOnce('youtubei-native')
+
+        await handlers.playerStart(queue, asTrack(fromYoutube))
+        await handlers.queueDelete(queue)
+
+        expect(sessionEnd()).toMatchObject({
+            tracks: 1,
+            youtubeTracks: 1,
+            withoutYoutube: false,
+        })
+    })
+
+    it('leaves the YouTube mark out of a session that started no track', async () => {
+        const handlers = setupHandlers()
+
+        await handlers.queueDelete(makeQueue('guild-empty'))
+
+        expect(sessionEnd('guild-empty')).toMatchObject({ tracks: 0 })
+        expect(sessionEnd('guild-empty')).not.toHaveProperty('withoutYoutube')
+    })
+
     it('resets the skip streak when a track plays through', async () => {
         const handlers = setupHandlers()
         const queue = makeQueue()
