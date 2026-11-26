@@ -2,6 +2,8 @@ import { SlashCommandBuilder } from '@discordjs/builders'
 import {
     EmbedBuilder,
     ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
     StringSelectMenuBuilder,
     type ChatInputCommandInteraction,
     type StringSelectMenuInteraction,
@@ -18,6 +20,9 @@ import {
 import { EMBED_COLORS } from '../../../utils/general/embeds'
 import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
 import { isCommandAvailableInGuild } from '../../../config/hostedCommands'
+import { TOP_GG_VOTE_URL } from '@lucky/shared/constants'
+import type { TFunction } from 'i18next'
+import { buildTrackedInviteUrl } from '../../../utils/general/trackedInviteUrl'
 
 // The hosted bot leads with music (decisions/2026-09-27-music-first-
 // positioning.md point 2) and registers only the music set (#2736), so help
@@ -237,6 +242,35 @@ function buildCategorySelectRow(
     return new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select)
 }
 
+/**
+ * Link row under the help reply: add Lucky to another server (recorded as
+ * source `bot`, medium `help`) and vote on top.gg. Help is often read by
+ * people deciding whether the bot is worth keeping or bringing elsewhere.
+ */
+export function buildHelpLinkRow(
+    t: TFunction,
+): ActionRowBuilder<ButtonBuilder> {
+    const row = new ActionRowBuilder<ButtonBuilder>()
+    const inviteUrl = buildTrackedInviteUrl('bot', 'help')
+    if (inviteUrl) {
+        row.addComponents(
+            new ButtonBuilder()
+                .setURL(inviteUrl)
+                .setLabel(t('general.links.addLucky'))
+                .setEmoji('➕')
+                .setStyle(ButtonStyle.Link),
+        )
+    }
+    row.addComponents(
+        new ButtonBuilder()
+            .setURL(TOP_GG_VOTE_URL)
+            .setLabel(t('general.links.vote'))
+            .setEmoji('💛')
+            .setStyle(ButtonStyle.Link),
+    )
+    return row
+}
+
 export default new Command({
     data: new SlashCommandBuilder()
         .setName('help')
@@ -259,6 +293,7 @@ export default new Command({
                 categoryCommands,
             )
 
+            const t = await translatorForInteraction(interaction)
             debugLog({ message: 'Help command: Sending embed response' })
             // interactionReply edits the deferred reply on the first call and
             // routes subsequent calls to followUp (interaction.replied), so
@@ -272,7 +307,8 @@ export default new Command({
                     interaction,
                     content: {
                         embeds: [embed],
-                        components: index === 0 ? [row] : [],
+                        components:
+                            index === 0 ? [row, buildHelpLinkRow(t)] : [],
                     },
                 })
             }
@@ -322,9 +358,10 @@ export async function handleHelpCategorySelect(
         ])
         const row = buildCategorySelectRow(selected, categoryCommands)
 
+        const t = await translatorForInteraction(interaction)
         await interaction.update({
             embeds: [embeds[0]],
-            components: [row],
+            components: [row, buildHelpLinkRow(t)],
         })
 
         // Extra pages are rare (only a very large category would need one);

@@ -3,25 +3,12 @@ import { COLOR, TOP_GG_VOTE_URL } from '@lucky/shared/constants'
 import { infoLog, errorLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
 import { interactionReply } from '../../../utils/general/interactionReply'
+import { getBackendOrigin } from '../../../utils/general/trackedInviteUrl'
 
 type VoteState = {
     hasVoted: boolean
     streak: number
     nextVoteInSeconds: number
-}
-
-function getBackendOrigin(): string | null {
-    const raw = process.env.WEBAPP_BACKEND_URL?.trim()
-    if (!raw) return null
-    try {
-        const parsed = new URL(raw)
-        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-            return null
-        }
-        return parsed.origin
-    } catch {
-        return null
-    }
 }
 
 async function fetchVoteState(userId: string): Promise<VoteState | null> {

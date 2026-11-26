@@ -33,7 +33,11 @@ jest.mock('../../../i18n/translatorForInteraction.js', () => ({
 
 import { errorLog } from '@lucky/shared/utils'
 import type { StringSelectMenuInteraction } from 'discord.js'
-import helpCommand, { handleHelpCategorySelect } from './help.js'
+import type { TFunction } from 'i18next'
+import helpCommand, {
+    buildHelpLinkRow,
+    handleHelpCategorySelect,
+} from './help.js'
 import {
     asInteraction,
     createMockClient,
@@ -230,7 +234,28 @@ describe('/help', () => {
         const call = interactionReply.mock.calls[0][0] as {
             content: { components?: unknown[] }
         }
-        expect(call.content.components?.length).toBe(1)
+        expect(call.content.components?.length).toBe(2)
+    })
+
+    test('link row offers a tracked invite and the top.gg vote', () => {
+        const t = ((key: string) => key) as unknown as TFunction
+        const saved = process.env.WEBAPP_BACKEND_URL
+        process.env.WEBAPP_BACKEND_URL = 'https://api.example.com'
+        const withBackend = buildHelpLinkRow(t).toJSON().components
+        delete process.env.WEBAPP_BACKEND_URL
+        const withoutBackend = buildHelpLinkRow(t).toJSON().components
+        if (saved === undefined) delete process.env.WEBAPP_BACKEND_URL
+        else process.env.WEBAPP_BACKEND_URL = saved
+
+        expect(withBackend).toEqual([
+            expect.objectContaining({
+                url: 'https://api.example.com/invite?utm_source=bot&utm_medium=help',
+            }),
+            expect.objectContaining({
+                url: expect.stringContaining('top.gg/bot/'),
+            }),
+        ])
+        expect(withoutBackend).toHaveLength(1)
     })
 
     test('category select updates the message in place with the chosen category', async () => {
