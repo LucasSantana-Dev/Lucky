@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.76.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.75.2...v2.76.0) (2026-11-26)
+
+
+### Features
+
+* **growth:** add a top.gg vote link to the weekly recap ([#3367](https://github.com/LucasSantana-Dev/Lucky/issues/3367)) ([c51120d](https://github.com/LucasSantana-Dev/Lucky/commit/c51120ddb1509b6b685cad717e988f05615dc394))
+* **growth:** add tracked invite links to the weekly recap and /help ([#3364](https://github.com/LucasSantana-Dev/Lucky/issues/3364)) ([a5210de](https://github.com/LucasSantana-Dev/Lucky/commit/a5210de4fa63e297d95480d7ef496db14ac0ea38))
+* **growth:** record guilds added from the dashboard as a join source ([#3368](https://github.com/LucasSantana-Dev/Lucky/issues/3368)) ([fb32e7d](https://github.com/LucasSantana-Dev/Lucky/commit/fb32e7dfc45208238afb2c96dc99ca5b5b860357))
+* **music:** add /247 to keep Lucky in the voice channel ([#3365](https://github.com/LucasSantana-Dev/Lucky/issues/3365)) ([62fdd32](https://github.com/LucasSantana-Dev/Lucky/commit/62fdd32f0a91dcc888950b0752f6fd133df91922))
+
+
+### Bug Fixes
+
+* **autoplay:** search the artist off spotify while it is blocked ([#3362](https://github.com/LucasSantana-Dev/Lucky/issues/3362)) ([9f2554a](https://github.com/LucasSantana-Dev/Lucky/commit/9f2554a0d45ef05c70ff2c2aa5c73647c743bb44))
+* **deps:** bump EmbarkStudios/cargo-deny-action from 2.1.1 to 2.1.2 in the minor-patch group ([#3355](https://github.com/LucasSantana-Dev/Lucky/issues/3355)) ([269b9f4](https://github.com/LucasSantana-Dev/Lucky/commit/269b9f446fd3c9613b1584d43af1cd1cb0d525a1))
+* **deps:** bump i18next from 26.4.5 to 27.1.1 ([#3357](https://github.com/LucasSantana-Dev/Lucky/issues/3357)) ([c570d8d](https://github.com/LucasSantana-Dev/Lucky/commit/c570d8dce205714dd3da16239c32c3a508123998))
+* **infra:** reload webhook hooks after each deploy sync ([#3361](https://github.com/LucasSantana-Dev/Lucky/issues/3361)) ([1b693af](https://github.com/LucasSantana-Dev/Lucky/commit/1b693af32a4a9201dae0da10e873d87e32e23f78))
+* **onboarding:** seed the station with a song, not an hour-long mix ([#3366](https://github.com/LucasSantana-Dev/Lucky/issues/3366)) ([dc436a7](https://github.com/LucasSantana-Dev/Lucky/commit/dc436a757742fdcf9b27032a51e2cadd972524a7))
+
 ## [2.75.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.75.1...v2.75.2) (2026-11-26)
 
 
