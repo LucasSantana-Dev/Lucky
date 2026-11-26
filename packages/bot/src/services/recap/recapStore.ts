@@ -157,6 +157,28 @@ export async function claimRecapWeek(
 }
 
 /**
+ * Claims the comeback card for a quiet week: one conditional write, so the
+ * card goes out at most once per `since` window and never after the recap
+ * was turned off or moved.
+ */
+export async function claimRecapComeback(
+    guildId: string,
+    channelId: string,
+    since: Date,
+    now: Date,
+): Promise<boolean> {
+    const result = await getPrismaClient().guildSettings.updateMany({
+        where: {
+            guildId,
+            recapChannelId: channelId,
+            OR: [{ recapComebackAt: null }, { recapComebackAt: { lt: since } }],
+        },
+        data: { recapComebackAt: now },
+    })
+    return result.count > 0
+}
+
+/**
  * Hands a claimed week back after a transient send failure, so the next tick
  * retries it. Only undoes this claim: a newer write to the row is kept.
  */

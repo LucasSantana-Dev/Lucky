@@ -24,3 +24,17 @@ export function latestRecapBoundary(now: Date): Date {
 export function recapWindow(boundary: Date): { from: Date; to: Date } {
     return { from: new Date(boundary.getTime() - WEEK_MS), to: boundary }
 }
+
+/** How far back the comeback card looks, and its minimum spacing per guild. */
+export const COMEBACK_WEEKS = 4
+
+/**
+ * The four weeks ending at `boundary`. A guild with a quiet week is reminded
+ * of what it played in this window (track history keeps 30 days).
+ */
+export function comebackWindow(boundary: Date): { from: Date; to: Date } {
+    return {
+        from: new Date(boundary.getTime() - COMEBACK_WEEKS * WEEK_MS),
+        to: boundary,
+    }
+}

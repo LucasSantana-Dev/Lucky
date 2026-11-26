@@ -13,6 +13,7 @@ import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { getWeeklyRecap } from '@lucky/shared/services'
 import { translatorForInteraction } from '../../i18n/translatorForInteraction'
 import {
+    comebackWindow,
     latestRecapBoundary,
     recapWindow,
 } from '../../services/recap/recapWindow'
@@ -54,7 +55,13 @@ export async function handleRecapMixButton(
 
     const boundary = latestRecapBoundary(new Date())
     const { from, to } = recapWindow(boundary)
-    const recap = await getWeeklyRecap(guildId, from, to)
+    let recap = await getWeeklyRecap(guildId, from, to)
+    // A quiet week (the comeback card, or an old recap clicked later): fall
+    // back to what the guild played over the last four weeks.
+    if (recap.topTracks.length === 0) {
+        const month = comebackWindow(boundary)
+        recap = await getWeeklyRecap(guildId, month.from, month.to)
+    }
 
     if (recap.topTracks.length === 0) {
         await reply(t('music.recap.mixNoTracks'))

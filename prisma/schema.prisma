@@ -303,6 +303,9 @@ model GuildSettings {
   // /play (which turns it on) or by /recap channel. Never cleared, so a guild
   // that turned the recap off is not turned back on by its next /play.
   recapDecidedAt    DateTime?
+  // When the last comeback card (quiet week after an active month) was
+  // posted. At most one per 28 days.
+  recapComebackAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

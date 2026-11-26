@@ -9,6 +9,7 @@ const listDueRecapsMock = jest.fn()
 const claimRecapWeekMock = jest.fn()
 const releaseRecapWeekMock = jest.fn()
 const disableRecapMock = jest.fn()
+const claimRecapComebackMock = jest.fn()
 const getWeeklyRecapMock = jest.fn()
 const renderRecapCardMock = jest.fn()
 const fallbackIncMock = jest.fn()
@@ -22,6 +23,7 @@ jest.mock('./recapStore', () => ({
     claimRecapWeek: (...a: unknown[]) => claimRecapWeekMock(...a),
     releaseRecapWeek: (...a: unknown[]) => releaseRecapWeekMock(...a),
     disableRecap: (...a: unknown[]) => disableRecapMock(...a),
+    claimRecapComeback: (...a: unknown[]) => claimRecapComebackMock(...a),
 }))
 
 jest.mock('@lucky/shared/services', () => ({
@@ -144,6 +146,8 @@ describe('RecapScheduler (#2678)', () => {
             { guildId: 'g-1', channelId: 'c-1' },
         ])
         claimRecapWeekMock.mockResolvedValue(true)
+        claimRecapComebackMock.mockResolvedValue(true)
+        disableRecapMock.mockResolvedValue(true)
     })
 
     it('asks for guilds due since the latest Sunday 18:00 UTC', async () => {
@@ -208,6 +212,102 @@ describe('RecapScheduler (#2678)', () => {
 
         expect(claimRecapWeekMock).toHaveBeenCalledTimes(1)
         expect(send).not.toHaveBeenCalled()
+    })
+
+    describe('comeback card', () => {
+        const month = {
+            ...recap(40),
+            topArtists: [{ name: 'Daft Punk', plays: 9 }],
+        }
+        // First call is the week, second the four weeks before the boundary.
+        const quietWeekAfter = (monthRecap: unknown) =>
+            getWeeklyRecapMock
+                .mockResolvedValueOnce(recap(0))
+                .mockResolvedValueOnce(monthRecap)
+
+        it('posts one card for a quiet week after an active month', async () => {
+            quietWeekAfter(month)
+            const { client, send } = makeClient('text')
+
+            await runTick(client)
+
+            expect(getWeeklyRecapMock).toHaveBeenLastCalledWith(
+                'g-1',
+                new Date('2026-09-13T18:00:00.000Z'),
+                BOUNDARY,
+            )
+            expect(claimRecapComebackMock).toHaveBeenCalledWith(
+                'g-1',
+                'c-1',
+                new Date('2026-09-13T18:20:00.000Z'),
+                NOW,
+            )
+            expect(send).toHaveBeenCalledTimes(1)
+            const message = send.mock.calls[0][0]
+            expect(message.allowedMentions).toEqual({ parse: [] })
+            expect(message.embeds[0].toJSON().title).toBe(
+                'music.recap.comebackTitle',
+            )
+            expect(
+                message.components[0]
+                    .toJSON()
+                    .components.map((c: { custom_id: string }) => c.custom_id),
+            ).toEqual(['recap_mix', 'recap_off'])
+            expect(infoLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        outcomes: { comeback: 1 },
+                    }),
+                }),
+            )
+        })
+
+        it('stays silent when the month was quiet too', async () => {
+            quietWeekAfter(recap(4))
+            const { client, send } = makeClient('text')
+
+            await runTick(client)
+
+            expect(claimRecapComebackMock).not.toHaveBeenCalled()
+            expect(send).not.toHaveBeenCalled()
+        })
+
+        it('stays silent when a card already went out in the window', async () => {
+            quietWeekAfter(month)
+            claimRecapComebackMock.mockResolvedValue(false)
+            const { client, send } = makeClient('text')
+
+            await runTick(client)
+
+            expect(send).not.toHaveBeenCalled()
+        })
+
+        it('clears the opt-in when the channel refuses the card', async () => {
+            quietWeekAfter(month)
+            const { client, send } = makeClient('text')
+            send.mockRejectedValue(
+                Object.assign(new Error('no'), { code: 50013 }),
+            )
+
+            await runTick(client)
+
+            expect(disableRecapMock).toHaveBeenCalledWith('g-1', 'c-1')
+        })
+
+        it('counts the week as quiet when the card fails for another reason', async () => {
+            quietWeekAfter(month)
+            const { client, send } = makeClient('text')
+            send.mockRejectedValue(new Error('network'))
+
+            await runTick(client)
+
+            expect(disableRecapMock).not.toHaveBeenCalled()
+            expect(infoLogMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({ outcomes: { quiet: 1 } }),
+                }),
+            )
+        })
     })
 
     it('does not post when the claim fails (/recap changed since listing)', async () => {
@@ -370,6 +470,8 @@ describe('RecapScheduler (#2678)', () => {
             ])
             getWeeklyRecapMock
                 .mockResolvedValueOnce(recap(12))
+                .mockResolvedValueOnce(recap(4))
+                // The quiet guild's four weeks: quiet too, so no comeback.
                 .mockResolvedValueOnce(recap(4))
 
             await runTick(makeClient('text').client)

@@ -36,6 +36,10 @@ jest.mock('../../services/recap/recapWindow', () => ({
         from: new Date(b.getTime() - 7 * 24 * 60 * 60 * 1000),
         to: b,
     }),
+    comebackWindow: (b: Date) => ({
+        from: new Date(b.getTime() - 28 * 24 * 60 * 60 * 1000),
+        to: b,
+    }),
 }))
 jest.mock('../../services/musicManagement/queueResolver', () => ({
     resolveGuildQueue: (...a: unknown[]) => resolveGuildQueueMock(...a),
@@ -163,6 +167,20 @@ describe('handleRecapMixButton (#2739)', () => {
         expect(interaction.followUp).toHaveBeenCalledWith(
             ephemeral('music.recap.mixNoTracks'),
         )
+        // The week was empty, so the last four weeks were tried too.
+        expect(getWeeklyRecapMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('falls back to the last four weeks when the week is empty', async () => {
+        const month = await getWeeklyRecapMock()
+        getWeeklyRecapMock.mockClear()
+        getWeeklyRecapMock
+            .mockResolvedValueOnce({ topTracks: [] })
+            .mockResolvedValueOnce(month)
+        const interaction = makeInteraction()
+        await handleRecapMixButton(interaction as unknown as ButtonInteraction)
+        expect(getWeeklyRecapMock).toHaveBeenCalledTimes(2)
+        expect(playMock).toHaveBeenCalledTimes(1)
     })
 
     it('plays the first found track and queues the rest', async () => {
