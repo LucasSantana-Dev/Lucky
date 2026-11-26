@@ -464,7 +464,8 @@ def negocio():
     b.add("table", "Adoção por servidor (últimos 30 dias)", [sql(
         "WITH p AS (SELECT \"guildId\" AS g, max(\"playedAt\") AS last_play, "
         "count(*) FILTER (WHERE \"playedAt\" > now() - interval '7 days') AS p7, count(*) AS p30, "
-        "count(DISTINCT date_trunc('day', \"playedAt\")) AS dias FROM track_history GROUP BY 1) "
+        "count(DISTINCT date_trunc('day', \"playedAt\")) AS dias FROM track_history "
+        "WHERE \"playedAt\" > now() - interval '30 days' GROUP BY 1) "
         "SELECT g.name AS \"Servidor\", "
         "CASE WHEN p.g IS NULL AND g.\"joinedAt\" > now() - interval '7 days' THEN '1 novo, ainda não tocou' "
         "WHEN p.g IS NULL THEN '5 não tocou em 30 dias' "
@@ -474,7 +475,7 @@ def negocio():
         "ELSE '4 parado' END AS \"Situação\", "
         "g.\"joinedAt\" AS \"Entrou\", coalesce(s.source, 'sem origem') AS \"Origem\", "
         "p.last_play AS \"Última música\", coalesce(p.p7, 0) AS \"Faixas 7d\", coalesce(p.p30, 0) AS \"Faixas 30d\", "
-        "coalesce(p.dias, 0) AS \"Dias com música\" "
+        "coalesce(p.dias, 0) AS \"Dias com música\", g.\"discordId\" AS \"Id\" "
         "FROM guilds g LEFT JOIN p ON p.g = g.\"discordId\" "
         "LEFT JOIN guild_join_sources s ON s.\"guildDiscordId\" = g.\"discordId\" "
         f"WHERE g.\"leftAt\" IS NULL AND g.\"discordId\" NOT IN {EXCL} "
