@@ -2,7 +2,7 @@ import type { CustomClient } from '../../types'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { errorLog, infoLog, warnLog } from '@lucky/shared/utils'
 import { musicSessionSnapshotService } from '../musicRecommendation/sessionSnapshots'
-import { QUEUE_LEAVE_OPTIONS } from './queueLeaveOptions'
+import { queueLeaveOptionsFor } from './queueLeaveOptions'
 import { musicWatchdogService } from './watchdog'
 import { applyStoredAutoplayPreference } from '../../functions/music/commands/play/handlers/autoplayPreference'
 
@@ -87,7 +87,7 @@ export async function restoreSessionsOnStartup(
 
             const queue = client.player.nodes.create(guild, {
                 metadata: { channel: null, requestedBy: null },
-                ...QUEUE_LEAVE_OPTIONS,
+                ...(await queueLeaveOptionsFor(guildId)),
             })
             // Same as /play: without it the queue runs with repeat mode OFF
             // and stops after the restored track (#3061).

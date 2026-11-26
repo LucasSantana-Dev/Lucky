@@ -41,7 +41,7 @@ import {
 } from './play/handlers/resolveProvider'
 import { isHostedYoutubeEnabled } from '../../../config/featureFlags'
 import type { CustomClient } from '../../../types/CustomClient'
-import { QUEUE_LEAVE_OPTIONS } from '../../../services/musicManagement/queueLeaveOptions'
+import { queueLeaveOptionsFor } from '../../../services/musicManagement/queueLeaveOptions'
 import { AsmrBlockedError, isAsmrTrack } from '../../../utils/music/asmrFilter'
 import {
     classifyOutcome,
@@ -390,7 +390,7 @@ export async function queueArtistTopTracks({
                     },
                     connectionTimeout:
                         ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-                    ...QUEUE_LEAVE_OPTIONS,
+                    ...(await queueLeaveOptionsFor(guildId)),
                 },
                 requestedBy: interaction.user,
                 searchEngine:

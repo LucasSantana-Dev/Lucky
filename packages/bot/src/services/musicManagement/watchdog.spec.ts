@@ -4,6 +4,20 @@ import { setReplenishSuppressed } from './replenishSuppressionStore'
 import { MusicWatchdogService } from './watchdog'
 import { runBridgeStreamOnce } from '../../handlers/player/bridgeStreamsInFlight'
 
+// The real module reads guild settings from Postgres.
+jest.mock('./queueLeaveOptions', () => {
+    const options = {
+        leaveOnEmpty: true,
+        leaveOnEmptyCooldown: 30_000,
+        leaveOnEnd: true,
+        leaveOnEndCooldown: 300_000,
+    }
+    return {
+        QUEUE_LEAVE_OPTIONS: options,
+        queueLeaveOptionsFor: async () => options,
+    }
+})
+
 // --- mocks ---
 
 const listGuildIdsMock = jest.fn()

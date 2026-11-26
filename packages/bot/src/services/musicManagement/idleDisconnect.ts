@@ -43,7 +43,10 @@ export function scheduleIdleDisconnect(queue: GuildQueue): void {
         // while settings were loading — bail instead of arming a timer.
         if (idleGenerations.get(guildId) !== generation) return
 
-        const timeoutMinutes = settings?.idleTimeoutMinutes ?? 0
+        // 24/7 mode (/247) keeps Lucky in the channel, so never idle out.
+        const timeoutMinutes = settings?.stayConnected
+            ? 0
+            : (settings?.idleTimeoutMinutes ?? 0)
         if (timeoutMinutes <= 0) {
             releaseGeneration(guildId, generation)
             return
@@ -85,6 +88,22 @@ export function clearIdleTimer(guildId: string): void {
     // guarded releaseGeneration (fire/error paths) may delete the entry.
     idleGenerations.set(guildId, (idleGenerations.get(guildId) ?? 0) + 1)
     clearArmedTimer(guildId)
+}
+
+/**
+ * Leaves right away when the queue has nothing to play or nobody is left
+ * listening. Used when 24/7 mode is turned off, since discord-player only
+ * checks its leave options on the next end/empty event.
+ * Returns whether it left.
+ */
+export function leaveIfIdle(queue: GuildQueue): boolean {
+    const nothingToPlay = !queue.currentTrack && queue.tracks.size === 0
+    const listeners = queue.channel?.members.filter((m) => !m.user.bot).size
+    const channelEmpty = listeners === 0
+    if (!nothingToPlay && !channelEmpty) return false
+    clearIdleTimer(queue.guild.id)
+    void disconnectIdle(queue)
+    return true
 }
 
 async function disconnectIdle(queue: GuildQueue): Promise<void> {

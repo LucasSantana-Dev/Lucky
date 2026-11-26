@@ -6,7 +6,7 @@ import { warnLog } from '@lucky/shared/utils'
  * 1, #2736). About 90 global commands and pt-BR `/vaga` in the picker were
  * part of why 28% of adds left within 5 minutes.
  *
- * Music playback, the weekly recap, account linking, and the three support
+ * Music playback, 24/7 mode, the weekly recap, account linking, and the three support
  * commands (`/help`, `/invite` that the now-playing footer advertises,
  * `/feedback` that error replies point to). A command reaches the hosted
  * picker only by being added here.
@@ -25,6 +25,7 @@ export const HOSTED_COMMAND_NAMES: ReadonlySet<string> = new Set([
     'autoplay',
     'lyrics',
     'recap',
+    '247',
     'spotify',
     'lastfm',
     'help',

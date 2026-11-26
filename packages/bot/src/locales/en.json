@@ -124,6 +124,12 @@
             "mixQueued_other": "▶️ Queued {{count}} tracks from this week's recap.",
             "mixFailed": "❌ Couldn't start the mix. Try again in a moment."
         },
+        "stayConnected": {
+            "enabled": "🔁 24/7 mode is on. I'll stay in the voice channel when the queue ends or everyone leaves, and pause while the channel is empty.",
+            "disabled": "24/7 mode is off. I'll leave the voice channel again when the queue ends or the channel empties.",
+            "needManageGuild": "You need the **Manage Server** permission to change 24/7 mode.",
+            "failed": "❌ Couldn't update 24/7 mode. Try again in a moment."
+        },
         "thumbs": {
             "liked": "👍 Added **{{title}}** to your likes. Autoplay leans toward them on the songs you queue.",
             "disliked": "👎 Noted. Autoplay steers away from **{{title}}** on the songs you queue.",
@@ -153,7 +159,6 @@
             "unknownTrack": "Unknown track",
             "unknownArtist": "Unknown artist",
             "moreControls": "More",
-
             "nowPlayingNoAccess": "I can't post the now playing message in that channel: I'm missing the View Channel and Send Messages permissions there. Music keeps playing, but without the controls message.",
             "controlsTitle": "🎛️ Music controls",
             "streamFailed": "Couldn't find the original of **{{title}}** right now, so I'm not playing a cover. Try again shortly or paste a link.",

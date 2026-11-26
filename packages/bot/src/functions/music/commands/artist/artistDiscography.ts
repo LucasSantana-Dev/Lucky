@@ -20,7 +20,7 @@ import { createUserFriendlyError } from '@lucky/shared/utils/general/errorSaniti
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { isUnknownInteractionError } from '../play/queryUtils'
 import type { CollaborativeReservation } from '../play/handlers/collaborativeLimit'
-import { QUEUE_LEAVE_OPTIONS } from '../../../../services/musicManagement/queueLeaveOptions'
+import { queueLeaveOptionsFor } from '../../../../services/musicManagement/queueLeaveOptions'
 import {
     AsmrBlockedError,
     isAsmrTrack,
@@ -212,7 +212,9 @@ export async function handleArtistDiscography({
                     },
                     connectionTimeout:
                         ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-                    ...QUEUE_LEAVE_OPTIONS,
+                    ...(await queueLeaveOptionsFor(
+                        interaction.guildId as string,
+                    )),
                 },
                 requestedBy: interaction.user,
                 searchEngine: QueryType.SPOTIFY_SONG,

@@ -23,7 +23,7 @@ import { featureToggleService } from '@lucky/shared/services'
 import { isUnknownInteractionError } from './play/queryUtils'
 import { reserveCollaborativeRequest } from './play/handlers/collaborativeLimit'
 import { pickAlbum } from './play/handlers/albumIntent'
-import { QUEUE_LEAVE_OPTIONS } from '../../../services/musicManagement/queueLeaveOptions'
+import { queueLeaveOptionsFor } from '../../../services/musicManagement/queueLeaveOptions'
 import { AsmrBlockedError, isAsmrTrack } from '../../../utils/music/asmrFilter'
 
 function isSpotifyAlbumUrl(query: string): boolean {
@@ -248,7 +248,9 @@ export default new Command({
                         },
                         connectionTimeout:
                             ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-                        ...QUEUE_LEAVE_OPTIONS,
+                        ...(await queueLeaveOptionsFor(
+                            interaction.guildId as string,
+                        )),
                     },
                     requestedBy: interaction.user,
                     searchEngine: QueryType.SPOTIFY_SONG,

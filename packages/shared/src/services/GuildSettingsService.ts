@@ -35,6 +35,8 @@ export interface GuildSettings {
     djRoleId?: string
     idleTimeoutMinutes?: number
     voteSkipThreshold?: number
+    /** 24/7 mode: stay in the voice channel when the queue ends or empties. */
+    stayConnected?: boolean
     supportCategoryId?: string
     supportAgentRoleId?: string
     createdAt: Date
@@ -87,6 +89,7 @@ export const GUILD_SETTINGS_EDITABLE_FIELDS = [
     'supportAgentRoleId',
     'idleTimeoutMinutes',
     'voteSkipThreshold',
+    'stayConnected',
 ] as const satisfies readonly (keyof GuildSettingsPatch)[]
 
 /**
@@ -121,6 +124,7 @@ export class GuildSettingsService {
             djRoleId: undefined,
             idleTimeoutMinutes: 0,
             voteSkipThreshold: 50,
+            stayConnected: false,
             createdAt: new Date(),
             updatedAt: new Date(),
         }
@@ -146,6 +150,7 @@ export class GuildSettingsService {
         djRoleId: string | null
         idleTimeoutMinutes: number | null
         voteSkipThreshold: number | null
+        stayConnected?: boolean | null
         supportCategoryId: string | null
         supportAgentRoleId: string | null
         createdAt: Date
@@ -171,6 +176,7 @@ export class GuildSettingsService {
             djRoleId: row.djRoleId ?? undefined,
             idleTimeoutMinutes: row.idleTimeoutMinutes ?? 0,
             voteSkipThreshold: row.voteSkipThreshold ?? 50,
+            stayConnected: row.stayConnected ?? false,
             supportCategoryId: row.supportCategoryId ?? undefined,
             supportAgentRoleId: row.supportAgentRoleId ?? undefined,
             createdAt: row.createdAt,

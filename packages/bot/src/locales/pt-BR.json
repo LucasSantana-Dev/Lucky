@@ -123,6 +123,12 @@
             "mixQueued_other": "▶️ {{count}} músicas do resumo da semana foram adicionadas à fila.",
             "mixFailed": "❌ Não consegui iniciar o mix. Tente de novo daqui a pouco."
         },
+        "stayConnected": {
+            "enabled": "🔁 Modo 24/7 ativado. Vou ficar no canal de voz quando a fila acabar ou todos saírem, e pauso enquanto o canal estiver vazio.",
+            "disabled": "Modo 24/7 desativado. Volto a sair do canal de voz quando a fila acabar ou o canal esvaziar.",
+            "needManageGuild": "Você precisa da permissão **Gerenciar servidor** para mudar o modo 24/7.",
+            "failed": "❌ Não consegui atualizar o modo 24/7. Tente de novo em instantes."
+        },
         "thumbs": {
             "liked": "👍 **{{title}}** foi para as suas curtidas. O autoplay puxa músicas assim nas que você coloca.",
             "disliked": "👎 Anotado. O autoplay evita músicas como **{{title}}** nas que você coloca.",
@@ -152,7 +158,6 @@
             "unknownTrack": "Faixa desconhecida",
             "unknownArtist": "Artista desconhecido",
             "moreControls": "Mais",
-
             "nowPlayingNoAccess": "Não consigo enviar a mensagem de tocando agora nesse canal: faltam as permissões Ver Canal e Enviar Mensagens. A música continua tocando, mas sem a mensagem de controles.",
             "controlsTitle": "🎛️ Controles de música",
             "streamFailed": "Não achei a original de **{{title}}** agora, então não vou tocar um cover. Tente de novo em instantes ou cole um link.",
