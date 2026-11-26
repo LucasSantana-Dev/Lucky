@@ -10,24 +10,23 @@ import {
 } from '../../../utils/command/commandValidations'
 import { acknowledgeAndTranslate } from '../../../i18n/acknowledgeAndTranslate'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
-
-function words(text: string): string {
-    return text
-        .normalize('NFKC')
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}]+/gu, ' ')
-        .trim()
-}
+import {
+    cleanAuthor,
+    cleanTitle,
+} from '../../../utils/music/searchQueryCleaner'
+import { normalizeText } from '../../../utils/music/trackNormalization'
 
 /**
- * Two entries are the same song when their link matches, or their title and
- * full artist credit do. The whole credit, so two collaborations that share a
- * title and a lead artist stay apart; and no title and artist identity for an
- * entry missing either, so entries with blank metadata never match each other.
+ * Two entries are the same song when their link matches, or their cleaned
+ * title and full artist credit do. Cleaned, so "Creep (Remaster)" by
+ * "Radiohead - Topic" is "Creep" by "Radiohead". The whole credit, so two
+ * collaborations that share a title and a lead artist stay apart; and no
+ * title and artist identity for an entry missing either, so entries with
+ * blank metadata never match each other.
  */
 function identities(track: Track): string[] {
-    const title = words(track.title ?? '')
-    const author = words(track.author ?? '')
+    const title = normalizeText(cleanTitle(track.title ?? ''))
+    const author = normalizeText(cleanAuthor(track.author ?? ''))
     return [
         track.url ? `url:${track.url}` : '',
         title && author ? `key:${title}::${author}` : '',

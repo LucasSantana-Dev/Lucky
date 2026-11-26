@@ -95,6 +95,29 @@ describe('/removedupes', () => {
         expect(remove).toHaveBeenCalledWith(otherUpload)
     })
 
+    it('removes a remaster from a topic channel as the same song', () => {
+        const first = track('Creep', 'Radiohead', 'https://a/1')
+        const remaster = track(
+            'Creep (Remaster)',
+            'Radiohead - Topic',
+            'https://b/7',
+        )
+        const { queue, remove } = queueOf([first, remaster])
+
+        expect(removeDuplicateTracks(queue as never)).toBe(1)
+        expect(remove).toHaveBeenCalledWith(remaster)
+    })
+
+    it('keeps titles that differ only by a combining mark', () => {
+        const { queue, remove } = queueOf([
+            track('\u0915\u0941', 'Artist', 'https://a/1'),
+            track('\u0915', 'Artist', 'https://a/2'),
+        ])
+
+        expect(removeDuplicateTracks(queue as never)).toBe(0)
+        expect(remove).not.toHaveBeenCalled()
+    })
+
     it('keeps two collaborations that share a title and a lead artist', () => {
         const { queue, remove } = queueOf([
             track('Stay', 'Zedd, Alessia Cara', 'https://a/1'),
