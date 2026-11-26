@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.75.2](https://github.com/LucasSantana-Dev/Lucky/compare/v2.75.1...v2.75.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* **deps:** pin @snazzah/davey to 0.1.12 so voice audio is audible again ([#3353](https://github.com/LucasSantana-Dev/Lucky/issues/3353)) ([54f2595](https://github.com/LucasSantana-Dev/Lucky/commit/54f25951e236d2bbc42cd6516cc436cac919e1f6))
+
 ## [2.75.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.75.0...v2.75.1) (2026-11-25)
 
 
