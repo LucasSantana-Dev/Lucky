@@ -3,41 +3,47 @@
 exports[`buildOnboardingEmbed renders the English onboarding embed 1`] = `
 {
   "color": 5793266,
-  "description": "\`/play <song or url>\` — start music in your voice channel
+  "description": "Join a voice channel and press **Start Listening**, or use \`/play\` with a song name or a Spotify link.
 
-After the first song plays (from \`/play\` or the button below), Lucky posts a Sunday recap of the server's most-played tracks and artists in that text channel, if it can post there. A server admin can turn it off with the button on the recap or \`/recap off\`.",
+When the queue ends, Lucky keeps going with similar songs. \`/247\` keeps it in the voice channel between sessions.
+
+After the first song, Lucky posts a Sunday recap of the server's most-played tracks and artists in the text channel where it was requested, if it can post there. A server admin can turn it off with the button on the recap or \`/recap off\`.",
   "footer": {
     "icon_url": undefined,
     "text": "Lucky",
   },
-  "title": "🎵 Thanks for adding Lucky!",
+  "title": "🎵 Lucky is ready to play",
 }
 `;
 
 exports[`buildOnboardingEmbed renders the es onboarding embed 1`] = `
 {
   "color": 5793266,
-  "description": "\`/play <canción o url>\` — pon música en tu canal de voz
+  "description": "Entra a un canal de voz y pulsa **Empezar a Escuchar**, o usa \`/play\` con el nombre de una canción o un enlace de Spotify.
 
-Tras la primera canción (con \`/play\` o el botón de abajo), Lucky publica en ese canal de texto un resumen dominical de las canciones y artistas más escuchados del servidor, si puede publicar en él. Un administrador puede desactivarlo con el botón del resumen o con \`/recap off\`.",
+Cuando la cola termina, Lucky sigue con canciones parecidas. Con \`/247\` se queda en el canal de voz entre una sesión y otra.
+
+Tras la primera canción, Lucky publica los domingos, en el canal de texto donde se pidió, un resumen de las canciones y artistas más escuchados del servidor, si puede publicar en él. Un administrador puede desactivarlo con el botón del resumen o con \`/recap off\`.",
   "footer": {
     "icon_url": undefined,
     "text": "Lucky",
   },
-  "title": "🎵 ¡Gracias por agregar Lucky!",
+  "title": "🎵 Lucky está listo para sonar",
 }
 `;
 
 exports[`buildOnboardingEmbed renders the pt-BR onboarding embed 1`] = `
 {
   "color": 5793266,
-  "description": "\`/play <música ou url>\` — toque músicas no seu canal de voz
+  "description": "Entre em um canal de voz e clique em **Ouvir Agora**, ou use \`/play\` com o nome de uma música ou um link do Spotify.
 
-Depois da primeira música (pelo \`/play\` ou pelo botão abaixo), Lucky publica nesse canal de texto um recap dominical das faixas e artistas mais tocados no servidor, se puder postar nele. Um administrador pode desligar pelo botão no recap ou com \`/recap off\`.",
+Quando a fila acaba, o Lucky continua com músicas parecidas. Com \`/247\` ele fica no canal de voz entre uma sessão e outra.
+
+Depois da primeira música, o Lucky publica aos domingos, no canal de texto onde ela foi pedida, um resumo das faixas e artistas mais tocados no servidor, se puder postar nele. Um administrador pode desligar pelo botão no resumo ou com \`/recap off\`.",
   "footer": {
     "icon_url": undefined,
     "text": "Lucky",
   },
-  "title": "🎵 Obrigado por adicionar o Lucky!",
+  "title": "🎵 O Lucky está pronto pra tocar",
 }
 `;
