@@ -30,6 +30,10 @@ const captureExceptionMock = jest.fn()
 const namedSessionListMock = jest.fn()
 const findLikedTracksMock = jest.fn()
 const searchSpotifyAlbumsMock = jest.fn()
+const suggestTracksMock = jest.fn()
+jest.mock('./trackSuggestions', () => ({
+    suggestTracks: (...args: unknown[]) => suggestTracksMock(...args),
+}))
 const cleanupGuildStateMock = jest.fn()
 const aiDevToolkitStartMock = jest.fn()
 const recordGuildJoinMock = jest.fn(async () => undefined)
@@ -683,6 +687,30 @@ describe('eventHandler', () => {
 
             expect(respondMock).toHaveBeenCalledWith([])
             expect(namedSessionListMock).not.toHaveBeenCalled()
+        })
+
+        it('answers the /search query option with track suggestions', async () => {
+            const choices = [
+                {
+                    name: 'Creep, Radiohead',
+                    value: 'https://open.spotify.com/track/t1',
+                },
+            ]
+            suggestTracksMock.mockResolvedValue(choices)
+            const respondMock = jest.fn()
+
+            await dispatchAutocomplete(
+                createAutocompleteInteraction({
+                    commandName: 'search',
+                    subcommand: null,
+                    focusedName: 'query',
+                    focusedValue: 'creep',
+                    respondMock,
+                }),
+            )
+
+            expect(suggestTracksMock).toHaveBeenCalledWith('creep')
+            expect(respondMock).toHaveBeenCalledWith(choices)
         })
 
         it('suggests Spotify albums for the /album query option', async () => {
