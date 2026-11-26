@@ -10,13 +10,27 @@ import {
 } from '../../../utils/command/commandValidations'
 import { acknowledgeAndTranslate } from '../../../i18n/acknowledgeAndTranslate'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
-import { normalizeTrackKey } from '../../../utils/music/trackNormalization'
 
-/** Two entries are the same song when their link or title and artist match. */
+function words(text: string): string {
+    return text
+        .normalize('NFKC')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, ' ')
+        .trim()
+}
+
+/**
+ * Two entries are the same song when their link matches, or their title and
+ * full artist credit do. The whole credit, so two collaborations that share a
+ * title and a lead artist stay apart; and no title and artist identity for an
+ * entry missing either, so entries with blank metadata never match each other.
+ */
 function identities(track: Track): string[] {
+    const title = words(track.title ?? '')
+    const author = words(track.author ?? '')
     return [
         track.url ? `url:${track.url}` : '',
-        `key:${normalizeTrackKey(track.title, track.author)}`,
+        title && author ? `key:${title}::${author}` : '',
     ].filter(Boolean)
 }
 

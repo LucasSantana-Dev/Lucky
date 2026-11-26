@@ -86,6 +86,37 @@ describe('/removedupes', () => {
         expect(remove).toHaveBeenCalledWith(copy)
     })
 
+    it('removes another upload of the song that is playing', () => {
+        const playing = track('Creep', 'Radiohead', 'https://a/1')
+        const otherUpload = track('creep', 'RADIOHEAD', 'https://b/7')
+        const { queue, remove } = queueOf([otherUpload], playing)
+
+        expect(removeDuplicateTracks(queue as never)).toBe(1)
+        expect(remove).toHaveBeenCalledWith(otherUpload)
+    })
+
+    it('keeps two collaborations that share a title and a lead artist', () => {
+        const { queue, remove } = queueOf([
+            track('Stay', 'Zedd, Alessia Cara', 'https://a/1'),
+            track('Stay', 'Zedd, Hayley Williams', 'https://a/2'),
+        ])
+
+        expect(removeDuplicateTracks(queue as never)).toBe(0)
+        expect(remove).not.toHaveBeenCalled()
+    })
+
+    it('never matches entries by blank titles or artists', () => {
+        const { queue, remove } = queueOf([
+            track('', '', 'https://a/1'),
+            track('', '', 'https://a/2'),
+            track('Intro', '', 'https://a/3'),
+            track('Intro', '', 'https://a/4'),
+        ])
+
+        expect(removeDuplicateTracks(queue as never)).toBe(0)
+        expect(remove).not.toHaveBeenCalled()
+    })
+
     it('keeps two songs with one title by different artists', () => {
         const { queue, remove } = queueOf([
             track('Creep', 'Radiohead', 'https://a/1'),

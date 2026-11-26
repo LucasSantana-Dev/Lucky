@@ -16,9 +16,6 @@ import { buildCommandTrackEmbed } from '../general/responseEmbeds'
 
 export const RELATIVE_SEEK_DEFAULT_SECONDS = 10
 export const RELATIVE_SEEK_MAX_SECONDS = 600
-// Seeking into the last second ends the track; /skip is the command for that.
-const END_MARGIN_MS = 1000
-
 /** The optional `seconds` option shared by `/forward` and `/rewind`. */
 export function withSecondsOption(
     builder: SlashCommandBuilder,
@@ -84,7 +81,7 @@ export async function seekRelative(
     const target =
         direction === 'forward' ? position + step : Math.max(0, position - step)
 
-    if (target > track.durationMS - END_MARGIN_MS) {
+    if (direction === 'forward' && target >= track.durationMS) {
         await refuse(t('music.messages.forwardPastEnd'))
         return
     }

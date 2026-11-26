@@ -31,8 +31,10 @@ jest.mock('../general/responseEmbeds', () => ({
 import { seekRelative } from './relativeSeek'
 import { interactionReply } from '../general/interactionReply'
 import {
+    requireCurrentTrack,
     requireDJRoleInGuild,
     requireIsPlaying,
+    requireQueue,
     requireSameVoiceChannel,
 } from '../command/commandValidations'
 import { resolveGuildQueue } from '../../services/musicManagement/queueResolver'
@@ -69,6 +71,8 @@ describe('seekRelative', () => {
         ;(requireSameVoiceChannel as jest.Mock).mockResolvedValue(true)
         ;(requireDJRoleInGuild as jest.Mock).mockResolvedValue(true)
         ;(requireIsPlaying as jest.Mock).mockResolvedValue(true)
+        ;(requireQueue as jest.Mock).mockResolvedValue(true)
+        ;(requireCurrentTrack as jest.Mock).mockResolvedValue(true)
     })
 
     it('jumps 10 seconds ahead when no amount is given', async () => {
@@ -110,6 +114,25 @@ describe('seekRelative', () => {
         expect(replied().content).toContain('past the end')
     })
 
+    it('jumps into the last second of the song', async () => {
+        const { seek, params } = setup({
+            positionMs: 3 * MINUTE - 10_500,
+            seconds: 10,
+        })
+
+        await seekRelative(params, 'forward')
+
+        expect(seek).toHaveBeenCalledWith(3 * MINUTE - 500)
+    })
+
+    it('rewinds a very short track to the start', async () => {
+        const { seek, params } = setup({ positionMs: 400, durationMS: 800 })
+
+        await seekRelative(params, 'rewind')
+
+        expect(seek).toHaveBeenCalledWith(0)
+    })
+
     it('says so for a track without a known length', async () => {
         const { seek, params } = setup({ durationMS: 0 })
 
@@ -122,6 +145,8 @@ describe('seekRelative', () => {
     it.each([
         ['outside the voice channel', requireSameVoiceChannel],
         ['without the DJ role', requireDJRoleInGuild],
+        ['without a queue', requireQueue],
+        ['without a current track', requireCurrentTrack],
         ['while nothing is playing', requireIsPlaying],
     ])('does nothing %s', async (_label, guard) => {
         ;(guard as jest.Mock).mockResolvedValue(false)

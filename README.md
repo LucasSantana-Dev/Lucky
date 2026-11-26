@@ -201,7 +201,7 @@ SENTRY_DSN=...
 | `/queue` | View current queue |
 | `/shuffle` | Randomize queue order |
 | `/removedupes` | Remove repeated songs from the queue |
-| `/forward` / `/rewind` | Jump ahead or back in the current song (10 seconds by default) |
+| `/forward [seconds]` / `/rewind [seconds]` | Jump ahead or back in the current song (1 to 600 seconds, 10 by default) |
 | `/repeat` | Toggle repeat modes (off / track / queue) |
 | `/lyrics` | Show lyrics for current track |
 | `/autoplay` | Toggle smart recommendations |
