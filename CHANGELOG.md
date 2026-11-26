@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.77.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.76.0...v2.77.0) (2026-11-26)
+
+
+### Features
+
+* **bot:** add /forward, /rewind and /removedupes ([#3379](https://github.com/LucasSantana-Dev/Lucky/issues/3379)) ([2b43317](https://github.com/LucasSantana-Dev/Lucky/commit/2b43317960cb6a668bfe888701f75aac05adc8de))
+* **bot:** add /like and /liked and show them in the hosted picker ([#3378](https://github.com/LucasSantana-Dev/Lucky/issues/3378)) ([785934a](https://github.com/LucasSantana-Dev/Lucky/commit/785934a48993745841d2e25495564a26d54b908c))
+* **bot:** add /search to pick which result to play ([#3376](https://github.com/LucasSantana-Dev/Lucky/issues/3376)) ([dbc0b77](https://github.com/LucasSantana-Dev/Lucky/commit/dbc0b77fefd7b4b94d8f2ed648553c1f4a8cb77f))
+* **growth:** add a feedback button to the weekly recap ([#3369](https://github.com/LucasSantana-Dev/Lucky/issues/3369)) ([2c0d18d](https://github.com/LucasSantana-Dev/Lucky/commit/2c0d18dd8707817dca2e11ad65ced1e56ca63d78))
+* **growth:** ask server admins what is missing after a music command ([#3375](https://github.com/LucasSantana-Dev/Lucky/issues/3375)) ([74021ee](https://github.com/LucasSantana-Dev/Lucky/commit/74021ee8e6e211d05e6a325df8e93fc0ac549da8))
+* **observability:** add a per-server adoption table and exclude the operator's servers ([#3370](https://github.com/LucasSantana-Dev/Lucky/issues/3370)) ([7364822](https://github.com/LucasSantana-Dev/Lucky/commit/7364822088af618ee9d50f192a6fb37b0049144d))
+* **onboarding:** lead the welcome message with how to start playing ([#3371](https://github.com/LucasSantana-Dev/Lucky/issues/3371)) ([720d77f](https://github.com/LucasSantana-Dev/Lucky/commit/720d77f0bbecbd6bc7156acb90df338736853290))
+* **onboarding:** remind a guild once when it has not played after a day ([#3374](https://github.com/LucasSantana-Dev/Lucky/issues/3374)) ([8063b2c](https://github.com/LucasSantana-Dev/Lucky/commit/8063b2c3ab96d01683e2b1e43feec22d22de9428))
+
 ## [2.76.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.75.2...v2.76.0) (2026-11-26)
 
 
