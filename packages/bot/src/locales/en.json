@@ -96,7 +96,10 @@
             "more_one": "…and {{count}} more track",
             "more_other": "…and {{count}} more tracks",
             "footer_one": "{{count}} song in queue • Total duration {{duration}}",
-            "footer_other": "{{count}} songs in queue • Total duration {{duration}}"
+            "footer_other": "{{count}} songs in queue • Total duration {{duration}}",
+            "dupesRemoved_one": "🧹 Removed {{count}} repeated song from the queue.",
+            "dupesRemoved_other": "🧹 Removed {{count}} repeated songs from the queue.",
+            "noDupes": "No repeated songs in the queue."
         },
         "recap": {
             "title": "Your server's week in music",
@@ -196,7 +199,11 @@
             "statusRestarting": "⏮️ Restarting track",
             "statusReplayed": "🔄 Replayed",
             "statusSeeked": "⏩ Seeked to {{time}}",
-            "statusJumped": "🎯 Now playing (position {{position}})"
+            "statusJumped": "🎯 Now playing (position {{position}})",
+            "statusForwarded": "⏩ Jumped ahead to {{time}}",
+            "statusRewound": "⏪ Went back to {{time}}",
+            "forwardPastEnd": "That goes past the end of the song. Use `/skip` to move on.",
+            "seekUnsupported": "This track can't be moved forward or back."
         },
         "adminPrompt": {
             "title": "One question for the admin",
