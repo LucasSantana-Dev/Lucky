@@ -37,6 +37,15 @@ updates:
       - dependency-name: "react-hook-form"
         versions:
           - "7.90.0"
+      # discord-voip 7.2.0 drives DAVE voice encryption with the 0.1 API.
+      # davey 0.2 needs prepareTransition/executeTransition after every MLS
+      # commit or welcome before it has a key; discord-voip never calls them,
+      # so the bot sent audio nobody could decrypt (silent playback in
+      # 2.75.0). Held at 0.1.12 until discord-voip supports 0.2. Guarded by
+      # packages/bot/src/handlers/player/daveyCompat.spec.ts.
+      - dependency-name: "@snazzah/davey"
+        versions:
+          - ">=0.2.0"
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
