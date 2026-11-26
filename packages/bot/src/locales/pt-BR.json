@@ -193,6 +193,12 @@
             "statusReplayed": "🔄 Reproduzida de novo",
             "statusSeeked": "⏩ Avançou para {{time}}",
             "statusJumped": "🎯 Tocando agora (posição {{position}})"
+        },
+        "adminPrompt": {
+            "title": "Uma pergunta pra quem administra",
+            "description": "Você administra este servidor, então a pergunta é pra você: o que falta pro Lucky ser o bot de música daqui?\n\nA resposta vai direto pro desenvolvedor. O Lucky pergunta isso no máximo uma vez por mês.",
+            "feedbackButton": "O que falta?",
+            "supportButton": "Servidor de suporte"
         }
     }
 }

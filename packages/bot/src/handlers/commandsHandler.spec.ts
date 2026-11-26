@@ -31,6 +31,11 @@ jest.mock('@lucky/shared/services', () => ({
     },
 }))
 
+const maybeAskAdminForFeedbackMock = jest.fn()
+jest.mock('../services/onboarding/adminFeedbackPrompt', () => ({
+    maybeAskAdminForFeedback: (...a: unknown[]) =>
+        maybeAskAdminForFeedbackMock(...a),
+}))
 jest.mock('../utils/general/interactionReply', () => ({
     interactionReply: jest.fn().mockResolvedValue(undefined),
 }))
@@ -396,6 +401,9 @@ describe('commandsHandler', () => {
                 known: true,
                 interaction,
             })
+            expect(maybeAskAdminForFeedbackMock).toHaveBeenCalledWith(
+                interaction,
+            )
         })
 
         it('records an unknown command as user_error with known=false', async () => {
@@ -405,6 +413,7 @@ describe('commandsHandler', () => {
                 } as never),
                 client: createMockClient(),
             })
+            expect(maybeAskAdminForFeedbackMock).not.toHaveBeenCalled()
             expect(recorded()).toHaveLength(1)
             expect(recorded()[0]).toMatchObject({
                 outcome: 'user_error',

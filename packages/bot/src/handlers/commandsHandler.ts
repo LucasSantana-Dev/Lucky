@@ -27,6 +27,7 @@ import {
     type CommandStopReason,
 } from '../utils/monitoring/commandOutcome'
 import { buildFeedbackReportCustomId } from '../services/feedbackService'
+import { maybeAskAdminForFeedback } from '../services/onboarding/adminFeedbackPrompt'
 
 const CATEGORY_FLAG_MAP: Partial<Record<CommandCategory, FeatureToggleName>> = {
     moderation: 'MODERATION',
@@ -308,6 +309,14 @@ const dispatchAndRecord = async ({
         signal,
         hasSignal ? undefined : marked,
     )
+    // After everything else, and only for a slash command that went well.
+    const wentWell =
+        known && !hasSignal && (marked === undefined || marked.outcome === 'ok')
+    if (kind === 'slash' && wentWell) {
+        void maybeAskAdminForFeedback(
+            interaction as ChatInputCommandInteraction,
+        )
+    }
 }
 
 export const executeCommand = async ({

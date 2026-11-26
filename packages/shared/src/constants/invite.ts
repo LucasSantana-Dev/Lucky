@@ -135,6 +135,7 @@ export const ACTIVATION_EVENT_KINDS = [
     'station_click',
     'recap_auto_enabled',
     'first_play_reminder',
+    'admin_feedback_prompt',
 ] as const
 
 export type ActivationEventKind = (typeof ACTIVATION_EVENT_KINDS)[number]
