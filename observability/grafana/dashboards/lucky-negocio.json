@@ -65,7 +65,7 @@
             {
                 "name": "excluidas",
                 "type": "constant",
-                "query": "110373943822540800,333949691962195969,1541452011466268704,1208122433819906069",
+                "query": "110373943822540800,333949691962195969,1541452011466268704,1208122433819906069,1091067952599674980,436677047159619594",
                 "hide": 2,
                 "description": "Guildas do operador, de listagem e de teste: nunca contam como uso."
             }
@@ -1553,7 +1553,7 @@
         },
         {
             "type": "row",
-            "title": "Gatilhos YouTube-off",
+            "title": "Acompanhamento por servidor",
             "collapsed": false,
             "panels": [],
             "gridPos": {
@@ -1565,12 +1565,61 @@
             "id": 35
         },
         {
+            "type": "table",
+            "title": "Adoção por servidor (últimos 30 dias)",
+            "description": "Um servidor por linha, só os que ainda têm o Lucky, sem os do operador. Situação: 'novo' entrou há menos de 7 dias e ainda não tocou; 'testando' tocou nesta semana em menos de 3 dias diferentes; 'ativo' tocou nesta semana e em 3 dias ou mais no mês; 'esfriando' tocou pela última vez entre 7 e 14 dias atrás; 'parado' entre 14 e 30 dias; 'não tocou em 30 dias' pode ser um servidor que nunca usou ou que parou antes (track_history guarda só 30 dias). 'Esfriando' e 'novo' são os que valem atenção primeiro. Não depende do período escolhido no painel.",
+            "gridPos": {
+                "x": 0,
+                "y": 78,
+                "w": 24,
+                "h": 14
+            },
+            "datasource": {
+                "type": "grafana-postgresql-datasource",
+                "uid": "${ds_postgres}"
+            },
+            "targets": [
+                {
+                    "datasource": {
+                        "type": "grafana-postgresql-datasource",
+                        "uid": "${ds_postgres}"
+                    },
+                    "rawSql": "WITH p AS (SELECT \"guildId\" AS g, max(\"playedAt\") AS last_play, count(*) FILTER (WHERE \"playedAt\" > now() - interval '7 days') AS p7, count(*) AS p30, count(DISTINCT date_trunc('day', \"playedAt\")) AS dias FROM track_history GROUP BY 1) SELECT g.name AS \"Servidor\", CASE WHEN p.g IS NULL AND g.\"joinedAt\" > now() - interval '7 days' THEN '1 novo, ainda não tocou' WHEN p.g IS NULL THEN '5 não tocou em 30 dias' WHEN p.p7 > 0 AND p.dias >= 3 THEN '2 ativo' WHEN p.p7 > 0 THEN '2 testando' WHEN p.last_play > now() - interval '14 days' THEN '3 esfriando' ELSE '4 parado' END AS \"Situação\", g.\"joinedAt\" AS \"Entrou\", coalesce(s.source, 'sem origem') AS \"Origem\", p.last_play AS \"Última música\", coalesce(p.p7, 0) AS \"Faixas 7d\", coalesce(p.p30, 0) AS \"Faixas 30d\", coalesce(p.dias, 0) AS \"Dias com música\" FROM guilds g LEFT JOIN p ON p.g = g.\"discordId\" LEFT JOIN guild_join_sources s ON s.\"guildDiscordId\" = g.\"discordId\" WHERE g.\"leftAt\" IS NULL AND g.\"discordId\" NOT IN (SELECT unnest(string_to_array('$excluidas', ',')) UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' UNION SELECT \"guildDiscordId\" FROM guild_membership_events WHERE \"guildName\" ILIKE '%test%') ORDER BY 2, p.last_play DESC NULLS LAST, g.\"joinedAt\" DESC NULLS LAST",
+                    "format": "table",
+                    "rawQuery": true,
+                    "editorMode": "code",
+                    "refId": "A"
+                }
+            ],
+            "fieldConfig": {
+                "defaults": {
+                    "noValue": "nenhum servidor"
+                },
+                "overrides": []
+            },
+            "options": {},
+            "id": 36
+        },
+        {
+            "type": "row",
+            "title": "Gatilhos YouTube-off",
+            "collapsed": false,
+            "panels": [],
+            "gridPos": {
+                "x": 0,
+                "y": 92,
+                "w": 24,
+                "h": 1
+            },
+            "id": 37
+        },
+        {
             "type": "gauge",
             "title": "WAG (7 dias) vs limite 100",
             "description": "WAG (janela móvel de 7 dias) ≥ 100 aciona o desligamento do YouTube (decisão 2027-01-17). Laranja a 70 (70 % do limite), vermelho a 90.",
             "gridPos": {
                 "x": 0,
-                "y": 78,
+                "y": 93,
                 "w": 12,
                 "h": 7
             },
@@ -1628,7 +1677,7 @@
                 "showThresholdLabels": true,
                 "showThresholdMarkers": true
             },
-            "id": 36
+            "id": 38
         },
         {
             "type": "gauge",
@@ -1636,7 +1685,7 @@
             "description": "1.000 servidores ativos aciona o desligamento do YouTube (decisão 2027-01-17). Laranja a 700 (70 % do limite), vermelho a 900.",
             "gridPos": {
                 "x": 12,
-                "y": 78,
+                "y": 93,
                 "w": 12,
                 "h": 7
             },
@@ -1694,7 +1743,7 @@
                 "showThresholdLabels": true,
                 "showThresholdMarkers": true
             },
-            "id": 37
+            "id": 39
         }
     ]
 }

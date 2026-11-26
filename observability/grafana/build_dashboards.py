@@ -45,7 +45,10 @@ SENTRY_PROJECT_ID = "4509260792070144"  # Sentry project "lucky"
 # (scripts/music-first-gates.sql, decisions/2026-09-27-music-first-positioning.md).
 # No quotes in the value: Grafana's SQL datasources double single quotes when
 # interpolating a single-value variable, which broke ARRAY['...'] literals.
-EXCLUDED = "110373943822540800,333949691962195969,1541452011466268704,1208122433819906069"
+EXCLUDED = (
+    "110373943822540800,333949691962195969,1541452011466268704,1208122433819906069,"
+    "1091067952599674980,436677047159619594"
+)
 EXCL = (
     "(SELECT unnest(string_to_array('$excluidas', ',')) "
     "UNION SELECT \"discordId\" FROM guilds WHERE name ILIKE '%test%' "
@@ -456,6 +459,32 @@ def negocio():
         desc="Cada voto aceito no top.gg (#2395); votos repetidos em menos de 12 horas não contam. Normal: alguns por dia, "
              "mais no fim de semana. Preocupante: zero por vários dias quando antes havia votos (webhook do top.gg quebrado). "
              "O histórico começa no deploy desta tabela.")
+
+    b.row("Acompanhamento por servidor")
+    b.add("table", "Adoção por servidor (últimos 30 dias)", [sql(
+        "WITH p AS (SELECT \"guildId\" AS g, max(\"playedAt\") AS last_play, "
+        "count(*) FILTER (WHERE \"playedAt\" > now() - interval '7 days') AS p7, count(*) AS p30, "
+        "count(DISTINCT date_trunc('day', \"playedAt\")) AS dias FROM track_history GROUP BY 1) "
+        "SELECT g.name AS \"Servidor\", "
+        "CASE WHEN p.g IS NULL AND g.\"joinedAt\" > now() - interval '7 days' THEN '1 novo, ainda não tocou' "
+        "WHEN p.g IS NULL THEN '5 não tocou em 30 dias' "
+        "WHEN p.p7 > 0 AND p.dias >= 3 THEN '2 ativo' "
+        "WHEN p.p7 > 0 THEN '2 testando' "
+        "WHEN p.last_play > now() - interval '14 days' THEN '3 esfriando' "
+        "ELSE '4 parado' END AS \"Situação\", "
+        "g.\"joinedAt\" AS \"Entrou\", coalesce(s.source, 'sem origem') AS \"Origem\", "
+        "p.last_play AS \"Última música\", coalesce(p.p7, 0) AS \"Faixas 7d\", coalesce(p.p30, 0) AS \"Faixas 30d\", "
+        "coalesce(p.dias, 0) AS \"Dias com música\" "
+        "FROM guilds g LEFT JOIN p ON p.g = g.\"discordId\" "
+        "LEFT JOIN guild_join_sources s ON s.\"guildDiscordId\" = g.\"discordId\" "
+        f"WHERE g.\"leftAt\" IS NULL AND g.\"discordId\" NOT IN {EXCL} "
+        "ORDER BY 2, p.last_play DESC NULLS LAST, g.\"joinedAt\" DESC NULLS LAST")], w=24, h=14,
+        no_value="nenhum servidor",
+        desc="Um servidor por linha, só os que ainda têm o Lucky, sem os do operador. Situação: 'novo' entrou há menos de 7 dias e "
+             "ainda não tocou; 'testando' tocou nesta semana em menos de 3 dias diferentes; 'ativo' tocou nesta semana e em 3 dias ou mais "
+             "no mês; 'esfriando' tocou pela última vez entre 7 e 14 dias atrás; 'parado' entre 14 e 30 dias; 'não tocou em 30 dias' pode "
+             "ser um servidor que nunca usou ou que parou antes (track_history guarda só 30 dias). 'Esfriando' e 'novo' são os que valem "
+             "atenção primeiro. Não depende do período escolhido no painel.")
 
     b.row("Gatilhos YouTube-off")
     b.add("gauge", "WAG (7 dias) vs limite 100", [sql(WAG_7D)],
