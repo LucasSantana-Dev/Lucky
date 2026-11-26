@@ -106,6 +106,7 @@
             "enabled": "📅 The weekly recap will post in <#{{channel}}> every Sunday at 18:00 UTC.",
             "disabled": "🔕 Weekly recap turned off.",
             "offButton": "Turn off weekly recap",
+            "inviteButton": "Add Lucky to your server",
             "offHint": "Admins can turn this off with the button below or /recap off",
             "alreadyOff": "The weekly recap is already off.",
             "notTextChannel": "❌ Pick a text channel or a voice channel chat for the recap.",

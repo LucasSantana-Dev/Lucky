@@ -11,15 +11,21 @@ import { errorLog, infoLog } from '@lucky/shared/utils'
 import { translatorForInteraction } from '../../i18n/translatorForInteraction'
 import { disableRecap } from '../../services/recap/recapStore'
 import { buildRecapMixButton } from './recapMixButton'
+import { buildTrackedInviteUrl } from '../../utils/general/trackedInviteUrl'
 
 /** Custom id of the "Turn off weekly recap" button on every recap (#2738). */
 export const RECAP_OFF_BUTTON_ID = 'recap_off'
 
-/** Action row with "▶️ Play this week's mix" and "🔕 Turn off" buttons. */
+/**
+ * Action row with "▶️ Play this week's mix", "🔕 Turn off" and, when a backend
+ * is configured, an "Add Lucky to your server" link. The recap is the one
+ * message every member of an active server sees each week, so the link turns
+ * it into a referral surface; joins from it are recorded as source `recap`.
+ */
 export function buildRecapOffRow(
     t: TFunction,
 ): ActionRowBuilder<ButtonBuilder> {
-    return new ActionRowBuilder<ButtonBuilder>().addComponents(
+    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         buildRecapMixButton(t),
         new ButtonBuilder()
             .setCustomId(RECAP_OFF_BUTTON_ID)
@@ -27,6 +33,17 @@ export function buildRecapOffRow(
             .setEmoji('🔕')
             .setStyle(ButtonStyle.Secondary),
     )
+    const inviteUrl = buildTrackedInviteUrl('recap', 'card')
+    if (inviteUrl) {
+        row.addComponents(
+            new ButtonBuilder()
+                .setURL(inviteUrl)
+                .setLabel(t('music.recap.inviteButton'))
+                .setEmoji('➕')
+                .setStyle(ButtonStyle.Link),
+        )
+    }
+    return row
 }
 
 /**
