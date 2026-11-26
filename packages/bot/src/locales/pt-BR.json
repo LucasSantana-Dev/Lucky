@@ -95,7 +95,10 @@
             "more_one": "…e mais {{count}} música",
             "more_other": "…e mais {{count}} músicas",
             "footer_one": "{{count}} música na fila • Duração total {{duration}}",
-            "footer_other": "{{count}} músicas na fila • Duração total {{duration}}"
+            "footer_other": "{{count}} músicas na fila • Duração total {{duration}}",
+            "dupesRemoved_one": "🧹 {{count}} música repetida saiu da fila.",
+            "dupesRemoved_other": "🧹 {{count}} músicas repetidas saíram da fila.",
+            "noDupes": "A fila não tem músicas repetidas."
         },
         "recap": {
             "title": "A semana musical do seu servidor",
@@ -176,7 +179,11 @@
             "statusRestarting": "⏮️ Reiniciando a faixa",
             "statusReplayed": "🔄 Reproduzida de novo",
             "statusSeeked": "⏩ Avançou para {{time}}",
-            "statusJumped": "🎯 Tocando agora (posição {{position}})"
+            "statusJumped": "🎯 Tocando agora (posição {{position}})",
+            "statusForwarded": "⏩ Avançou para {{time}}",
+            "statusRewound": "⏪ Voltou para {{time}}",
+            "forwardPastEnd": "Isso passa do fim da música. Use `/skip` pra ir pra próxima.",
+            "seekUnsupported": "Não dá pra avançar ou voltar nesta faixa."
         },
         "adminPrompt": {
             "title": "Uma pergunta pra quem administra",

@@ -95,7 +95,10 @@
             "more_one": "…y {{count}} canción más",
             "more_other": "…y {{count}} canciones más",
             "footer_one": "{{count}} canción en cola • Duración total {{duration}}",
-            "footer_other": "{{count}} canciones en cola • Duración total {{duration}}"
+            "footer_other": "{{count}} canciones en cola • Duración total {{duration}}",
+            "dupesRemoved_one": "🧹 {{count}} canción repetida salió de la cola.",
+            "dupesRemoved_other": "🧹 {{count}} canciones repetidas salieron de la cola.",
+            "noDupes": "La cola no tiene canciones repetidas."
         },
         "recap": {
             "title": "La semana musical de tu servidor",
@@ -176,7 +179,11 @@
             "statusRestarting": "⏮️ Reiniciando la pista",
             "statusReplayed": "🔄 Repetida",
             "statusSeeked": "⏩ Saltó a {{time}}",
-            "statusJumped": "🎯 Reproduciendo (posición {{position}})"
+            "statusJumped": "🎯 Reproduciendo (posición {{position}})",
+            "statusForwarded": "⏩ Avanzó a {{time}}",
+            "statusRewound": "⏪ Volvió a {{time}}",
+            "forwardPastEnd": "Eso pasa del final de la canción. Usa `/skip` para seguir.",
+            "seekUnsupported": "No se puede avanzar ni volver en esta pista."
         },
         "adminPrompt": {
             "title": "Una pregunta para quien administra",
