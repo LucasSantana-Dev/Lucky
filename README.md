@@ -6,8 +6,8 @@
 </p>
 
 <p align="center">
-  <b>Lucky keeps the call playing and, from your first song, posts a weekly recap of what you listened to every Sunday (an admin can turn it off).</b><br>
-  <strong>Free · Open source · English and Português · No paywall, no premium tier</strong>
+  <b>Free Discord music bot. Play from a song name or a Spotify link, let autoplay keep the call going, and get a recap of what your server listened to every Sunday.</b><br>
+  <strong>Audio effects, uninterrupted autoplay, 24/7 mode and lyrics included · English, Português and Español · No paywall, no premium tier</strong>
 </p>
 
 <p align="center">
