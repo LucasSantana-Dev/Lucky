@@ -459,6 +459,7 @@ describe('collectBroadFallbackCandidates', () => {
 
     it('makes no Spotify search while Spotify is blocked (#2972)', async () => {
         claimSpotifySearchMock.mockReturnValue(false)
+        searchLastFmQueryMock.mockResolvedValue([])
         const searchMock = jest.fn().mockResolvedValue({ tracks: [] })
         const queue = asFixture<GuildQueue>({ player: { search: searchMock } })
         const currentTrack = asFixture<AutoplayContext['currentTrack']>({
@@ -472,6 +473,50 @@ describe('collectBroadFallbackCandidates', () => {
         await collectBroadFallbackCandidates(ctx, new Map())
 
         expect(searchMock).not.toHaveBeenCalled()
+        expect(recordSpotifySearchResultMock).not.toHaveBeenCalled()
+    })
+
+    it('searches the artist on the other engines while Spotify is blocked', async () => {
+        claimSpotifySearchMock.mockReturnValue(false)
+        const searchMock = jest.fn()
+        const queue = asFixture<GuildQueue>({ player: { search: searchMock } })
+        const currentTrack = asFixture<AutoplayContext['currentTrack']>({
+            author: 'Artist',
+            title: 'Song',
+            url: 'u1',
+            durationMS: 200_000,
+        })
+        const budget = { remaining: 5 }
+        searchLastFmQueryMock.mockResolvedValue([
+            { title: 'Other Song', author: 'Artist', url: 'u2', durationMS: 1 },
+            {
+                title: 'Cover',
+                author: 'Someone Else',
+                url: 'u3',
+                durationMS: 1,
+            },
+        ])
+        const ctx = createAutoplayContext({
+            queue,
+            currentTrack,
+            spotifySearchBudget: budget,
+        })
+
+        await collectBroadFallbackCandidates(ctx, new Map())
+
+        expect(searchMock).not.toHaveBeenCalled()
+        // One search only: the other engines are slower than Spotify.
+        expect(searchLastFmQueryMock).toHaveBeenCalledTimes(1)
+        expect(searchLastFmQueryMock).toHaveBeenCalledWith(
+            queue,
+            'Artist',
+            null,
+            budget,
+        )
+        expect(upsertScoredCandidateMock).toHaveBeenCalledTimes(1)
+        expect(upsertScoredCandidateMock.mock.calls[0]?.[1]).toMatchObject({
+            url: 'u2',
+        })
         expect(recordSpotifySearchResultMock).not.toHaveBeenCalled()
     })
 
@@ -490,6 +535,7 @@ describe('collectBroadFallbackCandidates', () => {
             durationMS: 200_000,
         })
         const budget = { remaining: 0 }
+        searchLastFmQueryMock.mockResolvedValue([])
         const ctx = createAutoplayContext({
             queue,
             currentTrack,
