@@ -110,6 +110,7 @@ import {
     createOnboardingStationRow,
     handleOnboardingStationButton,
     ONBOARDING_STATION_BUTTON_PREFIX,
+    pickStationSeed,
 } from './onboardingStation'
 
 type MockVoiceChannel = {
@@ -138,7 +139,12 @@ function createInteraction(
         channelId: 'channel-1',
         user: { id: 'user-1' },
         member: { voice: { channel: createVoiceChannel(true) } },
-        client: { player: { play: playMock } },
+        client: {
+            player: {
+                play: playMock,
+                search: jest.fn().mockResolvedValue({ tracks: [] }),
+            },
+        },
         deferred: false,
         replied: false,
         deferReply: jest.fn().mockResolvedValue(undefined),
@@ -440,5 +446,69 @@ describe('handleOnboardingStationButton', () => {
                 }),
             }),
         )
+    })
+})
+
+describe('pickStationSeed', () => {
+    const track = (title: string, durationMS: number) =>
+        ({ title, durationMS }) as never
+
+    it('skips hour-long compilations and picks the first song-length track', () => {
+        const picked = pickStationSeed([
+            track('Top 100 Hits Mashup', 3_600_000),
+            track('Short intro', 30_000),
+            track('A real song', 200_000),
+            track('Another song', 180_000),
+        ])
+        expect(picked).toEqual(
+            expect.objectContaining({ title: 'A real song' }),
+        )
+    })
+
+    it('returns null when nothing looks like a song', () => {
+        expect(pickStationSeed([track('Mix', 3_600_000)])).toBeNull()
+        expect(pickStationSeed([])).toBeNull()
+    })
+})
+
+describe('station seed', () => {
+    beforeEach(() => {
+        jest.clearAllMocks()
+        translatorForInteractionMock.mockResolvedValue((key: string) => key)
+        runPostPlayBackgroundOpsMock.mockResolvedValue(undefined)
+        resolveGuildQueueMock.mockReturnValue({ queue: null })
+    })
+
+    it('plays the song-length seed instead of the raw query', async () => {
+        const song = { title: 'A real song', durationMS: 200_000 }
+        const interaction = createInteraction({ guildId: 'guild-seed-1' })
+        const player = (
+            interaction.client as {
+                player: { play: jest.Mock; search: jest.Mock }
+            }
+        ).player
+        player.search.mockResolvedValue({
+            tracks: [{ title: 'Mashup', durationMS: 3_600_000 }, song],
+        })
+
+        await handleOnboardingStationButton(interaction as never)
+
+        expect(player.play).toHaveBeenCalledTimes(1)
+        expect(player.play.mock.calls[0][1]).toBe(song)
+    })
+
+    it('falls back to the query when the seed search throws', async () => {
+        const interaction = createInteraction({ guildId: 'guild-seed-2' })
+        const player = (
+            interaction.client as {
+                player: { play: jest.Mock; search: jest.Mock }
+            }
+        ).player
+        player.search.mockRejectedValue(new Error('soundcloud down'))
+
+        await handleOnboardingStationButton(interaction as never)
+
+        expect(player.play).toHaveBeenCalledTimes(1)
+        expect(typeof player.play.mock.calls[0][1]).toBe('string')
     })
 })
