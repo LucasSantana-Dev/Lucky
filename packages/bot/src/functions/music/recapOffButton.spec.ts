@@ -16,6 +16,9 @@ jest.mock('@lucky/shared/utils', () => ({
 jest.mock('../../i18n/translatorForInteraction', () => ({
     translatorForInteraction: async () => (key: string) => key,
 }))
+jest.mock('../../services/feedbackService', () => ({
+    buildFeedbackReportCustomId: (name: string) => `feedback_report:${name}:`,
+}))
 jest.mock('@lucky/shared/services', () => ({ getWeeklyRecap: jest.fn() }))
 jest.mock('@lucky/shared/config', () => ({
     ENVIRONMENT_CONFIG: { PLAYER: { CONNECTION_TIMEOUT: 5000 } },
@@ -63,15 +66,22 @@ describe('recap off button (#2738)', () => {
         disableRecapMock.mockResolvedValue(true)
     })
 
-    it('builds a row with mix and off buttons in order', () => {
+    it('builds a row with mix, off and feedback buttons in order', () => {
         const t = ((key: string) => key) as unknown as TFunction
         const saved = process.env.WEBAPP_BACKEND_URL
         delete process.env.WEBAPP_BACKEND_URL
         const components = buildRecapOffRow(t).toJSON().components
         if (saved === undefined) delete process.env.WEBAPP_BACKEND_URL
         else process.env.WEBAPP_BACKEND_URL = saved
-        expect(components).toHaveLength(3)
+        expect(components).toHaveLength(4)
         expect(components[2]).toEqual(
+            expect.objectContaining({
+                custom_id: 'feedback_report:recap:',
+                label: 'music.recap.feedbackButton',
+                style: ButtonStyle.Secondary,
+            }),
+        )
+        expect(components[3]).toEqual(
             expect.objectContaining({
                 style: ButtonStyle.Link,
                 label: 'general.links.vote',
@@ -101,11 +111,11 @@ describe('recap off button (#2738)', () => {
         const components = buildRecapOffRow(t).toJSON().components
         if (saved === undefined) delete process.env.WEBAPP_BACKEND_URL
         else process.env.WEBAPP_BACKEND_URL = saved
-        expect(components).toHaveLength(4)
-        expect(components[3]).toEqual(
+        expect(components).toHaveLength(5)
+        expect(components[4]).toEqual(
             expect.objectContaining({ label: 'general.links.vote' }),
         )
-        expect(components[2]).toEqual(
+        expect(components[3]).toEqual(
             expect.objectContaining({
                 style: ButtonStyle.Link,
                 label: 'music.recap.inviteButton',
