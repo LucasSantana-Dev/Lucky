@@ -132,6 +132,22 @@
             "needManageGuild": "Você precisa da permissão **Gerenciar servidor** para mudar o modo 24/7.",
             "failed": "❌ Não consegui atualizar o modo 24/7. Tente de novo em instantes."
         },
+        "liked": {
+            "saved": "❤️ **{{title}}** foi salva nas suas curtidas. `/liked play` toca elas em qualquer servidor.",
+            "already": "**{{title}}** já está nas suas curtidas.",
+            "full": "Suas curtidas estão cheias ({{max}}). Remova uma com `/liked remove` antes.",
+            "failed": "❌ Não consegui salvar essa música. Tente de novo daqui a pouco.",
+            "nothingPlaying": "Não tem nada tocando pra curtir. Comece uma música com `/play`.",
+            "empty": "Você ainda não curtiu nenhuma música. Use `/like` enquanto uma estiver tocando.",
+            "listTitle": "❤️ Suas curtidas ({{count}})",
+            "listMore": "e mais {{count}}",
+            "removed": "**{{title}}** saiu das suas curtidas.",
+            "notFound": "Essa música não está nas suas curtidas.",
+            "queued": "❤️ {{count}} das suas curtidas entraram na fila.",
+            "queuedSkipped": "{{count}} não foram encontradas agora.",
+            "noneQueued": "Não encontrei nenhuma das suas curtidas agora. Tente de novo daqui a pouco.",
+            "connectFailed": "❌ Não consegui entrar no seu canal de voz."
+        },
         "thumbs": {
             "liked": "👍 **{{title}}** foi para as suas curtidas. O autoplay puxa músicas assim nas que você coloca.",
             "disliked": "👎 Anotado. O autoplay evita músicas como **{{title}}** nas que você coloca.",

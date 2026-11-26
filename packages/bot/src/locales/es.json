@@ -132,6 +132,22 @@
             "needManageGuild": "Necesitas el permiso **Gestionar servidor** para cambiar el modo 24/7.",
             "failed": "❌ No pude actualizar el modo 24/7. Inténtalo de nuevo en un momento."
         },
+        "liked": {
+            "saved": "❤️ **{{title}}** se guardó en tus me gusta. `/liked play` las reproduce en cualquier servidor.",
+            "already": "**{{title}}** ya está en tus me gusta.",
+            "full": "Tus me gusta están llenos ({{max}}). Quita una con `/liked remove` primero.",
+            "failed": "❌ No pude guardar esa canción. Inténtalo de nuevo en un momento.",
+            "nothingPlaying": "No hay nada sonando para guardar. Empieza una canción con `/play`.",
+            "empty": "Todavía no guardaste ninguna canción. Usa `/like` mientras suena una.",
+            "listTitle": "❤️ Tus me gusta ({{count}})",
+            "listMore": "y {{count}} más",
+            "removed": "**{{title}}** salió de tus me gusta.",
+            "notFound": "Esa canción no está en tus me gusta.",
+            "queued": "❤️ {{count}} de tus me gusta entraron en la cola.",
+            "queuedSkipped": "{{count}} no se encontraron ahora.",
+            "noneQueued": "No encontré ninguna de tus me gusta ahora. Inténtalo de nuevo en un momento.",
+            "connectFailed": "❌ No pude entrar a tu canal de voz."
+        },
         "thumbs": {
             "liked": "👍 **{{title}}** se añadió a tus me gusta. El autoplay busca canciones así cuando tú pides música.",
             "disliked": "👎 Anotado. El autoplay evita canciones como **{{title}}** cuando tú pides música.",
