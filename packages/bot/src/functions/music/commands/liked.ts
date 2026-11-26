@@ -77,7 +77,7 @@ async function removeOne({ interaction, t }: Params): Promise<void> {
         interaction,
         content: {
             content: removed
-                ? t('music.liked.removed', { title: removed.title })
+                ? t('music.liked.removed', { title: plain(removed.title) })
                 : t('music.liked.notFound'),
             ephemeral: true,
         },

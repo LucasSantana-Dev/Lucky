@@ -172,6 +172,16 @@ describe('/liked', () => {
             expect(replied().ephemeral).toBe(true)
         })
 
+        it('shows the removed title as plain text', async () => {
+            unlikeTrackMock.mockResolvedValue({ title: '*Live* [1]' })
+
+            await run('remove', 'liked-9').done
+
+            expect(replied().content).toBe(
+                'Removed **\\*Live\\* \\[1\\]** from your liked songs.',
+            )
+        })
+
         it('says so when the song is not in the list', async () => {
             unlikeTrackMock.mockResolvedValue(null)
 
