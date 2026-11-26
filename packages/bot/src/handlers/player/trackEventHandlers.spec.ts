@@ -1371,6 +1371,44 @@ describe('track history when a queue is deleted mid-play', () => {
         expect(sessionEnd()).toMatchObject({ skipsBeforeEnd: 0 })
     })
 
+    it('does not count a skip after most of the track was heard', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const early = { ...createTrack('late-0'), durationMS: 200_000 }
+        const late = { ...createTrack('late-1'), durationMS: 200_000 }
+
+        await handlers.playerStart(queue, asTrack(early))
+        jest.advanceTimersByTime(5_000)
+        await handlers.playerSkip(queue, asTrack(early))
+        await handlers.playerStart(queue, asTrack(late))
+        jest.advanceTimersByTime(150_000)
+        await handlers.playerSkip(queue, asTrack(late))
+        await handlers.queueDelete(queue)
+
+        expect(sessionEnd()).toMatchObject({ skipsBeforeEnd: 0 })
+    })
+
+    it('counts the last skip even when the session ends before its writes finish', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const skipped = { ...createTrack('race-0'), durationMS: 200_000 }
+        let release: () => void = () => {}
+        addTrackToHistoryMock.mockReturnValueOnce(
+            new Promise<void>((resolve) => {
+                release = resolve
+            }),
+        )
+
+        await handlers.playerStart(queue, asTrack(skipped))
+        jest.advanceTimersByTime(5_000)
+        const skipping = handlers.playerSkip(queue, asTrack(skipped))
+        await handlers.queueDelete(queue)
+        release()
+        await skipping
+
+        expect(sessionEnd()).toMatchObject({ skipsBeforeEnd: 1 })
+    })
+
     it('starts the next session with no skip streak', async () => {
         const handlers = setupHandlers()
         const queue = makeQueue()

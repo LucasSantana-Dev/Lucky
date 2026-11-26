@@ -358,19 +358,24 @@ async function scrobbleAndRecord(
 }
 
 /**
- * A skip can arrive as a finish (discord-player v7 routes some manual skips
- * through playerFinish); one the skip handler already recorded is not counted
- * twice.
+ * Feeds the session's skip streak from a finish or a skip. Called before the
+ * handler's first await, so a queue deletion that follows reads a streak that
+ * already counts this track, and a slow write cannot let an older finish
+ * clear a newer skip. The ratio uses the seconds actually played (pauses
+ * excluded): a track heard past the accept ratio resets the streak on either
+ * path, since a late skip is not a rejection. A track whose stream never
+ * started has no played time and is ignored.
  */
-function noteFinishForSkipStreak(
+function noteEndForSkipStreak(
     guildId: string,
-    track: Track,
-    completionRatio: number,
-    recordedOnSkip: boolean,
+    track: Track | undefined,
+    played: number | undefined,
+    alreadyCounted = false,
 ): void {
-    if (recordedOnSkip) return
+    // A skip the skip handler already counted is not counted twice.
+    if (alreadyCounted || !track?.durationMS || played === undefined) return
     noteTrackEnd(guildId, {
-        skipped: completionRatio < OUTCOME_ACCEPT_PLAY_RATIO,
+        skipped: (played * 1000) / track.durationMS < OUTCOME_ACCEPT_PLAY_RATIO,
         autoplay: isRecommendationAutoplay(track),
     })
 }
@@ -385,6 +390,7 @@ const handlePlayerFinish = async (
         const startTime = track ? takeTrackPlayStart(track) : undefined
         const played = playedSeconds(startTime, queue.guild.id)
         const recordedOnSkip = track ? recordedBySkip.delete(track) : false
+        noteEndForSkipStreak(queue.guild.id, track, played, recordedOnSkip)
 
         // A finish for a track with no play-start entry is not a play: its
         // stream never started (discord-player's #throw emits playerFinish
@@ -409,12 +415,6 @@ const handlePlayerFinish = async (
             if (startTime && track.durationMS) {
                 const completionRatio =
                     (Date.now() - startTime) / track.durationMS
-                noteFinishForSkipStreak(
-                    queue.guild.id,
-                    track,
-                    completionRatio,
-                    recordedOnSkip,
-                )
                 if (completionRatio > 0.8) {
                     await recordImplicitTrackFeedback(track, 'implicit_like')
                     guildRecentSkipCounts.delete(queue.guild.id)
@@ -536,6 +536,9 @@ const handlePlayerSkip = async (
         // handlePlayerFinish.
         const startTime = track ? takeTrackPlayStart(track) : undefined
         const played = playedSeconds(startTime, queue.guild.id)
+        if (reason !== 'ERR_NO_STREAM') {
+            noteEndForSkipStreak(queue.guild.id, track, played)
+        }
 
         infoLog({
             message: 'Track skipped',
@@ -557,10 +560,6 @@ const handlePlayerSkip = async (
         // record or scrobble, and no playerFinish follows.
         if (reason !== 'ERR_NO_STREAM') {
             if (track) {
-                noteTrackEnd(queue.guild.id, {
-                    skipped: true,
-                    autoplay: isRecommendationAutoplay(track),
-                })
                 recordedBySkip.add(track)
                 await addTrackToHistory(track, queue.guild.id, {
                     skipped: true,
