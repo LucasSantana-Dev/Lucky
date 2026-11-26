@@ -17,8 +17,8 @@
 --             weeks count plays only.
 --   excluded  the operator's guilds, test-named guilds and listing servers, as
 --             the ADR requires. Test-named guilds match by name; the rest are
---             the ids in :excluded_ids below. Palacio do Lolo (436677047159619594)
---             is counted until the owner confirms whether it is the operator's.
+--             the ids in :excluded_ids below. Job and Palácio do Loló are the
+--             operator's (confirmed 2026-11-26) and made about 90% of all plays.
 --             Criativaria is a regular guild since 2026-10-07.
 --   joins     counted joins (ADR amendment 5, decisions/2026-10-18-music-first-
 --             business-review-amendments.md): a JOIN counts unless the same guild
@@ -58,11 +58,13 @@
 -- where that happened; they stay in the denominator as misses, so
 -- heard_1h_pct is a floor. With the 28-day cohort it stays 0.
 
-\set excluded_ids '{110373943822540800,333949691962195969,1541452011466268704,1208122433819906069}'
+\set excluded_ids '{110373943822540800,333949691962195969,1541452011466268704,1208122433819906069,1091067952599674980,436677047159619594}'
 -- 110373943822540800  Discord Bots (listing server)
 -- 333949691962195969  Top.gg Verification Center (listing review)
 -- 1541452011466268704 Lucky's Support Server (operator)
 -- 1208122433819906069 Anotações (operator test guild, used to verify attribution 2026-11-13)
+-- 1091067952599674980 Job (operator, confirmed by the owner 2026-11-26)
+-- 436677047159619594  Palácio do Loló (operator, confirmed by the owner 2026-11-26)
 
 -- REPEATABLE READ: every statement reads the same snapshot.
 BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY;
