@@ -28,6 +28,7 @@ const debugLogMock = jest.fn()
 const telemetryLogMock = jest.fn()
 const captureExceptionMock = jest.fn()
 const namedSessionListMock = jest.fn()
+const findLikedTracksMock = jest.fn()
 const searchSpotifyAlbumsMock = jest.fn()
 const suggestTracksMock = jest.fn()
 jest.mock('./trackSuggestions', () => ({
@@ -143,6 +144,10 @@ jest.mock('../i18n/translatorForInteraction', () => ({
     ) => translatorForInteractionMock(...args),
 }))
 
+jest.mock('../services/likedTracks', () => ({
+    findLikedTracks: (...args: unknown[]) => findLikedTracksMock(...args),
+}))
+
 jest.mock('../services/musicManagement/namedSessions', () => ({
     namedSessionService: {
         list: (...args: unknown[]) => namedSessionListMock(...args),
@@ -248,6 +253,7 @@ function createAutocompleteInteraction(
     return {
         isAutocomplete: () => true,
         isChatInputCommand: () => false,
+        user: { id: 'user-1' },
         guildId: options.guildId === undefined ? 'guild-1' : options.guildId,
         commandName: options.commandName ?? 'session',
         options: {
@@ -596,6 +602,31 @@ describe('eventHandler', () => {
             expect(respondMock).toHaveBeenCalledWith([
                 { name: 'chill-vibes', value: 'chill-vibes' },
                 { name: 'workout-mix', value: 'workout-mix' },
+            ])
+        })
+
+        it("offers the member's own liked songs for /liked remove", async () => {
+            findLikedTracksMock.mockResolvedValue([
+                { id: 'liked-1', title: 'Creep', author: 'Radiohead' },
+            ])
+            const respondMock = jest.fn()
+            const interaction = createAutocompleteInteraction({
+                commandName: 'liked',
+                subcommand: 'remove',
+                focusedName: 'song',
+                focusedValue: 'cre',
+                respondMock,
+            })
+
+            await dispatchAutocomplete(interaction)
+
+            expect(findLikedTracksMock).toHaveBeenCalledWith(
+                'user-1',
+                'cre',
+                25,
+            )
+            expect(respondMock).toHaveBeenCalledWith([
+                { name: 'Creep, Radiohead', value: 'liked-1' },
             ])
         })
 

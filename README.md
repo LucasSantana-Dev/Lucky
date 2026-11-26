@@ -207,6 +207,8 @@ SENTRY_DSN=...
 | `/autoplay` | Toggle smart recommendations |
 | `/songinfo` | Details on current track |
 | `/history` | Your recently played tracks |
+| `/like` | Save the playing song to your liked songs |
+| `/liked play` / `list` / `remove` | Play, see or edit your liked songs, in any server |
 | `/session` | Save/load playback sessions |
 | `/recap channel` / `/recap off` | Enable or disable the Sunday recap post (requires Manage Guild) |
 

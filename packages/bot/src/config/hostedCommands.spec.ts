@@ -50,6 +50,7 @@ describe('hostedCommands', () => {
             expect(HOSTED_COMMAND_NAMES).toEqual(
                 new Set([
                     'play',
+                    'search',
                     'pause',
                     'skip',
                     'stop',
@@ -61,6 +62,9 @@ describe('hostedCommands', () => {
                     'volume',
                     'autoplay',
                     'lyrics',
+                    'effects',
+                    'like',
+                    'liked',
                     'recap',
                     '247',
                     'spotify',

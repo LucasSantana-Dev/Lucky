@@ -136,6 +136,25 @@
             "needManageGuild": "You need the **Manage Server** permission to change 24/7 mode.",
             "failed": "❌ Couldn't update 24/7 mode. Try again in a moment."
         },
+        "liked": {
+            "saved": "❤️ Saved **{{title}}** to your liked songs. `/liked play` brings them back in any server.",
+            "already": "**{{title}}** is already in your liked songs.",
+            "full": "Your liked songs are full ({{max}}). Remove one with `/liked remove` first.",
+            "failed": "❌ Couldn't save that song. Try again in a moment.",
+            "nothingPlaying": "Nothing is playing to like. Start a song with `/play` first.",
+            "empty": "You haven't liked a song yet. Use `/like` while one is playing.",
+            "listTitle": "❤️ Your liked songs ({{count}})",
+            "listMore": "and {{count}} more",
+            "removed": "Removed **{{title}}** from your liked songs.",
+            "notFound": "That song isn't in your liked songs.",
+            "queued_one": "❤️ Added {{count}} of your liked songs to the queue.",
+            "queued_other": "❤️ Added {{count}} of your liked songs to the queue.",
+            "queuedSkipped_one": "{{count}} could not be found right now.",
+            "queuedSkipped_other": "{{count}} could not be found right now.",
+            "noneQueued": "Couldn't find any of your liked songs right now. Try again in a moment.",
+            "connectFailed": "❌ Couldn't connect to your voice channel.",
+            "unavailable": "❌ Couldn't read your liked songs. Try again in a moment."
+        },
         "thumbs": {
             "liked": "👍 Added **{{title}}** to your likes. Autoplay leans toward them on the songs you queue.",
             "disliked": "👎 Noted. Autoplay steers away from **{{title}}** on the songs you queue.",

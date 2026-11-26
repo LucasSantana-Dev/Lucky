@@ -60,6 +60,7 @@ import {
 import { syncAllGuildFollowerRoles } from '../twitch/followerRoleSync'
 import { aiDevToolkitService } from '../services/AiDevToolkitService'
 import { namedSessionService } from '../services/musicManagement/namedSessions'
+import { findLikedTracks } from '../services/likedTracks'
 import { cleanupGuildState } from './player/nowPlayingDisplay'
 import { clearAutoplayGuildState } from '../services/musicRecommendation/autoplay/replenisher'
 import {
@@ -333,6 +334,25 @@ async function handleAutocomplete(interaction: Interaction): Promise<void> {
                 .slice(0, 25)
 
             await interaction.respond(choices)
+            return
+        }
+
+        if (
+            command === 'liked' &&
+            subcommand === 'remove' &&
+            focusedOption.name === 'song'
+        ) {
+            const liked = await findLikedTracks(
+                interaction.user.id,
+                focusedOption.value,
+                25,
+            )
+            await interaction.respond(
+                liked.map((track) => ({
+                    name: `${track.title}, ${track.author}`.slice(0, 100),
+                    value: track.id,
+                })),
+            )
             return
         }
 

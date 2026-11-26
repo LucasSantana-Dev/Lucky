@@ -577,6 +577,26 @@ model UserTrackFeedback {
   @@map("user_track_feedbacks")
 }
 
+// Liked songs (/like, /liked): a member's own list, kept until they remove a
+// song and the same in every guild. Separate from UserTrackFeedback, which is
+// a per-guild autoplay signal that expires after 30 days. No relation to User:
+// those rows only exist for dashboard logins.
+model LikedTrack {
+  id            String   @id @default(cuid())
+  discordUserId String
+  trackKey      String // normalizeTrackKey(title, author)
+  title         String
+  author        String
+  url           String
+  duration      String
+  source        String
+  likedAt       DateTime @default(now())
+
+  @@unique([discordUserId, trackKey])
+  @@index([discordUserId, likedAt])
+  @@map("liked_tracks")
+}
+
 // Music Recommendations
 //
 // Closed-loop telemetry for the autoplay engine: each track the engine picks is
