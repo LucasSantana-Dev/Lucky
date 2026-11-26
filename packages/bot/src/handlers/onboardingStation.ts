@@ -6,7 +6,7 @@ import {
     type ButtonInteraction,
     type GuildMember,
 } from 'discord.js'
-import { QueryType } from 'discord-player'
+import { QueryType, type Track } from 'discord-player'
 import { ENVIRONMENT_CONFIG } from '@lucky/shared/config'
 import { recordActivationEvent } from '@lucky/shared/services'
 import { infoLog, warnLog } from '@lucky/shared/utils'
@@ -65,6 +65,27 @@ const STATION_GENRES: readonly StationGenre[] = [
     { id: 'brMix', query: 'as mais tocadas no brasil hits mix', emoji: '🇧🇷' },
     { id: 'play', query: 'popular music hits mix', emoji: '▶️' },
 ]
+
+// Most station queries end in "mix", and SoundCloud's top hit for those is
+// often an hour-long DJ compilation. Prod 2026-11-22: a new guild's first
+// track was a 2021 "Top 100" mashup, paused after 18 s and the bot was
+// removed 13 s later. Seed with a normal-length song instead and let autoplay
+// take it from there.
+const SEED_MIN_MS = 60_000
+const SEED_MAX_MS = 8 * 60_000
+// A stalled search must not outlive the 30 s station lock.
+const SEED_SEARCH_TIMEOUT_MS = 5_000
+
+/** First result that looks like a single song, or null to keep the query. */
+export function pickStationSeed(tracks: readonly Track[]): Track | null {
+    return (
+        tracks.find(
+            (track) =>
+                track.durationMS >= SEED_MIN_MS &&
+                track.durationMS <= SEED_MAX_MS,
+        ) ?? null
+    )
+}
 
 type GuildLike = {
     id: string
@@ -232,19 +253,25 @@ export async function handleOnboardingStationButton(
         const hadQueueBeforePlay = Boolean(
             resolveGuildQueue(client, guildId).queue,
         )
-        const result = await client.player.play(voiceChannel, genre.query, {
-            searchEngine: QueryType.SOUNDCLOUD_SEARCH,
-            blockExtractors: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
-            requestedBy: interaction.user,
-            nodeOptions: {
-                metadata: {
-                    channel: interaction.channel,
-                    requestedBy: interaction.user,
+        const seed = await findStationSeed(client, genre.query, interaction)
+        const result = await client.player.play(
+            voiceChannel,
+            seed ?? genre.query,
+            {
+                searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                blockExtractors: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
+                requestedBy: interaction.user,
+                nodeOptions: {
+                    metadata: {
+                        channel: interaction.channel,
+                        requestedBy: interaction.user,
+                    },
+                    connectionTimeout:
+                        ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
+                    ...QUEUE_LEAVE_OPTIONS,
                 },
-                connectionTimeout: ENVIRONMENT_CONFIG.PLAYER.CONNECTION_TIMEOUT,
-                ...QUEUE_LEAVE_OPTIONS,
             },
-        })
+        )
 
         // Without this, the seed track plays once and stops: trackEventHandlers
         // only replenishes the queue in QueueRepeatMode.AUTOPLAY, and a fresh
@@ -320,5 +347,35 @@ export async function handleOnboardingStationButton(
         })
     } finally {
         releaseStart()
+    }
+}
+
+async function findStationSeed(
+    client: CustomClient,
+    query: string,
+    interaction: ButtonInteraction,
+): Promise<Track | null> {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+        const timeout = new Promise<null>((resolve) => {
+            timer = setTimeout(() => resolve(null), SEED_SEARCH_TIMEOUT_MS)
+        })
+        const result = await Promise.race([
+            client.player.search(query, {
+                searchEngine: QueryType.SOUNDCLOUD_SEARCH,
+                blockExtractors: SOUNDCLOUD_FALLBACK_BLOCKED_EXTRACTORS,
+                requestedBy: interaction.user,
+            }),
+            timeout,
+        ])
+        return result ? pickStationSeed(result.tracks) : null
+    } catch (error) {
+        warnLog({
+            message: 'Onboarding station seed search failed, using the query',
+            error,
+        })
+        return null
+    } finally {
+        clearTimeout(timer)
     }
 }
