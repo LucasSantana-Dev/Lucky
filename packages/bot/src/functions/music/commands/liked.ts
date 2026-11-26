@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import { MessageFlags } from 'discord.js'
+import { escapeMarkdown, MessageFlags } from 'discord.js'
 import type { TFunction } from 'i18next'
 import Command from '../../../models/Command'
 import type { CommandExecuteParams } from '../../../types/CommandData'
@@ -8,12 +8,14 @@ import { createInfoEmbed } from '../../../utils/general/embeds'
 import {
     requireDJRoleInGuild,
     requireGuild,
+    requireSameVoiceChannel,
     requireVoiceChannel,
 } from '../../../utils/command/commandValidations'
 import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
 import { createQueue, queueConnect } from '../../../handlers/queueHandler'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import {
+    LIKED_TRACKS_MAX,
     listLikedTracks,
     queueLikedTracks,
     unlikeTrack,
@@ -23,21 +25,27 @@ const LIST_SHOWN = 15
 
 type Params = CommandExecuteParams & { t: TFunction }
 
+/** Provider text, safe inside a Markdown line and a link label. */
+function plain(text: string): string {
+    return escapeMarkdown(text).replace(/[[\]]/g, '\\$&')
+}
+
 async function showList({ interaction, t }: Params): Promise<void> {
-    const { tracks, total } = await listLikedTracks(
-        interaction.user.id,
-        LIST_SHOWN,
-    )
+    const reply = (content: string) =>
+        interactionReply({ interaction, content: { content, ephemeral: true } })
+    const library = await listLikedTracks(interaction.user.id, LIST_SHOWN)
+    if (!library) {
+        await reply(t('music.liked.unavailable'))
+        return
+    }
+    const { tracks, total } = library
     if (total === 0) {
-        await interactionReply({
-            interaction,
-            content: { content: t('music.liked.empty'), ephemeral: true },
-        })
+        await reply(t('music.liked.empty'))
         return
     }
     const lines = tracks.map(
         (track, index) =>
-            `${index + 1}. [${track.title}](${track.url}), ${track.author}`,
+            `${index + 1}. [${plain(track.title)}](${track.url}), ${plain(track.author)}`,
     )
     if (total > tracks.length) {
         lines.push(t('music.liked.listMore', { count: total - tracks.length }))
@@ -77,8 +85,19 @@ async function playLiked({ client, interaction, t }: Params): Promise<void> {
     const reply = (content: string) =>
         interactionReply({ interaction, content: { content } })
 
-    let queue = resolveGuildQueue(client, guildId).queue
-    queue ??= await createQueue({ client, interaction })
+    // Read before joining, so an empty list never leaves Lucky in the channel.
+    const library = await listLikedTracks(interaction.user.id, LIKED_TRACKS_MAX)
+    if (!library) {
+        await reply(t('music.liked.unavailable'))
+        return
+    }
+    if (library.total === 0) {
+        await reply(t('music.liked.empty'))
+        return
+    }
+
+    const existing = resolveGuildQueue(client, guildId).queue
+    const queue = existing ?? (await createQueue({ client, interaction }))
     try {
         await queueConnect({ queue, interaction })
     } catch {
@@ -86,15 +105,14 @@ async function playLiked({ client, interaction, t }: Params): Promise<void> {
         return
     }
 
-    const { added, missed, total } = await queueLikedTracks(
+    const { added, missed } = await queueLikedTracks(
         queue,
         interaction.user,
+        library.tracks,
     )
-    if (total === 0) {
-        await reply(t('music.liked.empty'))
-        return
-    }
     if (added === 0) {
+        // A queue made for this command has nothing to play: leave again.
+        if (!existing && !queue.deleted) queue.delete()
         await reply(t('music.liked.noneQueued'))
         return
     }
@@ -139,6 +157,16 @@ export default new Command({
 
         if (subcommand === 'play') {
             if (!(await requireVoiceChannel(interaction))) return
+            // With music already on, only the members listening may add to it.
+            const playing = resolveGuildQueue(
+                client,
+                interaction.guildId ?? '',
+            ).queue
+            if (
+                playing &&
+                !(await requireSameVoiceChannel(playing, interaction))
+            )
+                return
             if (
                 !(await requireDJRoleInGuild(
                     interaction,

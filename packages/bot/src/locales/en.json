@@ -144,10 +144,13 @@
             "listMore": "and {{count}} more",
             "removed": "Removed **{{title}}** from your liked songs.",
             "notFound": "That song isn't in your liked songs.",
-            "queued": "❤️ Added {{count}} of your liked songs to the queue.",
-            "queuedSkipped": "{{count}} could not be found right now.",
+            "queued_one": "❤️ Added {{count}} of your liked songs to the queue.",
+            "queued_other": "❤️ Added {{count}} of your liked songs to the queue.",
+            "queuedSkipped_one": "{{count}} could not be found right now.",
+            "queuedSkipped_other": "{{count}} could not be found right now.",
             "noneQueued": "Couldn't find any of your liked songs right now. Try again in a moment.",
-            "connectFailed": "❌ Couldn't connect to your voice channel."
+            "connectFailed": "❌ Couldn't connect to your voice channel.",
+            "unavailable": "❌ Couldn't read your liked songs. Try again in a moment."
         },
         "thumbs": {
             "liked": "👍 Added **{{title}}** to your likes. Autoplay leans toward them on the songs you queue.",

@@ -49,7 +49,7 @@ export async function likeTrack(
         })
         if (count >= LIKED_TRACKS_MAX) return 'full'
         // Upsert, so two quick /like calls for one song cannot collide.
-        await prisma.likedTrack.upsert({
+        const saved = await prisma.likedTrack.upsert({
             where,
             update: {},
             create: {
@@ -61,7 +61,18 @@ export async function likeTrack(
                 duration: snapshot.duration,
                 source: snapshot.source,
             },
+            select: { id: true },
         })
+        // Two likes of different songs can both pass the count above, so the
+        // limit is checked again with the row in place and the row taken back
+        // when it went over.
+        const after = await prisma.likedTrack.count({
+            where: { discordUserId: userId },
+        })
+        if (after > LIKED_TRACKS_MAX) {
+            await prisma.likedTrack.deleteMany({ where: { id: saved.id } })
+            return 'full'
+        }
         return 'saved'
     } catch (error) {
         errorLog({ message: 'Failed to save a liked track', error })
@@ -69,11 +80,14 @@ export async function likeTrack(
     }
 }
 
-/** The member's liked songs, newest first, with the total they have. */
+/**
+ * The member's liked songs, newest first, with the total they have. Null when
+ * the read failed, so a database outage is not shown as an empty list.
+ */
 export async function listLikedTracks(
     userId: string,
     limit: number,
-): Promise<{ tracks: LikedTrack[]; total: number }> {
+): Promise<{ tracks: LikedTrack[]; total: number } | null> {
     try {
         const prisma = getPrismaClient()
         const where = { discordUserId: userId }
@@ -89,7 +103,7 @@ export async function listLikedTracks(
         return { tracks, total }
     } catch (error) {
         errorLog({ message: 'Failed to list liked tracks', error })
-        return { tracks: [], total: 0 }
+        return null
     }
 }
 
@@ -165,29 +179,29 @@ function shuffled<T>(items: T[]): T[] {
 }
 
 /**
- * Adds a shuffled batch of the member's liked songs to the queue and starts
- * playback when nothing is playing. `missed` counts the songs of the batch
- * that no source could find; `total` is how many songs the member has liked.
+ * Adds a shuffled batch of the given liked songs to the queue and starts
+ * playback when no song is on. `missed` counts the songs of the batch that no
+ * source could find.
  */
 export async function queueLikedTracks(
     queue: GuildQueue,
     user: User,
-): Promise<{ added: number; missed: number; total: number }> {
-    const { tracks, total } = await listLikedTracks(user.id, LIKED_TRACKS_MAX)
-    const batch = shuffled(tracks).slice(0, LIKED_PLAY_BATCH)
+    liked: LikedTrack[],
+): Promise<{ added: number; missed: number }> {
+    const batch = shuffled(liked).slice(0, LIKED_PLAY_BATCH)
 
     let added = 0
     let missed = 0
-    for (const liked of batch) {
+    for (const song of batch) {
         // No YouTube extractor is registered when hosted YouTube is off, so
         // such a link is looked up by title and artist on the other sources.
         const youtubeLink =
             !isHostedYoutubeEnabled() &&
-            isHost(liked.url, 'youtube.com', 'youtu.be')
+            isHost(song.url, 'youtube.com', 'youtu.be')
         const query =
-            liked.url && !youtubeLink
-                ? liked.url
-                : `${liked.title} ${liked.author}`.trim()
+            song.url && !youtubeLink
+                ? song.url
+                : `${song.title} ${song.author}`.trim()
         try {
             const result = await queue.player.search(query, {
                 requestedBy: user,
@@ -207,6 +221,7 @@ export async function queueLikedTracks(
         }
     }
 
+    // A paused song stays paused: only an idle queue is started.
     if (added > 0 && !queue.currentTrack) await queue.node.play()
-    return { added, missed, total }
+    return { added, missed }
 }

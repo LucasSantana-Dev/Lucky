@@ -3,7 +3,10 @@ import { MessageFlags } from 'discord.js'
 import Command from '../../../models/Command'
 import type { CommandExecuteParams } from '../../../types/CommandData'
 import { interactionReply } from '../../../utils/general/interactionReply'
-import { requireGuild } from '../../../utils/command/commandValidations'
+import {
+    requireGuild,
+    voiceChannelRefusal,
+} from '../../../utils/command/commandValidations'
 import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { recommendationFeedbackService } from '../../../services/musicRecommendation/feedbackService'
@@ -30,24 +33,37 @@ export default new Command({
                 content: { content, ephemeral: true },
             })
 
-        const track = resolveGuildQueue(client, guildId).queue?.currentTrack
-        if (!track) {
+        const { queue } = resolveGuildQueue(client, guildId)
+        const track = queue?.currentTrack
+        if (!queue || !track) {
             await reply(t('music.liked.nothingPlaying'))
             return
         }
 
         const result = await likeTrack(interaction.user.id, track)
-        if (result === 'saved') {
-            // A like also tells autoplay in this guild what the member wants
-            // more of. Best effort: setFeedback logs and swallows a failure.
+        // A like also tells autoplay in this guild what the member wants more
+        // of, when they are listening with the bot: ratings stay with
+        // listeners. The list is shared across guilds and the vote is not, so
+        // a song liked elsewhere still votes here.
+        const trackKey = recommendationFeedbackService.buildTrackKey(
+            track.title,
+            track.author,
+        )
+        const listening =
+            voiceChannelRefusal(interaction, queue, {
+                allowManagers: false,
+            }) === null
+        if (
+            (result === 'saved' || result === 'already') &&
+            listening &&
+            trackKey !== '::'
+        ) {
+            // Best effort: setFeedback logs and swallows a failure.
             void recommendationFeedbackService.setFeedback(
                 guildId,
                 interaction.user.id,
                 interaction.user.username,
-                recommendationFeedbackService.buildTrackKey(
-                    track.title,
-                    track.author,
-                ),
+                trackKey,
                 'like',
             )
         }

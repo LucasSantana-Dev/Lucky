@@ -143,10 +143,13 @@
             "listMore": "y {{count}} más",
             "removed": "**{{title}}** salió de tus me gusta.",
             "notFound": "Esa canción no está en tus me gusta.",
-            "queued": "❤️ {{count}} de tus me gusta entraron en la cola.",
-            "queuedSkipped": "{{count}} no se encontraron ahora.",
-            "noneQueued": "No encontré ninguna de tus me gusta ahora. Inténtalo de nuevo en un momento.",
-            "connectFailed": "❌ No pude entrar a tu canal de voz."
+            "queued_one": "❤️ {{count}} de tus canciones guardadas entró en la cola.",
+            "queued_other": "❤️ {{count}} de tus canciones guardadas entraron en la cola.",
+            "queuedSkipped_one": "{{count}} no se encontró ahora.",
+            "queuedSkipped_other": "{{count}} no se encontraron ahora.",
+            "noneQueued": "No encontré ninguna de tus canciones guardadas ahora. Inténtalo de nuevo en un momento.",
+            "connectFailed": "❌ No pude entrar a tu canal de voz.",
+            "unavailable": "❌ No pude leer tus me gusta. Inténtalo de nuevo en un momento."
         },
         "thumbs": {
             "liked": "👍 **{{title}}** se añadió a tus me gusta. El autoplay busca canciones así cuando tú pides música.",

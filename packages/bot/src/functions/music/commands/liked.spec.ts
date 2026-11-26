@@ -1,6 +1,7 @@
 const interactionReplyMock = jest.fn()
 const requireGuildMock = jest.fn()
 const requireVoiceChannelMock = jest.fn()
+const requireSameVoiceChannelMock = jest.fn()
 const requireDJRoleMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
 const createQueueMock = jest.fn()
@@ -33,6 +34,8 @@ jest.mock('../../../utils/command/commandValidations', () => ({
     requireVoiceChannel: (...args: unknown[]) =>
         requireVoiceChannelMock(...args),
     requireDJRoleInGuild: (...args: unknown[]) => requireDJRoleMock(...args),
+    requireSameVoiceChannel: (...args: unknown[]) =>
+        requireSameVoiceChannelMock(...args),
 }))
 
 jest.mock('../../../handlers/queueHandler', () => ({
@@ -45,6 +48,7 @@ jest.mock('../../../services/musicManagement/queueResolver', () => ({
 }))
 
 jest.mock('../../../services/likedTracks', () => ({
+    LIKED_TRACKS_MAX: 500,
     listLikedTracks: (...args: unknown[]) => listLikedTracksMock(...args),
     queueLikedTracks: (...args: unknown[]) => queueLikedTracksMock(...args),
     unlikeTrack: (...args: unknown[]) => unlikeTrackMock(...args),
@@ -53,7 +57,11 @@ jest.mock('../../../services/likedTracks', () => ({
 import likedCommand from './liked'
 
 const user = { id: 'user-1' }
-const queue = { id: 'queue' }
+const queue = { id: 'queue', deleted: false, delete: jest.fn() }
+const library = (count: number) => ({
+    tracks: Array.from({ length: count }, (_, i) => ({ id: `l${i}` })),
+    total: count,
+})
 
 function run(subcommand: string, song = 'liked-1') {
     const interaction = {
@@ -81,6 +89,8 @@ describe('/liked', () => {
         requireGuildMock.mockResolvedValue(true)
         requireVoiceChannelMock.mockResolvedValue(true)
         requireDJRoleMock.mockResolvedValue(true)
+        requireSameVoiceChannelMock.mockResolvedValue(true)
+        listLikedTracksMock.mockResolvedValue(library(12))
         resolveGuildQueueMock.mockReturnValue({ queue })
         queueConnectMock.mockResolvedValue(undefined)
     })
@@ -103,12 +113,41 @@ describe('/liked', () => {
             await done
 
             expect(interaction.deferReply).toHaveBeenCalledWith({ flags: 64 })
+            expect(listLikedTracksMock).toHaveBeenCalledWith('user-1', 15)
             expect(replied().ephemeral).toBe(true)
             expect(replied().embeds[0]).toEqual({
                 title: '❤️ Your liked songs (4)',
                 description:
                     '1. [Creep](https://open.spotify.com/track/a), Radiohead\nand 3 more',
             })
+        })
+
+        it('escapes Markdown in the title and artist', async () => {
+            listLikedTracksMock.mockResolvedValue({
+                tracks: [
+                    {
+                        id: 'a',
+                        title: 'Song [Live] *2*',
+                        author: '_Band_',
+                        url: 'https://open.spotify.com/track/a',
+                    },
+                ],
+                total: 1,
+            })
+
+            await run('list').done
+
+            expect(replied().embeds[0].description).toBe(
+                '1. [Song \\[Live\\] \\*2\\*](https://open.spotify.com/track/a), \\_Band\\_',
+            )
+        })
+
+        it('says the list could not be read, not that it is empty', async () => {
+            listLikedTracksMock.mockResolvedValue(null)
+
+            await run('list').done
+
+            expect(replied().content).toContain("Couldn't read")
         })
 
         it('explains /like to a member with no liked songs', async () => {
@@ -143,22 +182,26 @@ describe('/liked', () => {
     })
 
     describe('play', () => {
+        const found = (added: number, missed = 0) =>
+            queueLikedTracksMock.mockResolvedValue({ added, missed })
+
         it('queues the liked songs in the voice channel', async () => {
-            queueLikedTracksMock.mockResolvedValue({
-                added: 12,
-                missed: 0,
-                total: 12,
-            })
+            found(12)
 
             const { interaction, done } = run('play')
             await done
 
             expect(interaction.deferReply).toHaveBeenCalledWith()
+            expect(listLikedTracksMock).toHaveBeenCalledWith('user-1', 500)
             expect(queueConnectMock).toHaveBeenCalledWith({
                 queue,
                 interaction,
             })
-            expect(queueLikedTracksMock).toHaveBeenCalledWith(queue, user)
+            expect(queueLikedTracksMock).toHaveBeenCalledWith(
+                queue,
+                user,
+                library(12).tracks,
+            )
             expect(replied().content).toBe(
                 '❤️ Added 12 of your liked songs to the queue.',
             )
@@ -167,24 +210,17 @@ describe('/liked', () => {
         it('creates a queue when the guild has none', async () => {
             resolveGuildQueueMock.mockReturnValue({ queue: null })
             createQueueMock.mockResolvedValue(queue)
-            queueLikedTracksMock.mockResolvedValue({
-                added: 1,
-                missed: 0,
-                total: 1,
-            })
+            found(1)
 
             await run('play').done
 
             expect(createQueueMock).toHaveBeenCalledTimes(1)
-            expect(queueLikedTracksMock).toHaveBeenCalledWith(queue, user)
+            expect(requireSameVoiceChannelMock).not.toHaveBeenCalled()
+            expect(queueLikedTracksMock).toHaveBeenCalled()
         })
 
         it('mentions the songs it could not find', async () => {
-            queueLikedTracksMock.mockResolvedValue({
-                added: 10,
-                missed: 2,
-                total: 12,
-            })
+            found(10, 2)
 
             await run('play').done
 
@@ -193,27 +229,42 @@ describe('/liked', () => {
             )
         })
 
-        it('explains /like to a member with no liked songs', async () => {
-            queueLikedTracksMock.mockResolvedValue({
-                added: 0,
-                missed: 0,
-                total: 0,
-            })
+        it('does not join the channel for a member with no liked songs', async () => {
+            listLikedTracksMock.mockResolvedValue(library(0))
 
             await run('play').done
 
+            expect(queueConnectMock).not.toHaveBeenCalled()
+            expect(createQueueMock).not.toHaveBeenCalled()
             expect(replied().content).toContain('Use `/like`')
         })
 
-        it('says so when none of the songs could be found', async () => {
-            queueLikedTracksMock.mockResolvedValue({
-                added: 0,
-                missed: 5,
-                total: 5,
-            })
+        it('does not join the channel when the list cannot be read', async () => {
+            listLikedTracksMock.mockResolvedValue(null)
 
             await run('play').done
 
+            expect(queueConnectMock).not.toHaveBeenCalled()
+            expect(replied().content).toContain("Couldn't read")
+        })
+
+        it('leaves again when a queue made for it found nothing', async () => {
+            resolveGuildQueueMock.mockReturnValue({ queue: null })
+            createQueueMock.mockResolvedValue(queue)
+            found(0, 5)
+
+            await run('play').done
+
+            expect(queue.delete).toHaveBeenCalledTimes(1)
+            expect(replied().content).toContain("Couldn't find any")
+        })
+
+        it('keeps a queue that was already there when it found nothing', async () => {
+            found(0, 5)
+
+            await run('play').done
+
+            expect(queue.delete).not.toHaveBeenCalled()
             expect(replied().content).toContain("Couldn't find any")
         })
 
@@ -224,6 +275,20 @@ describe('/liked', () => {
 
             expect(queueLikedTracksMock).not.toHaveBeenCalled()
             expect(replied().content).toContain("Couldn't connect")
+        })
+
+        it('checks the caller against the channel where music is on', async () => {
+            requireSameVoiceChannelMock.mockResolvedValue(false)
+
+            const { interaction, done } = run('play')
+            await done
+
+            expect(requireSameVoiceChannelMock).toHaveBeenCalledWith(
+                queue,
+                interaction,
+            )
+            expect(listLikedTracksMock).not.toHaveBeenCalled()
+            expect(queueLikedTracksMock).not.toHaveBeenCalled()
         })
 
         it.each([

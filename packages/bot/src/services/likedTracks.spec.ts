@@ -83,7 +83,7 @@ describe('liked tracks', () => {
         hostedYoutubeMock.mockReturnValue(false)
         prisma.likedTrack.findUnique.mockResolvedValue(null)
         prisma.likedTrack.count.mockResolvedValue(0)
-        prisma.likedTrack.upsert.mockResolvedValue({})
+        prisma.likedTrack.upsert.mockResolvedValue({ id: 'new-1' })
         prisma.likedTrack.findMany.mockResolvedValue([])
     })
 
@@ -122,6 +122,17 @@ describe('liked tracks', () => {
             expect(prisma.likedTrack.upsert).not.toHaveBeenCalled()
         })
 
+        it('takes the song back when a parallel like filled the list first', async () => {
+            prisma.likedTrack.count
+                .mockResolvedValueOnce(LIKED_TRACKS_MAX - 1)
+                .mockResolvedValueOnce(LIKED_TRACKS_MAX + 1)
+
+            await expect(likeTrack('user-1', playing)).resolves.toBe('full')
+            expect(prisma.likedTrack.deleteMany).toHaveBeenCalledWith({
+                where: { id: 'new-1' },
+            })
+        })
+
         it('reports a failed write without throwing', async () => {
             prisma.likedTrack.upsert.mockRejectedValue(new Error('db down'))
 
@@ -148,13 +159,10 @@ describe('liked tracks', () => {
             )
         })
 
-        it('answers empty when the read fails', async () => {
+        it('answers null when the read fails, not an empty list', async () => {
             prisma.likedTrack.findMany.mockRejectedValue(new Error('db down'))
 
-            await expect(listLikedTracks('user-1', 15)).resolves.toEqual({
-                tracks: [],
-                total: 0,
-            })
+            await expect(listLikedTracks('user-1', 15)).resolves.toBeNull()
         })
     })
 
@@ -206,18 +214,16 @@ describe('liked tracks', () => {
 
     describe('queueLikedTracks', () => {
         it('adds the found songs, counts the missed ones and starts playback', async () => {
-            prisma.likedTrack.findMany.mockResolvedValue([
-                liked('a'),
-                liked('b'),
-            ])
-            prisma.likedTrack.count.mockResolvedValue(2)
             const { queue, search } = queueWith((query) =>
                 query.endsWith('/a') ? { title: 'found a' } : null,
             )
 
             await expect(
-                queueLikedTracks(queue as never, user),
-            ).resolves.toEqual({ added: 1, missed: 1, total: 2 })
+                queueLikedTracks(queue as never, user, [
+                    liked('a'),
+                    liked('b'),
+                ]),
+            ).resolves.toEqual({ added: 1, missed: 1 })
 
             expect(search).toHaveBeenCalledWith(
                 'https://open.spotify.com/track/a',
@@ -227,26 +233,22 @@ describe('liked tracks', () => {
             expect(queue.node.play).toHaveBeenCalledTimes(1)
         })
 
-        it('does not restart playback when a song is already on', async () => {
-            prisma.likedTrack.findMany.mockResolvedValue([liked('a')])
-            prisma.likedTrack.count.mockResolvedValue(1)
+        it('leaves a song that is on, playing or paused, as it is', async () => {
             const { queue } = queueWith(() => ({ title: 'found' }))
             queue.currentTrack = { title: 'on now' }
 
-            await queueLikedTracks(queue as never, user)
+            await queueLikedTracks(queue as never, user, [liked('a')])
 
             expect(queue.addTrack).toHaveBeenCalledTimes(1)
             expect(queue.node.play).not.toHaveBeenCalled()
         })
 
         it('looks a YouTube link up by title and artist while YouTube is off', async () => {
-            prisma.likedTrack.findMany.mockResolvedValue([
-                liked('a', 'https://www.youtube.com/watch?v=abc'),
-            ])
-            prisma.likedTrack.count.mockResolvedValue(1)
             const { queue, search } = queueWith(() => ({ title: 'found' }))
 
-            await queueLikedTracks(queue as never, user)
+            await queueLikedTracks(queue as never, user, [
+                liked('a', 'https://www.youtube.com/watch?v=abc'),
+            ])
 
             expect(search).toHaveBeenCalledWith('Song a Artist', {
                 requestedBy: user,
@@ -259,40 +261,31 @@ describe('liked tracks', () => {
             const many = Array.from({ length: LIKED_PLAY_BATCH + 10 }, (_, i) =>
                 liked(`t${i}`),
             )
-            prisma.likedTrack.findMany.mockResolvedValue(many)
-            prisma.likedTrack.count.mockResolvedValue(many.length)
             const { queue } = queueWith(() => ({ title: 'found' }))
 
             await expect(
-                queueLikedTracks(queue as never, user),
-            ).resolves.toEqual({
-                added: LIKED_PLAY_BATCH,
-                missed: 0,
-                total: many.length,
-            })
+                queueLikedTracks(queue as never, user, many),
+            ).resolves.toEqual({ added: LIKED_PLAY_BATCH, missed: 0 })
         })
 
         it('counts a failed lookup as missed and keeps going', async () => {
-            prisma.likedTrack.findMany.mockResolvedValue([
-                liked('a'),
-                liked('b'),
-            ])
-            prisma.likedTrack.count.mockResolvedValue(2)
             const { queue, search } = queueWith(() => ({ title: 'found' }))
             search.mockRejectedValueOnce(new Error('extractor down'))
 
             await expect(
-                queueLikedTracks(queue as never, user),
-            ).resolves.toEqual({ added: 1, missed: 1, total: 2 })
+                queueLikedTracks(queue as never, user, [
+                    liked('a'),
+                    liked('b'),
+                ]),
+            ).resolves.toEqual({ added: 1, missed: 1 })
         })
 
-        it('does nothing for a member without liked songs', async () => {
-            const { queue, search } = queueWith(() => null)
+        it('does not start playback when nothing was found', async () => {
+            const { queue } = queueWith(() => null)
 
             await expect(
-                queueLikedTracks(queue as never, user),
-            ).resolves.toEqual({ added: 0, missed: 0, total: 0 })
-            expect(search).not.toHaveBeenCalled()
+                queueLikedTracks(queue as never, user, [liked('a')]),
+            ).resolves.toEqual({ added: 0, missed: 1 })
             expect(queue.node.play).not.toHaveBeenCalled()
         })
     })

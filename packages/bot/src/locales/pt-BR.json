@@ -143,10 +143,13 @@
             "listMore": "e mais {{count}}",
             "removed": "**{{title}}** saiu das suas curtidas.",
             "notFound": "Essa música não está nas suas curtidas.",
-            "queued": "❤️ {{count}} das suas curtidas entraram na fila.",
-            "queuedSkipped": "{{count}} não foram encontradas agora.",
+            "queued_one": "❤️ {{count}} das suas curtidas entrou na fila.",
+            "queued_other": "❤️ {{count}} das suas curtidas entraram na fila.",
+            "queuedSkipped_one": "{{count}} não foi encontrada agora.",
+            "queuedSkipped_other": "{{count}} não foram encontradas agora.",
             "noneQueued": "Não encontrei nenhuma das suas curtidas agora. Tente de novo daqui a pouco.",
-            "connectFailed": "❌ Não consegui entrar no seu canal de voz."
+            "connectFailed": "❌ Não consegui entrar no seu canal de voz.",
+            "unavailable": "❌ Não consegui ler suas curtidas. Tente de novo daqui a pouco."
         },
         "thumbs": {
             "liked": "👍 **{{title}}** foi para as suas curtidas. O autoplay puxa músicas assim nas que você coloca.",
