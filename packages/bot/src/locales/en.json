@@ -178,6 +178,12 @@
             "statusReplayed": "🔄 Replayed",
             "statusSeeked": "⏩ Seeked to {{time}}",
             "statusJumped": "🎯 Now playing (position {{position}})"
+        },
+        "adminPrompt": {
+            "title": "One question for the admin",
+            "description": "You manage this server, so this one is for you: what is Lucky missing to be the music bot here?\n\nAnswers go straight to the developer. Lucky asks this at most once a month.",
+            "feedbackButton": "What's missing?",
+            "supportButton": "Support server"
         }
     }
 }
