@@ -5,6 +5,7 @@ import {
     EmbedBuilder,
     MessageFlags,
     PermissionFlagsBits,
+    PermissionsBitField,
     type ChatInputCommandInteraction,
 } from 'discord.js'
 import { SUPPORT_SERVER_INVITE_URL } from '@lucky/shared/constants'
@@ -56,11 +57,12 @@ function recentlyChecked(guildId: string, now: number): boolean {
 }
 
 // memberPermissions is absent on an uncached interaction; the member's own
-// permissions then say the same thing.
+// permissions then say the same thing, as a raw bitfield string.
 function canManageGuild(interaction: ChatInputCommandInteraction): boolean {
+    const raw = interaction.memberPermissions ?? interaction.member?.permissions
+    if (!raw) return false
     const permissions =
-        interaction.memberPermissions ?? interaction.member?.permissions
-    if (!permissions || typeof permissions === 'string') return false
+        typeof raw === 'string' ? new PermissionsBitField(BigInt(raw)) : raw
     return permissions.has(PermissionFlagsBits.ManageGuild)
 }
 
@@ -87,12 +89,13 @@ export async function maybeAskAdminForFeedback(
         // followUp needs an acknowledged interaction.
         if (!interaction.replied && !interaction.deferred) return false
         // A command can reply with an error without marking its outcome, so
-        // "it went well" is read from the player: something is playing.
+        // "it went well" is read from the player: something is playing,
+        // and not paused.
         const { queue } = resolveGuildQueue(
             interaction.client as CustomClient,
             guildId,
         )
-        if (!queue?.currentTrack) return false
+        if (!queue?.currentTrack || queue.node.isPaused()) return false
         if (recentlyChecked(guildId, now.getTime())) return false
 
         const prisma = getPrismaClient()

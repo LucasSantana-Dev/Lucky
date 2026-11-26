@@ -77,7 +77,10 @@ describe('admin feedback prompt', () => {
         prisma.trackHistory.count.mockResolvedValue(12)
         recordActivationEventMock.mockResolvedValue(true)
         resolveGuildQueueMock.mockReturnValue({
-            queue: { currentTrack: { title: 'Song' } },
+            queue: {
+                currentTrack: { title: 'Song' },
+                node: { isPaused: () => false },
+            },
         })
     })
 
@@ -151,6 +154,50 @@ describe('admin feedback prompt', () => {
         await maybeAskAdminForFeedback(interaction, NOW)
 
         expect(followUp).toHaveBeenCalledTimes(1)
+    })
+
+    it('reads a raw permission bitfield string', async () => {
+        const { interaction, followUp } = interactionFor()
+        const raw = interaction as unknown as {
+            memberPermissions: null
+            member: { permissions: string }
+        }
+        raw.memberPermissions = null
+        raw.member = {
+            permissions: PermissionFlagsBits.ManageGuild.toString(),
+        }
+
+        await maybeAskAdminForFeedback(interaction, NOW)
+
+        expect(followUp).toHaveBeenCalledTimes(1)
+    })
+
+    it('stays quiet for a raw bitfield without Manage Server', async () => {
+        const { interaction, followUp } = interactionFor()
+        const raw = interaction as unknown as {
+            memberPermissions: null
+            member: { permissions: string }
+        }
+        raw.memberPermissions = null
+        raw.member = { permissions: '0' }
+
+        await maybeAskAdminForFeedback(interaction, NOW)
+
+        expect(followUp).not.toHaveBeenCalled()
+    })
+
+    it('stays quiet while playback is paused', async () => {
+        resolveGuildQueueMock.mockReturnValue({
+            queue: {
+                currentTrack: { title: 'Song' },
+                node: { isPaused: () => true },
+            },
+        })
+        const { interaction, followUp } = interactionFor()
+
+        await maybeAskAdminForFeedback(interaction, NOW)
+
+        expect(followUp).not.toHaveBeenCalled()
     })
 
     it('stays quiet when nothing is playing', async () => {
