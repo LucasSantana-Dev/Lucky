@@ -50,7 +50,6 @@ import {
 } from './playErrorMessage'
 import { watchStreamStartFailures } from './streamStartWatcher'
 import {
-    QUEUE_LEAVE_OPTIONS,
     queueLeaveOptionsFor,
     type QueueLeaveOptions,
 } from '../../../../../services/musicManagement/queueLeaveOptions'
@@ -506,11 +505,10 @@ async function runPlay(ctx: PlayContext, early: EarlyState): Promise<void> {
     }
 
     const searchEngine = resolveSearchEngine(query, provider)
-    // nodeOptions only matter when play() creates the queue, so skip the
-    // settings read when one is already running.
-    const leaveOptions = hadQueueBeforePlay
-        ? QUEUE_LEAVE_OPTIONS
-        : await queueLeaveOptionsFor(guildId)
+    // nodeOptions only matter when play() creates the queue, but the queue
+    // seen above can be deleted while the search runs, so always read the
+    // guild's 24/7 setting rather than trusting that snapshot.
+    const leaveOptions = await queueLeaveOptionsFor(guildId)
     const playOptions = buildPlayOptions(ctx, searchEngine, leaveOptions)
     const startWatcher = watchStreamStartFailures(client.player, guildId)
     const replyOnceSearched = createEarlyReplier(ctx, early, hadQueueBeforePlay)

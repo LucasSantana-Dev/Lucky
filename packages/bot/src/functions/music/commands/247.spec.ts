@@ -4,6 +4,7 @@ const updateGuildSettingsMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
 const applyLeaveOptionsToQueueMock = jest.fn()
 const clearIdleTimerMock = jest.fn()
+const leaveIfIdleMock = jest.fn()
 
 jest.mock('../../../utils/command/commandValidations', () => ({
     requireGuild: (...a: unknown[]) => requireGuildMock(...a),
@@ -28,6 +29,7 @@ jest.mock('../../../services/musicManagement/queueLeaveOptions', () => ({
 }))
 jest.mock('../../../services/musicManagement/idleDisconnect', () => ({
     clearIdleTimer: (...a: unknown[]) => clearIdleTimerMock(...a),
+    leaveIfIdle: (...a: unknown[]) => leaveIfIdleMock(...a),
 }))
 jest.mock('@lucky/shared/utils', () => ({
     errorLog: jest.fn(),
@@ -107,6 +109,53 @@ describe('/247 command', () => {
         expect(applyLeaveOptionsToQueueMock).toHaveBeenCalledWith(queue, true)
     })
 
+    it('applies the off toggle to a running queue and leaves it if idle', async () => {
+        const queue = { deleted: false }
+        resolveGuildQueueMock.mockReturnValue({ queue })
+
+        await stayConnectedCommand.execute({
+            client,
+            interaction: interaction(false),
+        } as any)
+
+        expect(applyLeaveOptionsToQueueMock).toHaveBeenCalledWith(queue, false)
+        expect(leaveIfIdleMock).toHaveBeenCalledWith(queue)
+    })
+
+    it('does not check idleness when turning 24/7 on', async () => {
+        resolveGuildQueueMock.mockReturnValue({ queue: { deleted: false } })
+
+        await stayConnectedCommand.execute({
+            client,
+            interaction: interaction(true),
+        } as any)
+
+        expect(leaveIfIdleMock).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the raw member permissions bitfield', async () => {
+        const raw = {
+            ...interaction(true),
+            memberPermissions: null,
+            member: { permissions: '32' },
+        }
+        await stayConnectedCommand.execute({ client, interaction: raw } as any)
+        expect(updateGuildSettingsMock).toHaveBeenCalled()
+
+        jest.clearAllMocks()
+        const denied = {
+            ...interaction(true),
+            memberPermissions: null,
+            member: { permissions: '0' },
+        }
+        await stayConnectedCommand.execute({
+            client,
+            interaction: denied,
+        } as any)
+        expect(updateGuildSettingsMock).not.toHaveBeenCalled()
+        expect(replied()).toBe('music.stayConnected.needManageGuild')
+    })
+
     it('leaves a deleted queue alone', async () => {
         resolveGuildQueueMock.mockReturnValue({ queue: { deleted: true } })
 
@@ -138,6 +187,7 @@ describe('/247 command', () => {
         } as any)
 
         expect(applyLeaveOptionsToQueueMock).not.toHaveBeenCalled()
+        expect(clearIdleTimerMock).not.toHaveBeenCalled()
         expect(replied()).toBe('music.stayConnected.failed')
     })
 

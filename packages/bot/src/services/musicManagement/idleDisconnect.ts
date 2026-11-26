@@ -90,6 +90,22 @@ export function clearIdleTimer(guildId: string): void {
     clearArmedTimer(guildId)
 }
 
+/**
+ * Leaves right away when the queue has nothing to play or nobody is left
+ * listening. Used when 24/7 mode is turned off, since discord-player only
+ * checks its leave options on the next end/empty event.
+ * Returns whether it left.
+ */
+export function leaveIfIdle(queue: GuildQueue): boolean {
+    const nothingToPlay = !queue.currentTrack && queue.tracks.size === 0
+    const listeners = queue.channel?.members.filter((m) => !m.user.bot).size
+    const channelEmpty = listeners === 0
+    if (!nothingToPlay && !channelEmpty) return false
+    clearIdleTimer(queue.guild.id)
+    void disconnectIdle(queue)
+    return true
+}
+
 async function disconnectIdle(queue: GuildQueue): Promise<void> {
     const guildId = queue.guild.id
     debugLog({ message: 'Idle disconnect triggered', data: { guildId } })

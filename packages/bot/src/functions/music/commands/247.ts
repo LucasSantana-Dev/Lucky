@@ -1,5 +1,10 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import { MessageFlags, PermissionFlagsBits } from 'discord.js'
+import {
+    MessageFlags,
+    PermissionFlagsBits,
+    PermissionsBitField,
+    type ChatInputCommandInteraction,
+} from 'discord.js'
 import { guildSettingsService } from '@lucky/shared/services'
 import { errorLog, infoLog } from '@lucky/shared/utils'
 import Command from '../../../models/Command'
@@ -9,7 +14,28 @@ import { requireGuild } from '../../../utils/command/commandValidations'
 import { translatorForInteraction } from '../../../i18n/translatorForInteraction'
 import { resolveGuildQueue } from '../../../services/musicManagement/queueResolver'
 import { applyLeaveOptionsToQueue } from '../../../services/musicManagement/queueLeaveOptions'
-import { clearIdleTimer } from '../../../services/musicManagement/idleDisconnect'
+import {
+    clearIdleTimer,
+    leaveIfIdle,
+} from '../../../services/musicManagement/idleDisconnect'
+
+/**
+ * Manage Server check. `memberPermissions` can be missing on raw or uncached
+ * guild interactions, so fall back to the member's own permissions (a
+ * bitfield string on the raw API member).
+ */
+function canManageGuild(interaction: ChatInputCommandInteraction): boolean {
+    if (interaction.memberPermissions) {
+        return interaction.memberPermissions.has(
+            PermissionFlagsBits.ManageGuild,
+        )
+    }
+    const raw = interaction.member?.permissions
+    if (raw === undefined || raw === null) return false
+    const perms =
+        typeof raw === 'string' ? new PermissionsBitField(BigInt(raw)) : raw
+    return perms.has(PermissionFlagsBits.ManageGuild)
+}
 
 /**
  * 24/7 mode: Lucky stays in the voice channel when the queue ends or the
@@ -44,9 +70,7 @@ export default new Command({
             })
 
         // Default member permissions can be overridden per role, so check again.
-        if (
-            !interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)
-        ) {
+        if (!canManageGuild(interaction)) {
             await reply(t('music.stayConnected.needManageGuild'))
             return
         }
@@ -67,6 +91,10 @@ export default new Command({
             const { queue } = resolveGuildQueue(client, guildId)
             if (queue && !queue.deleted) {
                 applyLeaveOptionsToQueue(queue, enabled)
+                // Turning 24/7 off: a queue that already ran dry (or sits in
+                // an empty channel) will never see another end/empty event,
+                // so leave now instead of staying connected forever.
+                if (!enabled) leaveIfIdle(queue)
             }
             if (enabled) clearIdleTimer(guildId)
 

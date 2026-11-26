@@ -11,9 +11,13 @@ const addTrackMock = jest.fn()
 const recapMixPlayedTotalIncMock = jest.fn()
 const errorLogMock = jest.fn()
 const resolveGuildQueueMock = jest.fn()
+const getGuildSettingsMock = jest.fn()
 
 jest.mock('@lucky/shared/services', () => ({
     getWeeklyRecap: (...a: unknown[]) => getWeeklyRecapMock(...a),
+    guildSettingsService: {
+        getGuildSettings: (...a: unknown[]) => getGuildSettingsMock(...a),
+    },
 }))
 jest.mock('@lucky/shared/config', () => ({
     ENVIRONMENT_CONFIG: { PLAYER: { CONNECTION_TIMEOUT: 5000 } },
@@ -111,10 +115,29 @@ describe('handleRecapMixButton (#2739)', () => {
             hit(query.startsWith('Track A') ? TRACK_A : TRACK_B),
         )
         playMock.mockResolvedValue(undefined)
+        getGuildSettingsMock.mockResolvedValue({ stayConnected: false })
         resolveGuildQueueMock.mockReturnValue({
             queue: { addTrack: addTrackMock },
         })
     })
+
+    it.each([
+        [false, true],
+        [true, false],
+    ])(
+        'passes leave options for 24/7 mode %s',
+        async (stayConnected, leaves) => {
+            getGuildSettingsMock.mockResolvedValue({ stayConnected })
+            const interaction = makeInteraction()
+            await handleRecapMixButton(
+                interaction as unknown as ButtonInteraction,
+            )
+            expect(playMock.mock.calls[0][2].nodeOptions).toMatchObject({
+                leaveOnEmpty: leaves,
+                leaveOnEnd: leaves,
+            })
+        },
+    )
 
     it('defers the update before doing any async work', async () => {
         const interaction = makeInteraction()

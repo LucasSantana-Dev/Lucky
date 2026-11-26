@@ -26,7 +26,11 @@ jest.mock('../musicRecommendation/collaborativePlaylist', () => ({
     },
 }))
 
-import { scheduleIdleDisconnect, clearIdleTimer } from './idleDisconnect'
+import {
+    scheduleIdleDisconnect,
+    clearIdleTimer,
+    leaveIfIdle,
+} from './idleDisconnect'
 
 function makeQueue(overrides: Record<string, unknown> = {}) {
     return {
@@ -267,5 +271,47 @@ describe('idleDisconnect', () => {
         await jest.advanceTimersByTimeAsync(5 * 60 * 1000)
 
         expect(queue.delete).toHaveBeenCalledTimes(1)
+    })
+
+    describe('leaveIfIdle', () => {
+        const members = (...bots: boolean[]) => ({
+            members: {
+                filter: (fn: (m: unknown) => boolean) => ({
+                    size: bots.map((bot) => ({ user: { bot } })).filter(fn)
+                        .length,
+                }),
+            },
+        })
+
+        it('leaves a queue with nothing left to play', () => {
+            const queue = makeQueue({
+                currentTrack: null,
+                tracks: { size: 0 },
+                channel: members(false),
+            })
+            expect(leaveIfIdle(queue)).toBe(true)
+            expect(mockMarkIntentionalStop).toHaveBeenCalledWith('guild-1')
+            expect(queue.delete).toHaveBeenCalled()
+        })
+
+        it('leaves a channel with only bots in it', () => {
+            const queue = makeQueue({
+                currentTrack: { title: 'x' },
+                tracks: { size: 2 },
+                channel: members(true),
+            })
+            expect(leaveIfIdle(queue)).toBe(true)
+            expect(queue.delete).toHaveBeenCalled()
+        })
+
+        it('stays while something plays to listeners', () => {
+            const queue = makeQueue({
+                currentTrack: { title: 'x' },
+                tracks: { size: 0 },
+                channel: members(false, true),
+            })
+            expect(leaveIfIdle(queue)).toBe(false)
+            expect(queue.delete).not.toHaveBeenCalled()
+        })
     })
 })
