@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.78.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.77.0...v2.78.0) (2026-11-26)
+
+
+### Features
+
+* **observability:** log how sessions end and add the monetization trigger panels ([#3380](https://github.com/LucasSantana-Dev/Lucky/issues/3380)) ([886b427](https://github.com/LucasSantana-Dev/Lucky/commit/886b4270de9fa44e6b921283c5c1668a27753bea))
+
 ## [2.77.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.76.0...v2.77.0) (2026-11-26)
 
 
