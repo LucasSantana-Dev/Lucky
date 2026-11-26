@@ -61,7 +61,9 @@
         "onboarding": {
             "title": "🎵 O Lucky está pronto pra tocar",
             "description": "Entre em um canal de voz e clique em **Ouvir Agora**, ou use `/play` com o nome de uma música ou um link do Spotify.\n\nQuando a fila acaba, o Lucky continua com músicas parecidas. Com `/247` ele fica no canal de voz entre uma sessão e outra.\n\nDepois da primeira música, o Lucky publica aos domingos, no canal de texto onde ela foi pedida, um resumo das faixas e artistas mais tocados no servidor, se puder postar nele. Um administrador pode desligar pelo botão no resumo ou com `/recap off`.",
-            "playButton": "▶ Ouvir Agora"
+            "playButton": "▶ Ouvir Agora",
+            "reminderTitle": "🎧 O Lucky ainda não tocou nada por aqui",
+            "reminderDescription": "Leva dez segundos: entre em um canal de voz e clique em **Ouvir Agora**, ou use `/play` com o nome de uma música ou um link do Spotify.\n\nEste é o único lembrete que o Lucky manda."
         },
         "station": {
             "genres": {

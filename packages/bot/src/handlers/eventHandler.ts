@@ -1,10 +1,8 @@
 import {
     Events,
     ChannelType,
-    PermissionFlagsBits,
     type Client,
     type Guild,
-    type GuildBasedChannel,
     type Interaction,
     type ButtonInteraction,
     type ChatInputCommandInteraction,
@@ -42,6 +40,7 @@ import {
 } from './onboardingStation'
 import { translatorForInteraction } from '../i18n/translatorForInteraction'
 import { buildOnboardingEmbed } from './onboardingEmbed'
+import { findOnboardingChannel } from './onboardingChannel'
 import { executeCommand, executeContextMenu } from './commandsHandler'
 import { recordCommandEvent } from '../utils/monitoring/recordCommandEvent'
 import {
@@ -126,24 +125,6 @@ function handleClientReady(client: Client): void {
             60 * 60 * 1000,
         )
     })
-}
-
-// First text channel the bot can actually post to (system channel preferred).
-function findOnboardingChannel(guild: Guild): GuildBasedChannel | null {
-    const me = guild.members?.me
-    if (!me) return null
-    const canPost = (ch: GuildBasedChannel | null): boolean =>
-        ch?.type === ChannelType.GuildText &&
-        (ch
-            .permissionsFor(me)
-            ?.has([
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.EmbedLinks,
-            ]) ??
-            false)
-    if (canPost(guild.systemChannel)) return guild.systemChannel
-    return guild.channels.cache.find((ch) => canPost(ch)) ?? null
 }
 
 // Short, bounded reason for the funnel: Discord's missing-permission codes get
