@@ -36,10 +36,9 @@ export function buildRecapOffRow(
             .setLabel(t('music.recap.offButton'))
             .setEmoji('🔕')
             .setStyle(ButtonStyle.Secondary),
-        // Opens the /feedback form with `recap` as context. Asking inside
-        // the guild, on a message it opted into, is the allowed way to hear
-        // from active servers (decisions/2026-06-18-in-bot-growth.md rules
-        // out DMs to owners).
+        // Opens the /feedback form with `recap` as context. Feedback is asked
+        // in-guild on the recap rather than by DM; the growth decision rules
+        // out DMs to owners (decisions/2026-06-18-in-bot-growth.md).
         new ButtonBuilder()
             .setCustomId(buildFeedbackReportCustomId('recap'))
             .setLabel(t('music.recap.feedbackButton'))
