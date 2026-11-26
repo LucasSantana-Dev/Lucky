@@ -185,6 +185,12 @@
             "statusRewound": "⏪ Went back to {{time}}",
             "forwardPastEnd": "That goes past the end of the song. Use `/skip` to move on.",
             "seekUnsupported": "This track can't be moved forward or back."
+        },
+        "adminPrompt": {
+            "title": "One question for the admin",
+            "description": "You manage this server, so this one is for you: what is Lucky missing to be the music bot here?\n\nAnswers go straight to the developer. Lucky asks this at most once a month.",
+            "feedbackButton": "What's missing?",
+            "supportButton": "Support server"
         }
     }
 }

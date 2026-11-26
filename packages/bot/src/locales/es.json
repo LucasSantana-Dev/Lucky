@@ -184,6 +184,12 @@
             "statusRewound": "⏪ Volvió a {{time}}",
             "forwardPastEnd": "Eso pasa del final de la canción. Usa `/skip` para seguir.",
             "seekUnsupported": "No se puede avanzar ni volver en esta pista."
+        },
+        "adminPrompt": {
+            "title": "Una pregunta para quien administra",
+            "description": "Administras este servidor, así que la pregunta es para ti: ¿qué le falta a Lucky para ser el bot de música de aquí?\n\nLa respuesta llega directo al desarrollador. Lucky pregunta esto como máximo una vez al mes.",
+            "feedbackButton": "¿Qué falta?",
+            "supportButton": "Servidor de soporte"
         }
     }
 }
