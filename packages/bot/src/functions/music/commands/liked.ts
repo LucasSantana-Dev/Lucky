@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from '@discordjs/builders'
-import { escapeMarkdown, MessageFlags } from 'discord.js'
+import { MessageFlags } from 'discord.js'
 import type { TFunction } from 'i18next'
 import Command from '../../../models/Command'
 import type { CommandExecuteParams } from '../../../types/CommandData'
@@ -25,9 +25,13 @@ const LIST_SHOWN = 15
 
 type Params = CommandExecuteParams & { t: TFunction }
 
-/** Provider text, safe inside a Markdown line and a link label. */
+/**
+ * Provider text, safe inside a Markdown line and a link label: every
+ * character Discord reads as formatting gets a backslash, the backslash
+ * itself included.
+ */
 function plain(text: string): string {
-    return escapeMarkdown(text).replace(/[[\]]/g, '\\$&')
+    return text.replace(/[\\[\]()*_~`|>#]/g, '\\$&')
 }
 
 async function showList({ interaction, t }: Params): Promise<void> {
@@ -97,6 +101,9 @@ async function playLiked({ client, interaction, t }: Params): Promise<void> {
     }
 
     const existing = resolveGuildQueue(client, guildId).queue
+    // Checked again: music may have started elsewhere during the read above.
+    if (existing && !(await requireSameVoiceChannel(existing, interaction)))
+        return
     const queue = existing ?? (await createQueue({ client, interaction }))
     try {
         await queueConnect({ queue, interaction })

@@ -4,9 +4,11 @@ const prisma = {
         findFirst: jest.fn(),
         findMany: jest.fn(),
         count: jest.fn(),
-        upsert: jest.fn(),
+        create: jest.fn(),
         deleteMany: jest.fn(),
     },
+    $executeRaw: jest.fn(),
+    $transaction: jest.fn(),
 }
 const errorLogMock = jest.fn()
 const hostedYoutubeMock = jest.fn()
@@ -83,7 +85,11 @@ describe('liked tracks', () => {
         hostedYoutubeMock.mockReturnValue(false)
         prisma.likedTrack.findUnique.mockResolvedValue(null)
         prisma.likedTrack.count.mockResolvedValue(0)
-        prisma.likedTrack.upsert.mockResolvedValue({ id: 'new-1' })
+        prisma.likedTrack.create.mockResolvedValue({ id: 'new-1' })
+        prisma.$executeRaw.mockResolvedValue(1)
+        prisma.$transaction.mockImplementation(
+            (run: (tx: typeof prisma) => unknown) => run(prisma),
+        )
         prisma.likedTrack.findMany.mockResolvedValue([])
     })
 
@@ -91,8 +97,8 @@ describe('liked tracks', () => {
         it('saves the song under the member, keyed by title and artist', async () => {
             await expect(likeTrack('user-1', playing)).resolves.toBe('saved')
 
-            const call = prisma.likedTrack.upsert.mock.calls[0][0]
-            expect(call.create).toEqual({
+            const { data } = prisma.likedTrack.create.mock.calls[0][0]
+            expect(data).toEqual({
                 discordUserId: 'user-1',
                 trackKey: expect.any(String),
                 title: 'Creep',
@@ -101,40 +107,47 @@ describe('liked tracks', () => {
                 duration: '3:00',
                 source: 'spotify',
             })
-            expect(call.where.discordUserId_trackKey).toEqual({
-                discordUserId: 'user-1',
-                trackKey: call.create.trackKey,
+            expect(prisma.likedTrack.findUnique).toHaveBeenCalledWith({
+                where: {
+                    discordUserId_trackKey: {
+                        discordUserId: 'user-1',
+                        trackKey: data.trackKey,
+                    },
+                },
+                select: { id: true },
             })
-            expect(call.update).toEqual({})
+        })
+
+        it("takes the member's lock before it checks the limit", async () => {
+            await likeTrack('user-1', playing)
+
+            expect(prisma.$executeRaw.mock.calls[0][1]).toBe(
+                'liked-tracks:user-1',
+            )
+            expect(prisma.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+                prisma.likedTrack.count.mock.invocationCallOrder[0],
+            )
+            expect(
+                prisma.likedTrack.count.mock.invocationCallOrder[0],
+            ).toBeLessThan(prisma.likedTrack.create.mock.invocationCallOrder[0])
         })
 
         it('says so when the song is already liked', async () => {
             prisma.likedTrack.findUnique.mockResolvedValue({ id: 'l1' })
 
             await expect(likeTrack('user-1', playing)).resolves.toBe('already')
-            expect(prisma.likedTrack.upsert).not.toHaveBeenCalled()
+            expect(prisma.likedTrack.create).not.toHaveBeenCalled()
         })
 
         it('refuses a new song when the list is full', async () => {
             prisma.likedTrack.count.mockResolvedValue(LIKED_TRACKS_MAX)
 
             await expect(likeTrack('user-1', playing)).resolves.toBe('full')
-            expect(prisma.likedTrack.upsert).not.toHaveBeenCalled()
-        })
-
-        it('takes the song back when a parallel like filled the list first', async () => {
-            prisma.likedTrack.count
-                .mockResolvedValueOnce(LIKED_TRACKS_MAX - 1)
-                .mockResolvedValueOnce(LIKED_TRACKS_MAX + 1)
-
-            await expect(likeTrack('user-1', playing)).resolves.toBe('full')
-            expect(prisma.likedTrack.deleteMany).toHaveBeenCalledWith({
-                where: { id: 'new-1' },
-            })
+            expect(prisma.likedTrack.create).not.toHaveBeenCalled()
         })
 
         it('reports a failed write without throwing', async () => {
-            prisma.likedTrack.upsert.mockRejectedValue(new Error('db down'))
+            prisma.likedTrack.create.mockRejectedValue(new Error('db down'))
 
             await expect(likeTrack('user-1', playing)).resolves.toBe('failed')
             expect(errorLogMock).toHaveBeenCalled()

@@ -36,44 +36,37 @@ export async function likeTrack(
     track: Track,
 ): Promise<LikeResult> {
     try {
-        const prisma = getPrismaClient()
         const snapshot = toSnapshotTrack(track)
         const trackKey = normalizeTrackKey(snapshot.title, snapshot.author)
-        const where = {
-            discordUserId_trackKey: { discordUserId: userId, trackKey },
-        }
-        if (await prisma.likedTrack.findUnique({ where, select: { id: true } }))
-            return 'already'
-        const count = await prisma.likedTrack.count({
-            where: { discordUserId: userId },
+        const lockKey = `liked-tracks:${userId}`
+        return await getPrismaClient().$transaction(async (tx) => {
+            // One like at a time per member, so the limit check and the
+            // insert cannot interleave with another like of theirs.
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`
+            const existing = await tx.likedTrack.findUnique({
+                where: {
+                    discordUserId_trackKey: { discordUserId: userId, trackKey },
+                },
+                select: { id: true },
+            })
+            if (existing) return 'already'
+            const count = await tx.likedTrack.count({
+                where: { discordUserId: userId },
+            })
+            if (count >= LIKED_TRACKS_MAX) return 'full'
+            await tx.likedTrack.create({
+                data: {
+                    discordUserId: userId,
+                    trackKey,
+                    title: snapshot.title,
+                    author: snapshot.author,
+                    url: snapshot.url,
+                    duration: snapshot.duration,
+                    source: snapshot.source,
+                },
+            })
+            return 'saved'
         })
-        if (count >= LIKED_TRACKS_MAX) return 'full'
-        // Upsert, so two quick /like calls for one song cannot collide.
-        const saved = await prisma.likedTrack.upsert({
-            where,
-            update: {},
-            create: {
-                discordUserId: userId,
-                trackKey,
-                title: snapshot.title,
-                author: snapshot.author,
-                url: snapshot.url,
-                duration: snapshot.duration,
-                source: snapshot.source,
-            },
-            select: { id: true },
-        })
-        // Two likes of different songs can both pass the count above, so the
-        // limit is checked again with the row in place and the row taken back
-        // when it went over.
-        const after = await prisma.likedTrack.count({
-            where: { discordUserId: userId },
-        })
-        if (after > LIKED_TRACKS_MAX) {
-            await prisma.likedTrack.deleteMany({ where: { id: saved.id } })
-            return 'full'
-        }
-        return 'saved'
     } catch (error) {
         errorLog({ message: 'Failed to save a liked track', error })
         return 'failed'

@@ -30,7 +30,9 @@ jest.mock('../../../services/musicManagement/queueResolver', () => ({
 jest.mock('../../../services/musicRecommendation/feedbackService', () => ({
     recommendationFeedbackService: {
         setFeedback: (...args: unknown[]) => setFeedbackMock(...args),
-        buildTrackKey: (title: string, author: string) => `${title}::${author}`,
+        // Like the real key: only letters and digits survive.
+        buildTrackKey: (title: string, author: string) =>
+            `${title.replace(/[^a-z0-9]/gi, '')}::${author.replace(/[^a-z0-9]/gi, '')}`,
     },
 }))
 
@@ -121,7 +123,7 @@ describe('/like', () => {
 
     it('casts no vote for a song whose title and artist are only symbols', async () => {
         resolveGuildQueueMock.mockReturnValue({
-            queue: { currentTrack: { title: '', author: '' } },
+            queue: { currentTrack: { title: '*** !!!', author: '~' } },
         })
 
         await run().done

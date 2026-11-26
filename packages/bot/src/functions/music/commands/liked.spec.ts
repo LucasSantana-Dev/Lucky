@@ -127,7 +127,7 @@ describe('/liked', () => {
                 tracks: [
                     {
                         id: 'a',
-                        title: 'Song [Live] *2*',
+                        title: 'Song [Live] *2* \\',
                         author: '_Band_',
                         url: 'https://open.spotify.com/track/a',
                     },
@@ -138,7 +138,7 @@ describe('/liked', () => {
             await run('list').done
 
             expect(replied().embeds[0].description).toBe(
-                '1. [Song \\[Live\\] \\*2\\*](https://open.spotify.com/track/a), \\_Band\\_',
+                '1. [Song \\[Live\\] \\*2\\* \\\\](https://open.spotify.com/track/a), \\_Band\\_',
             )
         })
 
@@ -288,6 +288,18 @@ describe('/liked', () => {
                 interaction,
             )
             expect(listLikedTracksMock).not.toHaveBeenCalled()
+            expect(queueLikedTracksMock).not.toHaveBeenCalled()
+        })
+
+        it('checks the channel again after reading the list', async () => {
+            requireSameVoiceChannelMock
+                .mockResolvedValueOnce(true)
+                .mockResolvedValueOnce(false)
+
+            await run('play').done
+
+            expect(listLikedTracksMock).toHaveBeenCalled()
+            expect(queueConnectMock).not.toHaveBeenCalled()
             expect(queueLikedTracksMock).not.toHaveBeenCalled()
         })
 
