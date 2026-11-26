@@ -102,6 +102,70 @@ export function getRecentSkipCount(guildId: string): number {
     return guildRecentSkipCounts.get(guildId) ?? 0
 }
 
+// Skips in a row at the end of a session: how many tracks the listeners
+// rejected, back to back, right before the queue was deleted. A track that
+// plays through resets it. Read once, when the session ends.
+type SkipStreak = { skips: number; autoplaySkips: number }
+// No TTL, for the same reason as the session tally below.
+const guildSkipStreaks = new LRUCache<string, SkipStreak>({ max: 500 })
+
+export function noteTrackEnd(
+    guildId: string,
+    end: { skipped: boolean; autoplay: boolean },
+): void {
+    if (!end.skipped) {
+        guildSkipStreaks.delete(guildId)
+        return
+    }
+    const streak = guildSkipStreaks.get(guildId) ?? {
+        skips: 0,
+        autoplaySkips: 0,
+    }
+    streak.skips += 1
+    if (end.autoplay) streak.autoplaySkips += 1
+    guildSkipStreaks.set(guildId, streak)
+}
+
+/** Removes and returns the guild's skip streak. */
+export function takeSkipStreak(guildId: string): SkipStreak {
+    const streak = guildSkipStreaks.get(guildId) ?? {
+        skips: 0,
+        autoplaySkips: 0,
+    }
+    guildSkipStreaks.delete(guildId)
+    return streak
+}
+
+// How many tracks of the current session started, and how many of them took
+// their audio from YouTube. Read once, when the session ends, to tell the
+// sessions that ran with no YouTube audio at all.
+type SessionSources = { tracks: number; youtubeTracks: number }
+// No TTL: a 24/7 session can outlive any, and queueDelete removes the entry.
+const guildSessionSources = new LRUCache<string, SessionSources>({ max: 500 })
+
+export function noteSessionTrackSource(
+    guildId: string,
+    fromYoutube: boolean,
+): void {
+    const sources = guildSessionSources.get(guildId) ?? {
+        tracks: 0,
+        youtubeTracks: 0,
+    }
+    sources.tracks += 1
+    if (fromYoutube) sources.youtubeTracks += 1
+    guildSessionSources.set(guildId, sources)
+}
+
+/** Removes and returns the guild's session source tally. */
+export function takeSessionSources(guildId: string): SessionSources {
+    const sources = guildSessionSources.get(guildId) ?? {
+        tracks: 0,
+        youtubeTracks: 0,
+    }
+    guildSessionSources.delete(guildId)
+    return sources
+}
+
 // Time the CURRENT play of a guild spent paused. Wall-clock since playerStart
 // counts paused time as played, which inflates history playDuration and the
 // Last.fm play-time gate, so pauses are accumulated here. One entry per guild
@@ -140,6 +204,8 @@ export function getPausedMs(guildId: string, now: number): number {
 
 export function __resetTrackHandlerCachesForTests(): void {
     guildRecentSkipCounts.clear()
+    guildSkipStreaks.clear()
+    guildSessionSources.clear()
     guildPauseStates.clear()
     guildLastStartedTrack.clear()
     // A WeakMap has no clear(), so drop the whole map. Tests rely on this to

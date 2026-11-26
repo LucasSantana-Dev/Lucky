@@ -43,6 +43,10 @@ import { resetAutoplayFailureStreak } from './autoplayFailureStreak'
 import { dropAsmrTracks } from '../../utils/music/asmrFilter'
 import {
     getRecentSkipCount,
+    noteSessionTrackSource,
+    noteTrackEnd,
+    takeSessionSources,
+    takeSkipStreak,
     getTrackRequesterId,
     isAutoplayTrack,
     isRecommendationAutoplay,
@@ -238,10 +242,15 @@ const handlePlayerStart = async (
         debugLog({ message: `Track URL: ${track.url}` })
         // Activation telemetry (#2471): the actual audio origin, not the
         // search source track_history.source already records.
+        const streamSource = resolveActualStreamSource(track)
         telemetryLog('track_stream_source', {
             guildId: queue.guild.id,
-            source: resolveActualStreamSource(track),
+            source: streamSource,
         })
+        noteSessionTrackSource(
+            queue.guild.id,
+            streamSource === 'youtube' || streamSource === 'youtubei-native',
+        )
         if (queue.node.volume !== constants.VOLUME)
             queue.node.setVolume(constants.VOLUME)
 
@@ -348,6 +357,29 @@ async function scrobbleAndRecord(
     await addTrackToHistory(trackToRecord, queue.guild.id, { playDuration })
 }
 
+/**
+ * Feeds the session's skip streak from a finish or a skip. Called before the
+ * handler's first await, so a queue deletion that follows reads a streak that
+ * already counts this track, and a slow write cannot let an older finish
+ * clear a newer skip. The ratio uses the seconds actually played (pauses
+ * excluded): a track heard past the accept ratio resets the streak on either
+ * path, since a late skip is not a rejection. A track whose stream never
+ * started has no played time and is ignored.
+ */
+function noteEndForSkipStreak(
+    guildId: string,
+    track: Track | undefined,
+    played: number | undefined,
+    alreadyCounted = false,
+): void {
+    // A skip the skip handler already counted is not counted twice.
+    if (alreadyCounted || !track?.durationMS || played === undefined) return
+    noteTrackEnd(guildId, {
+        skipped: (played * 1000) / track.durationMS < OUTCOME_ACCEPT_PLAY_RATIO,
+        autoplay: isRecommendationAutoplay(track),
+    })
+}
+
 const handlePlayerFinish = async (
     queue: GuildQueue,
     track?: Track,
@@ -358,6 +390,7 @@ const handlePlayerFinish = async (
         const startTime = track ? takeTrackPlayStart(track) : undefined
         const played = playedSeconds(startTime, queue.guild.id)
         const recordedOnSkip = track ? recordedBySkip.delete(track) : false
+        noteEndForSkipStreak(queue.guild.id, track, played, recordedOnSkip)
 
         // A finish for a track with no play-start entry is not a play: its
         // stream never started (discord-player's #throw emits playerFinish
@@ -417,6 +450,32 @@ const handlePlayerFinish = async (
 }
 
 /**
+ * One line per session end, read in aggregate: how many tracks were skipped
+ * back to back right before it ended ("skipped N in a row, then left"), and
+ * whether the session ran with no YouTube audio. `withoutYoutube` is only
+ * present for a session that started at least one track.
+ */
+function logSessionEnd(queue: GuildQueue): void {
+    const guildId = queue.guild.id
+    const streak = takeSkipStreak(guildId)
+    const sources = takeSessionSources(guildId)
+    infoLog({
+        message: 'Session ended',
+        data: {
+            guildId,
+            skipsBeforeEnd: streak.skips,
+            autoplaySkipsBeforeEnd: streak.autoplaySkips,
+            listeners: listenerIds(queue).length,
+            tracks: sources.tracks,
+            youtubeTracks: sources.youtubeTracks,
+            ...(sources.tracks > 0
+                ? { withoutYoutube: sources.youtubeTracks === 0 }
+                : {}),
+        },
+    })
+}
+
+/**
  * Records the play that a queue deletion cut short.
  *
  * GuildQueue.emit() returns early once the queue is deleted, so the
@@ -442,6 +501,7 @@ const handleQueueDelete = async (queue: GuildQueue): Promise<void> => {
     // Refill counter and mood cache belong to the session that just ended
     // (#3280); /leave and the idle disconnect both land here via delete().
     void clearAutoplayGuildState(queue.guild.id)
+    logSessionEnd(queue)
     try {
         const lastStarted = takeGuildLastStartedTrack(queue.guild.id)
         const track = queue.currentTrack ?? lastStarted
@@ -476,6 +536,9 @@ const handlePlayerSkip = async (
         // handlePlayerFinish.
         const startTime = track ? takeTrackPlayStart(track) : undefined
         const played = playedSeconds(startTime, queue.guild.id)
+        if (reason !== 'ERR_NO_STREAM') {
+            noteEndForSkipStreak(queue.guild.id, track, played)
+        }
 
         infoLog({
             message: 'Track skipped',

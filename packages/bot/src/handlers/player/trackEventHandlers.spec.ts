@@ -1274,6 +1274,155 @@ describe('track history when a queue is deleted mid-play', () => {
         } as unknown as GuildQueue
     }
 
+    function sessionEnd(guildId = 'guild-1') {
+        return infoLogMock.mock.calls
+            .map(([entry]) => entry)
+            .filter(
+                (entry) =>
+                    entry.message === 'Session ended' &&
+                    entry.data.guildId === guildId,
+            )
+            .at(-1)?.data
+    }
+
+    it('logs how many tracks were skipped in a row before the session ended', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const played = { ...createTrack('streak-0'), durationMS: 200_000 }
+        const picked = {
+            ...createTrack('streak-1'),
+            durationMS: 200_000,
+            metadata: { isAutoplay: true },
+        }
+        const requested = { ...createTrack('streak-2'), durationMS: 200_000 }
+
+        await handlers.playerStart(queue, asTrack(played))
+        jest.advanceTimersByTime(190_000)
+        await handlers.playerFinish(queue, asTrack(played))
+        await handlers.playerStart(queue, asTrack(picked))
+        jest.advanceTimersByTime(5_000)
+        await handlers.playerSkip(queue, asTrack(picked))
+        await handlers.playerStart(queue, asTrack(requested))
+        jest.advanceTimersByTime(5_000)
+        await handlers.playerSkip(queue, asTrack(requested))
+        await handlers.queueDelete(queue)
+
+        expect(sessionEnd()).toMatchObject({
+            skipsBeforeEnd: 2,
+            autoplaySkipsBeforeEnd: 1,
+        })
+    })
+
+    it('marks a session whose audio never came from YouTube', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const bridged = { ...createTrack('sc-0'), durationMS: 200_000 }
+        resolveActualStreamSourceMock.mockReturnValueOnce('soundcloud-bridge')
+
+        await handlers.playerStart(queue, asTrack(bridged))
+        await handlers.queueDelete(queue)
+
+        expect(sessionEnd()).toMatchObject({
+            tracks: 1,
+            youtubeTracks: 0,
+            withoutYoutube: true,
+        })
+    })
+
+    it('counts the tracks of a session that took audio from YouTube', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const fromYoutube = { ...createTrack('yt-0'), durationMS: 200_000 }
+        resolveActualStreamSourceMock.mockReturnValueOnce('youtubei-native')
+
+        await handlers.playerStart(queue, asTrack(fromYoutube))
+        await handlers.queueDelete(queue)
+
+        expect(sessionEnd()).toMatchObject({
+            tracks: 1,
+            youtubeTracks: 1,
+            withoutYoutube: false,
+        })
+    })
+
+    it('leaves the YouTube mark out of a session that started no track', async () => {
+        const handlers = setupHandlers()
+
+        await handlers.queueDelete(makeQueue('guild-empty'))
+
+        expect(sessionEnd('guild-empty')).toMatchObject({ tracks: 0 })
+        expect(sessionEnd('guild-empty')).not.toHaveProperty('withoutYoutube')
+    })
+
+    it('resets the skip streak when a track plays through', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const skipped = { ...createTrack('reset-0'), durationMS: 200_000 }
+        const played = { ...createTrack('reset-1'), durationMS: 200_000 }
+
+        await handlers.playerStart(queue, asTrack(skipped))
+        jest.advanceTimersByTime(5_000)
+        await handlers.playerSkip(queue, asTrack(skipped))
+        await handlers.playerStart(queue, asTrack(played))
+        jest.advanceTimersByTime(190_000)
+        await handlers.playerFinish(queue, asTrack(played))
+        await handlers.queueDelete(queue)
+
+        expect(sessionEnd()).toMatchObject({ skipsBeforeEnd: 0 })
+    })
+
+    it('does not count a skip after most of the track was heard', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const early = { ...createTrack('late-0'), durationMS: 200_000 }
+        const late = { ...createTrack('late-1'), durationMS: 200_000 }
+
+        await handlers.playerStart(queue, asTrack(early))
+        jest.advanceTimersByTime(5_000)
+        await handlers.playerSkip(queue, asTrack(early))
+        await handlers.playerStart(queue, asTrack(late))
+        jest.advanceTimersByTime(150_000)
+        await handlers.playerSkip(queue, asTrack(late))
+        await handlers.queueDelete(queue)
+
+        expect(sessionEnd()).toMatchObject({ skipsBeforeEnd: 0 })
+    })
+
+    it('counts the last skip even when the session ends before its writes finish', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const skipped = { ...createTrack('race-0'), durationMS: 200_000 }
+        let release: () => void = () => {}
+        addTrackToHistoryMock.mockReturnValueOnce(
+            new Promise<void>((resolve) => {
+                release = resolve
+            }),
+        )
+
+        await handlers.playerStart(queue, asTrack(skipped))
+        jest.advanceTimersByTime(5_000)
+        const skipping = handlers.playerSkip(queue, asTrack(skipped))
+        await handlers.queueDelete(queue)
+        release()
+        await skipping
+
+        expect(sessionEnd()).toMatchObject({ skipsBeforeEnd: 1 })
+    })
+
+    it('starts the next session with no skip streak', async () => {
+        const handlers = setupHandlers()
+        const queue = makeQueue()
+        const skipped = { ...createTrack('next-0'), durationMS: 200_000 }
+
+        await handlers.playerStart(queue, asTrack(skipped))
+        jest.advanceTimersByTime(5_000)
+        await handlers.playerSkip(queue, asTrack(skipped))
+        await handlers.queueDelete(queue)
+        await handlers.queueDelete(queue)
+
+        expect(sessionEnd()).toMatchObject({ skipsBeforeEnd: 0 })
+    })
+
     it('records the interrupted play once, with the seconds played (/stop, /leave, disconnect, empty channel)', async () => {
         const handlers = setupHandlers()
         const track = { ...createTrack('delete-stop'), durationMS: 200_000 }
