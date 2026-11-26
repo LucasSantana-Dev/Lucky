@@ -65,7 +65,11 @@ describe('recap off button (#2738)', () => {
 
     it('builds a row with mix and off buttons in order', () => {
         const t = ((key: string) => key) as unknown as TFunction
+        const saved = process.env.WEBAPP_BACKEND_URL
+        delete process.env.WEBAPP_BACKEND_URL
         const components = buildRecapOffRow(t).toJSON().components
+        if (saved === undefined) delete process.env.WEBAPP_BACKEND_URL
+        else process.env.WEBAPP_BACKEND_URL = saved
         expect(components).toHaveLength(2)
         expect(components[0]).toEqual(
             expect.objectContaining({
@@ -79,6 +83,23 @@ describe('recap off button (#2738)', () => {
             expect.objectContaining({
                 custom_id: RECAP_OFF_BUTTON_ID,
                 label: 'music.recap.offButton',
+            }),
+        )
+    })
+
+    it('adds a tracked invite link when a backend is configured', () => {
+        const t = ((key: string) => key) as unknown as TFunction
+        const saved = process.env.WEBAPP_BACKEND_URL
+        process.env.WEBAPP_BACKEND_URL = 'https://api.example.com/some/path'
+        const components = buildRecapOffRow(t).toJSON().components
+        if (saved === undefined) delete process.env.WEBAPP_BACKEND_URL
+        else process.env.WEBAPP_BACKEND_URL = saved
+        expect(components).toHaveLength(3)
+        expect(components[2]).toEqual(
+            expect.objectContaining({
+                style: ButtonStyle.Link,
+                label: 'music.recap.inviteButton',
+                url: 'https://api.example.com/invite?utm_source=recap&utm_medium=card',
             }),
         )
     })

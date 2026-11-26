@@ -7,6 +7,7 @@ import {
     TOP_GG_VOTE_URL,
     COLOR,
 } from '@lucky/shared/constants'
+import { buildTrackedInviteUrl } from '../../../utils/general/trackedInviteUrl'
 
 /**
  * Build the invite URL. With a backend configured, link its `/invite` route so
@@ -16,29 +17,14 @@ import {
 function buildInviteUrl(
     applicationId: string | undefined | null,
 ): string | null {
-    const backend = getBackendOrigin()
-    if (backend) {
-        return `${backend}/invite?utm_source=bot&utm_medium=command`
-    }
+    const tracked = buildTrackedInviteUrl('bot', 'command')
+    if (tracked) return tracked
     if (!applicationId) return null
 
     // The same set as every other invite link (#2736).
     return `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(
         applicationId,
     )}&permissions=${BOT_INVITE_PERMISSIONS}&scope=bot%20applications.commands`
-}
-
-function getBackendOrigin(): string | null {
-    const raw = process.env.WEBAPP_BACKEND_URL?.trim()
-    if (!raw) return null
-    try {
-        const url = new URL(raw)
-        return url.protocol === 'https:' || url.protocol === 'http:'
-            ? url.origin
-            : null
-    } catch {
-        return null
-    }
 }
 
 export default new Command({
