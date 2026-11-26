@@ -13,6 +13,7 @@ import {
 import { modDigestSchedulerService } from '../../utils/moderation/modDigestScheduler'
 import { birthdayScheduler } from '../../utils/general/birthdayScheduler'
 import { recapScheduler } from '../../services/recap/recapScheduler'
+import { firstPlayReminderScheduler } from '../../services/onboarding/firstPlayReminder'
 import { playProbeScheduler } from '../../services/playProbe/playProbe'
 import { reminderScheduler } from '../../utils/general/reminderScheduler'
 import { supportSessionScheduler } from '../../utils/general/supportSessionScheduler'
@@ -206,6 +207,15 @@ export async function startClient({
             } catch (error) {
                 errorLog({
                     message: 'Failed to start recap scheduler',
+                    error,
+                })
+            }
+
+            try {
+                firstPlayReminderScheduler.start(client)
+            } catch (error) {
+                errorLog({
+                    message: 'Failed to start first-play reminder scheduler',
                     error,
                 })
             }

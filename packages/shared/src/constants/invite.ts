@@ -134,6 +134,7 @@ export const ACTIVATION_EVENT_KINDS = [
     'onboarding_failed',
     'station_click',
     'recap_auto_enabled',
+    'first_play_reminder',
 ] as const
 
 export type ActivationEventKind = (typeof ACTIVATION_EVENT_KINDS)[number]

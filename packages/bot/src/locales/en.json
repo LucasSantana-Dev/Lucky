@@ -61,7 +61,9 @@
         "onboarding": {
             "title": "🎵 Lucky is ready to play",
             "description": "Join a voice channel and press **Start Listening**, or use `/play` with a song name or a Spotify link.\n\nWhen the queue ends, Lucky keeps going with similar songs. `/247` keeps it in the voice channel between sessions.\n\nAfter the first song, Lucky posts a Sunday recap of the server's most-played tracks and artists in the text channel where it was requested, if it can post there. A server admin can turn it off with the button on the recap or `/recap off`.",
-            "playButton": "▶ Start Listening"
+            "playButton": "▶ Start Listening",
+            "reminderTitle": "🎧 Lucky hasn't played anything here yet",
+            "reminderDescription": "It takes ten seconds: join a voice channel and press **Start Listening**, or use `/play` with a song name or a Spotify link.\n\nThis is the only reminder Lucky sends."
         },
         "station": {
             "genres": {

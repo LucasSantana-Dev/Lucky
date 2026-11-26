@@ -166,7 +166,7 @@ model ActivationEvent {
   guildDiscordId String
   /// Free-form String on purpose (no enum, avoids enum migrations). Values are
   /// restricted by the CHECK constraint activation_events_kind_check in
-  /// migration 20261018170000_activation_events; keep it in sync with
+  /// migration 20261126140000_first_play_reminder_kind; keep it in sync with
   /// ACTIVATION_EVENT_KINDS (packages/shared/src/constants/invite.ts).
   kind           String
   reason         String?

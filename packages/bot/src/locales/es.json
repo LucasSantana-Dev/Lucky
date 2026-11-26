@@ -61,7 +61,9 @@
         "onboarding": {
             "title": "🎵 Lucky está listo para sonar",
             "description": "Entra a un canal de voz y pulsa **Empezar a Escuchar**, o usa `/play` con el nombre de una canción o un enlace de Spotify.\n\nCuando la cola termina, Lucky sigue con canciones parecidas. Con `/247` se queda en el canal de voz entre una sesión y otra.\n\nTras la primera canción, Lucky publica los domingos, en el canal de texto donde se pidió, un resumen de las canciones y artistas más escuchados del servidor, si puede publicar en él. Un administrador puede desactivarlo con el botón del resumen o con `/recap off`.",
-            "playButton": "▶ Empezar a Escuchar"
+            "playButton": "▶ Empezar a Escuchar",
+            "reminderTitle": "🎧 Lucky todavía no ha sonado por aquí",
+            "reminderDescription": "Son diez segundos: entra a un canal de voz y pulsa **Empezar a Escuchar**, o usa `/play` con el nombre de una canción o un enlace de Spotify.\n\nEste es el único recordatorio que Lucky envía."
         },
         "station": {
             "genres": {
