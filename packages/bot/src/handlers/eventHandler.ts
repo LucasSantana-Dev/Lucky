@@ -1,3 +1,4 @@
+import { suggestTracks } from './trackSuggestions'
 import {
     Events,
     ChannelType,
@@ -384,6 +385,11 @@ async function handleAutocomplete(interaction: Interaction): Promise<void> {
                     value: album.url,
                 })),
             )
+            return
+        }
+
+        if (command === 'search' && focusedOption.name === 'query') {
+            await interaction.respond(await suggestTracks(focusedOption.value))
             return
         }
 

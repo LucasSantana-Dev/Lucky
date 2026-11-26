@@ -43,6 +43,7 @@ async function searchSpotify(
     type: 'artist' | 'track',
     limit: number,
     pick: (data: Record<string, unknown> | null) => unknown[],
+    signal?: AbortSignal,
 ): Promise<unknown[]> {
     if (!query.trim()) return []
     try {
@@ -55,7 +56,9 @@ async function searchSpotify(
             `https://api.spotify.com/v1/search?${params.toString()}`,
             {
                 headers: { Authorization: `Bearer ${accessToken}` },
-                signal: AbortSignal.timeout(10_000),
+                signal: signal
+                    ? AbortSignal.any([signal, AbortSignal.timeout(10_000)])
+                    : AbortSignal.timeout(10_000),
             },
         )
         if (!res.ok) return []
@@ -226,6 +229,7 @@ export async function searchSpotifyTracks(
     accessToken: string,
     query: string,
     limit = 10,
+    signal?: AbortSignal,
 ): Promise<SpotifyTrackRef[]> {
     const items = await searchSpotify(
         accessToken,
@@ -234,6 +238,7 @@ export async function searchSpotifyTracks(
         limit,
         (data) =>
             (data?.tracks as { items?: unknown[] } | undefined)?.items ?? [],
+        signal,
     )
     return items
         .map((t) =>
