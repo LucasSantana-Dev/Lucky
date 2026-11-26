@@ -227,6 +227,33 @@ describe('GuildService', () => {
             expect(result).toContain('scope=bot')
         })
 
+        test('marks the add as coming from the dashboard when a redirect is set', () => {
+            const saved = process.env.WEBAPP_REDIRECT_URI
+            process.env.WEBAPP_REDIRECT_URI =
+                'https://lucky.example/auth/callback'
+            const result =
+                guildService.generateBotInviteUrl('111111111111111111')
+            if (saved === undefined) delete process.env.WEBAPP_REDIRECT_URI
+            else process.env.WEBAPP_REDIRECT_URI = saved
+
+            expect(result).toContain('response_type=code')
+            expect(result).toContain('state=src.dashboard')
+            expect(result).toContain(
+                `redirect_uri=${encodeURIComponent('https://lucky.example/api/auth/callback')}`,
+            )
+        })
+
+        test('adds no state or code when no redirect is configured', () => {
+            const saved = process.env.WEBAPP_REDIRECT_URI
+            delete process.env.WEBAPP_REDIRECT_URI
+            const result =
+                guildService.generateBotInviteUrl('111111111111111111')
+            if (saved !== undefined) process.env.WEBAPP_REDIRECT_URI = saved
+
+            expect(result).not.toContain('state=')
+            expect(result).not.toContain('response_type=')
+        })
+
         test('should generate invite URL without guild ID', () => {
             const result = guildService.generateBotInviteUrl()
 

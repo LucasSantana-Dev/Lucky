@@ -103,6 +103,7 @@ describe('landing source attribution (#2750)', () => {
         expect(normalizeLandingSource('GitHub')).toBe('github')
         expect(normalizeLandingSource('bot')).toBe('bot')
         expect(normalizeLandingSource('recap')).toBe('recap')
+        expect(normalizeLandingSource('dashboard')).toBe('dashboard')
     })
 
     it('ignores punctuation pasted around a source', () => {
