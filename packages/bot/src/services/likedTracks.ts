@@ -37,7 +37,10 @@ export async function likeTrack(
 ): Promise<LikeResult> {
     try {
         const snapshot = toSnapshotTrack(track)
-        const trackKey = normalizeTrackKey(snapshot.title, snapshot.author)
+        // discord-player hands the title over already Markdown-escaped; the
+        // list keeps the plain text and escapes it when it is shown.
+        const title = snapshot.title.replace(/\\(.)/g, '$1')
+        const trackKey = normalizeTrackKey(title, snapshot.author)
         const lockKey = `liked-tracks:${userId}`
         return await getPrismaClient().$transaction(async (tx) => {
             // One like at a time per member, so the limit check and the
@@ -58,7 +61,7 @@ export async function likeTrack(
                 data: {
                     discordUserId: userId,
                     trackKey,
-                    title: snapshot.title,
+                    title,
                     author: snapshot.author,
                     url: snapshot.url,
                     duration: snapshot.duration,

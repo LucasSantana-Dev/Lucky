@@ -79,16 +79,26 @@ function queueWith(found: (query: string) => unknown) {
 
 const user = { id: 'user-1' } as never
 
+/** The client Prisma hands to a transaction callback. */
+const tx = {
+    likedTrack: {
+        findUnique: jest.fn(),
+        count: jest.fn(),
+        create: jest.fn(),
+    },
+    $executeRaw: jest.fn(),
+}
+
 describe('liked tracks', () => {
     beforeEach(() => {
         jest.clearAllMocks()
         hostedYoutubeMock.mockReturnValue(false)
-        prisma.likedTrack.findUnique.mockResolvedValue(null)
-        prisma.likedTrack.count.mockResolvedValue(0)
-        prisma.likedTrack.create.mockResolvedValue({ id: 'new-1' })
-        prisma.$executeRaw.mockResolvedValue(1)
+        tx.likedTrack.findUnique.mockResolvedValue(null)
+        tx.likedTrack.count.mockResolvedValue(0)
+        tx.likedTrack.create.mockResolvedValue({ id: 'new-1' })
+        tx.$executeRaw.mockResolvedValue(1)
         prisma.$transaction.mockImplementation(
-            (run: (tx: typeof prisma) => unknown) => run(prisma),
+            (run: (client: typeof tx) => unknown) => run(tx),
         )
         prisma.likedTrack.findMany.mockResolvedValue([])
     })
@@ -97,7 +107,7 @@ describe('liked tracks', () => {
         it('saves the song under the member, keyed by title and artist', async () => {
             await expect(likeTrack('user-1', playing)).resolves.toBe('saved')
 
-            const { data } = prisma.likedTrack.create.mock.calls[0][0]
+            const { data } = tx.likedTrack.create.mock.calls[0][0]
             expect(data).toEqual({
                 discordUserId: 'user-1',
                 trackKey: expect.any(String),
@@ -107,7 +117,7 @@ describe('liked tracks', () => {
                 duration: '3:00',
                 source: 'spotify',
             })
-            expect(prisma.likedTrack.findUnique).toHaveBeenCalledWith({
+            expect(tx.likedTrack.findUnique).toHaveBeenCalledWith({
                 where: {
                     discordUserId_trackKey: {
                         discordUserId: 'user-1',
@@ -121,33 +131,53 @@ describe('liked tracks', () => {
         it("takes the member's lock before it checks the limit", async () => {
             await likeTrack('user-1', playing)
 
-            expect(prisma.$executeRaw.mock.calls[0][1]).toBe(
-                'liked-tracks:user-1',
-            )
-            expect(prisma.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
-                prisma.likedTrack.count.mock.invocationCallOrder[0],
+            expect(tx.$executeRaw.mock.calls[0][1]).toBe('liked-tracks:user-1')
+            expect(tx.$executeRaw.mock.invocationCallOrder[0]).toBeLessThan(
+                tx.likedTrack.count.mock.invocationCallOrder[0],
             )
             expect(
-                prisma.likedTrack.count.mock.invocationCallOrder[0],
-            ).toBeLessThan(prisma.likedTrack.create.mock.invocationCallOrder[0])
+                tx.likedTrack.count.mock.invocationCallOrder[0],
+            ).toBeLessThan(tx.likedTrack.create.mock.invocationCallOrder[0])
+        })
+
+        it('reads and writes only through the transaction', async () => {
+            await likeTrack('user-1', playing)
+
+            expect(tx.likedTrack.create).toHaveBeenCalledTimes(1)
+            expect(prisma.likedTrack.findUnique).not.toHaveBeenCalled()
+            expect(prisma.likedTrack.count).not.toHaveBeenCalled()
+            expect(prisma.likedTrack.create).not.toHaveBeenCalled()
+            expect(prisma.$executeRaw).not.toHaveBeenCalled()
+        })
+
+        it('stores the title without the Markdown escapes it arrives with', async () => {
+            await likeTrack('user-1', {
+                title: 'Song \\*2\\* \\\\',
+                author: 'Band',
+                url: 'https://open.spotify.com/track/t2',
+            } as never)
+
+            expect(tx.likedTrack.create.mock.calls[0][0].data.title).toBe(
+                'Song *2* \\',
+            )
         })
 
         it('says so when the song is already liked', async () => {
-            prisma.likedTrack.findUnique.mockResolvedValue({ id: 'l1' })
+            tx.likedTrack.findUnique.mockResolvedValue({ id: 'l1' })
 
             await expect(likeTrack('user-1', playing)).resolves.toBe('already')
-            expect(prisma.likedTrack.create).not.toHaveBeenCalled()
+            expect(tx.likedTrack.create).not.toHaveBeenCalled()
         })
 
         it('refuses a new song when the list is full', async () => {
-            prisma.likedTrack.count.mockResolvedValue(LIKED_TRACKS_MAX)
+            tx.likedTrack.count.mockResolvedValue(LIKED_TRACKS_MAX)
 
             await expect(likeTrack('user-1', playing)).resolves.toBe('full')
-            expect(prisma.likedTrack.create).not.toHaveBeenCalled()
+            expect(tx.likedTrack.create).not.toHaveBeenCalled()
         })
 
         it('reports a failed write without throwing', async () => {
-            prisma.likedTrack.create.mockRejectedValue(new Error('db down'))
+            tx.likedTrack.create.mockRejectedValue(new Error('db down'))
 
             await expect(likeTrack('user-1', playing)).resolves.toBe('failed')
             expect(errorLogMock).toHaveBeenCalled()
