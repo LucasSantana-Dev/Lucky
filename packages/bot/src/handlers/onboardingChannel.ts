@@ -7,8 +7,9 @@ import {
 
 /**
  * First text channel the bot can actually post to (system channel preferred).
- * Shared by the welcome message and the first-play reminder, so both land in
- * the same place.
+ * Shared by the welcome message and the first-play reminder. The reminder
+ * resolves the channel again at send time, so it matches the welcome only
+ * while the system channel and the bot's permissions are unchanged.
  */
 export function findOnboardingChannel(guild: Guild): GuildBasedChannel | null {
     const me = guild.members?.me

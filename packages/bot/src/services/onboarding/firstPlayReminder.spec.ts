@@ -101,6 +101,14 @@ describe('first-play reminder', () => {
             'guild-1',
             'first_play_reminder',
         )
+        expect(prisma.activationEvent.findFirst).toHaveBeenCalledWith({
+            where: { guildDiscordId: 'guild-1', kind: 'first_play_reminder' },
+            select: { id: true },
+        })
+        expect(prisma.trackHistory.findFirst).toHaveBeenCalledWith({
+            where: { guildId: 'guild-1' },
+            select: { id: true },
+        })
         expect(send).toHaveBeenCalledTimes(1)
         expect(
             recordActivationEventMock.mock.invocationCallOrder[0],
