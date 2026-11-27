@@ -134,7 +134,7 @@ const API = 'https://discord.com/api/v10'
 const BRAND = 0x495df3
 const SITE = 'https://lucky.lucassantana.tech'
 const REPO = 'https://github.com/LucasSantana-Dev/Lucky'
-const SUPPORT = 'https://discord.gg/f2rxBWvqeR'
+const SUPPORT = 'https://discord.gg/jAq6Ya4n5e'
 const LISTING = 'https://top.gg/bot/962198089161134131'
 const VOTE = `${LISTING}/vote`
 
