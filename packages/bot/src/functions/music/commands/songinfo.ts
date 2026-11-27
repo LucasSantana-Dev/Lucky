@@ -41,7 +41,9 @@ export default new Command({
             'playing',
             {
                 tag: interaction.user.username,
-                displayAvatarURL: interaction.user.displayAvatarURL,
+                // Bound: discord.js reads `this.avatarURL` inside it.
+                displayAvatarURL: (options) =>
+                    interaction.user.displayAvatarURL(options),
             },
             { progressBar },
         )

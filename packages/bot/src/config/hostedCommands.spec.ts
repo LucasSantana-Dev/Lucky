@@ -56,6 +56,8 @@ describe('hostedCommands', () => {
                     'stop',
                     'leave',
                     'queue',
+                    'remove',
+                    'clear',
                     'nowplaying',
                     'shuffle',
                     'repeat',
