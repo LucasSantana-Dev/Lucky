@@ -8,6 +8,7 @@ import {
     setupVoiceKickDetection,
 } from './lifecycleHandlers'
 import { setupTrackHandlers } from './trackEventHandlers'
+import { setupVoiceAudibilityCheck } from './voiceAudibility'
 
 type CreatePlayerParams = {
     client: CustomClient
@@ -38,6 +39,7 @@ export const createPlayerWithHandlers = ({
     })
     setupVoiceKickDetection(client)
     setupStageSpeaker(client)
+    setupVoiceAudibilityCheck(client)
 
     return player
 }
