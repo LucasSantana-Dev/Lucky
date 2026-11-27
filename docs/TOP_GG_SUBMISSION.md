@@ -20,7 +20,7 @@ on it) and the `Appearance` section of the dashboard.
 | Invite URL     | `https://lucky.lucassantana.tech/invite`    |
 | Website        | `https://lucky.lucassantana.tech`           |
 | GitHub         | `https://github.com/LucasSantana-Dev/Lucky` |
-| Support server | `https://discord.gg/f2rxBWvqeR`             |
+| Support server | `https://discord.gg/jAq6Ya4n5e`             |
 
 **Note on the support server**: the invite is permanent by construction ("Expire After: Never", "Max Uses: No limit"). The first invite generated for this server carried `expires_at 2026-09-23` and was discarded: a support link that quietly expires is half of what made #2087 a bug. The single definition lives in `packages/shared/src/constants/support.ts`; do not paste the raw URL into new call sites.
 
@@ -94,7 +94,7 @@ Lucky never asks for Administrator. The invite uses a short, curated permission 
 1. Invite Lucky: https://lucky.lucassantana.tech/invite
 2. Join a voice channel and type `/play` with a song name or a Spotify link
 3. The weekly recap starts in that text channel, if Lucky can post there. Move it with `/recap channel`, or stop it with the button on the recap
-4. Questions or ideas? Join the support server: https://discord.gg/f2rxBWvqeR
+4. Questions or ideas? Join the support server: https://discord.gg/jAq6Ya4n5e
 
 Made in Brazil. Open source under the ISC license: https://github.com/LucasSantana-Dev/Lucky
 ```
@@ -128,7 +128,7 @@ A Lucky nunca pede Administrador. O convite usa uma lista curta e escolhida de p
 1. Convide a Lucky: https://lucky.lucassantana.tech/invite
 2. Entre num canal de voz e digite `/play` com o nome de uma música ou um link do Spotify
 3. O resumo semanal começa nesse canal de texto, se a Lucky puder postar nele. Mude com `/recap channel`, ou desligue pelo botão no resumo
-4. Dúvidas ou ideias? Entre no servidor de suporte: https://discord.gg/f2rxBWvqeR
+4. Dúvidas ou ideias? Entre no servidor de suporte: https://discord.gg/jAq6Ya4n5e
 
 Feita no Brasil. Código aberto sob a licença ISC: https://github.com/LucasSantana-Dev/Lucky
 ```
@@ -162,7 +162,7 @@ The fields the wizard does have, in order:
 | Note for reviewer   | no                    | empty                                                                       |
 | Invite URL          | no                    | `https://lucky.lucassantana.tech/invite?utm_source=topgg&utm_medium=direct` |
 | Repository URL      | no                    | `LucasSantana-Dev/Lucky`                                                    |
-| Support URL         | no                    | `f2rxBWvqeR`                                                                |
+| Support URL         | no                    | `jAq6Ya4n5e`                                                                |
 | Website URL         | no                    | `https://lucky.lucassantana.tech`                                           |
 | Support Server Link | no                    | empty                                                                       |
 

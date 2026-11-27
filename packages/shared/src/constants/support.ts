@@ -13,5 +13,9 @@
  * "Expire After: Never" and "Max Uses: No limit". A support link on the
  * top.gg listing that silently expires is the failure this constant exists
  * to prevent, so do not replace it with a time-limited invite.
+ *
+ * The first permanent invite (f2rxBWvqeR) still went invalid by 2026-11-27,
+ * so a permanent setting is not a guarantee: when the support link breaks,
+ * check this invite first.
  */
-export const SUPPORT_SERVER_INVITE_URL = 'https://discord.gg/f2rxBWvqeR'
+export const SUPPORT_SERVER_INVITE_URL = 'https://discord.gg/jAq6Ya4n5e'
