@@ -131,4 +131,34 @@ describe('songinfo command', () => {
             { progressBar: null },
         )
     })
+
+    // Regression: /nowplaying failed with "this.avatarURL is not a function"
+    // because the method was passed unbound to the embed builder.
+    it('passes an avatar getter that keeps the user as `this`', async () => {
+        class FakeUser {
+            username = 'tester'
+            avatarURL(options?: { size?: number }) {
+                return `https://cdn.example/avatar.png?size=${options?.size}`
+            }
+            displayAvatarURL(options?: { size?: number }) {
+                return this.avatarURL(options)
+            }
+        }
+        ;(resolveGuildQueue as jest.Mock).mockReturnValue({
+            queue: {
+                currentTrack: { title: 'Song' },
+                node: { createProgressBar: jest.fn(() => null) },
+            },
+        })
+
+        await execute({
+            client: {},
+            interaction: { guildId: 'guild-1', user: new FakeUser() } as any,
+        })
+
+        const requestedBy = (buildTrackEmbed as jest.Mock).mock.calls[0][2]
+        expect(requestedBy.displayAvatarURL({ size: 64 })).toBe(
+            'https://cdn.example/avatar.png?size=64',
+        )
+    })
 })
