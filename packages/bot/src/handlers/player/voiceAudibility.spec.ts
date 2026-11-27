@@ -113,8 +113,22 @@ describe('ensureAudible', () => {
                 throw new Error('Missing Permissions')
             },
         })
-        await expect(ensureAudible(state)).resolves.toBe('server-muted')
+        await expect(ensureAudible(state)).resolves.toBe('server-muted-locked')
         expect(debugLogMock).toHaveBeenCalled()
+    })
+
+    it('lifts the mute even when Speak is denied', async () => {
+        const { state, setMuteMock } = buildState({
+            serverMute: true,
+            permissions: [PermissionFlagsBits.MuteMembers],
+        })
+        await expect(ensureAudible(state)).resolves.toBe('no-speak')
+        expect(setMuteMock).toHaveBeenCalledWith(false)
+    })
+
+    it('reports both causes when it can neither speak nor unmute', async () => {
+        const { state } = buildState({ serverMute: true, permissions: [] })
+        await expect(ensureAudible(state)).resolves.toBe('no-speak-muted')
     })
 
     it('reports server-muted without Mute Members', async () => {
@@ -155,7 +169,14 @@ describe('setupVoiceAudibilityCheck', () => {
         const { listeners, send } = buildClient()
         const { state } = buildState({ permissions: [] })
         await listeners[0]({ channelId: null, serverMute: false }, state)
-        expect(send).toHaveBeenCalledTimes(1)
+        expect(send).toHaveBeenCalledWith({
+            embeds: [
+                expect.objectContaining({
+                    title: "🔇 I can't be heard in this channel",
+                    body: expect.stringContaining('Allow **Speak**'),
+                }),
+            ],
+        })
         expect(warnLogMock).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: 'voice: bot cannot be heard (no-speak)',
@@ -167,6 +188,25 @@ describe('setupVoiceAudibilityCheck', () => {
         const { listeners, send } = buildClient()
         const { state } = buildState({ serverMute: true })
         await listeners[0]({ channelId: 'voice-1', serverMute: false }, state)
+        expect(send).toHaveBeenCalledWith({
+            embeds: [
+                expect.objectContaining({
+                    title: "🔇 I'm server-muted",
+                    body: expect.stringContaining('give me **Mute Members**'),
+                }),
+            ],
+        })
+    })
+
+    it('checks the new channel when moved between voice channels', async () => {
+        const { listeners, send } = buildClient()
+        const { state } = buildState({ channelId: 'voice-2', permissions: [] })
+        await listeners[0]({ channelId: 'voice-1', serverMute: false }, state)
+        expect(warnLogMock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({ channelId: 'voice-2' }),
+            }),
+        )
         expect(send).toHaveBeenCalledTimes(1)
     })
 

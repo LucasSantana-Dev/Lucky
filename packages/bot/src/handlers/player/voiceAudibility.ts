@@ -14,7 +14,13 @@ import type { QueueMetadata } from '../../types/QueueMetadata'
  * channel or no cached bot member.
  */
 export type AudibilityOutcome =
-    'not-applicable' | 'audible' | 'unmuted' | 'server-muted' | 'no-speak'
+    | 'not-applicable'
+    | 'audible'
+    | 'unmuted'
+    | 'server-muted'
+    | 'server-muted-locked'
+    | 'no-speak'
+    | 'no-speak-muted'
 
 /**
  * Two ways the bot plays into a normal voice channel and nobody hears it,
@@ -39,14 +45,16 @@ export async function ensureAudible(
     if (!me) return 'not-applicable'
 
     const permissions = me.permissionsIn(channel)
-    if (!permissions.has(PermissionFlagsBits.Speak)) return 'no-speak'
+    const canMuteMembers = permissions.has(PermissionFlagsBits.MuteMembers)
 
-    if (!voice.serverMute) return 'audible'
-
-    if (permissions.has(PermissionFlagsBits.MuteMembers)) {
+    // The mute is lifted before the Speak check: granting Speak later does
+    // not fire voiceStateUpdate, so a mute left in place here would never be
+    // looked at again.
+    let stillMuted = voice.serverMute === true
+    if (stillMuted && canMuteMembers) {
         try {
             await voice.setMute(false)
-            return 'unmuted'
+            stillMuted = false
         } catch (error) {
             debugLog({
                 message: 'Self server-unmute rejected',
@@ -55,9 +63,20 @@ export async function ensureAudible(
             })
         }
     }
+    const unmuted = voice.serverMute === true && !stillMuted
 
-    return 'server-muted'
+    if (!permissions.has(PermissionFlagsBits.Speak)) {
+        return stillMuted ? 'no-speak-muted' : 'no-speak'
+    }
+    if (unmuted) return 'unmuted'
+    if (!stillMuted) return 'audible'
+    // Holding Mute Members and still rejected (a role above Lucky's set the
+    // mute, for example): asking for the permission again would not help.
+    return canMuteMembers ? 'server-muted-locked' : 'server-muted'
 }
+
+const UNMUTE_BY_HAND =
+    'Right-click Lucky in the voice channel and turn off **Server Mute**'
 
 const AUDIBILITY_NOTICES: Partial<
     Record<AudibilityOutcome, { title: string; body: string }>
@@ -66,9 +85,17 @@ const AUDIBILITY_NOTICES: Partial<
         title: "🔇 I can't be heard in this channel",
         body: "I joined, but this voice channel doesn't give me the **Speak** permission, so the music plays and nobody hears it. Allow **Speak** for Lucky in the channel settings, then use /play again.",
     },
+    'no-speak-muted': {
+        title: "🔇 I can't be heard in this channel",
+        body: `This voice channel doesn't give me the **Speak** permission, and a moderator also server-muted me. Allow **Speak** for Lucky in the channel settings. ${UNMUTE_BY_HAND}. Then use /play again.`,
+    },
     'server-muted': {
         title: "🔇 I'm server-muted",
-        body: 'A moderator muted me in voice, so nobody can hear the music. Right-click Lucky in the voice channel and turn off **Server Mute**, or give me **Mute Members** so I can undo it myself.',
+        body: `A moderator muted me in voice, so nobody can hear the music. ${UNMUTE_BY_HAND}, or give me **Mute Members** so I can undo it myself.`,
+    },
+    'server-muted-locked': {
+        title: "🔇 I'm server-muted",
+        body: `A moderator muted me in voice and Discord would not let me undo it, so nobody can hear the music. ${UNMUTE_BY_HAND}.`,
     },
 }
 
