@@ -1,7 +1,7 @@
 import type { GuildQueue } from 'discord-player'
 import type { Client, VoiceState } from 'discord.js'
 import { ChannelType, PermissionFlagsBits } from 'discord.js'
-import { debugLog, infoLog, warnLog } from '@lucky/shared/utils'
+import { debugLog, warnLog } from '@lucky/shared/utils'
 import { createWarningEmbed } from '../../utils/general/embeds'
 import type { CustomClient } from '../../types'
 import type { QueueMetadata } from '../../types/QueueMetadata'
@@ -16,9 +16,7 @@ import type { QueueMetadata } from '../../types/QueueMetadata'
 export type AudibilityOutcome =
     | 'not-applicable'
     | 'audible'
-    | 'unmuted'
     | 'server-muted'
-    | 'server-muted-locked'
     | 'no-speak'
     | 'no-speak-muted'
 
@@ -30,12 +28,11 @@ export type AudibilityOutcome =
  * admin feedback prompt on 2026-11-26 ("I was not able to hear the music"),
  * after restarting the same track five times in eleven minutes.
  *
- * A server mute is undone when the bot holds **Mute Members**; nothing else
- * is fixable from here, so the caller tells the channel what to change.
+ * Neither is changed from here. A server mute is a moderator's decision, so
+ * the bot never lifts it even when it holds **Mute Members**; the caller
+ * tells the channel what to change instead.
  */
-export async function ensureAudible(
-    voice: VoiceState,
-): Promise<AudibilityOutcome> {
+export function ensureAudible(voice: VoiceState): AudibilityOutcome {
     const channel = voice.channel
     if (!channel || channel.type !== ChannelType.GuildVoice) {
         return 'not-applicable'
@@ -44,38 +41,11 @@ export async function ensureAudible(
     const me = voice.guild.members.me
     if (!me) return 'not-applicable'
 
-    const permissions = me.permissionsIn(channel)
-    const canMuteMembers = permissions.has(PermissionFlagsBits.MuteMembers)
-
-    // The mute is lifted before the Speak check: granting Speak later does
-    // not fire voiceStateUpdate, so a mute left in place here would never be
-    // looked at again.
-    // Read once, before the await: the gateway can patch this live
-    // VoiceState while setMute is in flight.
-    const wasMuted = voice.serverMute === true
-    let stillMuted = wasMuted
-    if (stillMuted && canMuteMembers) {
-        try {
-            await voice.setMute(false)
-            stillMuted = false
-        } catch (error) {
-            debugLog({
-                message: 'Self server-unmute rejected',
-                error,
-                data: { guildId: voice.guild.id, channelId: channel.id },
-            })
-        }
+    const muted = voice.serverMute === true
+    if (!me.permissionsIn(channel).has(PermissionFlagsBits.Speak)) {
+        return muted ? 'no-speak-muted' : 'no-speak'
     }
-    const unmuted = wasMuted && !stillMuted
-
-    if (!permissions.has(PermissionFlagsBits.Speak)) {
-        return stillMuted ? 'no-speak-muted' : 'no-speak'
-    }
-    if (unmuted) return 'unmuted'
-    if (!stillMuted) return 'audible'
-    // Holding Mute Members and still rejected (a role above Lucky's set the
-    // mute, for example): asking for the permission again would not help.
-    return canMuteMembers ? 'server-muted-locked' : 'server-muted'
+    return muted ? 'server-muted' : 'audible'
 }
 
 const UNMUTE_BY_HAND =
@@ -94,11 +64,7 @@ const AUDIBILITY_NOTICES: Partial<
     },
     'server-muted': {
         title: "🔇 I'm server-muted",
-        body: `A moderator muted me in voice, so nobody can hear the music. ${UNMUTE_BY_HAND}, or give me **Mute Members** so I can undo it myself.`,
-    },
-    'server-muted-locked': {
-        title: "🔇 I'm server-muted",
-        body: `A moderator muted me in voice and Discord would not let me undo it, so nobody can hear the music. ${UNMUTE_BY_HAND}.`,
+        body: `A moderator muted me in voice, so nobody can hear the music. ${UNMUTE_BY_HAND} if you want the music back.`,
     },
 }
 
@@ -142,18 +108,10 @@ export const setupVoiceAudibilityCheck = (client: Client): void => {
             const mutedNow = !oldState.serverMute && newState.serverMute
             if (!movedChannel && !mutedNow) return
 
-            const outcome = await ensureAudible(newState)
+            const outcome = ensureAudible(newState)
             if (outcome === 'not-applicable' || outcome === 'audible') return
 
             const guildId = newState.guild.id
-            if (outcome === 'unmuted') {
-                infoLog({
-                    message: `voice: removed own server mute in ${newState.guild.name}`,
-                    data: { guildId },
-                })
-                return
-            }
-
             warnLog({
                 message: `voice: bot cannot be heard (${outcome})`,
                 data: { guildId, channelId: newState.channelId },

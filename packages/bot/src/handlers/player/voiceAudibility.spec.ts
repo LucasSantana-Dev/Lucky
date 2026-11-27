@@ -1,12 +1,10 @@
 import { ChannelType, PermissionFlagsBits } from 'discord.js'
 
 const debugLogMock = jest.fn()
-const infoLogMock = jest.fn()
 const warnLogMock = jest.fn()
 
 jest.mock('@lucky/shared/utils', () => ({
     debugLog: (...args: unknown[]) => debugLogMock(...args),
-    infoLog: (...args: unknown[]) => infoLogMock(...args),
     warnLog: (...args: unknown[]) => warnLogMock(...args),
 }))
 
@@ -66,74 +64,43 @@ const buildState = ({
 describe('ensureAudible', () => {
     beforeEach(() => jest.clearAllMocks())
 
-    it('leaves stage channels to the stage handler', async () => {
+    it('leaves stage channels to the stage handler', () => {
         const { state } = buildState({
             channelType: ChannelType.GuildStageVoice,
             permissions: [],
         })
-        await expect(ensureAudible(state)).resolves.toBe('not-applicable')
+        expect(ensureAudible(state)).toBe('not-applicable')
     })
 
-    it('is not applicable without a cached bot member', async () => {
+    it('is not applicable without a cached bot member', () => {
         const { state } = buildState({ hasMe: false })
-        await expect(ensureAudible(state)).resolves.toBe('not-applicable')
+        expect(ensureAudible(state)).toBe('not-applicable')
     })
 
-    it('reports a channel that denies Speak', async () => {
+    it('reports a channel that denies Speak', () => {
         const { state } = buildState({ permissions: [] })
-        await expect(ensureAudible(state)).resolves.toBe('no-speak')
+        expect(ensureAudible(state)).toBe('no-speak')
     })
 
-    it('is audible with Speak and no server mute', async () => {
-        const { state, setMuteMock } = buildState()
-        await expect(ensureAudible(state)).resolves.toBe('audible')
-        expect(setMuteMock).not.toHaveBeenCalled()
+    it('is audible with Speak and no server mute', () => {
+        const { state } = buildState()
+        expect(ensureAudible(state)).toBe('audible')
     })
 
-    it('removes its own server mute when it holds Mute Members', async () => {
-        const { state, setMuteMock } = buildState({
-            serverMute: true,
-            permissions: [
-                PermissionFlagsBits.Speak,
-                PermissionFlagsBits.MuteMembers,
-            ],
-        })
-        await expect(ensureAudible(state)).resolves.toBe('unmuted')
-        expect(setMuteMock).toHaveBeenCalledWith(false)
-    })
-
-    it('reports server-muted when the unmute is rejected', async () => {
-        const { state } = buildState({
-            serverMute: true,
-            permissions: [
-                PermissionFlagsBits.Speak,
-                PermissionFlagsBits.MuteMembers,
-            ],
-            setMute: async () => {
-                throw new Error('Missing Permissions')
-            },
-        })
-        await expect(ensureAudible(state)).resolves.toBe('server-muted-locked')
-        expect(debugLogMock).toHaveBeenCalled()
-    })
-
-    it('lifts the mute even when Speak is denied', async () => {
-        const { state, setMuteMock } = buildState({
-            serverMute: true,
-            permissions: [PermissionFlagsBits.MuteMembers],
-        })
-        await expect(ensureAudible(state)).resolves.toBe('no-speak')
-        expect(setMuteMock).toHaveBeenCalledWith(false)
-    })
-
-    it('reports both causes when it can neither speak nor unmute', async () => {
+    it('reports both causes when Speak is denied and it is muted', () => {
         const { state } = buildState({ serverMute: true, permissions: [] })
-        await expect(ensureAudible(state)).resolves.toBe('no-speak-muted')
+        expect(ensureAudible(state)).toBe('no-speak-muted')
     })
 
-    it('reports server-muted without Mute Members', async () => {
-        const { state, setMuteMock } = buildState({ serverMute: true })
-        await expect(ensureAudible(state)).resolves.toBe('server-muted')
+    it('never lifts a moderator mute, even holding Mute Members', () => {
+        const { state, setMuteMock } = buildState({
+            serverMute: true,
+            permissions: [
+                PermissionFlagsBits.Speak,
+                PermissionFlagsBits.MuteMembers,
+            ],
+        })
+        expect(ensureAudible(state)).toBe('server-muted')
         expect(setMuteMock).not.toHaveBeenCalled()
     })
 })
@@ -194,7 +161,7 @@ describe('setupVoiceAudibilityCheck', () => {
             embeds: [
                 expect.objectContaining({
                     title: "🔇 I'm server-muted",
-                    body: expect.stringContaining('give me **Mute Members**'),
+                    body: expect.stringContaining('turn off **Server Mute**'),
                 }),
             ],
         })
@@ -217,20 +184,6 @@ describe('setupVoiceAudibilityCheck', () => {
         const { state } = buildState({ permissions: [] })
         await listeners[0]({ channelId: 'voice-1', serverMute: false }, state)
         expect(send).not.toHaveBeenCalled()
-    })
-
-    it('stays quiet when it fixed the mute itself', async () => {
-        const { listeners, send } = buildClient()
-        const { state } = buildState({
-            serverMute: true,
-            permissions: [
-                PermissionFlagsBits.Speak,
-                PermissionFlagsBits.MuteMembers,
-            ],
-        })
-        await listeners[0]({ channelId: null, serverMute: false }, state)
-        expect(send).not.toHaveBeenCalled()
-        expect(infoLogMock).toHaveBeenCalled()
     })
 
     it('ignores a disconnect', async () => {
