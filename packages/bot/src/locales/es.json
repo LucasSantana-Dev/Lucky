@@ -102,6 +102,9 @@
         },
         "recap": {
             "title": "La semana musical de tu servidor",
+            "comebackTitle": "Semana sin música por aquí",
+            "comebackBody": "En las últimas semanas este servidor escuchó {{artists}}. El mix con las más escuchadas está a un clic, o usa `/play` con lo que se te antoje hoy.",
+            "comebackBodyNoArtists": "El mix con las más escuchadas del servidor está a un clic, o usa `/play` con lo que se te antoje hoy.",
             "period": "{{from}} a {{to}} (UTC)",
             "playsName": "Canciones",
             "playsValue": "{{plays}} reproducidas · {{skips}} saltadas",

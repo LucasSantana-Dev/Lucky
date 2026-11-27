@@ -13,8 +13,15 @@ import { renderRecapCard } from './recapCard'
 import { buildRecapEmbed } from './recapEmbed'
 import { buildRecapOffRow } from '../../functions/music/recapOffButton'
 import type { RenderFailureReason } from './recapRenderClient'
-import { latestRecapBoundary, recapWindow } from './recapWindow'
 import {
+    COMEBACK_WEEKS,
+    comebackWindow,
+    latestRecapBoundary,
+    recapWindow,
+} from './recapWindow'
+import { buildComebackEmbed, buildComebackRow } from './recapComeback'
+import {
+    claimRecapComeback,
     claimRecapWeek,
     disableRecap,
     listDueRecaps,
@@ -22,6 +29,7 @@ import {
 } from './recapStore'
 
 const HOUR_MS = 60 * 60 * 1000
+const WEEK_MS = 7 * 24 * HOUR_MS
 /** Below this many plays in the week the recap is skipped, not posted empty. */
 export const RECAP_MIN_PLAYS = 5
 
@@ -31,6 +39,7 @@ type FallbackReason = RenderFailureReason | 'disabled' | 'no_attach_permission'
 type RecapOutcome =
     | 'posted'
     | 'quiet'
+    | 'comeback'
     | 'not_in_cache'
     | 'channel_unusable'
     | 'claim_lost'
@@ -191,6 +200,58 @@ export class RecapScheduler extends IntervalScheduler {
         return null
     }
 
+    /**
+     * A quiet week after an active month: one short card naming what the
+     * guild played, with the mix button. A guild that stopped gets no recap,
+     * so without this it never hears from Lucky again. At most one per
+     * `COMEBACK_WEEKS`, and track history keeps 30 days, so a guild that stays
+     * silent is reminded once. Never throws: the week is already claimed.
+     */
+    private async postComeback(
+        guild: Guild,
+        channel: TextChannel | VoiceChannel,
+        channelId: string,
+        boundary: Date,
+    ): Promise<RecapOutcome> {
+        const guildId = guild.id
+        try {
+            const { from, to } = comebackWindow(boundary)
+            const month = await getWeeklyRecap(guildId, from, to)
+            if (month.plays < RECAP_MIN_PLAYS) return 'quiet'
+            const now = this.clock()
+            const since = new Date(now.getTime() - COMEBACK_WEEKS * WEEK_MS)
+            if (!(await claimRecapComeback(guildId, channelId, since, now))) {
+                return 'quiet'
+            }
+            const t = await translatorForInteraction({ guildId, guild })
+            await channel.send({
+                embeds: [buildComebackEmbed(month, t)],
+                components: [buildComebackRow(t)],
+                allowedMentions: { parse: [] },
+            })
+            infoLog({
+                message: 'recap: comeback posted',
+                data: { guildId, monthPlays: month.plays },
+            })
+            return 'comeback'
+        } catch (error) {
+            if (isChannelGone(error)) {
+                await disableRecap(guildId, channelId).catch(() => undefined)
+                warnLog({
+                    message: 'recap: comeback refused, opt-in cleared',
+                    data: { guildId, channelId },
+                })
+                return 'quiet'
+            }
+            errorLog({
+                message: 'recap: comeback failed',
+                error,
+                data: { guildId },
+            })
+            return 'quiet'
+        }
+    }
+
     private async postForGuild(
         guildId: string,
         channelId: string,
@@ -246,7 +307,12 @@ export class RecapScheduler extends IntervalScheduler {
                     message: 'recap: too few plays, skipped',
                     data: { guildId, plays: recap.plays },
                 })
-                return 'quiet'
+                return this.postComeback(
+                    guild,
+                    target.channel,
+                    channelId,
+                    boundary,
+                )
             }
 
             const t = await translatorForInteraction({ guildId, guild })

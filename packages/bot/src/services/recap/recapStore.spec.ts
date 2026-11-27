@@ -15,6 +15,7 @@ jest.mock('@lucky/shared/utils', () => ({
 
 import {
     autoEnableRecap,
+    claimRecapComeback,
     claimRecapWeek,
     disableRecap,
     enableRecap,
@@ -128,6 +129,32 @@ describe('recapStore (#2678)', () => {
                     ],
                 },
                 data: { recapLastPostedAt: NOW },
+            })
+        },
+    )
+
+    it.each([
+        [1, true],
+        [0, false],
+    ])(
+        'claims the comeback card only once per window (count %i)',
+        async (count, expected) => {
+            const since = new Date('2026-09-09T12:00:00.000Z')
+            prisma.guildSettings.updateMany.mockResolvedValue({ count })
+
+            await expect(
+                claimRecapComeback('g-1', 'c-1', since, NOW),
+            ).resolves.toBe(expected)
+            expect(prisma.guildSettings.updateMany).toHaveBeenCalledWith({
+                where: {
+                    guildId: 'g-1',
+                    recapChannelId: 'c-1',
+                    OR: [
+                        { recapComebackAt: null },
+                        { recapComebackAt: { lt: since } },
+                    ],
+                },
+                data: { recapComebackAt: NOW },
             })
         },
     )

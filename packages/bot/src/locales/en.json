@@ -103,6 +103,9 @@
         },
         "recap": {
             "title": "Your server's week in music",
+            "comebackTitle": "Quiet week around here",
+            "comebackBody": "Lately this server has been playing {{artists}}. The mix with your most played songs is one click away, or use `/play` with whatever you feel like today.",
+            "comebackBodyNoArtists": "The mix with your most played songs is one click away, or use `/play` with whatever you feel like today.",
             "period": "{{from}} to {{to}} (UTC)",
             "playsName": "Plays",
             "playsValue": "{{plays}} tracks · {{skips}} skipped",
