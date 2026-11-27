@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.78.1](https://github.com/LucasSantana-Dev/Lucky/compare/v2.78.0...v2.78.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **bot:** fix /nowplaying avatar crash and add /remove and /clear to the picker ([#3386](https://github.com/LucasSantana-Dev/Lucky/issues/3386)) ([1edb3c9](https://github.com/LucasSantana-Dev/Lucky/commit/1edb3c9c67f7c8b91f710da1e56132ed4bb96732))
+* **bot:** tell the channel when the bot joins voice and cannot be heard ([#3384](https://github.com/LucasSantana-Dev/Lucky/issues/3384)) ([16f8118](https://github.com/LucasSantana-Dev/Lucky/commit/16f81184d3ae2ee63ae9139bcb0b691f64b34473))
+* **support:** replace the support server invite that went invalid ([#3383](https://github.com/LucasSantana-Dev/Lucky/issues/3383)) ([e49bb62](https://github.com/LucasSantana-Dev/Lucky/commit/e49bb624faabdb36d18d4c54e41cc8e735326f30))
+
 ## [2.78.0](https://github.com/LucasSantana-Dev/Lucky/compare/v2.77.0...v2.78.0) (2026-11-26)
 
 
