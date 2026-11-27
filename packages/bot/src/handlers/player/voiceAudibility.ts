@@ -50,7 +50,10 @@ export async function ensureAudible(
     // The mute is lifted before the Speak check: granting Speak later does
     // not fire voiceStateUpdate, so a mute left in place here would never be
     // looked at again.
-    let stillMuted = voice.serverMute === true
+    // Read once, before the await: the gateway can patch this live
+    // VoiceState while setMute is in flight.
+    const wasMuted = voice.serverMute === true
+    let stillMuted = wasMuted
     if (stillMuted && canMuteMembers) {
         try {
             await voice.setMute(false)
@@ -63,7 +66,7 @@ export async function ensureAudible(
             })
         }
     }
-    const unmuted = voice.serverMute === true && !stillMuted
+    const unmuted = wasMuted && !stillMuted
 
     if (!permissions.has(PermissionFlagsBits.Speak)) {
         return stillMuted ? 'no-speak-muted' : 'no-speak'

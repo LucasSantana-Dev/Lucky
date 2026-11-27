@@ -169,6 +169,7 @@ describe('setupVoiceAudibilityCheck', () => {
         const { listeners, send } = buildClient()
         const { state } = buildState({ permissions: [] })
         await listeners[0]({ channelId: null, serverMute: false }, state)
+        expect(send).toHaveBeenCalledTimes(1)
         expect(send).toHaveBeenCalledWith({
             embeds: [
                 expect.objectContaining({
@@ -188,6 +189,7 @@ describe('setupVoiceAudibilityCheck', () => {
         const { listeners, send } = buildClient()
         const { state } = buildState({ serverMute: true })
         await listeners[0]({ channelId: 'voice-1', serverMute: false }, state)
+        expect(send).toHaveBeenCalledTimes(1)
         expect(send).toHaveBeenCalledWith({
             embeds: [
                 expect.objectContaining({
