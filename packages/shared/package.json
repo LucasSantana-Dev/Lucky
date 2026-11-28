@@ -108,7 +108,7 @@
         "@swc/core": "^1.16.22",
         "@types/luxon": "^3.7.6",
         "@types/node": "^26.6.6",
-        "glob": "^14.0.5",
+        "glob": "^14.0.6",
         "typedoc": "^0.28.20",
         "typedoc-plugin-coverage": "^4.0.3",
         "typescript": "^6.0.3"
